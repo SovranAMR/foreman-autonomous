@@ -717,7 +717,31 @@ export class ExecutionEngine {
       if (!addResult.success) return addResult;
     }
 
-    return this.runShell(`git commit -m "${message.replace(/"/g, '\\"')}"`);
+    // Use -F - (read from stdin) for multi-line messages
+    // This is more reliable than -m with shell escaping
+    try {
+      const result = execSync("git commit -F -", {
+        cwd: this.projectRoot,
+        input: message,
+        timeout: 30_000,
+        maxBuffer: DEFAULT_MAX_BUFFER,
+        encoding: "utf-8",
+      });
+      return {
+        success: true,
+        stdout: result,
+        stderr: "",
+        exitCode: 0,
+      };
+    } catch (err: unknown) {
+      const e = err as { stdout?: string; stderr?: string; status?: number };
+      return {
+        success: false,
+        stdout: e.stdout ?? "",
+        stderr: e.stderr ?? String(err),
+        exitCode: e.status ?? 1,
+      };
+    }
   }
 
   /**
