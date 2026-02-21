@@ -47,7 +47,6 @@ import { EditEngine } from "./edit-engine.js";
 import { ApprovalEngine } from "./approval-engine.js";
 import { checkChainHealth } from "./chain-repair.js";
 import { buildIntelligentContext } from "./context-intelligence.js";
-import { parseBuildOutput, parseTestOutput } from "./verification-engine.js";
 import { GitEngine } from "./git-engine.js";
 
 // ─── ENGINE CONFIG ───────────────────────────────────────────
