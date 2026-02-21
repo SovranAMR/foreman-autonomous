@@ -223,6 +223,167 @@ export interface Thought {
   model?: string;
 }
 
+// ─── TASK SYSTEM ──────────────────────────────────────────────
+
+/**
+ * Task önceliği.
+ * Pipeline sıralama ve görev dağılımında kullanılır.
+ */
+export type TaskPriority = "critical" | "high" | "medium" | "low";
+
+/**
+ * Task durumu.
+ *
+ * Akış: backlog → ready → in_progress → review → done
+ * Her noktadan → blocked mümkün.
+ * done → cancelled mümkün (iptal).
+ */
+export type TaskStatus =
+  | "backlog"       // tanımlandı ama henüz planlanmadı
+  | "ready"         // planlandı, bağımlılıkları karşılandı, başlanabilir
+  | "in_progress"   // üzerinde çalışılıyor (chain aktif)
+  | "review"        // tamamlandı, doğrulama bekliyor
+  | "done"          // tamamlandı ve doğrulandı
+  | "blocked"       // bağımlılık veya BLOCK sinyali
+  | "cancelled";    // iptal edildi
+
+/**
+ * Task tipi — hangi tür iş olduğunu belirler.
+ */
+export type TaskType =
+  | "feature"       // yeni özellik
+  | "bug"           // hata düzeltme
+  | "research"      // araştırma görevi
+  | "design"        // tasarım/estetik
+  | "refactor"      // yeniden yapılandırma
+  | "test"          // test yazma
+  | "docs"          // dokümantasyon
+  | "idea";         // sıfırdan fikir inşası
+
+/**
+ * Task — Görev birimi.
+ *
+ * Project'in altında, Thought'un üstünde.
+ * Bir Task bir veya birden fazla Chain üretir.
+ * Subtask'lar parent task altında hiyerarşik.
+ *
+ * Hiyerarşi: Project → Task (→ Subtask) → Chain → Thought
+ */
+export interface Task {
+  /** Benzersiz kimlik: "task_001" */
+  readonly id: string;
+
+  /** Ait olduğu proje */
+  readonly projectId: string;
+
+  /** Üst görev (subtask ise) */
+  parentTaskId?: string;
+
+  /** Görev başlığı — kısa ve net */
+  title: string;
+
+  /** Detaylı açıklama */
+  description: string;
+
+  /** Görev tipi */
+  type: TaskType;
+
+  /** Öncelik */
+  priority: TaskPriority;
+
+  /** Mevcut durum */
+  status: TaskStatus;
+
+  /** Atanan katman (hangi katman lead alacak) */
+  assignedLayer?: Layer;
+
+  /**
+   * Bağımlılıklar — bu görev başlamadan önce
+   * tamamlanması gereken diğer görev ID'leri.
+   */
+  dependsOn: string[];
+
+  /**
+   * Bu görevden üretilen chain ID'leri.
+   * Bir task birden fazla chain üretebilir.
+   */
+  chainIds: string[];
+
+  /**
+   * Alt görev ID'leri.
+   * Task decompose edilince subtask'lar oluşur.
+   */
+  subtaskIds: string[];
+
+  /**
+   * Etiketler — filtreleme ve gruplama için.
+   * Örn: ["hero", "mobile", "animation"]
+   */
+  tags: string[];
+
+  /**
+   * Tahmini effort (1-5 Fibonacci: 1=trivial, 2=small, 3=medium, 5=large, 8=epic)
+   */
+  effort?: number;
+
+  /**
+   * Kabul kriterleri — task ne zaman "done" sayılır.
+   */
+  acceptanceCriteria: string[];
+
+  /**
+   * Neden bloke — status=blocked ise doldurulur.
+   */
+  blockedReason?: string;
+
+  /** Oluşturulma zamanı */
+  readonly createdAt: string;
+
+  /** Başlangıç zamanı (in_progress olduğunda) */
+  startedAt?: string;
+
+  /** Tamamlanma zamanı */
+  completedAt?: string;
+
+  /** Toplam token harcaması */
+  totalTokens: number;
+
+  /** Notlar — insan veya vizyoner notları */
+  notes: string[];
+}
+
+/**
+ * Proje — en üst seviye organizasyon birimi.
+ *
+ * Bir proje birden fazla task içerir.
+ * Foreman bir seferde bir projeye odaklanır.
+ */
+export interface Project {
+  /** Benzersiz kimlik: "proj_001" */
+  readonly id: string;
+
+  /** Proje adı */
+  name: string;
+
+  /** Proje açıklaması */
+  description: string;
+
+  /** Vizyon özeti (vizyoner çıktısından) */
+  vision?: string;
+
+  /** Task ID'leri (üst seviye, subtask'lar dahil değil) */
+  taskIds: string[];
+
+  /** Proje durumu */
+  status: "planning" | "active" | "paused" | "completed" | "archived";
+
+  /** Oluşturulma zamanı */
+  readonly createdAt: string;
+
+  /** Toplam token harcaması */
+  totalTokens: number;
+}
+
 // ─── CHAIN ────────────────────────────────────────────────────
 // t_004
 
