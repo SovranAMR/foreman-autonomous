@@ -91,6 +91,9 @@ export class Orchestrator {
 
   /**
    * Tam pipeline çalıştır.
+   *
+   * Session, memory, cache — hepsi otomatik yönetilir.
+   * Kullanıcı sadece `foreman run "görev"` der.
    */
   async run(task: string): Promise<{
     success: boolean;
@@ -100,6 +103,20 @@ export class Orchestrator {
     blockedAt?: string;
   }> {
     let totalThoughts = 0;
+
+    // ─── SESSION AUTO-START ─────────────────────────────────
+    // Kullanıcı session start/end ile uğraşmaz — pipeline kendi yönetir
+    const session = this.engine.sessions.start({
+      projectId: this.engine.state.snapshot().projectName,
+    });
+
+    // ─── MEMORY CLEANUP ─────────────────────────────────────
+    // Her run başında expired/cold memory'leri temizle
+    this.engine.memory.cleanup();
+
+    // ─── CACHE PURGE ────────────────────────────────────────
+    // Süresi dolmuş cache entry'lerini sil
+    this.engine.cache.purgeExpired();
 
     // ─── 1. VISION ──────────────────────────────────────────
 
@@ -319,6 +336,13 @@ export class Orchestrator {
       this.engine.state.transition("complete", "Pipeline complete");
     }
 
+    // ─── SESSION AUTO-END ───────────────────────────────────
+    this.engine.sessions.end(
+      session.id,
+      "completed",
+      `${task.slice(0, 80)} — ${totalThoughts} thoughts, ${atomCount} atoms`,
+    );
+
     return this.buildResult(true, totalThoughts, visionChain.id);
   }
 
@@ -329,6 +353,18 @@ export class Orchestrator {
     blockedAt?: string,
   ) {
     const totalTokens = this.engine.state.snapshot().totalTokens;
+
+    // Session auto-end on failure too
+    if (!success) {
+      const activeSession = this.engine.sessions.getActive();
+      if (activeSession) {
+        this.engine.sessions.end(
+          activeSession.id,
+          "completed",
+          `Blocked at ${blockedAt} — ${totalThoughts} thoughts`,
+        );
+      }
+    }
 
     this.emit({
       type: "pipeline_complete",

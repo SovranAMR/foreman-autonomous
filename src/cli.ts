@@ -2,19 +2,26 @@
 /**
  * FOREMAN — CLI
  *
- * Komutlar:
+ * Kullanıcı Komutları (nihai kullanıcı bunları kullanır):
  *   foreman setup           — API key kurulumu (interaktif)
  *   foreman init <name>     — yeni proje oluştur
- *   foreman status          — mevcut durumu göster
- *   foreman run <task>      — görev çalıştır (tam pipeline)
- *   foreman history [n]     — son N geçişi göster
- *   foreman tasks           — görev listesi
+ *   foreman status          — mevcut durumu göster (memory/session/cache dahil)
+ *   foreman run <task>      — görev çalıştır (tam pipeline — session/memory/cache otomatik)
  *   foreman task add        — yeni görev ekle
+ *   foreman task list       — görev listesi
  *   foreman task show <id>  — görev detayı
+ *   foreman task done <id>  — görevi tamamla
  *   foreman board           — kanban board görünümü
- *   foreman thoughts        — thought listesi
- *   foreman chains          — chain listesi
- *   foreman providers       — provider durumu
+ *   foreman doctor          — sistem sağlık kontrolü
+ *
+ * Geliştirici Komutları (debug/inspect — normal kullanıcı görmez):
+ *   foreman internals thoughts    — thought listesi
+ *   foreman internals chains      — chain listesi
+ *   foreman internals history     — state geçiş tarihi
+ *   foreman internals memory      — memory listesi
+ *   foreman internals sessions    — session listesi
+ *   foreman internals cache       — cache istatistikleri
+ *   foreman internals providers   — provider durumu
  */
 
 import { Command } from "commander";
@@ -41,7 +48,7 @@ import { ProjectManager } from "./project-manager.js";
 import { MemoryManager } from "./memory-manager.js";
 import { SessionManager } from "./session-manager.js";
 import { CacheManager } from "./cache-manager.js";
-import type { TaskPriority, TaskType, MemoryCategory } from "./types.js";
+import type { TaskPriority, TaskType } from "./types.js";
 
 const program = new Command();
 
@@ -57,18 +64,6 @@ program
   .description("API key kurulumu (Anthropic / OpenAI)")
   .action(async () => {
     await runSetup();
-  });
-
-// ─── PROVIDERS ────────────────────────────────────────────────
-
-program
-  .command("providers")
-  .description("Kayıtlı LLM provider'ları göster")
-  .action(() => {
-    printLogo();
-    console.log(brand.gold("  ◆ Provider Durumu\n"));
-    printProviderStatus();
-    console.log("");
   });
 
 // ─── DOCTOR ───────────────────────────────────────────────────
@@ -180,112 +175,35 @@ program
       activeChain: snap.activeChainId,
       activeThought: snap.activeThoughtId,
     });
-    console.log("");
-  });
 
-// ─── HISTORY ──────────────────────────────────────────────────
-
-program
-  .command("history")
-  .description("Son state geçişlerini göster")
-  .option("-n, --count <n>", "Kaç geçiş gösterilsin", "10")
-  .option("-d, --dir <path>", "Proje dizini")
-  .action((opts: { count: string; dir?: string }) => {
-    const projectRoot = resolve(opts.dir ?? process.cwd());
-    const sm = StateManager.load(projectRoot, false);
-
-    if (!sm) {
-      console.log(`  ${icon.fail} Foreman projesi bulunamadı.`);
-      return;
+    // Memory özeti
+    const mm = new MemoryManager(projectRoot);
+    const memStats = mm.stats();
+    if (memStats.total > 0) {
+      console.log(brand.gold("  ◆ Memory"));
+      console.log(`     🔥 ${memStats.hotCount} hot  📌 ${memStats.warmCount} warm  📝 ${memStats.coldCount} cold  (${memStats.total} total)`);
     }
 
-    const history = sm.recentHistory(parseInt(opts.count));
-
-    if (history.length === 0) {
-      console.log(`  ${icon.pending} Henüz geçiş yok.`);
-      return;
+    // Session özeti
+    const sesm = new SessionManager(projectRoot);
+    const activeSession = sesm.getActive();
+    const allSessions = sesm.list();
+    if (allSessions.length > 0) {
+      console.log(brand.gold("  ◆ Sessions"));
+      if (activeSession) {
+        console.log(`     ${brand.green("●")} Aktif: ${brand.bold(activeSession.id)} (${activeSession.thoughtIds.length} thoughts, ${activeSession.totalTokens} tokens)`);
+      }
+      console.log(`     ${allSessions.length} total session`);
     }
 
-    console.log(brand.gold("\n  ◆ State Geçişleri\n"));
-    for (const h of history) {
-      const time = brand.dim(h.at.slice(11, 19));
-      const from = brand.dim(h.from);
-      const to = brand.cyan(h.to);
-      const ctx = [h.thoughtId, h.chainId].filter(Boolean).join(", ");
-
-      console.log(`  ${time}  ${from} ${icon.arrow} ${to}`);
-      console.log(`  ${brand.dim("         ")}${brand.dim(h.reason)}`);
-      if (ctx) console.log(`  ${brand.dim("         ")}${brand.purple(ctx)}`);
-    }
-    console.log("");
-  });
-
-// ─── THOUGHTS ─────────────────────────────────────────────────
-
-program
-  .command("thoughts")
-  .description("Thought listesini göster")
-  .option("-c, --chain <id>", "Chain ID ile filtrele")
-  .option("-s, --status <status>", "Status ile filtrele")
-  .option("-d, --dir <path>", "Proje dizini")
-  .action((opts: { chain?: string; status?: string; dir?: string }) => {
-    const projectRoot = resolve(opts.dir ?? process.cwd());
-    const tm = new ThoughtManager(projectRoot);
-
-    const filter: any = {};
-    if (opts.chain) filter.chainId = opts.chain;
-    if (opts.status) filter.status = opts.status;
-
-    const list = tm.list(filter);
-
-    if (list.length === 0) {
-      console.log(`  ${icon.pending} Thought bulunamadı.`);
-      return;
+    // Cache özeti
+    const cm = new CacheManager(projectRoot);
+    const cacheStats = cm.stats();
+    if (cacheStats.entries > 0 || cacheStats.totalHits > 0) {
+      console.log(brand.gold("  ◆ Cache"));
+      console.log(`     ${cacheStats.entries} entries, ${cacheStats.totalHits} hits, ${brand.green(String(cacheStats.totalTokensSaved))} tokens saved`);
     }
 
-    console.log(brand.gold(`\n  ◆ Thoughts (${list.length})\n`));
-    for (const t of list) {
-      const statusIcon = t.status === "done" ? icon.done
-        : t.status === "blocked" ? icon.block
-        : icon.pending;
-      const layerIcon = icon[t.layer as keyof typeof icon] ?? "•";
-      const conf = t.confidence > 0
-        ? brand.dim(` ${(t.confidence * 100).toFixed(0)}%`)
-        : "";
-
-      console.log(
-        `  ${statusIcon} ${brand.bold(t.id.padEnd(8))} ${layerIcon} ${brand.dim(t.layer.padEnd(11))} ${t.input.slice(0, 40)}${conf}`
-      );
-    }
-    console.log("");
-  });
-
-// ─── CHAINS ───────────────────────────────────────────────────
-
-program
-  .command("chains")
-  .description("Chain listesini göster")
-  .option("-d, --dir <path>", "Proje dizini")
-  .action((opts: { dir?: string }) => {
-    const projectRoot = resolve(opts.dir ?? process.cwd());
-    const cm = new ChainManager(projectRoot);
-
-    const list = cm.list();
-
-    if (list.length === 0) {
-      console.log(`  ${icon.pending} Chain bulunamadı.`);
-      return;
-    }
-
-    console.log(brand.gold(`\n  ◆ Chains (${list.length})\n`));
-    for (const c of list) {
-      const statusIcon = c.status === "completed" ? icon.done
-        : c.status === "blocked" ? icon.block
-        : icon.active;
-
-      console.log(`  ${statusIcon} ${brand.bold(c.id.padEnd(25))} ${brand.gold(c.name)}`);
-      console.log(`     ${brand.dim(`${c.thoughts.length} thoughts`)} ${icon.arrow} ${brand.dim(c.goal.slice(0, 40))}`);
-    }
     console.log("");
   });
 
@@ -698,48 +616,139 @@ program
     console.log("");
   });
 
-// ─── MEMORY ───────────────────────────────────────────────────
+// ─── INTERNALS (dev/debug only) ───────────────────────────────
 
-const memCmd = program
-  .command("memory")
-  .alias("mem")
-  .description("Hafıza yönetimi");
+const intCmd = program
+  .command("internals")
+  .alias("int")
+  .description("Geliştirici araçları (debug/inspect)");
 
-memCmd
-  .command("add <content>")
-  .description("Yeni memory ekle")
+intCmd
+  .command("thoughts")
+  .description("Thought listesi")
+  .option("-c, --chain <id>", "Chain ID filtresi")
+  .option("-s, --status <status>", "Status filtresi")
   .option("-d, --dir <path>", "Proje dizini")
-  .option("-c, --category <cat>", "Kategori (decision/preference/constraint/lesson/pattern/context/error/reference)", "context")
-  .option("-i, --importance <n>", "Önem (0-1)", "0.5")
-  .option("--tags <tags>", "Etiketler (virgülle ayrılmış)")
-  .action((content: string, opts: any) => {
+  .action((opts: { chain?: string; status?: string; dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
-    const mm = new MemoryManager(projectRoot);
+    const tm = new ThoughtManager(projectRoot);
 
-    const entry = mm.create({
-      category: opts.category as MemoryCategory,
-      content,
-      source: { type: "manual" },
-      importance: parseFloat(opts.importance),
-      tags: opts.tags?.split(",").map((s: string) => s.trim()) ?? [],
-    });
+    const filter: any = {};
+    if (opts.chain) filter.chainId = opts.chain;
+    if (opts.status) filter.status = opts.status;
 
-    const tempIcon = entry.importance >= 0.8 ? "🔥" : entry.importance >= 0.5 ? "📌" : "📝";
-    console.log(`  ${icon.done} ${tempIcon} ${brand.bold(entry.id)} [${entry.category}]`);
-    console.log(`     ${brand.dim(content.slice(0, 60))}`);
+    const list = tm.list(filter);
+
+    if (list.length === 0) {
+      console.log(`  ${icon.pending} Thought bulunamadı.`);
+      return;
+    }
+
+    console.log(brand.gold(`\n  ◆ Thoughts (${list.length})\n`));
+    for (const t of list) {
+      const statusIcon = t.status === "done" ? icon.done
+        : t.status === "blocked" ? icon.block
+        : icon.pending;
+      const layerIcon = icon[t.layer as keyof typeof icon] ?? "•";
+      const conf = t.confidence > 0
+        ? brand.dim(` ${(t.confidence * 100).toFixed(0)}%`)
+        : "";
+
+      console.log(
+        `  ${statusIcon} ${brand.bold(t.id.padEnd(8))} ${layerIcon} ${brand.dim(t.layer.padEnd(11))} ${t.input.slice(0, 40)}${conf}`
+      );
+    }
     console.log("");
   });
 
-memCmd
-  .command("list")
-  .alias("ls")
+intCmd
+  .command("chains")
+  .description("Chain listesi")
+  .option("-d, --dir <path>", "Proje dizini")
+  .action((opts: { dir?: string }) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const cm = new ChainManager(projectRoot);
+
+    const list = cm.list();
+
+    if (list.length === 0) {
+      console.log(`  ${icon.pending} Chain bulunamadı.`);
+      return;
+    }
+
+    console.log(brand.gold(`\n  ◆ Chains (${list.length})\n`));
+    for (const c of list) {
+      const statusIcon = c.status === "completed" ? icon.done
+        : c.status === "blocked" ? icon.block
+        : icon.active;
+
+      console.log(`  ${statusIcon} ${brand.bold(c.id.padEnd(25))} ${brand.gold(c.name)}`);
+      console.log(`     ${brand.dim(`${c.thoughts.length} thoughts`)} ${icon.arrow} ${brand.dim(c.goal.slice(0, 40))}`);
+    }
+    console.log("");
+  });
+
+intCmd
+  .command("history")
+  .description("State geçiş tarihi")
+  .option("-n, --count <n>", "Kaç geçiş", "10")
+  .option("-d, --dir <path>", "Proje dizini")
+  .action((opts: { count: string; dir?: string }) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const sm = StateManager.load(projectRoot, false);
+
+    if (!sm) {
+      console.log(`  ${icon.fail} Foreman projesi bulunamadı.`);
+      return;
+    }
+
+    const history = sm.recentHistory(parseInt(opts.count));
+
+    if (history.length === 0) {
+      console.log(`  ${icon.pending} Henüz geçiş yok.`);
+      return;
+    }
+
+    console.log(brand.gold("\n  ◆ State Geçişleri\n"));
+    for (const h of history) {
+      const time = brand.dim(h.at.slice(11, 19));
+      const from = brand.dim(h.from);
+      const to = brand.cyan(h.to);
+      const ctx = [h.thoughtId, h.chainId].filter(Boolean).join(", ");
+
+      console.log(`  ${time}  ${from} ${icon.arrow} ${to}`);
+      console.log(`  ${brand.dim("         ")}${brand.dim(h.reason)}`);
+      if (ctx) console.log(`  ${brand.dim("         ")}${brand.purple(ctx)}`);
+    }
+    console.log("");
+  });
+
+intCmd
+  .command("memory")
+  .alias("mem")
   .description("Memory listesi")
   .option("-d, --dir <path>", "Proje dizini")
   .option("-c, --category <cat>", "Kategori filtresi")
-  .option("--hot", "Sadece hot memory (importance >= 0.8)")
+  .option("--hot", "Sadece hot memory")
+  .option("-q, --query <q>", "Arama")
   .action((opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const mm = new MemoryManager(projectRoot);
+
+    if (opts.query) {
+      const results = mm.search(opts.query);
+      if (results.length === 0) {
+        console.log(`  ${icon.pending} Sonuç bulunamadı: "${opts.query}"`);
+        return;
+      }
+      console.log(brand.gold(`\n  ◆ Arama: "${opts.query}" (${results.length} sonuç)\n`));
+      for (const r of results.slice(0, 10)) {
+        const score = brand.dim(`${(r.score * 100).toFixed(0)}%`);
+        console.log(`  ${score} ${brand.bold(r.entry.id)} [${r.entry.category}] ${r.entry.content.slice(0, 50)}`);
+      }
+      console.log("");
+      return;
+    }
 
     const filter: any = {};
     if (opts.category) filter.category = opts.category;
@@ -761,91 +770,8 @@ memCmd
     console.log("");
   });
 
-memCmd
-  .command("search <query>")
-  .description("Memory'de ara")
-  .option("-d, --dir <path>", "Proje dizini")
-  .action((query: string, opts: any) => {
-    const projectRoot = resolve(opts.dir ?? process.cwd());
-    const mm = new MemoryManager(projectRoot);
-
-    const results = mm.search(query);
-    if (results.length === 0) {
-      console.log(`  ${icon.pending} Sonuç bulunamadı: "${query}"`);
-      return;
-    }
-
-    console.log(brand.gold(`\n  ◆ Arama: "${query}" (${results.length} sonuç)\n`));
-    for (const r of results.slice(0, 10)) {
-      const score = brand.dim(`${(r.score * 100).toFixed(0)}%`);
-      console.log(`  ${score} ${brand.bold(r.entry.id)} [${r.entry.category}] ${r.entry.content.slice(0, 50)}`);
-    }
-    console.log("");
-  });
-
-memCmd
-  .command("stats")
-  .description("Memory istatistikleri")
-  .option("-d, --dir <path>", "Proje dizini")
-  .action((opts: any) => {
-    const projectRoot = resolve(opts.dir ?? process.cwd());
-    const mm = new MemoryManager(projectRoot);
-    const s = mm.stats();
-
-    console.log(brand.gold("\n  ◆ Memory Stats\n"));
-    console.log(`  Total: ${brand.bold(String(s.total))} (${brand.green(String(s.active))} active, ${brand.dim(String(s.expired))} expired)`);
-    console.log(`  🔥 Hot:  ${s.hotCount}`);
-    console.log(`  📌 Warm: ${s.warmCount}`);
-    console.log(`  📝 Cold: ${s.coldCount}`);
-    console.log(`  ${brand.dim("Categories:")} ${Object.entries(s.byCategory).map(([k,v]) => `${k}(${v})`).join(", ")}`);
-    console.log("");
-  });
-
-// ─── SESSION ──────────────────────────────────────────────────
-
-const sesCmd = program
-  .command("session")
-  .alias("ses")
-  .description("Session yönetimi");
-
-sesCmd
-  .command("start")
-  .description("Yeni session başlat")
-  .option("-d, --dir <path>", "Proje dizini")
-  .action((opts: any) => {
-    const projectRoot = resolve(opts.dir ?? process.cwd());
-    const sm = new SessionManager(projectRoot);
-    const pm = new ProjectManager(projectRoot);
-    const projects = pm.list();
-    const projectId = projects[0]?.id ?? "proj_001";
-
-    const session = sm.start({ projectId });
-    console.log(`  ${icon.done} Session başlatıldı: ${brand.bold(session.id)}`);
-    console.log("");
-  });
-
-sesCmd
-  .command("end")
-  .description("Aktif session'ı bitir")
-  .option("-d, --dir <path>", "Proje dizini")
-  .option("-s, --summary <text>", "Session özeti")
-  .action((opts: any) => {
-    const projectRoot = resolve(opts.dir ?? process.cwd());
-    const sm = new SessionManager(projectRoot);
-    const active = sm.getActive();
-    if (!active) {
-      console.log(`  ${icon.pending} Aktif session yok.`);
-      return;
-    }
-    sm.end(active.id, "completed", opts.summary);
-    console.log(`  ${icon.done} Session kapatıldı: ${brand.bold(active.id)}`);
-    if (opts.summary) console.log(`     ${brand.dim(opts.summary)}`);
-    console.log("");
-  });
-
-sesCmd
-  .command("list")
-  .alias("ls")
+intCmd
+  .command("sessions")
   .description("Session listesi")
   .option("-d, --dir <path>", "Proje dizini")
   .action((opts: any) => {
@@ -871,21 +797,29 @@ sesCmd
     console.log("");
   });
 
-// ─── CACHE ────────────────────────────────────────────────────
-
-const cacheCmd = program
+intCmd
   .command("cache")
-  .description("LLM cache yönetimi");
-
-cacheCmd
-  .command("stats")
   .description("Cache istatistikleri")
   .option("-d, --dir <path>", "Proje dizini")
+  .option("--clear", "Cache'i temizle")
+  .option("--purge", "Expired entry'leri sil")
   .action((opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const cm = new CacheManager(projectRoot);
-    const s = cm.stats();
 
+    if (opts.clear) {
+      const cleared = cm.clear();
+      console.log(`  ${icon.done} ${cleared} cache entry silindi.`);
+      return;
+    }
+
+    if (opts.purge) {
+      const purged = cm.purgeExpired();
+      console.log(`  ${icon.done} ${purged} expired entry silindi.`);
+      return;
+    }
+
+    const s = cm.stats();
     console.log(brand.gold("\n  ◆ Cache Stats\n"));
     console.log(`  ${s.enabled ? brand.green("Enabled") : brand.red("Disabled")}`);
     console.log(`  Entries: ${brand.bold(String(s.entries))}/${s.maxEntries}`);
@@ -897,27 +831,12 @@ cacheCmd
     console.log("");
   });
 
-cacheCmd
-  .command("clear")
-  .description("Cache'i temizle")
-  .option("-d, --dir <path>", "Proje dizini")
-  .action((opts: any) => {
-    const projectRoot = resolve(opts.dir ?? process.cwd());
-    const cm = new CacheManager(projectRoot);
-    const cleared = cm.clear();
-    console.log(`  ${icon.done} ${cleared} cache entry silindi.`);
-    console.log("");
-  });
-
-cacheCmd
-  .command("purge")
-  .description("Süresi dolmuş cache'leri temizle")
-  .option("-d, --dir <path>", "Proje dizini")
-  .action((opts: any) => {
-    const projectRoot = resolve(opts.dir ?? process.cwd());
-    const cm = new CacheManager(projectRoot);
-    const purged = cm.purgeExpired();
-    console.log(`  ${icon.done} ${purged} expired entry silindi.`);
+intCmd
+  .command("providers")
+  .description("Provider durumu")
+  .action(() => {
+    console.log(brand.gold("\n  ◆ Provider Durumu\n"));
+    printProviderStatus();
     console.log("");
   });
 
