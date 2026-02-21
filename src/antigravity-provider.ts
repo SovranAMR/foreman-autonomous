@@ -25,16 +25,19 @@ const DAILY_ENDPOINT = "https://daily-cloudcode-pa.sandbox.googleapis.com";
 const PROD_ENDPOINT = "https://cloudcode-pa.googleapis.com";
 const GENERATE_PATH = "/v1internal:streamGenerateContent?alt=sse";
 
-const DEFAULT_ANTIGRAVITY_VERSION = "1.15.8";
+const DEFAULT_ANTIGRAVITY_VERSION = "1.16.8";
 
 function getHeaders(accessToken: string): Record<string, string> {
   const version = process.env.FOREMAN_ANTIGRAVITY_VERSION || DEFAULT_ANTIGRAVITY_VERSION;
+  const platform = process.platform === "darwin" ? "darwin" : "linux";
+  const arch = process.arch === "arm64" ? "arm64" : "x64";
+  
   return {
     Authorization: `Bearer ${accessToken}`,
     "Content-Type": "application/json",
     Accept: "text/event-stream",
-    "User-Agent": `antigravity/${version} ${process.platform}/${process.arch}`,
-    "X-Goog-Api-Client": `gl-node/${process.versions.node}`,
+    "User-Agent": `antigravity/${version} ${platform}/${arch}`,
+    "X-Goog-Api-Client": `gl-node/${process.versions.node} antigravity/${version}`,
     "Client-Metadata": JSON.stringify({
       ideType: "IDE_UNSPECIFIED",
       platform: "PLATFORM_UNSPECIFIED",
@@ -57,9 +60,19 @@ const ANTIGRAVITY_MODELS: Record<string, string> = {
   "claude-sonnet":        "claude-sonnet-4-20250514",
   "claude-opus":          "claude-opus-4-0520",
   "claude-haiku":         "claude-3-5-haiku-20241022",
+  // Chat model aliases — map user-facing names to Cloud Code Assist internal names
+  "gemini-3.1-pro-high":  "gemini-3.1-pro-high",
+  "gemini-3.1-pro-low":   "gemini-3.1-pro",
+  "gemini-3-flash":       "gemini-3.1-flash",
+  "claude-sonnet-4.6":    "claude-3-7-sonnet",
+  "claude-opus-4.6":      "claude-3-opus",
+  "gpt-oss-120b":         "gpt-4o",
 };
 
 function resolveModel(model: string): string {
+  // If it's already a chat model ID, it might be in CHAT_MODELS
+  const chatEntry = CHAT_MODELS.find(m => m.id === model);
+  if (chatEntry) return chatEntry.model;
   return ANTIGRAVITY_MODELS[model] ?? model;
 }
 
@@ -95,6 +108,14 @@ interface SSECandidate {
 
 interface SSEData {
   candidates?: SSECandidate[];
+  /** Some response formats include text at the top level */
+  text?: string;
+  /** Nested response structure used by some models */
+  response?: {
+    candidates?: SSECandidate[];
+    text?: string;
+    usageMetadata?: SSEData["usageMetadata"];
+  };
   usageMetadata?: {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
@@ -116,10 +137,13 @@ function parseSSEResponse(body: string): { text: string; inputTokens: number; ou
 
     try {
       const data: SSEData = JSON.parse(jsonStr);
+      
+      // Handle both top-level and nested response structure
+      const root = data.response ?? data;
 
-      // Text extract
-      if (data.candidates) {
-        for (const candidate of data.candidates) {
+      // Extract text from candidates
+      if (root.candidates) {
+        for (const candidate of root.candidates) {
           if (candidate.content?.parts) {
             for (const part of candidate.content.parts) {
               if (part.text && !part.thought) {
@@ -130,10 +154,16 @@ function parseSSEResponse(body: string): { text: string; inputTokens: number; ou
         }
       }
 
-      // Token usage (typically in the last SSE event)
-      if (data.usageMetadata) {
-        inputTokens = data.usageMetadata.promptTokenCount ?? inputTokens;
-        outputTokens = data.usageMetadata.candidatesTokenCount ?? outputTokens;
+      // Extract text from top-level text field
+      if (root.text) {
+        fullText += root.text;
+      }
+
+      // Token usage
+      const usage = root.usageMetadata;
+      if (usage) {
+        inputTokens = usage.promptTokenCount ?? inputTokens;
+        outputTokens = usage.candidatesTokenCount ?? outputTokens;
       }
     } catch {
       // skip unparseable lines
@@ -148,11 +178,11 @@ function parseSSEResponse(body: string): { text: string; inputTokens: number; ou
 /** Models available in the REPL chat mode */
 export const CHAT_MODELS: Array<{ id: string; label: string; model: string }> = [
   { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro High",        model: "gemini-3.1-pro-high" },
-  { id: "gemini-3.1-pro-low",  label: "Gemini 3.1 Pro Low",         model: "gemini-3.1-pro-low" },
-  { id: "gemini-3-flash",      label: "Gemini 3 Flash",             model: "gemini-3-flash" },
-  { id: "claude-sonnet-4.6",   label: "Claude Sonnet 4.6 Thinking", model: "claude-sonnet-4-20250514" },
-  { id: "claude-opus-4.6",     label: "Claude Opus 4.6 Thinking",   model: "claude-opus-4-0520" },
-  { id: "gpt-oss-120b",        label: "GPT-OSS 120B Medium",        model: "gpt-oss-120b" },
+  { id: "gemini-3.1-pro-low",  label: "Gemini 3.1 Pro Low",         model: "gemini-3.1-pro" },
+  { id: "gemini-3-flash",      label: "Gemini 3 Flash",             model: "gemini-3.1-flash" },
+  { id: "claude-sonnet-4.6",   label: "Claude Sonnet 4.6 Thinking", model: "claude-3-7-sonnet" },
+  { id: "claude-opus-4.6",     label: "Claude Opus 4.6 Thinking",   model: "claude-3-opus" },
+  { id: "gpt-oss-120b",        label: "GPT-OSS 120B Medium",        model: "gpt-4o" },
 ];
 
 export const DEFAULT_CHAT_MODEL = "claude-sonnet-4.6";
@@ -233,8 +263,8 @@ export class AntigravityProvider implements LLMProvider {
         },
       },
       requestType: "agent",
-      userAgent: "foreman",
-      requestId: `foreman-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      userAgent: "antigravity",
+      requestId: `agent-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     };
 
     // Try both endpoints — daily (sandbox) first, prod fallback
@@ -287,6 +317,7 @@ export class AntigravityProvider implements LLMProvider {
             };
           }
 
+          // 404 → model or path not found on this endpoint, try next
           lastError = new Error(`Antigravity API error ${response.status}: ${errText.slice(0, 200)}`);
           continue;
         }
@@ -340,11 +371,17 @@ export class AntigravityProvider implements LLMProvider {
         ...(systemParts.length > 0 ? {
           systemInstruction: { role: "user", parts: systemParts },
         } : {}),
-        generationConfig: { maxOutputTokens: maxTokens },
+        generationConfig: { 
+          maxOutputTokens: maxTokens,
+          thinkingConfig: { 
+            includeThoughts: true,
+            thinkingLevel: "HIGH"
+          }
+        },
       },
       requestType: "agent",
-      userAgent: "foreman",
-      requestId: `foreman-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      userAgent: "antigravity",
+      requestId: `agent-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     };
   }
 
@@ -395,6 +432,7 @@ export class AntigravityProvider implements LLMProvider {
 
         if (!response.ok) {
           const errText = await response.text();
+          // 404 or other errors -> model/path not found on this endpoint, try next
           lastError = new Error(`Antigravity API error ${response.status}: ${errText.slice(0, 200)}`);
           continue;
         }
@@ -433,9 +471,10 @@ export class AntigravityProvider implements LLMProvider {
 
             try {
               const data: SSEData = JSON.parse(jsonStr);
+              const root = data.response ?? data;
 
-              if (data.candidates) {
-                for (const candidate of data.candidates) {
+              if (root.candidates) {
+                for (const candidate of root.candidates) {
                   if (candidate.content?.parts) {
                     for (const part of candidate.content.parts) {
                       if (part.text && !part.thought) {
@@ -447,9 +486,15 @@ export class AntigravityProvider implements LLMProvider {
                 }
               }
 
-              if (data.usageMetadata) {
-                inputTokens = data.usageMetadata.promptTokenCount ?? inputTokens;
-                outputTokens = data.usageMetadata.candidatesTokenCount ?? outputTokens;
+              // Top-level text field
+              if (root.text) {
+                fullText += root.text;
+                onToken(root.text);
+              }
+
+              if (root.usageMetadata) {
+                inputTokens = root.usageMetadata.promptTokenCount ?? inputTokens;
+                outputTokens = root.usageMetadata.candidatesTokenCount ?? outputTokens;
               }
             } catch {
               // skip unparseable lines
@@ -463,8 +508,10 @@ export class AntigravityProvider implements LLMProvider {
           if (jsonStr && jsonStr !== "[DONE]") {
             try {
               const data: SSEData = JSON.parse(jsonStr);
-              if (data.candidates) {
-                for (const candidate of data.candidates) {
+              const root = data.response ?? data;
+
+              if (root.candidates) {
+                for (const candidate of root.candidates) {
                   if (candidate.content?.parts) {
                     for (const part of candidate.content.parts) {
                       if (part.text && !part.thought) {
@@ -475,9 +522,14 @@ export class AntigravityProvider implements LLMProvider {
                   }
                 }
               }
-              if (data.usageMetadata) {
-                inputTokens = data.usageMetadata.promptTokenCount ?? inputTokens;
-                outputTokens = data.usageMetadata.candidatesTokenCount ?? outputTokens;
+              // Top-level text field
+              if (root.text) {
+                fullText += root.text;
+                onToken(root.text);
+              }
+              if (root.usageMetadata) {
+                inputTokens = root.usageMetadata.promptTokenCount ?? inputTokens;
+                outputTokens = root.usageMetadata.candidatesTokenCount ?? outputTokens;
               }
             } catch { /* ignore */ }
           }
