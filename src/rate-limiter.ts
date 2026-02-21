@@ -75,7 +75,18 @@ export class RateLimiter {
   private sessionTokens: number = 0;
 
   constructor(config?: Partial<InternalConfig>) {
-    this.config = { ...DEFAULT_RATE_LIMIT_CONFIG, ...config };
+    this.config = {
+      ...DEFAULT_RATE_LIMIT_CONFIG,
+      ...config,
+      modelRotation: {
+        ...DEFAULT_RATE_LIMIT_CONFIG.modelRotation,
+        ...(config?.modelRotation ?? {}),
+      },
+      budget: {
+        ...DEFAULT_RATE_LIMIT_CONFIG.budget,
+        ...(config?.budget ?? {}),
+      },
+    };
   }
 
   /**

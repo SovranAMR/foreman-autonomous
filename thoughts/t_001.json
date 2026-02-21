@@ -1,0 +1,18 @@
+{
+  "id": "t_001",
+  "chainId": "chain_001",
+  "layer": "visioner",
+  "input": "Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: test task",
+  "contextRefs": [],
+  "reasoning": "I need more context. Please clarify the task.",
+  "output": "I need more context. Please clarify the task.",
+  "confidence": 0.7,
+  "needsResearch": false,
+  "needsVerification": false,
+  "status": "blocked",
+  "createdAt": "2026-02-21T10:28:56.528Z",
+  "tokenCost": 1659,
+  "model": "claude-opus",
+  "completedAt": "2026-02-21T10:29:02.531Z",
+  "blockedReason": "Format parse failed after 2 retries. Missing: REASONING, OUTPUT"
+}

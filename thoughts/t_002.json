@@ -1,0 +1,18 @@
+{
+  "id": "t_002",
+  "chainId": "chain_002",
+  "layer": "visioner",
+  "input": "Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: basit hesap makinesi yap",
+  "contextRefs": [],
+  "reasoning": "I need more context. Please clarify the task.",
+  "output": "I need more context. Please clarify the task.",
+  "confidence": 0.7,
+  "needsResearch": false,
+  "needsVerification": false,
+  "status": "blocked",
+  "createdAt": "2026-02-21T10:34:13.474Z",
+  "tokenCost": 1686,
+  "model": "claude-opus",
+  "completedAt": "2026-02-21T10:34:19.477Z",
+  "blockedReason": "Format parse failed after 2 retries. Missing: REASONING, OUTPUT"
+}

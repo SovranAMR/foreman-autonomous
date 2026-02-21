@@ -1,0 +1,15 @@
+{
+  "key": "38fe87fc3eca159a",
+  "model": "claude-opus",
+  "layer": "visioner",
+  "response": "I need more context. Please clarify the task.",
+  "tokenUsage": {
+    "input": 545,
+    "output": 12,
+    "total": 556
+  },
+  "createdAt": "2026-02-21T10:34:13.475Z",
+  "lastAccessedAt": "2026-02-21T10:34:13.475Z",
+  "hitCount": 0,
+  "ttlMs": 86400000
+}

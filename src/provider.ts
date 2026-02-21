@@ -85,10 +85,16 @@ export class MockProvider implements LLMProvider {
     // Çağrıyı kaydet
     this.callHistory.push({ messages: [...messages], options: { ...options } });
 
-    // Sıradaki yanıtı al veya default kullan
-    const text = this.responseQueue.length > 0
-      ? this.responseQueue.shift()!
-      : this.defaultResponse;
+    // Sıradaki yanıtı al veya smart default kullan
+    let text: string;
+    if (this.responseQueue.length > 0) {
+      text = this.responseQueue.shift()!;
+    } else if (this.defaultResponse !== "Mock response") {
+      text = this.defaultResponse;
+    } else {
+      // Smart mock: system prompt'tan phase'i algıla ve uygun formatta yanıt üret
+      text = this.generateSmartResponse(messages);
+    }
 
     // Token simülasyonu: input + output karakter sayısına göre
     const inputChars = messages.reduce((sum, m) => sum + m.content.length, 0);
@@ -103,6 +109,83 @@ export class MockProvider implements LLMProvider {
       },
       model: options.model,
     };
+  }
+
+  /**
+   * System prompt'tan phase algıla ve parser'ın kabul edeceği formatta mock yanıt üret.
+   */
+  private generateSmartResponse(messages: LLMMessage[]): string {
+    const systemPrompt = messages.find(m => m.role === "system")?.content ?? "";
+    const userPrompt = messages.find(m => m.role === "user")?.content ?? "";
+
+    // Task'ı user prompt'tan çıkar
+    const taskMatch = userPrompt.match(/(?:Your Task:|Project:)\s*(.*)/s);
+    const task = taskMatch?.[1]?.trim().slice(0, 100) ?? "the given task";
+
+    if (systemPrompt.includes("VISIONER")) {
+      return `REASONING: Analyzing the project requirements for "${task}". The key is to create something that feels purposeful and well-crafted. Every decision should serve the core experience.
+OUTPUT: Vision for this project:
+1. CLARITY: Every element serves a purpose — no decoration without function
+2. QUALITY: Each piece must work correctly before moving to the next
+3. SIMPLICITY: The simplest approach that fully solves the problem
+The project succeeds when a user can accomplish their goal without friction.
+CONFIDENCE: 0.85
+NEEDS_RESEARCH: false`;
+    }
+
+    if (systemPrompt.includes("STRATEGIST") && (systemPrompt.includes("DECOMPOSE") || userPrompt.includes("break") || userPrompt.includes("blocks"))) {
+      // Atomize veya Decompose — user prompt'a bak
+      if (userPrompt.includes("atomic") || userPrompt.includes("atom")) {
+        return `OUTPUT:
+1. Set up the foundation structure and base configuration
+2. Implement the core logic and data handling
+3. Build the interface layer and user-facing components
+4. Add validation, error handling, and edge cases
+CONFIDENCE: 0.82`;
+      }
+      return `REASONING: Breaking down the project into logical, independent blocks. Each block has clear boundaries and can be developed separately. Dependencies flow top-to-bottom.
+OUTPUT:
+Block 1: Foundation — Project structure, configuration, base dependencies
+Block 2: Core Logic — Main functionality and data processing
+Block 3: Interface — User-facing layer, components, layout
+Block 4: Integration — Connect core logic to interface
+Block 5: Polish — Error handling, edge cases, performance
+CONFIDENCE: 0.80`;
+    }
+
+    if (systemPrompt.includes("RESEARCHER")) {
+      return `FINDINGS: Based on analysis of the requirements:
+- Standard industry approach is well-documented and proven
+- Key consideration: modularity and testability should be priorities
+- Best practice: incremental development with verification at each step
+- Similar projects succeed when they maintain clear separation of concerns
+RELEVANCE: 0.75
+RISKS: Main risk is scope creep — keep each atom focused on a single change`;
+    }
+
+    if (systemPrompt.includes("WORKER") || systemPrompt.includes("8-Step Protocol")) {
+      return `STEP1_READ: Examined the current project state and target area. Found the existing structure and identified where changes need to be made.
+STEP2_CONTEXT: The change sits within the existing module structure. Dependencies are clear: imports from core types, exports to the interface layer.
+STEP3_IMPACT: This change is isolated to the target file. No side effects on other modules. Tests should continue passing.
+STEP4_DECIDE: Will implement the required change in the target file, following established patterns in the codebase.
+STEP5_PREDICT: After this change, the module will handle the new requirement. Build should pass, functionality should work as specified.
+STEP6_EXECUTE: Implemented the change following the 8-step protocol. Code follows existing conventions and style.
+STEP7_VERIFY: Build passes. The change works as predicted. No regressions detected.
+STEP8_REPORT: Task completed successfully. The implementation is clean and follows project conventions. No unexpected issues.
+CONFIDENCE: 0.85`;
+    }
+
+    if (systemPrompt.includes("REFLECTION")) {
+      return `REASONING: Reviewing work completed so far. The implementation aligns with the original vision's principles. Quality is consistent across completed atoms. No signs of drift or rushing.
+OUTPUT: Work is on track. Continue with the current plan. All completed atoms are consistent with the vision. Recommend maintaining the current pace and quality level.
+CONFIDENCE: 0.88`;
+    }
+
+    // Fallback — generic parseable format
+    return `REASONING: Processing the request based on available context and requirements.
+OUTPUT: Task processed successfully. The approach follows established patterns and best practices.
+CONFIDENCE: 0.75
+NEEDS_RESEARCH: false`;
   }
 }
 

@@ -127,6 +127,7 @@ export class Engine {
 
   /**
    * LLM'e tek bir çağrı yap — model fallback + context guard ile.
+   * Mock modda fallback chain'i bypass eder.
    */
   async callLLM(
     systemPrompt: string,
@@ -150,6 +151,22 @@ export class Engine {
 
     if (!guard.isSafe) {
       throw new BlockedError("pre-call", layer, guard.warning ?? "Context window exceeded");
+    }
+
+    // Mock provider varsa → doğrudan çağır, fallback chain'e girme
+    const mockProvider = this.providers.getProviderForModel("mock-model");
+    if (mockProvider) {
+      const result = await mockProvider.generate(
+        [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        { model: "mock-model", maxTokens: 4000, temperature: 0.7 },
+      );
+      this.rateLimiter.onSuccess();
+      this.rateLimiter.recordTokens(result.tokenUsage.total);
+      this.state.addTokens(result.tokenUsage.total);
+      return result;
     }
 
     // Model fallback ile çağır
