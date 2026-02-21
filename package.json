@@ -1,0 +1,23 @@
+{
+  "name": "foreman",
+  "version": "0.1.0",
+  "description": "AI agent orchestrator — atomic thought chains with vision, research, and tactical reasoning",
+  "type": "module",
+  "bin": {
+    "foreman": "./src/cli.ts"
+  },
+  "scripts": {
+    "test": "npx tsx src/state.test.ts && npx tsx src/persistence.test.ts && npx tsx src/rate-limiter.test.ts && npx tsx src/engine.test.ts",
+    "test:state": "npx tsx src/state.test.ts",
+    "test:persistence": "npx tsx src/persistence.test.ts",
+    "test:rate-limiter": "npx tsx src/rate-limiter.test.ts",
+    "test:engine": "npx tsx src/engine.test.ts"
+  },
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
