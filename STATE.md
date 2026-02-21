@@ -19,8 +19,7 @@ foreman init "proje" && foreman run "görev" --mock
 | Faz 1.7: UI + Installer | ✅ | Theme, gradient logo, setup wizard, install.sh |
 | Faz 2: Gerçek LLM Test | ⏳ | API key ayarla, gerçek görevle test et |
 | Faz 3: Research Engine | ✅ | OpenClaw transplant: Brave Search API, web fetch (Readability + HTML→MD), SSRF koruması, cache |
-| Faz 3: Research Engine | ⏳ | Web search, dosya araştırma |
-| Faz 4: Execution Engine | ⏳ | Dosya okuma/yazma, build/test, git commit |
+| Faz 4: Execution Engine | ✅ | OpenClaw transplant: async spawn (timeout/kill), line-range read, smart truncation, detailed git ops |
 | Faz 5: Context & Memory | ⏳ | Context compression, cross-session memory |
 
 ## Tamamlanan Chain'ler
@@ -39,10 +38,10 @@ foreman init "proje" && foreman run "görev" --mock
 ## Metrikler
 
 - **Toplam chain**: 8
-- **Toplam test**: 66 (0 fail)
-- **Toplam kaynak dosya**: 16 (.ts)
-- **Toplam LOC**: ~2500+
-- **Git commits**: 15 (aed7da4 → bbb7595)
+- **Toplam test**: 282 (0 fail)
+- **Toplam kaynak dosya**: 20+ (.ts)
+- **Toplam LOC**: ~5000+
+- **Git commits**: 19+
 - **GitHub**: https://github.com/SovranAMR/foreman
 
 ## Dosya → Sorumluluk Haritası
@@ -63,7 +62,13 @@ foreman init "proje" && foreman run "görev" --mock
 | `orchestrator.ts` | run() pipeline, events | engine |
 | `setup.ts` | API key wizard | theme, anthropic-provider, openai-provider |
 | `theme.ts` | Renkler, ikonlar, box'lar | chalk, gradient-string, figures |
-| `cli.ts` | CLI entry point | engine, orchestrator, setup, theme, providers |
+| `execution-engine.ts` | File ops, shell (sync+async), git, process mgmt | — |
+| `research-engine.ts` | File search, npm info, web research | web-search-engine, web-fetch-engine |
+| `web-search-engine.ts` | Brave Search API | web-shared |
+| `web-fetch-engine.ts` | URL fetch, SSRF protection, HTML→MD | web-shared, web-fetch-utils |
+| `web-fetch-utils.ts` | HTML→Markdown, text extraction | — |
+| `web-shared.ts` | Cache, timeout, response utils | — |
+| `tools.ts` | LLM function calling tool definitions | execution-engine |
 
 ## Bağımlılıklar
 
@@ -83,10 +88,8 @@ foreman init "proje" && foreman run "görev" --mock
 
 ## Sonraki Adımlar (Öncelik Sırasıyla)
 
-1. **Gerçek LLM testi**: API key'leri ayarla, Eyricediş hero üzerinde test et
-2. **Web araştırma motoru**: Brave/Google search → researcher katmanına entegre
-3. **Dosya okuma/yazma**: Worker'ın gerçek dosya oluşturması/düzenlemesi
-4. **Build/test runner**: `npm run build`, test çalıştırma
-5. **Git commit integration**: Her atom sonrası otomatik commit
-6. **Context compression**: Uzun zincirlerin özetlenmesi
-7. **Screenshot verification**: Puppeteer ile görsel doğrulama
+1. **Gerçek LLM testi**: API key'leri ayarla, gerçek görev üzerinde test et
+2. **BLOK 3: Git Integration**: Atomik commit per thought, branch mgmt, diff analysis
+3. **BLOK 5: Memory Deepening**: Embedding-based similarity, MEMORY.md format
+4. **BLOK 6: Context & Session**: Sliding window context, session transcript→summary
+5. **BLOK 4: Browser & Visual**: Puppeteer/Playwright, screenshot verification (son)
