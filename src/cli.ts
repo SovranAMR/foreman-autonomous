@@ -37,6 +37,7 @@ import { OpenAIProvider } from "./openai-provider.js";
 import { GeminiProvider } from "./gemini-provider.js";
 import { loginAntigravity } from "./antigravity-oauth.js";
 import { AntigravityProvider, loadCredentials, saveCredentials } from "./antigravity-provider.js";
+import { hasAnyProvider, runOnboarding } from "./onboarding.js";
 import { Orchestrator } from "./orchestrator.js";
 import { execSync } from "node:child_process";
 import { homedir } from "node:os";
@@ -305,6 +306,20 @@ program
       });
       console.log(`  ${icon.warn} ${brand.gold("Mock provider aktif")}\n`);
     } else {
+      // Provider yoksa → otomatik onboarding (ilk çalıştırma)
+      if (!hasAnyProvider()) {
+        console.log(`    ${icon.warn} ${brand.gold("Henüz bir LLM provider ayarlanmamış.")}`);
+        const success = await runOnboarding();
+        if (!success) {
+          console.log("");
+          console.log(`    ${icon.fail} ${brand.red("Kurulum tamamlanamadı.")}`);
+          console.log(`    ${brand.cyan("foreman login")} — Google Antigravity OAuth (önerilen)`);
+          console.log(`    ${brand.cyan("foreman setup")} — API key ile kurulum`);
+          console.log(`    ${brand.dim("--mock")} — test modu`);
+          process.exit(1);
+        }
+      }
+
       // Config'den veya env var'dan key al
       const anthropicKey = getApiKey("anthropic");
       const openaiKey = getApiKey("openai");
