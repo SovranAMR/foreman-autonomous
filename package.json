@@ -4,7 +4,7 @@
   "description": "AI agent orchestrator — atomic thought chains with vision, research, and tactical reasoning",
   "type": "module",
   "bin": {
-    "foreman": "./src/cli.ts"
+    "foreman": "./foreman.mjs"
   },
   "scripts": {
     "test": "npx tsx src/state.test.ts && npx tsx src/persistence.test.ts && npx tsx src/rate-limiter.test.ts && npx tsx src/parser.test.ts && npx tsx src/engine.test.ts && npx tsx src/orchestrator.test.ts && npx tsx src/enforce.test.ts && npx tsx src/task.test.ts && npx tsx src/memory.test.ts && npx tsx src/infra.test.ts && npx tsx src/execution.test.ts",
