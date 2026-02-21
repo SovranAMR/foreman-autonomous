@@ -46,6 +46,11 @@ import {
   doctorHeader, doctorItem, doctorFooter,
   printIdleForge,
 } from "./theme.js";
+import {
+  animateDwarf, animateSparkRain, animateFire,
+  animatePhaseTransition, animateCompletion,
+  animateProgressStrike, startForgeSpinner, typeText,
+} from "./animations.js";
 import { runSetup, getApiKey, printProviderStatus } from "./setup.js";
 import { TaskManager } from "./task-manager.js";
 import { ProjectManager } from "./project-manager.js";
@@ -117,7 +122,7 @@ program
   .command("init <name>")
   .description("Yeni Foreman projesi oluştur")
   .option("-d, --dir <path>", "Proje dizini (varsayılan: mevcut dizin)")
-  .action((name: string, opts: { dir?: string }) => {
+  .action(async (name: string, opts: { dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
 
     printLogo();
@@ -135,6 +140,8 @@ program
     const sm = StateManager.create(projectRoot, name);
     sm.save();
 
+    if (process.stdout.isTTY) await animateFire(1000, 150);
+
     console.log(`  ${icon.done} ${brand.gold("Proje oluşturuldu:")} ${brand.bold(name)}`);
     console.log("");
     console.log(`     📁 ${brand.dim(projectRoot)}`);
@@ -142,7 +149,12 @@ program
     console.log(`     📁 thoughts/`);
     console.log(`     📁 chains/`);
     console.log("");
-    console.log(`  Sonraki: ${brand.cyan(`foreman run "${name} için görev"`)}`);
+
+    if (process.stdout.isTTY) {
+      await typeText(`  The forge awaits: foreman run "${name}"`, 25, brand.cyan);
+    } else {
+      console.log(`  Sonraki: ${brand.cyan(`foreman run "${name} için görev"`)}`);
+    }
     console.log("");
   });
 
@@ -226,6 +238,11 @@ program
 
     printForgeIntro();
 
+    // Dwarf çekiç animasyonu — forge açılışı
+    await animateDwarf(2000, 250);
+    await animateSparkRain(40, 600, 100);
+    console.log("");
+
     const engine = new Engine({
       projectRoot,
       projectName: "foreman",
@@ -291,10 +308,17 @@ program
     // Orchestrator
     const orchestrator = new Orchestrator(engine);
 
+    let lastPhase = "";
+
     orchestrator.on(event => {
       switch (event.type) {
         case "phase_start":
+          // Eğer TTY ise animasyonlu geçiş, değilse statik
+          if (process.stdout.isTTY) {
+            animatePhaseTransition(lastPhase || null, event.phase);
+          }
           phaseHeader(event.phase, event.detail);
+          lastPhase = event.phase;
           break;
         case "thought_complete":
           thoughtLine(
@@ -312,6 +336,9 @@ program
           reflectionLine(event.atomCount, event.summary);
           break;
         case "pipeline_complete":
+          if (process.stdout.isTTY) {
+            animateCompletion(true);
+          }
           completionBox(event.totalThoughts, event.totalTokens, true);
           break;
         case "error":
@@ -323,6 +350,9 @@ program
     try {
       const result = await orchestrator.run(task);
       if (!result.success) {
+        if (process.stdout.isTTY) {
+          await animateCompletion(false);
+        }
         completionBox(result.totalThoughts, result.totalTokens, false);
         console.log(`  ${brand.dim("foreman status")} ile durumu kontrol edin.`);
       }
