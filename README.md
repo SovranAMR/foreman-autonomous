@@ -35,15 +35,56 @@ Foreman implements a hierarchical reasoning model where each layer constrains an
 Defines the high-level intent, aesthetic soul, and architectural WHY. It sets the boundaries for the Strategist and can be influenced by the Worker through BLOCK feedback loops.
 
 ### 2. Strategist (Layer 2: Decomposition)
-- **Decompose Mode**: Breaks the vision into 5-8 logical execution blocks.
-- **Atomize Mode**: Further splits blocks into 3-6 actionable Atomic Thoughts.
+Breaks the vision into manageable execution blocks and further atomizes them into actionable thoughts.
 
 ### 3. Researcher (Layer 3: Evidence)
 Gathers external patterns, documentation, and project-local information. It provides the factual foundation before the Worker commits to a decision.
 
 ### 4. Worker (Layer 4: Execution)
-Follows a strict **8-Step Tactical Protocol**:
-`Read` -> `Context` -> `Impact` -> `Decide` -> `Predict` -> `Execute` -> `Verify` -> `Report`
+Implements code following a strict tactical protocol.
+
+---
+
+## The Atomic System: Fragmentation & Precision
+
+Foreman operates on the principle of **Fractal Decomposition**. A task is never executed in its raw form; it must be shattered into atomic units to ensure deterministic outcomes.
+
+```text
+TASK [Build Authentication System]
+  │
+  ├─ [LAYER 1: VISION] --> Soul & Constraints
+  │
+  ├─ [LAYER 2: STRATEGIST]
+  │   │
+  │   ├─ BLOCK A [Database Schema]
+  │   │   ├─ ATOM 1: Design User Table ........... [REASON] -> [DO]
+  │   │   ├─ ATOM 2: Implement Migrations ........ [REASON] -> [DO]
+  │   │   └─ ATOM 3: Verify Indexes .............. [REASON] -> [DO]
+  │   │
+  │   └─ BLOCK B [JWT Implementation]
+  │       ├─ ATOM 4: Configure Secrets ........... [REASON] -> [DO]
+  │       ├─ ATOM 5: Middleware Logic ............ [REASON] -> [DO]
+  │       └─ ATOM 6: Token Rotation .............. [REASON] -> [DO]
+  │
+  └─ [RE-FORGE] --> Continuous alignment via Reflection
+```
+
+### Atomic Unit: The Thought
+The fundamental unit of Foreman is the **Thought**. Each thought follows a rigid I/O structure:
+`1 Input` -> `Reasoning (Required)` -> `1 Output`
+
+Reasoning is never empty. Every decision must be justified by context, impact analysis, and predicted outcome before the first line of code is written.
+
+### Worker Protocol: The 8-Step Strike
+Each execution atom follows the **Worker Protocol** to prevent regression and ensure quality:
+1. **Read**: Analyze existing code and state.
+2. **Context**: Resolve internal and external dependencies.
+3. **Impact**: Predict side effects on the wider system.
+4. **Decide**: Select the optimal implementation path.
+5. **Predict**: Forecast the expected state after execution.
+6. **Execute**: Perform the file operation or shell command.
+7. **Verify**: Run tests or checks to confirm the prediction.
+8. **Report**: Log the atomic change to the global state.
 
 ---
 
@@ -76,40 +117,17 @@ Foreman supports multiple providers with **Antigravity OAuth** as the recommende
 ```bash
 foreman login  # Interactive Google Cloud OAuth flow
 ```
-Alternatively, configure keys manually:
-```bash
-foreman setup  # Configure Anthropic, OpenAI, or Gemini keys
-```
 
 ---
 
 ## Command Reference
 
-### Main Commands
 - `foreman` - Launch the **Interactive REPL** (Chat Mode).
 - `foreman run "<task>"` - Execute a task through the full 4-layer pipeline.
 - `foreman init <name>` - Scaffold a new project workspace.
 - `foreman status` - Display active session, memory stats, and token usage.
 - `foreman doctor` - Perform system health checks and provider diagnostics.
-
-### Project Management
-- `foreman board` - Display the project task list in a Kanban format.
-- `foreman task add/list/done` - Direct manipulation of project sub-tasks.
-
-### Developer Internals
-- `foreman internals memory` - Inspect the vector-like memory store.
-- `foreman internals thoughts` - View the complete thought chain history.
-- `foreman internals providers` - Check LLM provider availability and latency.
-
----
-
-## Visual Metaphor
-
-Foreman uses the **Blacksmith Forge** metaphor to visualize technical progress:
-- **Hammering**: Active execution of a task.
-- **Sparks**: Success events and token generation.
-- **Embers**: System activity and heating up the context window.
-- **Anvil**: The stable project state where work is shaped.
+- `foreman board` - Visual Kanban board of your project tasks.
 
 ---
 
