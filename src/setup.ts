@@ -10,6 +10,8 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 import { brand, icon, grad, printLogo } from "./theme.js";
+import { AnthropicProvider } from "./anthropic-provider.js";
+import { OpenAIProvider } from "./openai-provider.js";
 
 // ─── CONFIG PATH ─────────────────────────────────────────────
 
@@ -140,12 +142,23 @@ export async function runSetup(): Promise<void> {
   const anthropicKey = await askSimple(`  ${brand.cyan("API Key")} (boş = atla): `);
 
   if (anthropicKey) {
-    // Basit validation
     if (!anthropicKey.startsWith("sk-ant-")) {
       console.log(`  ${icon.warn} Key "sk-ant-" ile başlamalı. Yine de kaydediliyor...`);
     }
+    // Doğrulama — gerçek çağrı
+    process.stdout.write(`  ${brand.dim("Doğrulanıyor...")}`);
+    try {
+      const provider = new AnthropicProvider(anthropicKey);
+      await provider.generate(
+        [{ role: "user", content: "Say OK" }],
+        { model: "claude-haiku", maxTokens: 5 },
+      );
+      process.stdout.write(`\r  ${icon.done} Anthropic key doğrulandı ve kaydedildi\n`);
+    } catch (err: any) {
+      const msg = err?.message?.slice(0, 60) ?? "bilinmeyen hata";
+      process.stdout.write(`\r  ${icon.warn} Doğrulanamadı (${brand.dim(msg)}), yine de kaydediliyor\n`);
+    }
     config.anthropic_api_key = anthropicKey;
-    console.log(`  ${icon.done} Anthropic key kaydedildi`);
   } else {
     console.log(brand.dim("  Atlandı"));
   }
@@ -163,8 +176,19 @@ export async function runSetup(): Promise<void> {
     if (!openaiKey.startsWith("sk-")) {
       console.log(`  ${icon.warn} Key "sk-" ile başlamalı. Yine de kaydediliyor...`);
     }
+    process.stdout.write(`  ${brand.dim("Doğrulanıyor...")}`);
+    try {
+      const provider = new OpenAIProvider(openaiKey);
+      await provider.generate(
+        [{ role: "user", content: "Say OK" }],
+        { model: "gpt-4o-mini", maxTokens: 5 },
+      );
+      process.stdout.write(`\r  ${icon.done} OpenAI key doğrulandı ve kaydedildi  \n`);
+    } catch (err: any) {
+      const msg = err?.message?.slice(0, 60) ?? "bilinmeyen hata";
+      process.stdout.write(`\r  ${icon.warn} Doğrulanamadı (${brand.dim(msg)}), yine de kaydediliyor\n`);
+    }
     config.openai_api_key = openaiKey;
-    console.log(`  ${icon.done} OpenAI key kaydedildi`);
   } else {
     console.log(brand.dim("  Atlandı"));
   }

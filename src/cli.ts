@@ -24,6 +24,8 @@ import { MockProvider } from "./provider.js";
 import { AnthropicProvider } from "./anthropic-provider.js";
 import { OpenAIProvider } from "./openai-provider.js";
 import { Orchestrator } from "./orchestrator.js";
+import { execSync } from "node:child_process";
+import { homedir } from "node:os";
 import {
   brand, icon, grad, printLogo,
   phaseHeader, thoughtLine, blockLine,
@@ -56,6 +58,45 @@ program
     printLogo();
     console.log(brand.gold("  ◆ Provider Durumu\n"));
     printProviderStatus();
+    console.log("");
+  });
+
+// ─── DOCTOR ───────────────────────────────────────────────────
+
+program
+  .command("doctor")
+  .description("Sistem sağlık kontrolü")
+  .action(() => {
+    printLogo();
+    console.log(brand.gold("  ◆ Sistem Kontrolü\n"));
+
+    // Node.js
+    const nodeVer = process.version;
+    const nodeMajor = parseInt(nodeVer.slice(1).split(".")[0]);
+    if (nodeMajor >= 20) {
+      console.log(`  ${icon.done} Node.js ${nodeVer}`);
+    } else {
+      console.log(`  ${icon.fail} Node.js ${nodeVer} ${brand.red("(20+ gerekli)")}`);
+    }
+
+    // npm
+    try {
+      const npmVer = execSync("npm -v", { encoding: "utf-8" }).trim();
+      console.log(`  ${icon.done} npm ${npmVer}`);
+    } catch {
+      console.log(`  ${icon.fail} npm bulunamadı`);
+    }
+
+    // Config
+    console.log("");
+    printProviderStatus();
+
+    // Disk
+    console.log("");
+    const configDir = join(homedir(), ".foreman");
+    const configExists = existsSync(configDir);
+    console.log(`  ${configExists ? icon.done : icon.pending} Config dizini: ${brand.dim(configDir)}`);
+
     console.log("");
   });
 
