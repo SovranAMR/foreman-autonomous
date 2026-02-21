@@ -143,10 +143,31 @@ export class Engine {
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Connect ProcessRegistry to the GitEngine's ExecutionEngine
     // so async processes get lifecycle tracking
-    // (Engine's own shell calls go through tools.ts → ExecutionEngine)
+    this.git.executor.connectRegistry(this.processRegistry);
+
+    // Connect ApprovalEngine to GitEngine's ExecutionEngine
+    // so all shell commands get risk assessment
+    this.git.executor.connectApproval(this.approvalEngine);
 
     // Attach signal bridge — forward SIGTERM/SIGINT to child processes
     this.processRegistry.attachSignalBridge();
+
+    // Register periodic tasks in the scheduler
+    this.scheduler.addInterval("chain-health", 300_000, () => {
+      // Every 5 min: check active chains for health issues
+      const chains = this.chains.list();
+      for (const chain of chains) {
+        const repair = this.repairChain(chain.id);
+        if (!repair.healthy) {
+          console.error(`[scheduler] Chain ${chain.id} unhealthy: ${repair.details.slice(0, 100)}`);
+        }
+      }
+    });
+
+    this.scheduler.addInterval("memory-consolidate", 600_000, () => {
+      // Every 10 min: consolidate memory
+      this.memory.consolidate();
+    });
 
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Cache → Session: cache hit'te session'a token tasarrufunu bildir

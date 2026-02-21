@@ -140,6 +140,11 @@ export class GitEngine {
     this.exec = executionEngine;
   }
 
+  /** Expose ExecutionEngine for cross-system wiring (registry, approval) */
+  get executor(): ExecutionEngine {
+    return this.exec;
+  }
+
   // ─── THOUGHT-AWARE COMMITS ─────────────────────────────────
 
   /**

@@ -31,6 +31,7 @@ import { join, dirname, relative } from "node:path";
 import { execSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { ProcessRegistry, createSessionId } from "./process-registry.js";
+import type { ApprovalEngine } from "./approval-engine.js";
 import type { Layer } from "./types.js";
 
 // ─── TYPES ───────────────────────────────────────────────────
@@ -196,6 +197,9 @@ export class ExecutionEngine {
   /** Process registry for lifecycle tracking */
   private registry: ProcessRegistry | null = null;
 
+  /** Approval engine for command risk assessment */
+  private approvalEngine: ApprovalEngine | null = null;
+
   constructor(projectRoot: string, allowedPaths?: string[]) {
     this.projectRoot = projectRoot;
     this.allowedPaths = allowedPaths ?? [
@@ -210,6 +214,14 @@ export class ExecutionEngine {
    */
   connectRegistry(registry: ProcessRegistry): void {
     this.registry = registry;
+  }
+
+  /**
+   * Connect an ApprovalEngine for command risk assessment.
+   * When connected, runShell checks risk before execution.
+   */
+  connectApproval(approval: ApprovalEngine): void {
+    this.approvalEngine = approval;
   }
 
   // ─── PATH SECURITY ──────────────────────────────────────
@@ -362,6 +374,23 @@ export class ExecutionEngine {
       };
     }
 
+    // Approval engine risk check — deny high-risk commands
+    if (this.approvalEngine) {
+      const assessment = this.approvalEngine.assess(command, "worker");
+      if (assessment.decision === "deny") {
+        return {
+          success: false,
+          stdout: "",
+          stderr: `Command denied by approval engine: ${assessment.reason} (risk: ${(assessment.riskScore * 100).toFixed(0)}%)`,
+          exitCode: -1,
+        };
+      }
+      // Record successful execution for allowlist learning
+      if (assessment.decision === "allow") {
+        // Will record success after execution via recordSuccess below
+      }
+    }
+
     const start = Date.now();
     try {
       const stdout = execSync(command, {
@@ -371,6 +400,12 @@ export class ExecutionEngine {
         maxBuffer: DEFAULT_MAX_BUFFER,
         stdio: ["pipe", "pipe", "pipe"],
       });
+
+      // Record success for allowlist learning
+      if (this.approvalEngine) {
+        this.approvalEngine.reportSuccess(command);
+      }
+
       return {
         success: true,
         stdout: stdout.trim(),
@@ -379,6 +414,11 @@ export class ExecutionEngine {
         durationMs: Date.now() - start,
       };
     } catch (err: any) {
+      // Record failure for allowlist demotion
+      if (this.approvalEngine) {
+        this.approvalEngine.reportFailure(command);
+      }
+
       return {
         success: false,
         stdout: err.stdout?.toString().trim() ?? "",

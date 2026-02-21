@@ -374,6 +374,25 @@ export class Orchestrator {
           });
         }
       }
+
+      // ── GIT CHECKPOINT — save progress after each block ──
+      try {
+        const gitStatus = this.engine.git.executor.gitStatus();
+        if (!gitStatus.clean) {
+          const commitResult = this.engine.git.commit(
+            `checkpoint: Block ${i + 1}/${blocks.length} — ${block.slice(0, 50)}`,
+          );
+          if (commitResult.success) {
+            this.emit({
+              type: "phase_end",
+              phase: "git_checkpoint",
+              detail: `Committed: ${commitResult.shortHash ?? "ok"} — Block ${i + 1}`,
+            });
+          }
+        }
+      } catch {
+        // Git checkpoint is best-effort — don't fail pipeline
+      }
     }
 
     // ─── COMPLETE ───────────────────────────────────────────

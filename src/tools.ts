@@ -39,6 +39,8 @@ import { GitEngine } from "./git-engine.js";
 import { parseBuildOutput, parseTestOutput } from "./verification-engine.js";
 import { scanProject } from "./security-scanner.js";
 import { searchFiles } from "./research-engine.js";
+import { quickSearch } from "./web-search-engine.js";
+import { webFetch } from "./web-fetch-engine.js";
 import { LinkIntelligence } from "./link-intelligence.js";
 import { extractCodeFences, extractTables, extractSections, extractLists, parseFrontmatter } from "./markdown-intelligence.js";
 
@@ -672,6 +674,18 @@ function executeBatchWrite(projectRoot: string, args: Record<string, unknown>): 
 
   try {
     const files = JSON.parse(filesJson) as Array<{ path: string; content: string }>;
+
+    // Path security — all paths must be within projectRoot
+    for (const f of files) {
+      const resolved = f.path.startsWith("/") ? f.path : join(projectRoot, f.path);
+      const rel = relative(projectRoot, resolved);
+      if (rel.startsWith("..") || rel.startsWith("/")) {
+        return { name: "batch_write", content: `Path traversal denied: ${f.path} resolves outside project root`, isError: true };
+      }
+      // Resolve to absolute so batchWrite uses correct paths
+      f.path = resolved;
+    }
+
     const result = batchWrite(files, { dryRun });
 
     if (!result.success) {
@@ -689,14 +703,21 @@ function executeBatchWrite(projectRoot: string, args: Record<string, unknown>): 
 }
 
 function executeGitStatus(git: GitEngine): ToolResult {
-  // GitEngine uses ExecutionEngine internally — access status via exec
   try {
-    const result = spawnSync("git", ["status", "--porcelain"], { encoding: "utf-8", timeout: 5000 });
-    const output = (result.stdout || "").trim();
-    if (!output) {
-      return { name: "git_status", content: "Working tree clean", isError: false };
+    const status = git.executor.gitStatus();
+    const lines: string[] = [];
+    lines.push(`Branch: ${status.branch}`);
+    if (status.staged.length > 0) lines.push(`Staged: ${status.staged.join(", ")}`);
+    if (status.unstaged.length > 0) lines.push(`Unstaged: ${status.unstaged.join(", ")}`);
+    if (status.untracked.length > 0) lines.push(`Untracked: ${status.untracked.join(", ")}`);
+    if (status.ahead > 0) lines.push(`Ahead: ${status.ahead}`);
+    if (status.behind > 0) lines.push(`Behind: ${status.behind}`);
+
+    if (status.clean) {
+      lines.push("Working tree clean");
     }
-    return { name: "git_status", content: output, isError: false };
+
+    return { name: "git_status", content: lines.join("\n"), isError: false };
   } catch {
     return { name: "git_status", content: "Error: git status failed", isError: true };
   }
@@ -781,25 +802,82 @@ function executeWebSearch(projectRoot: string, args: Record<string, unknown>): T
   const query = args.query as string;
   if (!query) return { name: "web_search", content: "Error: query is required", isError: true };
 
-  // searchFiles is the sync file-based search from research engine
+  // Try Brave Search API first (real web search)
+  const apiKey = process.env.BRAVE_API_KEY;
+  if (apiKey) {
+    // quickSearch is async — but tool executor is sync
+    // Use spawnSync to call it synchronously via inline script
+    try {
+      const result = spawnSync("node", [
+        "-e",
+        `import("./src/web-search-engine.js").then(m => m.quickSearch(${JSON.stringify(query)}, ${Number(args.count) || 5}).then(r => process.stdout.write(JSON.stringify(r))))`,
+      ], {
+        cwd: projectRoot,
+        encoding: "utf-8",
+        timeout: 15_000,
+        env: { ...process.env, BRAVE_API_KEY: apiKey },
+      });
+
+      if (result.stdout) {
+        const results = JSON.parse(result.stdout);
+        if (results.length > 0) {
+          const lines = results.map((r: any, i: number) =>
+            `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.description?.slice(0, 120) ?? ""}`
+          );
+          return { name: "web_search", content: lines.join("\n\n"), isError: false };
+        }
+      }
+    } catch {
+      // Fall through to local search
+    }
+  }
+
+  // Fallback: local project file search
   const results = searchFiles(projectRoot, query, "*.ts", 10);
   if (results.length === 0) {
-    return { name: "web_search", content: "No results found.", isError: false };
+    return { name: "web_search", content: "No results found (no BRAVE_API_KEY set — searched local files only).", isError: false };
   }
 
   const lines = results.map((r, i) => `${i + 1}. ${r.file}:${r.line} — ${r.text.trim()}`);
-  return { name: "web_search", content: lines.join("\n"), isError: false };
+  return { name: "web_search", content: `[Local search — set BRAVE_API_KEY for web results]\n${lines.join("\n")}`, isError: false };
 }
 
 function executeWebFetchTool(args: Record<string, unknown>): ToolResult {
   const url = args.url as string;
   if (!url) return { name: "web_fetch", content: "Error: url is required", isError: true };
 
-  return {
-    name: "web_fetch",
-    content: `URL noted: ${url}. Use the async research pipeline for full content fetch.`,
-    isError: false,
-  };
+  // webFetch is async — use spawnSync to bridge
+  try {
+    const script = `
+      import { webFetch } from "./src/web-fetch-engine.js";
+      const r = await webFetch({ url: ${JSON.stringify(url)}, maxChars: 8000, extractMode: "markdown" });
+      process.stdout.write(JSON.stringify({ ok: r.ok, content: r.content?.slice(0, 8000), title: r.title, statusCode: r.statusCode, error: r.error }));
+    `;
+    const result = spawnSync("node", ["--input-type=module", "-e", script], {
+      encoding: "utf-8",
+      timeout: 20_000,
+      maxBuffer: 512 * 1024,
+    });
+
+    if (result.stdout) {
+      const data = JSON.parse(result.stdout);
+      if (data.ok) {
+        let content = "";
+        if (data.title) content += `Title: ${data.title}\n\n`;
+        content += data.content ?? "(empty)";
+        return { name: "web_fetch", content: truncateMiddle(content), isError: false };
+      }
+      return { name: "web_fetch", content: `Fetch failed: ${data.error ?? `HTTP ${data.statusCode}`}`, isError: true };
+    }
+
+    if (result.stderr) {
+      return { name: "web_fetch", content: `Fetch error: ${result.stderr.slice(0, 200)}`, isError: true };
+    }
+  } catch (err) {
+    return { name: "web_fetch", content: `Fetch error: ${err}`, isError: true };
+  }
+
+  return { name: "web_fetch", content: "Fetch returned no data.", isError: true };
 }
 
 function executeAnalyzeLink(linkIntel: LinkIntelligence, args: Record<string, unknown>): ToolResult {
@@ -807,6 +885,42 @@ function executeAnalyzeLink(linkIntel: LinkIntelligence, args: Record<string, un
   if (!url) return { name: "analyze_link", content: "Error: url is required", isError: true };
 
   const classification = linkIntel.classify(url);
+
+  // Try async fetch for richer metadata via spawnSync bridge
+  try {
+    const script = `
+      import { LinkIntelligence } from "./src/link-intelligence.js";
+      const li = new LinkIntelligence();
+      const r = await li.fetch(${JSON.stringify(url)});
+      process.stdout.write(JSON.stringify({
+        type: r.classification.type,
+        domain: r.classification.domain,
+        title: r.title,
+        summary: r.summary?.slice(0, 500),
+        fetchTimeMs: r.fetchTimeMs,
+        contentLength: r.content?.length ?? 0,
+      }));
+    `;
+    const result = spawnSync("node", ["--input-type=module", "-e", script], {
+      encoding: "utf-8",
+      timeout: 15_000,
+    });
+
+    if (result.stdout) {
+      const data = JSON.parse(result.stdout);
+      const lines = [
+        `Type: ${data.type}`,
+        `Domain: ${data.domain}`,
+        data.title ? `Title: ${data.title}` : null,
+        data.summary ? `Summary: ${data.summary}` : null,
+        `Content: ${data.contentLength} chars (fetched in ${data.fetchTimeMs}ms)`,
+      ].filter(Boolean);
+      return { name: "analyze_link", content: lines.join("\n"), isError: false };
+    }
+  } catch {
+    // Fall through to basic classification
+  }
+
   return {
     name: "analyze_link",
     content: `Type: ${classification.type}\nDomain: ${classification.domain}\nURL: ${classification.url}`,
