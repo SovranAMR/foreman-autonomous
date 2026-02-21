@@ -49,42 +49,63 @@ Implements code following a strict tactical protocol.
 
 Foreman operates on the principle of **Fractal Decomposition**. A task is never executed in its raw form; it must be shattered into atomic units to ensure deterministic outcomes.
 
+### 🧩 Atomization Schematic
+
 ```text
-TASK [Build Authentication System]
-  │
-  ├─ [LAYER 1: VISION] --> Soul & Constraints
-  │
-  ├─ [LAYER 2: STRATEGIST]
-  │   │
-  │   ├─ BLOCK A [Database Schema]
-  │   │   ├─ ATOM 1: Design User Table ........... [REASON] -> [DO]
-  │   │   ├─ ATOM 2: Implement Migrations ........ [REASON] -> [DO]
-  │   │   └─ ATOM 3: Verify Indexes .............. [REASON] -> [DO]
-  │   │
-  │   └─ BLOCK B [JWT Implementation]
-  │       ├─ ATOM 4: Configure Secrets ........... [REASON] -> [DO]
-  │       ├─ ATOM 5: Middleware Logic ............ [REASON] -> [DO]
-  │       └─ ATOM 6: Token Rotation .............. [REASON] -> [DO]
-  │
-  └─ [RE-FORGE] --> Continuous alignment via Reflection
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ TASK: [High-Level Objective]                                                │
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+          ┌───────────────────────────┴───────────────────────────┐
+          ▼                                                       ▼
+┌───────────────────┐                                   ┌───────────────────┐
+│ BLOCK A: Database │                                   │ BLOCK B: API Auth │
+└─────────┬─────────┘                                   └─────────┬─────────┘
+          │                                                       │
+    ┌─────┼─────┐                                           ┌─────┼─────┐
+    ▼     ▼     ▼                                           ▼     ▼     ▼
+ ┌─────┐ ┌─────┐ ┌─────┐                                 ┌─────┐ ┌─────┐ ┌─────┐
+ │ATOM1│ │ATOM2│ │ATOM3│                                 │ATOM4│ │ATOM5│ │ATOM6│
+ └─────┘ └─────┘ └─────┘                                 └─────┘ └─────┘ └─────┘
 ```
 
-### Atomic Unit: The Thought
-The fundamental unit of Foreman is the **Thought**. Each thought follows a rigid I/O structure:
-`1 Input` -> `Reasoning (Required)` -> `1 Output`
+### 🧠 Atomic Unit: The Thought
 
-Reasoning is never empty. Every decision must be justified by context, impact analysis, and predicted outcome before the first line of code is written.
+The fundamental unit of Foreman is the **Thought**. Each thought follows a rigid I/O structure to ensure accountability and alignment.
 
-### Worker Protocol: The 8-Step Strike
-Each execution atom follows the **Worker Protocol** to prevent regression and ensure quality:
-1. **Read**: Analyze existing code and state.
-2. **Context**: Resolve internal and external dependencies.
-3. **Impact**: Predict side effects on the wider system.
-4. **Decide**: Select the optimal implementation path.
-5. **Predict**: Forecast the expected state after execution.
-6. **Execute**: Perform the file operation or shell command.
-7. **Verify**: Run tests or checks to confirm the prediction.
-8. **Report**: Log the atomic change to the global state.
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                               THOUGHT STRUCTURE                             │
+├─────────────────┬──────────────────────────────────────────┬────────────────┤
+│      INPUT      │                REASONING                 │     OUTPUT     │
+├─────────────────┼──────────────────────────────────────────┼────────────────┤
+│                 │ 1. [Context]   Why are we here?          │                │
+│ Raw instruction │ 2. [Analysis]  Impact on the system.     │ Refined result │
+│ from Strategist │ 3. [Path]      Chosen approach.          │ or Execution   │
+│                 │ 4. [Outcome]   Expected result.          │                │
+└─────────────────┴──────────────────────────────────────────┴────────────────┤
+│       STATUS: [PENDING] -> [REASONING] -> [VALIDATING] -> [DONE]            │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 🔨 Worker Protocol: The 8-Step Strike
+
+Every execution atom follows a strict tactical sequence to prevent regressions.
+
+```text
+┌────┬───────────┬────────────────────────────────────────────────────────────┐
+│STEP│   ACTION  │ DESCRIPTION                                                │
+├────┼───────────┼────────────────────────────────────────────────────────────┤
+│ 1  │ READ      │ Scan existing code, files, and project state.              │
+│ 2  │ CONTEXT   │ Resolve internal and external dependencies.                │
+│ 3  │ IMPACT    │ Predict side effects and cascading changes.                │
+│ 4  │ DECIDE    │ Lock in the optimal implementation strategy.                │
+│ 5  │ PREDICT   │ Define exactly how the state should change.                │
+│ 6  │ EXECUTE   │ Commit the change (file write, shell command, etc).        │
+│ 7  │ VERIFY    │ Run tests and sanity checks against the prediction.        │
+│ 8  │ REPORT    │ Finalize the change and log metrics to the state machine.  │
+└────┴───────────┴────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -111,23 +132,6 @@ cd foreman
 npm install
 npm i -g .  # Installs the global 'foreman' binary
 ```
-
-### Authentication
-Foreman supports multiple providers with **Antigravity OAuth** as the recommended path:
-```bash
-foreman login  # Interactive Google Cloud OAuth flow
-```
-
----
-
-## Command Reference
-
-- `foreman` - Launch the **Interactive REPL** (Chat Mode).
-- `foreman run "<task>"` - Execute a task through the full 4-layer pipeline.
-- `foreman init <name>` - Scaffold a new project workspace.
-- `foreman status` - Display active session, memory stats, and token usage.
-- `foreman doctor` - Perform system health checks and provider diagnostics.
-- `foreman board` - Visual Kanban board of your project tasks.
 
 ---
 
