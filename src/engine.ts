@@ -31,8 +31,8 @@ import { MemoryManager } from "./memory-manager.js";
 import { SessionManager } from "./session-manager.js";
 import { CacheManager } from "./cache-manager.js";
 import { runWithFallback } from "./model-fallback.js";
-import { guardContextWindow } from "./context-guard.js";
-import { BlockedError, NoProviderError, formatErrorMessage } from "./errors.js";
+import { guardContextWindow, resolveContextWindow, evaluateContextWindow } from "./context-guard.js";
+import { BlockedError, NoProviderError, formatErrorMessage, loadJsonFile, saveJsonFile, safeJsonParse, extractErrorCode, extractStatusCode } from "./errors.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
 // ─── ENGINE SUBSYSTEMS ───────────────────────────────────────
@@ -46,7 +46,9 @@ import { LinkIntelligence } from "./link-intelligence.js";
 import { EditEngine } from "./edit-engine.js";
 import { ApprovalEngine } from "./approval-engine.js";
 import { checkChainHealth } from "./chain-repair.js";
-import { buildIntelligentContext } from "./context-intelligence.js";
+import { buildIntelligentContext, extractCrossChainContext } from "./context-intelligence.js";
+import { buildCompactContext, chunkThoughtsByTokens, computeAdaptiveChunkRatio, estimateTokens } from "./context-compression.js";
+import { generateMemoryMd, parseMemoryMd, generateCategoryFiles } from "./memory-md-bridge.js";
 import { GitEngine } from "./git-engine.js";
 
 // ─── ENGINE CONFIG ───────────────────────────────────────────
@@ -340,16 +342,38 @@ export class Engine {
 
     // Use intelligent context engine — layer-aware budgets, relevance scoring,
     // progressive summarization, decision anchoring
+    // Resolve actual context window for the model being used
+    const resolvedModel = this.rateLimiter.currentModel()
+      ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel;
+    const { tokens: contextWindowTokens } = resolveContextWindow(resolvedModel);
+
     const intelligentCtx = buildIntelligentContext({
       thoughts: allChainThoughts,
       currentInput: input,
       currentLayer: layer,
-      contextWindowTokens: 128_000,
+      contextWindowTokens,
       chainSummary: chain?.contextSummary,
     });
 
     // Combine memory + session + intelligent context
-    const contextText = `${memoryContext}\n${sessionContext}\n${intelligentCtx.text}`;
+    let contextText = `${memoryContext}\n${sessionContext}\n${intelligentCtx.text}`;
+
+    // If context exceeds budget, use compact context with adaptive chunking
+    const contextEval = evaluateContextWindow({
+      model: resolvedModel,
+      systemPromptTokens: estimateTokens(getSystemPrompt(layer, phase)),
+      userPromptTokens: estimateTokens(buildUserPrompt(input, contextText)),
+      contextTokens: estimateTokens(contextText),
+    });
+    if (!contextEval.isSafe && allChainThoughts.length > 0) {
+      const chunkRatio = computeAdaptiveChunkRatio(allChainThoughts.length, contextWindowTokens);
+      const compactResult = buildCompactContext({
+        thoughts: allChainThoughts,
+        maxTokens: Math.floor(contextWindowTokens * chunkRatio),
+        recentFullCount: 3,
+      });
+      contextText = `${memoryContext}\n${sessionContext}\n${compactResult.context}`;
+    }
 
     const systemPrompt = getSystemPrompt(layer, phase);
     const userPrompt = buildUserPrompt(input, contextText);
@@ -586,8 +610,10 @@ export class Engine {
         { model, maxTokens: request.constraints?.maxTokens ?? 4000, temperature: 0.7 },
       );
       this.rateLimiter.onSuccess();
-    } catch (err: any) {
-      if (err?.status === 429 || err?.message?.includes("429")) {
+    } catch (err: unknown) {
+      const statusCode = extractStatusCode(err);
+      const errorCode = extractErrorCode(err);
+      if (statusCode === 429 || errorCode === "rate_limit_exceeded") {
         const newModel = await this.rateLimiter.onRateLimited();
         const newProvider = this.providers.getProviderForModel(newModel);
         if (!newProvider) throw new Error(`No provider for fallback: ${newModel}`);
@@ -669,6 +695,271 @@ export class Engine {
   }
 
   /**
+   * Import memories from another project directory.
+   * Useful for cross-project knowledge transfer.
+   */
+  importFromProject(sourcePath: string): { imported: number; skipped: number } {
+    return this.memory.importFromProject(sourcePath);
+  }
+
+  /**
+   * Recall memories relevant to a query using TF-IDF similarity.
+   */
+  recall(query: string, limit = 5): Array<{ content: string; score: number }> {
+    return this.memory.recall(query, limit);
+  }
+
+  /**
+   * Generate standalone MEMORY.md content from current memory entries.
+   */
+  generateMemoryDocument(): string {
+    const entries = this.memory.list();
+    return generateMemoryMd(entries);
+  }
+
+  /**
+   * Generate category-organized memory files in .foreman/memory/ directory.
+   */
+  generateCategoryMemoryFiles(): { files: string[]; totalEntries: number } {
+    const entries = this.memory.list();
+    return generateCategoryFiles(entries, this.config.projectRoot);
+  }
+
+  /**
+   * Parse an existing MEMORY.md back into structured entries.
+   */
+  parseMemoryDocument(content: string): Array<{ category: string; content: string; tags: string[] }> {
+    return parseMemoryMd(content);
+  }
+
+  /**
+   * Resolve context window information for a model.
+   */
+  getContextWindow(model?: string): { tokens: number; source: "known" | "default" } {
+    return resolveContextWindow(model ?? DEFAULT_LAYER_CONFIGS.worker.defaultModel);
+  }
+
+  /**
+   * Evaluate if current context fits the model's window.
+   */
+  evaluateContext(model: string, systemPrompt: string, userPrompt: string, contextText: string) {
+    return evaluateContextWindow({
+      model,
+      systemPromptTokens: estimateTokens(systemPrompt),
+      userPromptTokens: estimateTokens(userPrompt),
+      contextTokens: estimateTokens(contextText),
+    });
+  }
+
+  /**
+   * Extract cross-chain context — pull relevant insights from other chains.
+   */
+  getCrossChainContext(query: string, excludeChainId?: string): string {
+    const allChains = this.chains.list();
+    const thoughts: Thought[] = [];
+    for (const c of allChains) {
+      if (c.id === excludeChainId) continue;
+      const chainThoughts = c.thoughts
+        .map(id => this.thoughts.get(id))
+        .filter((t): t is Thought => t !== null)
+        .slice(-5);
+      thoughts.push(...chainThoughts);
+    }
+    return extractCrossChainContext(thoughts, query);
+  }
+
+  /**
+   * Build compact context when full context exceeds budget.
+   * Uses adaptive chunking to fit within token limits.
+   */
+  buildCompactContextForChain(chainId: string, targetTokens: number): string {
+    const chain = this.chains.get(chainId);
+    if (!chain) return "";
+    const thoughts = chain.thoughts
+      .map(id => this.thoughts.get(id))
+      .filter((t): t is Thought => t !== null);
+    return buildCompactContext({ thoughts, maxTokens: targetTokens, recentFullCount: 3 }).context;
+  }
+
+  /**
+   * Safe JSON parsing with error info — wraps errors.ts utilities.
+   */
+  loadConfig<T>(path: string): T | undefined {
+    return loadJsonFile<T>(path);
+  }
+
+  saveConfig(path: string, data: unknown): void {
+    saveJsonFile(path, data);
+  }
+
+  // ─── PROCESS MANAGEMENT ─────────────────────────────────────
+
+  /**
+   * List running processes with thought/layer context.
+   */
+  listRunningProcesses() {
+    return this.processRegistry.listRunning();
+  }
+
+  /**
+   * List finished processes.
+   */
+  listFinishedProcesses() {
+    return this.processRegistry.listFinished();
+  }
+
+  /**
+   * Get specific process session by ID.
+   */
+  getProcess(id: string) {
+    return this.processRegistry.get(id) ?? this.processRegistry.getFinished(id);
+  }
+
+  /**
+   * Poll a process for output updates.
+   */
+  pollProcess(id: string) {
+    return this.processRegistry.poll(id);
+  }
+
+  /**
+   * Kill processes by thought ID — cleanup after blocked thought.
+   */
+  killProcessesByThought(thoughtId: string): number {
+    return this.processRegistry.killByThought(thoughtId);
+  }
+
+  /**
+   * Kill processes by layer — cleanup when switching layers.
+   */
+  killProcessesByLayer(layer: Layer): number {
+    return this.processRegistry.killByLayer(layer);
+  }
+
+  /**
+   * List processes by chain — useful for pipeline status.
+   */
+  listProcessesByChain(chainId: string) {
+    return this.processRegistry.listByChain(chainId);
+  }
+
+  /**
+   * Process statistics.
+   */
+  processStats() {
+    return this.processRegistry.stats();
+  }
+
+  // ─── GIT LIFECYCLE ──────────────────────────────────────────
+
+  /**
+   * Complete task branch lifecycle — switch back to main, optionally delete task branch.
+   */
+  completeTaskBranch(options?: { deleteBranch?: boolean }): { success: boolean; error?: string } {
+    try {
+      const current = this.git.currentBranch();
+      if (!current.startsWith("foreman/")) {
+        return { success: true }; // Not on a task branch
+      }
+
+      // Check if clean before switching
+      if (!this.git.isClean()) {
+        // Commit remaining changes
+        this.git.commitThought({
+          message: "Final changes before branch switch",
+          chainId: "cleanup",
+          thoughtId: "cleanup",
+          layer: "worker",
+        });
+      }
+
+      // Switch to main/master
+      const result = this.git.safeSwitchBranch("main");
+      if (!result.success) {
+        // Try master
+        const masterResult = this.git.safeSwitchBranch("master");
+        if (!masterResult.success) {
+          return { success: false, error: masterResult.error };
+        }
+      }
+
+      // Delete task branch if requested
+      if (options?.deleteBranch) {
+        this.git.deleteTaskBranch(current);
+      }
+
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: formatErrorMessage(err) };
+    }
+  }
+
+  /**
+   * List all task branches.
+   */
+  listTaskBranches(): string[] {
+    return this.git.listTaskBranches();
+  }
+
+  /**
+   * Get branch info.
+   */
+  getBranches() {
+    return this.git.getBranches();
+  }
+
+  /**
+   * Get chain-specific commit history.
+   */
+  getChainHistory(chainId: string) {
+    return this.git.getChainHistory(chainId);
+  }
+
+  /**
+   * Restore stashed changes (after pipeline completes).
+   */
+  restoreStash(): { success: boolean; error?: string } {
+    const stashes = this.git.stashList();
+    const foremanStash = stashes.find(s => s.message.includes("foreman-pipeline-guard"));
+    if (!foremanStash) return { success: true }; // Nothing to restore
+    return this.git.stashPop(foremanStash.index);
+  }
+
+  // ─── COMMAND QUEUE ──────────────────────────────────────────
+
+  /**
+   * Set lane concurrency for the command queue.
+   */
+  setQueueConcurrency(lane: string, max: number): void {
+    this.commandQueue.setLaneConcurrency(lane, max);
+  }
+
+  // ─── TASK SCHEDULER ────────────────────────────────────────
+
+  /**
+   * Add a delayed task.
+   */
+  addDelayedTask(id: string, delayMs: number, fn: () => void | Promise<void>): void {
+    this.scheduler.addDelayed(id, delayMs, fn);
+  }
+
+  /**
+   * Enable/disable a scheduled task.
+   */
+  setScheduleEnabled(id: string, enabled: boolean): void {
+    this.scheduler.setEnabled(id, enabled);
+  }
+
+  // ─── APPROVAL ───────────────────────────────────────────────
+
+  /**
+   * Get the current command allowlist.
+   */
+  getApprovalAllowlist() {
+    return this.approvalEngine.getAllowlist();
+  }
+
+  /**
    * Graceful shutdown — stop scheduler, drain command queue, kill processes.
    */
   async shutdown(): Promise<void> {
@@ -676,11 +967,23 @@ export class Engine {
     await this.commandQueue.drainAll();
     this.processRegistry.killAll("SIGTERM");
 
-    // Final memory sync
-    this.syncMemory();
+    // Detach signal bridge (stop forwarding SIGTERM/SIGINT to children)
+    this.processRegistry.detachSignalBridge();
 
-    // Clear caches
+    // Clear finished process history
+    this.processRegistry.clearFinished();
+
+    // Final memory sync + category files generation
+    this.syncMemory();
+    try {
+      this.generateCategoryMemoryFiles();
+    } catch {
+      // Category file generation is best-effort
+    }
+
+    // Clear all caches
     this.linkIntelligence.clearCache();
+    this.cache.clear();
 
     // Consolidate memory
     this.memory.consolidate();

@@ -16,7 +16,12 @@ import { Engine } from "./engine.js";
 import type { StepResult } from "./engine.js";
 import type { Layer, Thought, Chain } from "./types.js";
 import type { DecomposeParseResult, AtomizeParseResult } from "./parser.js";
-import { parseBuildOutput, parseTestOutput, analyzeOutput } from "./verification-engine.js";
+import { parseBuildOutput, parseTestOutput, analyzeOutput, detectRegressions, checkServerHealth } from "./verification-engine.js";
+import { extractCrossChainContext } from "./context-intelligence.js";
+import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
+import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
+import { getActiveThoughts } from "./chain-repair.js";
+import { validateReasoning, validateOutput, validateConfidence, validateWorkerProtocol, validateProtocolSteps } from "./validators.js";
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
@@ -233,9 +238,45 @@ export class Orchestrator {
         });
       }
 
+      // Web research augmentation — search for real context before LLM call
+      let webContext = "";
+      try {
+        const searchResults = await webSearch(block.slice(0, 80), 3);
+        if (searchResults.length > 0) {
+          webContext = "\n\nWeb research findings:\n" +
+            searchResults.map(r => `- ${r.title}: ${r.snippet}`).join("\n");
+        }
+      } catch {
+        // Web search is best-effort
+      }
+
+      // Cross-chain context — pull relevant insights from other chains
+      let crossChainCtx = "";
+      try {
+        const allChains = this.engine.chains.list();
+        if (allChains.length > 1) {
+          const otherChainThoughts: Thought[] = [];
+          for (const c of allChains) {
+            if (c.id === visionChain.id) continue;
+            const active = getActiveThoughts(
+              c.thoughts.map(id => this.engine.thoughts.get(id)).filter((t): t is Thought => t !== null)
+            );
+            otherChainThoughts.push(...active.slice(-3));
+          }
+          if (otherChainThoughts.length > 0) {
+            const crossCtx = extractCrossChainContext(otherChainThoughts, block);
+            if (crossCtx) {
+              crossChainCtx = `\n\nInsights from related work:\n${crossCtx}`;
+            }
+          }
+        }
+      } catch {
+        // Cross-chain context is best-effort
+      }
+
       const researchResult = await this.engine.stepWithPhase(
         visionChain.id,
-        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nContext (vision):\n${visionOutput.slice(0, 500)}`,
+        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nContext (vision):\n${visionOutput.slice(0, 500)}${webContext}${crossChainCtx}`,
         "researcher",
         "research",
         [visionResult.thought.id, decomposeResult.thought.id],
@@ -325,6 +366,42 @@ export class Orchestrator {
             attempt: execResult.retryCount,
             missing: [],
           });
+        }
+
+        // ── PER-THOUGHT VALIDATION — granular quality checks ──
+        if (execResult.thought.status === "done") {
+          const thought = execResult.thought;
+          const validations = [
+            validateReasoning(thought),
+            validateOutput(thought),
+            validateConfidence(thought),
+          ];
+          // Worker-specific: validate protocol completeness
+          if (thought.workerProtocol) {
+            validations.push(validateWorkerProtocol(thought));
+            validations.push(validateProtocolSteps(thought.workerProtocol));
+          }
+          const failures = validations.filter(v => !v.valid);
+          if (failures.length > 0) {
+            this.emit({
+              type: "verification",
+              phase: "validation",
+              passed: false,
+              detail: `${failures.length} validation issues: ${failures.map(f => f.errors.join(", ")).join("; ")}`,
+            });
+          }
+
+          // Extract tool call/result pairs for transcript integrity
+          const toolCalls = extractToolCalls(thought);
+          const toolResults = extractToolResults(thought);
+          if (toolCalls.length !== toolResults.length && toolCalls.length > 0) {
+            this.emit({
+              type: "verification",
+              phase: "transcript",
+              passed: false,
+              detail: `Tool call/result mismatch: ${toolCalls.length} calls, ${toolResults.length} results`,
+            });
+          }
         }
 
         this.emit({ type: "phase_end", phase: "execute", detail: `Done: ${atom.slice(0, 40)}` });
@@ -493,6 +570,7 @@ export class Orchestrator {
     }
 
     // ─── FINAL VERIFICATION — run actual build/test ─────────
+    let previousTestResult: ReturnType<typeof parseTestOutput> | null = null;
     try {
       const buildHandle = this.engine.git.executor.runShell("npm run build --if-present 2>&1", 60_000);
       if (buildHandle.success) {
@@ -525,6 +603,35 @@ export class Orchestrator {
             ? `${testParsed.failed}/${testParsed.total} tests failed after pipeline`
             : `${testParsed.passed}/${testParsed.total} tests passed after pipeline`,
         });
+
+        // Regression detection — compare with baseline if available
+        if (previousTestResult) {
+          const regressions = detectRegressions(previousTestResult, testParsed);
+          if (regressions.hasRegressions) {
+            this.emit({
+              type: "verification",
+              phase: "regression",
+              passed: false,
+              detail: `Regression detected: ${regressions.newFailures.length} new failures, ${regressions.fixedTests.length} fixes`,
+            });
+          }
+        }
+        previousTestResult = testParsed;
+      }
+
+      // Dev server health check — if project has a dev server
+      try {
+        const health = await checkServerHealth("http://localhost:3000", 3000);
+        if (health.reachable) {
+          this.emit({
+            type: "verification",
+            phase: "server_health",
+            passed: health.healthy,
+            detail: `Dev server: ${health.statusCode} (${health.responseTimeMs}ms)`,
+          });
+        }
+      } catch {
+        // No dev server running — skip
       }
     } catch {
       // Final verification is best-effort

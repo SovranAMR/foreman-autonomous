@@ -230,6 +230,10 @@ program
     const sm = StateManager.create(projectRoot, name);
     sm.save();
 
+    // Create project entry in ProjectManager
+    const pm = new ProjectManager(projectRoot);
+    pm.create({ name, description: name });
+
     if (process.stdout.isTTY) await animateFire(1000, 150);
 
     console.log(`  ${icon.done} ${brand.gold("Project created:")} ${brand.bold(name)}`);
@@ -311,6 +315,23 @@ program
     if (cacheStats.entries > 0 || cacheStats.totalHits > 0) {
       console.log(brand.gold("  ◆ Cache"));
       console.log(`     ${cacheStats.entries} entries, ${cacheStats.totalHits} hits, ${brand.green(String(cacheStats.totalTokensSaved))} tokens saved`);
+    }
+
+    // Task summary
+    const tm = new TaskManager(projectRoot);
+    const taskStats = tm.stats();
+    if (taskStats.total > 0) {
+      console.log(brand.gold("  ◆ Tasks"));
+      console.log(`     ${taskStats.done} done, ${taskStats.inProgress} in-progress, ${taskStats.pending} pending, ${taskStats.blocked} blocked (${taskStats.total} total)`);
+    }
+
+    // Project summary
+    const pm = new ProjectManager(projectRoot);
+    const projects = pm.list();
+    if (projects.length > 0) {
+      console.log(brand.gold("  ◆ Projects"));
+      const active = projects.find(p => p.status === "active");
+      console.log(`     ${projects.length} project${projects.length > 1 ? "s" : ""}${active ? ` — active: ${brand.bold(active.name)}` : ""}`);
     }
 
     console.log("");
@@ -472,6 +493,19 @@ program
         }
         completionBox(result.totalThoughts, result.totalTokens, false);
         console.log(`  Check status with ${brand.dim("foreman status")}.`);
+      }
+
+      // Git branch cleanup — switch back to main, restore stash
+      try {
+        const branchCleanup = engine.completeTaskBranch({ deleteBranch: result.success });
+        if (branchCleanup.success) {
+          const stashRestore = engine.restoreStash();
+          if (stashRestore.success) {
+            // Silent success
+          }
+        }
+      } catch {
+        // Git cleanup is best-effort
       }
     } catch (err: any) {
       console.log("");
@@ -1054,6 +1088,85 @@ intCmd
       console.log(`  ${si} ${brand.bold(h.command?.slice(0, 50) ?? "?")}${risk} ${brand.dim(`[${h.layer ?? "?"}]`)}`);
     }
     console.log("");
+  });
+
+// ─── PROJECTS ─────────────────────────────────────────────────
+
+const projectCmd = program
+  .command("project")
+  .description("Project management");
+
+projectCmd
+  .command("list")
+  .description("List projects")
+  .option("-d, --dir <path>", "Project directory")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const pm = new ProjectManager(projectRoot);
+    const projects = pm.list();
+
+    if (projects.length === 0) {
+      console.log(`  ${icon.pending} No projects found.`);
+      return;
+    }
+
+    console.log(brand.gold(`\n  ◆ Projects (${projects.length})\n`));
+    for (const p of projects) {
+      const si = p.status === "active" ? brand.green("●") : brand.dim("○");
+      console.log(`  ${si} ${brand.bold(p.name)} ${brand.dim(`[${p.id}]`)}`);
+      if (p.description && p.description !== p.name) {
+        console.log(`     ${brand.dim(p.description.slice(0, 60))}`);
+      }
+    }
+    console.log("");
+  });
+
+projectCmd
+  .command("show <id>")
+  .description("Show project details")
+  .option("-d, --dir <path>", "Project directory")
+  .action((id: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const pm = new ProjectManager(projectRoot);
+    const project = pm.get(id);
+
+    if (!project) {
+      console.log(`  ${icon.fail} Project not found: ${id}`);
+      return;
+    }
+
+    console.log(brand.gold(`\n  ◆ ${project.name}\n`));
+    console.log(`  ID:     ${brand.dim(project.id)}`);
+    console.log(`  Status: ${project.status === "active" ? brand.green("active") : brand.dim(project.status)}`);
+    if (project.description) console.log(`  Desc:   ${project.description}`);
+    if (project.vision) console.log(`  Vision: ${project.vision.slice(0, 80)}`);
+    console.log("");
+  });
+
+projectCmd
+  .command("switch <id>")
+  .description("Switch active project")
+  .option("-d, --dir <path>", "Project directory")
+  .action((id: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const pm = new ProjectManager(projectRoot);
+    const project = pm.get(id);
+
+    if (!project) {
+      console.log(`  ${icon.fail} Project not found: ${id}`);
+      return;
+    }
+
+    // Update project status to active, mark others as completed
+    for (const p of pm.list()) {
+      if (p.id === id) {
+        pm.update(p.id, { status: "active" });
+      } else if (p.status === "active") {
+        pm.update(p.id, { status: "completed" });
+      }
+    }
+
+    console.log(`  ${icon.done} Switched to: ${brand.bold(project.name)}`);
   });
 
 // ─── SECURITY SCAN ────────────────────────────────────────────

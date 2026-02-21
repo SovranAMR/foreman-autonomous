@@ -352,6 +352,9 @@ async function handleSlashCommand(
       console.log(`    ${brand.cyan("git_diff")}       ${brand.dim("Classified git diff analysis")}`);
       console.log(`    ${brand.cyan("edit_range")}     ${brand.dim("Replace content by line range")}`);
       console.log(`    ${brand.cyan("edit_undo")}      ${brand.dim("Undo last edit on a file")}`);
+      console.log(`    ${brand.cyan("classify_url")}   ${brand.dim("Classify URL type (github/npm/docs)")}`);
+      console.log(`    ${brand.cyan("cache_stats")}    ${brand.dim("Web search/fetch cache statistics")}`);
+      console.log(`    ${brand.cyan("extract_code")}   ${brand.dim("Extract inline code from text")}`);
       console.log("");
       console.log(`    ${brand.dim("Foreman uses these automatically based on your requests.")}`);
       console.log("");

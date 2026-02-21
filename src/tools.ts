@@ -39,10 +39,10 @@ import { GitEngine } from "./git-engine.js";
 import { parseBuildOutput, parseTestOutput } from "./verification-engine.js";
 import { scanProject } from "./security-scanner.js";
 import { searchFiles } from "./research-engine.js";
-import { quickSearch } from "./web-search-engine.js";
-import { webFetch } from "./web-fetch-engine.js";
-import { LinkIntelligence } from "./link-intelligence.js";
-import { extractCodeFences, extractTables, extractSections, extractLists, parseFrontmatter } from "./markdown-intelligence.js";
+import { quickSearch, clearSearchCache, searchCacheStats } from "./web-search-engine.js";
+import { webFetch, clearFetchCache, fetchCacheStats } from "./web-fetch-engine.js";
+import { LinkIntelligence, classifyUrl } from "./link-intelligence.js";
+import { extractCodeFences, extractTables, extractSections, extractLists, parseFrontmatter, extractInlineCode } from "./markdown-intelligence.js";
 
 // ─── TYPES ───────────────────────────────────────────────────
 
@@ -442,6 +442,46 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["path"],
     },
   },
+  {
+    name: "classify_url",
+    description:
+      "Classify a URL by type (github, npm, docs, api, social, etc.) without fetching it.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "URL to classify.",
+        },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "cache_stats",
+    description:
+      "Show web search and fetch cache statistics.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "extract_code",
+    description:
+      "Extract inline code snippets from markdown/text content.",
+    parameters: {
+      type: "object",
+      properties: {
+        content: {
+          type: "string",
+          description: "Text to extract inline code from.",
+        },
+      },
+      required: ["content"],
+    },
+  },
 ];
 
 /**
@@ -525,6 +565,12 @@ function createToolDispatcher(
           return executeEditRange(editEngine, call.args);
         case "edit_undo":
           return executeEditUndo(editEngine, call.args);
+        case "classify_url":
+          return executeClassifyUrl(call.args);
+        case "cache_stats":
+          return executeCacheStats();
+        case "extract_code":
+          return executeExtractCode(call.args);
         default:
           return { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
       }
@@ -1209,6 +1255,43 @@ function executeEditUndo(editEngine: EditEngine, args: Record<string, unknown>):
   return {
     name: "edit_undo",
     content: `Undone last edit on ${filePath}`,
+    isError: false,
+  };
+}
+
+function executeClassifyUrl(args: Record<string, unknown>): ToolResult {
+  const url = args.url as string;
+  if (!url) return { name: "classify_url", content: "Error: url is required", isError: true };
+
+  const result = classifyUrl(url);
+  return {
+    name: "classify_url",
+    content: `Type: ${result.kind}\nDomain: ${result.domain}\nConfidence: ${(result.confidence * 100).toFixed(0)}%`,
+    isError: false,
+  };
+}
+
+function executeCacheStats(): ToolResult {
+  const searchStats = searchCacheStats();
+  const fetchStats = fetchCacheStats();
+  return {
+    name: "cache_stats",
+    content: `Search cache: ${searchStats.size}/${searchStats.maxEntries} entries\nFetch cache: ${fetchStats.size} entries`,
+    isError: false,
+  };
+}
+
+function executeExtractCode(args: Record<string, unknown>): ToolResult {
+  const content = args.content as string;
+  if (!content) return { name: "extract_code", content: "Error: content is required", isError: true };
+
+  const inlineCode = extractInlineCode(content);
+  if (inlineCode.length === 0) {
+    return { name: "extract_code", content: "No inline code found.", isError: false };
+  }
+  return {
+    name: "extract_code",
+    content: inlineCode.join("\n"),
     isError: false,
   };
 }
