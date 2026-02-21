@@ -25,6 +25,7 @@ import {
   refreshChatModels,
 } from "./antigravity-provider.js";
 import type { ToolCall, ToolResult } from "./tools.js";
+import { createToolExecutor } from "./tools.js";
 import { runOnboarding } from "./onboarding.js";
 import {
   brand, icon, grad, SPARK_LINES,
@@ -60,6 +61,7 @@ interface ReplState {
   totalTokens: number;
   rl: ReadlineInterface | null;
   running: boolean;
+  toolExecutor: (call: ToolCall) => ToolResult;
 }
 
 
@@ -410,6 +412,8 @@ async function handleChatTurn(input: string, state: ReplState): Promise<void> {
         }
       },
       32768,
+      25,
+      state.toolExecutor,
     );
 
     if (firstToken) {
@@ -497,6 +501,9 @@ export async function startRepl(): Promise<void> {
   // Build system prompt
   const systemPrompt = buildSystemPrompt(project.name, project.info, project.fileTree);
 
+  // Build tool executor — bound to project root for security
+  const toolExecutor = createToolExecutor(cwd);
+
   // State
   const state: ReplState = {
     model: DEFAULT_CHAT_MODEL,
@@ -507,6 +514,7 @@ export async function startRepl(): Promise<void> {
     totalTokens: 0,
     rl: null,
     running: true,
+    toolExecutor,
   };
 
   // ── Startup sequence ──

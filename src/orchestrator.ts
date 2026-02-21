@@ -413,6 +413,57 @@ export class Orchestrator {
     // ─── MEMORY SYNC — write memory to MEMORY.md ────────────
     this.engine.syncMemory();
 
+    // ─── SECURITY SCAN — catch accidental secret leaks ──────
+    try {
+      const scanResult = this.engine.runSecurityScan();
+      if (scanResult.summary.critical > 0 || scanResult.summary.high > 0) {
+        this.emit({
+          type: "error",
+          message: `Security scan: ${scanResult.summary.critical} critical, ${scanResult.summary.high} high severity issues detected after pipeline`,
+        });
+      }
+    } catch {
+      // Security scan is best-effort
+    }
+
+    // ─── FINAL VERIFICATION — run actual build/test ─────────
+    try {
+      const buildHandle = this.engine.git.executor.runShell("npm run build --if-present 2>&1", 60_000);
+      if (buildHandle.success) {
+        const buildParsed = parseBuildOutput(buildHandle.stdout + "\n" + buildHandle.stderr);
+        if (buildParsed.errors.length > 0) {
+          this.emit({
+            type: "verification",
+            phase: "final_build",
+            passed: false,
+            detail: `${buildParsed.errors.length} build errors after pipeline completion`,
+          });
+        } else {
+          this.emit({
+            type: "verification",
+            phase: "final_build",
+            passed: true,
+            detail: "Build clean after pipeline completion",
+          });
+        }
+      }
+
+      const testHandle = this.engine.git.executor.runShell("npm test --if-present 2>&1", 120_000);
+      const testParsed = parseTestOutput(testHandle.stdout + "\n" + testHandle.stderr);
+      if (testParsed.total > 0) {
+        this.emit({
+          type: "verification",
+          phase: "final_test",
+          passed: testParsed.failed === 0,
+          detail: testParsed.failed > 0
+            ? `${testParsed.failed}/${testParsed.total} tests failed after pipeline`
+            : `${testParsed.passed}/${testParsed.total} tests passed after pipeline`,
+        });
+      }
+    } catch {
+      // Final verification is best-effort
+    }
+
     if (this.engine.state.canTransition("complete")) {
       this.engine.state.transition("complete", "Pipeline complete");
     }

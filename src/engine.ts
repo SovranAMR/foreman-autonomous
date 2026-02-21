@@ -32,7 +32,6 @@ import { SessionManager } from "./session-manager.js";
 import { CacheManager } from "./cache-manager.js";
 import { runWithFallback } from "./model-fallback.js";
 import { guardContextWindow } from "./context-guard.js";
-import { buildCompactContext, shouldCompact, estimateThoughtTokens } from "./context-compression.js";
 import { BlockedError, NoProviderError, formatErrorMessage } from "./errors.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
@@ -40,19 +39,16 @@ import { ExecutionEngine } from "./execution-engine.js";
 import { ProcessRegistry } from "./process-registry.js";
 import { CommandQueue } from "./command-queue.js";
 import { repairTranscript } from "./transcript-repair.js";
-import { extractCodeFences, extractTables, extractSections, extractLists, parseFrontmatter } from "./markdown-intelligence.js";
 import { TaskScheduler } from "./task-scheduler.js";
 import { scanProject } from "./security-scanner.js";
-import { batchWrite } from "./batch-file-engine.js";
 import { syncMemoryMd } from "./memory-md-bridge.js";
 import { LinkIntelligence } from "./link-intelligence.js";
 import { EditEngine } from "./edit-engine.js";
 import { ApprovalEngine } from "./approval-engine.js";
 import { checkChainHealth } from "./chain-repair.js";
 import { buildIntelligentContext } from "./context-intelligence.js";
-import { parseBuildOutput, parseTestOutput, analyzeOutput } from "./verification-engine.js";
+import { parseBuildOutput, parseTestOutput } from "./verification-engine.js";
 import { GitEngine } from "./git-engine.js";
-import { searchFiles } from "./research-engine.js";
 
 // ─── ENGINE CONFIG ───────────────────────────────────────────
 

@@ -638,6 +638,7 @@ export class AntigravityProvider implements LLMProvider {
     onToolResult: (result: ToolResult) => void,
     maxTokens = 32768,
     maxIterations = 25,
+    toolExecutor?: (call: ToolCall) => ToolResult,
   ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
     await this.ensureValidToken();
 
@@ -743,7 +744,7 @@ export class AntigravityProvider implements LLMProvider {
             const toolResultParts: any[] = [];
             for (const fc of functionCalls) {
               onToolCall(fc);
-              const result = executeTool(fc);
+              const result = toolExecutor ? toolExecutor(fc) : executeTool(fc);
               onToolResult(result);
               toolResultParts.push({
                 functionResponse: {
