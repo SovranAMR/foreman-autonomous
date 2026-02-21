@@ -18,6 +18,7 @@ import { StateManager } from "./state.js";
 import { ThoughtManager } from "./thought-manager.js";
 import { ChainManager } from "./chain-manager.js";
 import { RateLimiter } from "./rate-limiter.js";
+import type { RateLimitConfig } from "./types.js";
 import { validateThoughtCompletion } from "./validators.js";
 import type { LLMProvider, GenerateResult } from "./provider.js";
 import { ProviderRegistry } from "./provider.js";
@@ -28,6 +29,8 @@ import { getSystemPrompt, buildContextText, buildUserPrompt } from "./prompts.js
 export interface EngineConfig {
   projectRoot: string;
   projectName: string;
+  /** Rate limit override (test için düşük delay) */
+  rateLimitOverride?: Partial<RateLimitConfig & { backoffBaseMs: number }>;
 }
 
 // ─── ENGINE ──────────────────────────────────────────────────
@@ -53,7 +56,7 @@ export class Engine {
     this.chains = new ChainManager(config.projectRoot);
 
     // Rate limiting
-    this.rateLimiter = new RateLimiter();
+    this.rateLimiter = new RateLimiter(config.rateLimitOverride);
 
     // Provider registry (must be populated externally)
     this.providers = new ProviderRegistry();

@@ -36,6 +36,7 @@ async function run() {
   const engine = new Engine({
     projectRoot: tempDir,
     projectName: "test-project",
+    rateLimitOverride: { minDelayBetweenCalls: 0, backoffBaseMs: 1 },
   });
 
   const mockProvider = new MockProvider();
