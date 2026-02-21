@@ -38,9 +38,12 @@ import { Orchestrator } from "./orchestrator.js";
 import { execSync } from "node:child_process";
 import { homedir } from "node:os";
 import {
-  brand, icon, grad, printLogo,
+  brand, icon, grad, printLogo, printForgeIntro, printForgeBanner,
   phaseHeader, thoughtLine, blockLine,
   reflectionLine, completionBox, statusBox,
+  forgeDivider, thoughtSpark, forgeProgress,
+  doctorHeader, doctorItem, doctorFooter,
+  printIdleForge,
 } from "./theme.js";
 import { runSetup, getApiKey, printProviderStatus } from "./setup.js";
 import { TaskManager } from "./task-manager.js";
@@ -73,36 +76,38 @@ program
   .description("Sistem sağlık kontrolü")
   .action(() => {
     printLogo();
-    console.log(brand.gold("  ◆ Sistem Kontrolü\n"));
+    doctorHeader();
+
+    let allOk = true;
 
     // Node.js
     const nodeVer = process.version;
     const nodeMajor = parseInt(nodeVer.slice(1).split(".")[0]);
-    if (nodeMajor >= 20) {
-      console.log(`  ${icon.done} Node.js ${nodeVer}`);
-    } else {
-      console.log(`  ${icon.fail} Node.js ${nodeVer} ${brand.red("(20+ gerekli)")}`);
-    }
+    const nodeOk = nodeMajor >= 20;
+    if (!nodeOk) allOk = false;
+    doctorItem(nodeOk, `Node.js ${nodeVer}`, nodeOk ? undefined : "20+ gerekli");
 
     // npm
     try {
       const npmVer = execSync("npm -v", { encoding: "utf-8" }).trim();
-      console.log(`  ${icon.done} npm ${npmVer}`);
+      doctorItem(true, `npm ${npmVer}`);
     } catch {
-      console.log(`  ${icon.fail} npm bulunamadı`);
+      doctorItem(false, "npm bulunamadı");
+      allOk = false;
     }
 
-    // Config
+    // Providers
     console.log("");
     printProviderStatus();
 
-    // Disk
+    // Config
     console.log("");
     const configDir = join(homedir(), ".foreman");
     const configExists = existsSync(configDir);
-    console.log(`  ${configExists ? icon.done : icon.pending} Config dizini: ${brand.dim(configDir)}`);
+    doctorItem(configExists, `Config dizini`, configDir);
+    if (!configExists) allOk = false;
 
-    console.log("");
+    doctorFooter(allOk);
   });
 
 // ─── INIT ─────────────────────────────────────────────────────
@@ -152,8 +157,9 @@ program
 
     if (!sm) {
       printLogo();
-      console.log(`  ${icon.fail} Foreman projesi bulunamadı.`);
-      console.log(`  ${brand.dim("Önce:")} ${brand.cyan("foreman init <name>")}`);
+      printIdleForge();
+      console.log(`    ${icon.fail} Foreman projesi bulunamadı.`);
+      console.log(`    ${brand.dim("Önce:")} ${brand.cyan("foreman init <name>")}`);
       return;
     }
 
@@ -217,7 +223,7 @@ program
   .action(async (task: string, opts: { mock?: boolean; dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
 
-    printLogo();
+    printForgeIntro();
 
     const engine = new Engine({
       projectRoot,
@@ -268,7 +274,7 @@ program
       console.log("");
     }
 
-    console.log(`  ${brand.gold("◆")} ${brand.bold(task)}`);
+    printForgeBanner(task);
 
     // Orchestrator
     const orchestrator = new Orchestrator(engine);
@@ -285,6 +291,7 @@ program
             event.thought.confidence,
             event.thought.tokenCost,
           );
+          thoughtSpark(event.thought.id, event.thought.confidence);
           break;
         case "block_detected":
           blockLine(event.reason);
@@ -573,7 +580,8 @@ program
     }
     columns["📋 BACKLOG"] = columns["📋 BACKLOG"].filter(t => !tm.isReady(t.id));
 
-    console.log(brand.gold("\n  ◆ Kanban Board\n"));
+    console.log(brand.gold("\n    ◆ Kanban Board\n"));
+    forgeDivider();
 
     for (const [col, tasks] of Object.entries(columns)) {
       if (tasks.length === 0) continue;
