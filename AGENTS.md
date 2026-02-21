@@ -1,99 +1,293 @@
-# Foreman — Agent Guidelines
+# Foreman — Agent & Developer Guidelines
 
 ## Repo
-- GitHub: https://github.com/SovranAMR/foreman (private)
-- Local: `/home/sovranamr/projects/foreman/`
+- **GitHub**: https://github.com/SovranAMR/foreman (private)
+- **Local**: `/home/sovranamr/projects/foreman/`
+- **Owner**: Ali İlçel (@SovranAMR)
 
-## Project Structure
+## İlk Okunan Dosyalar (sırayla)
+1. `STATE.md` — Anlık build durumu, ne tamamlandı ne kaldı
+2. `VISION.md` — Ürün vizyonu, problem tanımı, ilkeler
+3. `ARCHITECTURE.md` — Teknik mimari, tüm interface'ler, state machine
+4. `AGENTS.md` — Bu dosya
+
+---
+
+## Mimari — 4 Katman
+
+Foreman, AI agent'ları 4 katmanlı düşünce zinciriyle orkestre eder. Her katmanın tek bir sorusu var:
+
+### 🔮 Vizyoner (Visioner)
+- **Sorusu**: "Bu NEDEN var?"
+- **Rolü**: Ruh, yön, estetik karar. Projenin hissiyatını belirler.
+- **Model**: `claude-opus` (en derin muhakeme gerekli)
+- **Kurallar**: Araştırma zorunlu, doğrulama zorunlu, BLOCK gönderemez (en üst katman)
+- **Max thought/chain**: 50
+- **Prompt**: `src/prompts.ts` → `VISIONER_SYSTEM`
+
+### 🧩 Stratejist (Strategist)
+- **Sorusu**: "Bu NASIL organize edilir?"
+- **Rolü**: Vizyonu 5-8 bloğa parçalar, her bloğu 3-6 atoma böler (fraktal decomposition)
+- **Model**: `claude-opus`
+- **Kurallar**: Max 8 blok, max 6 atom/blok. Vizyon tutarsızsa vizyoneri BLOCK'layabilir
+- **Max thought/chain**: 30
+- **Prompt**: `src/prompts.ts` → `STRATEGIST_SYSTEM`
+
+### 🔍 Araştırmacı (Researcher)
+- **Sorusu**: "Başkaları NE yaptı?"
+- **Rolü**: Her karar öncesi kanıt toplar. Best practice, benchmark, risk analizi.
+- **Model**: `gpt-4o` (geniş bilgi tabanı)
+- **Kurallar**: Kaynak belirtmek zorunlu, risk/tradeoff açıkça yazılmalı. Stratejisti BLOCK'layabilir
+- **Max thought/chain**: 20
+- **Prompt**: `src/prompts.ts` → `RESEARCHER_SYSTEM`
+
+### ⚡ İşçi (Worker)
+- **Sorusu**: "BURADA ne yapmalıyım?"
+- **Rolü**: Tek atomik görevi uygular — 8 adımlık zorunlu protokolle
+- **Model**: `claude-sonnet` (hızlı, pratik)
+- **Kurallar**: Araştırma gerektirmez ama doğrulama zorunlu. Stratejisti BLOCK'layabilir
+- **Max thought/chain**: 15
+- **8-Adım Protokol** (boş bırakılamaz):
+  1. `READ` — Hedef dosyayı oku, ilgili satırları bul
+  2. `CONTEXT` — Mevcut kodu anla, bağımlılıkları gör
+  3. `IMPACT` — Yan etkileri değerlendir
+  4. `DECIDE` — Ne yazacağına karar ver
+  5. `PREDICT` — Değişiklikten sonra ne olacak
+  6. `EXECUTE` — Kodu yaz
+  7. `VERIFY` — Build çalışıyor mu, beklenti karşılandı mı
+  8. `REPORT` — Özet, beklenmedik şey var mı
+
+---
+
+## Atomik Birim: Thought
+
+Sistemin en küçük birimi. Her vizyon, strateji, araştırma ve kod parçası bir Thought:
+
 ```
-src/
-  types.ts          — 603 LOC, tüm core tipler
-  state.ts          — StateManager (create/load/save/transition)
-  thought-manager.ts — ThoughtManager CRUD
-  chain-manager.ts  — ChainManager CRUD
-  validators.ts     — thought/worker protocol validation
-  rate-limiter.ts   — throttle, model rotation, token budget
-  provider.ts       — LLMProvider interface, MockProvider, ProviderRegistry
-  anthropic-provider.ts — Anthropic SDK entegrasyonu
-  openai-provider.ts    — OpenAI SDK entegrasyonu
-  prompts.ts        — 4 katman system prompt'ları
-  engine.ts         — Engine (think, step), response parsing
-  orchestrator.ts   — Full pipeline (vision → execute → reflect)
-  setup.ts          — API key kurulum wizard
-  theme.ts          — CLI visual theme (renkler, ikonlar, gradientler)
-  cli.ts            — Commander.js CLI
-  *.test.ts         — Test dosyaları (66 test total)
-
-thoughts/          — Thought MD dosyaları (t_001.md, t_002.md, ...)
-chains/            — Chain MD dosyaları (chain_001_types.md, ...)
+1 input → muhakeme → 1 output
 ```
 
-## Architecture — 4 Layer
-1. **Visioner** (🔮): Ruh, yön, estetik — "NEDEN?"
-2. **Strategist** (🧩): Parçalama, planlama — "NASIL?"
-3. **Researcher** (🔍): Bilgi toplama — "NE?"
-4. **Worker** (⚡): Uygulama + 8-adım protokol — "BURADA ne yapmalıyım?"
+**Kurallar:**
+- `reasoning` ASLA boş olamaz — validator enforce eder (`src/validators.ts`)
+- `output` "done" durumunda boş olamaz
+- `confidence` 0-1 arası, düşükse üst katman bilgilendirilir
+- Worker thought'ları 8-adım protokolsüz "done" olamaz
+- Her thought JSON dosyası: `thoughts/t_xxx.json`
 
-## Atomic Unit = Thought
-- `1 input → muhakeme → 1 output`
-- Reasoning ASLA boş olamaz
-- Worker: read → context → impact → decide → predict → execute → verify → report
+---
 
-## Build & Test
-```bash
-npm install              # bağımlılıklar
-npm test                 # tüm testler (66 test)
-npx tsx src/cli.ts ...   # CLI'yı dev'de çalıştır
+## Pipeline Akışı
+
+```
+Görev girer
+    ↓
+🔮 VİZYON — "Bu projenin ruhu ne?"
+    ↓
+🧩 PARÇALAMA — "5-8 blok" (stratejist)
+    ↓
+Her blok için:
+  🔍 ARAŞTIRMA — "Bu blok için best practice ne?"
+  🧩 ATOMİZE — "3-6 atom" (stratejist)
+      ↓
+  Her atom için:
+    ⚡ UYGULAMA — 8-adım protokol (işçi)
+    🔬 DOĞRULAMA
+      ↓
+  🪞 YANSIMA (her 5 atomda) — "Vizyondan saptık mı?"
+    ↓
+🏁 TAMAMLANDI
 ```
 
-## Key Files to Read First
-1. `STATE.md` — Anlık build durumu
-2. `VISION.md` — Ürün vizyonu
-3. `ARCHITECTURE.md` — Teknik mimari
-4. `src/types.ts` — Tüm tip tanımları
+**Bidirectional akış**: Alt katman üst katmanı değiştirebilir:
+- İşçi → Stratejist: "Bu atom imkansız" (BLOCK sinyali)
+- Stratejist → Vizyoner: "Vizyon tutarsız" (BLOCK sinyali)
+- BLOCK durumunda pipeline durur, üst katman replan yapar
 
-## Coding Style
-- TypeScript (ESM), strict typing
-- Test: Node.js built-in `node:test` + `node:assert`
-- Her yeni özellik için test zorunlu
-- Commit mesajları: `chain_XXX: açıklama` veya `fix: açıklama`
+---
 
-## State Machine Rules
-- Geçerli geçişler: `VALID_TRANSITIONS` (types.ts)
-- Her geçiş `reason` zorunlu
-- Auto-persist (her transition disk'e yazılır)
+## State Machine
+
+Sistem her an TEK BİR durumda. Geçerli geçişler (`src/types.ts` → `VALID_TRANSITIONS`):
+
+```
+idle → visioning
+visioning → decomposing | blocked
+decomposing → researching | executing | blocked
+researching → decomposing | executing | blocked
+executing → verifying | blocked
+verifying → executing | reflecting | blocked | complete
+reflecting → executing | decomposing | visioning | blocked
+blocked → decomposing | visioning | awaiting_human
+awaiting_human → executing | decomposing | visioning | idle
+complete → idle
+```
+
+Her geçiş:
+- `reason` zorunlu (boşsa `MissingReasonError`)
+- Tanımsız geçiş → `InvalidTransitionError`
+- Otomatik persist (state.json'a yazılır)
+- Audit trail (`history` dizisi, max 200 kayıt)
+
+---
+
+## Proje Yapısı
+
+```
+foreman/
+├── VISION.md              — Ürün vizyonu (problem, çözüm, ilkeler)
+├── ARCHITECTURE.md        — Teknik mimari (interface'ler, state machine)
+├── STATE.md               — Anlık build durumu (her session başında oku)
+├── AGENTS.md              — Bu dosya
+├── CLAUDE.md              → AGENTS.md symlink
+├── README.md              — Kurulum & hızlı başlangıç
+├── install.sh             — One-liner installer (curl | bash)
+├── uninstall.sh           — Kaldırma scripti
+│
+├── src/
+│   ├── types.ts           — 603 LOC, tüm core tipler (Layer, Thought, Chain, SystemState, WorkerProtocol, RateLimitConfig, ForemanState)
+│   ├── state.ts           — StateManager: create/load/save/transition/canTransition, auto-persist, audit trail
+│   ├── thought-manager.ts — ThoughtManager: CRUD, auto-increment ID (t_001, t_002...)
+│   ├── chain-manager.ts   — ChainManager: CRUD, addThought, updateStatus
+│   ├── validators.ts      — validateThoughtCompletion: reasoning/output/confidence/workerProtocol kontrol
+│   ├── rate-limiter.ts    — RateLimiter: throttle (3s min), burst (15/min), model rotation, token budget
+│   ├── provider.ts        — LLMProvider interface, MockProvider, ProviderRegistry
+│   ├── anthropic-provider.ts — AnthropicProvider: SDK, model mapping (claude-opus→claude-3-5-sonnet-20241022), token tracking
+│   ├── openai-provider.ts — OpenAIProvider: SDK, model mapping (gpt-4o→gpt-4o), token tracking
+│   ├── prompts.ts         — 4 katman system prompt, context builder, user prompt builder
+│   ├── engine.ts          — Engine: think(), step(), LLM response parsing, rate limit + state integration
+│   ├── orchestrator.ts    — Orchestrator: run() tam pipeline, event system, block detection, reflection
+│   ├── setup.ts           — API key wizard: interactive input, live validation, ~/.foreman/config.json
+│   ├── theme.ts           — CLI visual theme: brand colors, gradient logo, phase icons, status box
+│   ├── cli.ts             — Commander.js CLI: setup, init, run, status, thoughts, chains, history, providers, doctor
+│   │
+│   ├── state.test.ts      — 14 test (state machine)
+│   ├── persistence.test.ts — 25 test (thought/chain CRUD, validators)
+│   ├── rate-limiter.test.ts — 12 test (throttle, rotation, budget)
+│   ├── engine.test.ts     — 10 test (think, step, parsing)
+│   └── orchestrator.test.ts — 5 test (pipeline)
+│
+├── thoughts/              — Thought MD dosyaları (t_001.md ... t_019.md)
+├── chains/                — Chain MD dosyaları (chain_001 ... chain_008)
+└── projects/              — Yönetilen projeler (henüz boş)
+```
+
+---
+
+## CLI Komutları
+
+| Komut | Açıklama |
+|-------|----------|
+| `foreman setup` | API key wizard (Anthropic/OpenAI), live validation |
+| `foreman init <name>` | Yeni proje: state.json + thoughts/ + chains/ |
+| `foreman run <task>` | Tam pipeline çalıştır (vision→execute→reflect) |
+| `foreman run <task> --mock` | MockProvider ile test |
+| `foreman status` | Gold-bordered durum kutusu |
+| `foreman thoughts [-c chain] [-s status]` | Thought listesi (ikon + confidence) |
+| `foreman chains` | Chain listesi |
+| `foreman history [-n count]` | State geçiş logları |
+| `foreman providers` | Provider durumu (masked key) |
+| `foreman doctor` | Sistem sağlık kontrolü |
+
+---
 
 ## Rate Limiter
-- Min delay: 3s (test'te 0'a çekilebilir — `rateLimitOverride`)
-- Burst: 15 calls/min
-- Model rotation: primary → fallback on 429
-- Token budget: per-thought/chain/session
 
-## CLI Commands
+| Parametre | Varsayılan | Açıklama |
+|-----------|------------|----------|
+| `minDelayBetweenCalls` | 3000ms | Çağrılar arası minimum bekleme |
+| `maxCallsPerMinute` | 15 | Burst koruması |
+| `cooldownAfterBurst` | 30000ms | Burst sonrası soğuma |
+| `maxRetries` | 5 | 429 sonrası yeniden deneme |
+| `backoffStrategy` | exponential | 3s → 6s → 12s → 24s → 48s |
+| `budget.perThought` | 4096 | Token/thought |
+| `budget.perChain` | 50000 | Token/chain |
+| `budget.perSession` | 200000 | Token/session |
+
+Test'te: `rateLimitOverride: { minDelayBetweenCalls: 0 }` ile delay kapatılır.
+
+---
+
+## Config & Credentials
+
+- **User config**: `~/.foreman/config.json` (API key'ler, default provider)
+- **Proje state**: `./state.json` (çalışma dizininde, auto-persist)
+- **Env var'lar öncelikli**: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`
+- **Global binary**: `~/.foreman/bin/foreman` (install.sh ile kurulur)
+
+---
+
+## Build & Test
+
+```bash
+npm install                    # bağımlılıklar
+npm test                       # 66 test (state + persistence + rate-limiter + engine + orchestrator)
+npx tsx src/cli.ts ...         # CLI dev mode
+npx tsx src/state.test.ts      # tek test dosyası
 ```
-foreman setup       — API key wizard
-foreman init <name> — proje oluştur
-foreman run <task>  — tam pipeline çalıştır
-foreman status      — durum kutusu
-foreman thoughts    — thought listesi
-foreman chains      — chain listesi
-foreman history     — state geçişleri
-foreman providers   — provider durumu
-foreman doctor      — sistem kontrolü
-```
 
-## Theme
-- Brand renkleri: `src/theme.ts`
-- Ana renk: gold (#F5A623)
-- Gradient logo, phase ikonları, status box
-- Değişiklik tek dosyadan: `theme.ts`
+---
 
-## Config
-- User config: `~/.foreman/config.json` (API key'ler)
-- Proje state: `./state.json` (çalışma dizininde)
-- Env var'lar öncelikli: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`
+## Coding Style
 
-## Constraints
-- Mock-first development: önce MockProvider ile test, sonra gerçek LLM
-- Test'te rate limit delay = 0 (`rateLimitOverride: { minDelayBetweenCalls: 0 }`)
-- node_modules ASLA düzenlenmez
+- TypeScript (ESM), `"type": "module"`
+- Strict typing, `any` yasak
+- Test: Node.js built-in `node:test` + `node:assert`
+- Her yeni özellik için test zorunlu
+- Commit: `chain_XXX: açıklama` veya `fix: açıklama`
+- `node_modules` ASLA düzenlenmez
+
+---
+
+## Theme (Visual Identity)
+
+Tüm CLI görselleri `src/theme.ts`'de:
+
+| Renk | Hex | Kullanım |
+|------|-----|----------|
+| Gold | `#F5A623` | Ana brand, header, box border |
+| Cyan | `#00D4FF` | Linkler, research katmanı |
+| Purple | `#A855F7` | Reflection, stratejist |
+| Green | `#22C55E` | Başarı, done |
+| Red | `#EF4444` | Hata, block |
+| Dim | `#6B7280` | Metadata, zaman |
+
+- ASCII gradient logo (gold → orange → purple)
+- Phase ikonları: 🔮 🧩 🔍 ⚛️ ⚡ 🔬 🪞 🏁
+- Status ikonları: ✔ ✖ ⚠ 🚫 ○ ◉
+
+---
+
+## Sonraki Adımlar (Roadmap)
+
+### Faz 2: Gerçek LLM Integration
+- [ ] API key'leri ayarla, gerçek görevle test et
+- [ ] Token tracking dashboard
+- [ ] Model rotation gerçek senaryoda test
+
+### Faz 3: Research Engine
+- [ ] Web search entegrasyonu (Brave/Google)
+- [ ] Dosya sistemi araştırma (grep, AST parse)
+- [ ] Reference/gap analizi
+
+### Faz 4: Execution Engine
+- [ ] Dosya okuma/yazma (gerçek kod)
+- [ ] Build/test çalıştırma (exec)
+- [ ] Git commit integration
+- [ ] Screenshot verification
+
+### Faz 5: Context & Memory
+- [ ] Context compression (uzun zincir özeti)
+- [ ] Cross-session memory
+- [ ] Proje hafızası (MEMORY.md)
+
+---
+
+## Kritik Kısıtlar
+
+1. **Mock-first development**: Önce MockProvider ile test, sonra gerçek LLM
+2. **Her thought muhakemeli**: Reasoning boşsa validator reject eder
+3. **Worker 8-adım zorunlu**: Protokol eksikse thought "done" olamaz
+4. **State geçişleri kısıtlı**: VALID_TRANSITIONS dışı geçiş → InvalidTransitionError
+5. **Rate limit saygılı**: Burst/throttle/budget aşımında BudgetExceededError
+6. **Bidirectional BLOCK**: Alt katman üst katmanı durdurabilir
+7. **Disiplin > Hız**: "Aşırı disiplinli, acele etmeden ağır ağır inşa et"

@@ -65,3 +65,17 @@ Foreman'a "Eyricediş için şov level hero yap" dediğinde:
 5. Her atomu muhakemeyle yapar (read → context → impact → decide → do → verify)
 6. Her 5 atomda geri bakar (tutarlılık kontrolü)
 7. Sonuç: %80+ vizyon karşılama, 60fps, build clean
+
+## Ali'nin Sözleri (Tasarım DNA)
+
+> "Her atomik düzeydeki işçi göreve başlamadan muhakeme ve analiz yeteneği ile fark edip yapmalı — işçi de düşünmeli."
+
+> "Herşey daha atomik düzeyde olmalı — vizyoner bile tek seferde vizyon üretmesin, adım adım."
+
+> "Rate limitlere takılmamalı, işler iç içe geçip karışmamalı, birbirleriyle ahenk içinde çalışmalı."
+
+> "Sadece proje değil FİKİR de inşa edebilmeli — sıfırdan vizyon üretme yeteneği."
+
+> "Aşırı disiplinli bi şekilde acele etmeden ağır ağır inşa et."
+
+Bu sözler Foreman'ın tasarım kararlarının temelidir. Her özellik bunlara göre değerlendirilir.
