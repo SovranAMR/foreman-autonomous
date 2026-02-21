@@ -19,6 +19,8 @@ import { ThoughtManager } from "./thought-manager.js";
 import { ChainManager } from "./chain-manager.js";
 import { Engine } from "./engine.js";
 import { MockProvider } from "./provider.js";
+import { AnthropicProvider } from "./anthropic-provider.js";
+import { OpenAIProvider } from "./openai-provider.js";
 
 const program = new Command();
 
@@ -206,8 +208,9 @@ program
   .command("run <task>")
   .description("Bir görev çalıştır (düşünce zinciri başlat)")
   .option("-l, --layer <layer>", "Başlangıç katmanı", "visioner")
+  .option("-m, --mock", "Mock provider kullan (gerçek API yerine)")
   .option("-d, --dir <path>", "Proje dizini")
-  .action(async (task: string, opts: { layer: string; dir?: string }) => {
+  .action(async (task: string, opts: { layer: string; mock?: boolean; dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
 
     // Engine oluştur
@@ -216,13 +219,36 @@ program
       projectName: "foreman",
     });
 
-    // Mock provider (gerçek provider'lar sonra)
-    const mock = new MockProvider("I need more context to provide a useful response. Please clarify the task.");
-    engine.providers.register({
-      name: "mock",
-      supportedModels: ["mock-model", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro"],
-      generate: mock.generate.bind(mock),
-    });
+    // Provider'ları kaydet
+    if (opts.mock) {
+      const mock = new MockProvider("I need more context. Please clarify the task.");
+      engine.providers.register({
+        name: "mock",
+        supportedModels: ["mock-model", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro"],
+        generate: mock.generate.bind(mock),
+      });
+      console.log("🔧 Mock provider aktif");
+    } else {
+      // Gerçek provider'lar — API key varsa kaydet
+      try {
+        const anthropic = new AnthropicProvider();
+        engine.providers.register(anthropic);
+        console.log("✅ Anthropic provider kayıtlı");
+      } catch { /* API key yok, atla */ }
+
+      try {
+        const openai = new OpenAIProvider();
+        engine.providers.register(openai);
+        console.log("✅ OpenAI provider kayıtlı");
+      } catch { /* API key yok, atla */ }
+
+      if (engine.providers.size === 0) {
+        console.error("❌ Hiçbir LLM provider bulunamadı.");
+        console.error("   ANTHROPIC_API_KEY veya OPENAI_API_KEY env var ayarlayın.");
+        console.error("   Veya --mock flag'ı ile mock provider kullanın.");
+        process.exit(1);
+      }
+    }
 
     // Chain oluştur
     const chain = engine.chains.create({
