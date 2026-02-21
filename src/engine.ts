@@ -30,6 +30,10 @@ import { parseForPhase, buildRetryPrompt } from "./parser.js";
 import { MemoryManager } from "./memory-manager.js";
 import { SessionManager } from "./session-manager.js";
 import { CacheManager } from "./cache-manager.js";
+import { runWithFallback } from "./model-fallback.js";
+import { guardContextWindow } from "./context-guard.js";
+import { buildCompactContext, shouldCompact, estimateThoughtTokens } from "./context-compression.js";
+import { BlockedError, NoProviderError, formatErrorMessage } from "./errors.js";
 
 // ─── ENGINE CONFIG ───────────────────────────────────────────
 
@@ -110,7 +114,7 @@ export class Engine {
   }
 
   /**
-   * LLM'e tek bir çağrı yap.
+   * LLM'e tek bir çağrı yap — model fallback + context guard ile.
    */
   async callLLM(
     systemPrompt: string,
@@ -124,39 +128,45 @@ export class Engine {
       ?? this.rateLimiter.currentModel()
       ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel;
 
-    const provider = this.providers.getProviderForModel(model);
-    if (!provider) {
-      throw new Error(`No provider found for model: ${model}`);
+    // Context window guard — prompt sığıyor mu?
+    const guard = guardContextWindow({
+      model,
+      systemPrompt,
+      userPrompt,
+      contextText: "", // context zaten userPrompt'a dahil
+    });
+
+    if (!guard.isSafe) {
+      throw new BlockedError("pre-call", layer, guard.warning ?? "Context window exceeded");
     }
 
-    let result: GenerateResult;
-    try {
-      result = await provider.generate(
-        [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        { model, maxTokens: 4000, temperature: 0.7 },
-      );
-      this.rateLimiter.onSuccess();
-    } catch (err: any) {
-      if (err?.status === 429 || err?.message?.includes("429")) {
-        const newModel = await this.rateLimiter.onRateLimited();
-        const newProvider = this.providers.getProviderForModel(newModel);
-        if (!newProvider) throw new Error(`No provider for fallback: ${newModel}`);
-        result = await newProvider.generate(
+    // Model fallback ile çağır
+    const fallbackResult = await runWithFallback({
+      registry: this.providers,
+      layer,
+      run: async (provider, selectedModel) => {
+        const result = await provider.generate(
           [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          { model: newModel, maxTokens: 4000 },
+          { model: selectedModel, maxTokens: 4000, temperature: 0.7 },
         );
-        this.rateLimiter.onSuccess();
-      } else {
-        throw err;
-      }
-    }
+        return result;
+      },
+      onRetry: (info) => {
+        // Rate limiter'a bildir
+        if (info.attempt > 1) {
+          this.rateLimiter.onSuccess(); // önceki denemenin cooldown'ını resetle
+        }
+      },
+      onFallback: (from, to, errorClass) => {
+        // Fallback bilgisi — loglama için
+      },
+    });
 
+    const result = fallbackResult.result;
+    this.rateLimiter.onSuccess();
     this.rateLimiter.recordTokens(result.tokenUsage.total);
     this.state.addTokens(result.tokenUsage.total);
 
@@ -208,12 +218,32 @@ export class Engine {
 
     this.thoughts.update(thought.id, { status: "thinking" });
 
-    // 2. Bağlam derle — memory + session + referenced thoughts
+    // 2. Bağlam derle — memory + session + referenced thoughts + context compression
     const referencedThoughts = contextRefs
       .filter(ref => ref.startsWith("t_"))
       .map(ref => this.thoughts.get(ref))
       .filter((t): t is Thought => t !== null);
     const chain = this.chains.get(chainId);
+
+    // Context compression — zincir uzunsa eski thought'ları özetle
+    const allChainThoughts = chain
+      ? chain.thoughts.map(id => this.thoughts.get(id)).filter((t): t is Thought => t !== null)
+      : referencedThoughts;
+
+    let compressedContext = "";
+    if (allChainThoughts.length > 5 && shouldCompact({
+      thoughts: allChainThoughts,
+      contextWindow: 128_000, // default, gerçek değer model'den alınmalı
+      threshold: 0.4,
+    })) {
+      const compact = buildCompactContext({
+        thoughts: allChainThoughts,
+        maxTokens: 8000,
+        recentFullCount: 3,
+        existingSummary: chain?.contextSummary,
+      });
+      compressedContext = compact.context;
+    }
 
     // Memory context — hot + warm (tag match)
     const thoughtTags = referencedThoughts.flatMap(t => t.input.split(/\s+/).filter(w => w.length > 3));
@@ -222,7 +252,10 @@ export class Engine {
     // Session context — önceki oturumların özetleri
     const sessionContext = this.sessions.buildSessionContext(2);
 
-    const contextText = buildContextText(chain, referencedThoughts, memoryContext, sessionContext);
+    // Eğer compression aktifse, onu kullan; değilse normal context
+    const contextText = compressedContext
+      ? `${memoryContext}\n${sessionContext}\n${compressedContext}`
+      : buildContextText(chain, referencedThoughts, memoryContext, sessionContext);
 
     const systemPrompt = getSystemPrompt(layer, phase);
     const userPrompt = buildUserPrompt(input, contextText);
