@@ -108,6 +108,38 @@ export interface GitDiffResult {
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_BUFFER = 1024 * 1024; // 1MB
 const DEFAULT_MAX_OUTPUT = 15_000;
+/** Max output bytes to accumulate in memory before truncating */
+const MAX_OUTPUT_ACCUMULATE = 512 * 1024; // 512KB
+
+/**
+ * Environment variables that could inject code or alter execution flow.
+ * Blocked when passed via the env option to prevent LLM hallucination attacks.
+ *
+ * Transplanted from OpenClaw bash-tools.exec.ts and EXPANDED:
+ * OpenClaw blocks these only on non-sandbox hosts.
+ * Foreman blocks them always — defense in depth for coding agents.
+ */
+const DANGEROUS_ENV_VARS = new Set([
+  "LD_PRELOAD",
+  "LD_LIBRARY_PATH",
+  "LD_AUDIT",
+  "DYLD_INSERT_LIBRARIES",
+  "DYLD_LIBRARY_PATH",
+  "NODE_OPTIONS",
+  "NODE_PATH",
+  "PYTHONPATH",
+  "PYTHONHOME",
+  "RUBYLIB",
+  "PERL5LIB",
+  "BASH_ENV",
+  "ENV",
+  "GCONV_PATH",
+  "IFS",
+  "SSLKEYLOGFILE",
+]);
+
+/** Prefix-based env var blocking (catches DYLD_*, LD_*) */
+const DANGEROUS_ENV_PREFIXES = ["DYLD_", "LD_"];
 
 /**
  * Dangerous command patterns — blocked before execution.
@@ -386,10 +418,30 @@ export class ExecutionEngine {
       };
     }
 
+    // Validate env vars — block LD_PRELOAD, NODE_OPTIONS, PATH etc.
+    if (options.env) {
+      const envError = validateEnv(options.env);
+      if (envError) {
+        return {
+          pid: undefined,
+          promise: Promise.resolve({
+            success: false,
+            stdout: "",
+            stderr: envError,
+            exitCode: -1,
+          }),
+          kill: () => {},
+          writeStdin: () => {},
+          closeStdin: () => {},
+        };
+      }
+    }
+
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const startedAt = Date.now();
     let stdout = "";
     let stderr = "";
+    let outputBytes = 0;
     let timedOut = false;
     let killed = false;
 
@@ -454,11 +506,20 @@ export class ExecutionEngine {
     }
 
     child.stdout?.on("data", (data) => {
-      stdout += data.toString();
+      const chunk = sanitizeBinaryOutput(data.toString());
+      // Guard against unbounded memory growth
+      if (outputBytes < MAX_OUTPUT_ACCUMULATE) {
+        stdout += chunk;
+        outputBytes += chunk.length;
+      }
     });
 
     child.stderr?.on("data", (data) => {
-      stderr += data.toString();
+      const chunk = sanitizeBinaryOutput(data.toString());
+      if (outputBytes < MAX_OUTPUT_ACCUMULATE) {
+        stderr += chunk;
+        outputBytes += chunk.length;
+      }
     });
 
     const promise = new Promise<ShellResult>((resolve) => {
@@ -809,4 +870,74 @@ export function truncateMiddle(text: string, maxLen: number = DEFAULT_MAX_OUTPUT
     `\n\n... [${truncatedCount} characters truncated] ...\n\n` +
     text.slice(-half)
   );
+}
+
+/**
+ * Sanitize binary/control character output before feeding to LLM.
+ *
+ * Transplanted from OpenClaw shell-utils.ts and IMPROVED.
+ * OpenClaw strips Format/Surrogate unicode categories + control chars < 0x20.
+ * Foreman additionally strips ANSI escape sequences (color codes, cursor moves)
+ * because they waste tokens and confuse cheap models.
+ */
+export function sanitizeBinaryOutput(text: string): string {
+  // Strip ANSI escape sequences (CSI, OSC, etc.)
+  let cleaned = text.replace(
+    // biome-ignore lint: complex regex for ANSI stripping
+    /\x1B(?:\[[0-9;]*[A-Za-z]|\][^\x07]*\x07|\][^\x1B]*\x1B\\|[()][AB012])/g,
+    "",
+  );
+
+  // Strip unicode Format/Surrogate categories
+  cleaned = cleaned.replace(/[\p{Format}\p{Surrogate}]/gu, "");
+
+  // Strip control characters except tab, newline, carriage return
+  const chunks: string[] = [];
+  for (const char of cleaned) {
+    const code = char.codePointAt(0);
+    if (code === undefined) continue;
+    // Keep tab (0x09), newline (0x0a), carriage return (0x0d)
+    if (code === 0x09 || code === 0x0a || code === 0x0d) {
+      chunks.push(char);
+      continue;
+    }
+    // Drop all other control chars
+    if (code < 0x20) continue;
+    chunks.push(char);
+  }
+  return chunks.join("");
+}
+
+/**
+ * Validate environment variables — block dangerous injections.
+ *
+ * Transplanted from OpenClaw bash-tools.exec.ts validateHostEnv() and IMPROVED.
+ * OpenClaw only validates on non-sandbox hosts.
+ * Foreman validates ALWAYS — even a local coding agent shouldn't allow
+ * LD_PRELOAD or NODE_OPTIONS injection from LLM hallucinations.
+ *
+ * Additionally blocks PATH modification — prevents binary hijacking.
+ */
+export function validateEnv(env: Record<string, string>): string | null {
+  for (const key of Object.keys(env)) {
+    const upper = key.toUpperCase();
+
+    // Block known dangerous variables
+    if (DANGEROUS_ENV_VARS.has(upper)) {
+      return `Blocked: environment variable '${key}' is forbidden (security)`;
+    }
+
+    // Block dangerous prefixes (DYLD_*, LD_*)
+    for (const prefix of DANGEROUS_ENV_PREFIXES) {
+      if (upper.startsWith(prefix)) {
+        return `Blocked: environment variable '${key}' matches forbidden prefix '${prefix}'`;
+      }
+    }
+
+    // Block PATH modification — prevents binary hijacking
+    if (upper === "PATH") {
+      return `Blocked: custom PATH is forbidden (prevents binary hijacking)`;
+    }
+  }
+  return null;
 }

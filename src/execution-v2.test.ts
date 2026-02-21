@@ -16,7 +16,7 @@ import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execSync } from "node:child_process";
-import { ExecutionEngine, truncateMiddle } from "./execution-engine.js";
+import { ExecutionEngine, truncateMiddle, sanitizeBinaryOutput, validateEnv } from "./execution-engine.js";
 
 // ─── SETUP ───────────────────────────────────────────────────
 
@@ -223,6 +223,130 @@ describe("git operations", () => {
   it("gitBranch requires name", () => {
     const r = engine.gitBranch("create");
     assert.ok(!r.success && r.stderr.includes("required"));
+  });
+});
+
+// ─── SECURITY HARDENING (beyond OpenClaw) ────────────────────
+
+describe("security hardening", () => {
+  // Env var injection blocking
+  it("blocks LD_PRELOAD injection", async () => {
+    const r = await engine.runShellAsync("echo pwned", {
+      env: { LD_PRELOAD: "/tmp/evil.so" },
+    }).promise;
+    assert.ok(!r.success);
+    assert.ok(r.stderr.includes("forbidden"));
+  });
+
+  it("blocks NODE_OPTIONS injection", async () => {
+    const r = await engine.runShellAsync("node -e 'console.log(1)'", {
+      env: { NODE_OPTIONS: "--require /tmp/evil.js" },
+    }).promise;
+    assert.ok(!r.success);
+    assert.ok(r.stderr.includes("forbidden"));
+  });
+
+  it("blocks DYLD_INSERT_LIBRARIES injection", async () => {
+    const r = await engine.runShellAsync("echo pwned", {
+      env: { DYLD_INSERT_LIBRARIES: "/tmp/evil.dylib" },
+    }).promise;
+    assert.ok(!r.success);
+    assert.ok(r.stderr.includes("forbidden") || r.stderr.includes("prefix"));
+  });
+
+  it("blocks PATH modification (binary hijacking)", async () => {
+    const r = await engine.runShellAsync("echo pwned", {
+      env: { PATH: "/tmp/evil:$PATH" },
+    }).promise;
+    assert.ok(!r.success);
+    assert.ok(r.stderr.includes("PATH"));
+  });
+
+  it("allows safe env vars", async () => {
+    const r = await engine.runShellAsync("echo $MY_VAR", {
+      env: { MY_VAR: "safe_value" },
+    }).promise;
+    assert.ok(r.success);
+  });
+});
+
+// ─── BINARY OUTPUT SANITIZATION ──────────────────────────────
+
+describe("output sanitization", () => {
+  it("strips ANSI color codes", async () => {
+    // echo with ANSI colors
+    const r = await engine.runShellAsync(
+      "printf '\\033[31mred\\033[0m normal'",
+    ).promise;
+    assert.ok(r.success);
+    assert.ok(r.stdout.includes("red"));
+    assert.ok(r.stdout.includes("normal"));
+    assert.ok(!r.stdout.includes("\x1b["));
+  });
+
+  it("strips control characters", async () => {
+    const r = await engine.runShellAsync(
+      "printf 'hello\\x01\\x02world'",
+    ).promise;
+    assert.ok(r.success);
+    assert.ok(r.stdout.includes("helloworld"));
+  });
+
+  it("preserves tabs and newlines", async () => {
+    const r = await engine.runShellAsync("printf 'a\\tb\\nc'").promise;
+    assert.ok(r.success);
+    assert.ok(r.stdout.includes("\t"));
+    assert.ok(r.stdout.includes("\n"));
+  });
+});
+
+// ─── UNIT: sanitizeBinaryOutput ──────────────────────────────
+
+describe("sanitizeBinaryOutput (unit)", () => {
+  it("strips ANSI sequences", () => {
+    const r = sanitizeBinaryOutput("\x1b[31mred\x1b[0m");
+    assert.equal(r, "red");
+  });
+
+  it("strips control chars but keeps tab/newline", () => {
+    const r = sanitizeBinaryOutput("a\x01b\tc\nd\x02e");
+    assert.equal(r, "ab\tc\nde");
+  });
+
+  it("handles empty string", () => {
+    assert.equal(sanitizeBinaryOutput(""), "");
+  });
+
+  it("passes clean text through", () => {
+    assert.equal(sanitizeBinaryOutput("hello world"), "hello world");
+  });
+});
+
+// ─── UNIT: validateEnv ───────────────────────────────────────
+
+describe("validateEnv (unit)", () => {
+  it("blocks LD_PRELOAD", () => {
+    assert.ok(validateEnv({ LD_PRELOAD: "/tmp/x.so" })?.includes("forbidden"));
+  });
+
+  it("blocks NODE_OPTIONS", () => {
+    assert.ok(validateEnv({ NODE_OPTIONS: "--inspect" })?.includes("forbidden"));
+  });
+
+  it("blocks DYLD_ prefix", () => {
+    assert.ok(validateEnv({ DYLD_FRAMEWORK_PATH: "/tmp" })?.includes("prefix"));
+  });
+
+  it("blocks PATH", () => {
+    assert.ok(validateEnv({ PATH: "/evil" })?.includes("PATH"));
+  });
+
+  it("allows safe vars", () => {
+    assert.equal(validateEnv({ MY_VAR: "safe", FOO: "bar" }), null);
+  });
+
+  it("allows empty env", () => {
+    assert.equal(validateEnv({}), null);
   });
 });
 
