@@ -22,16 +22,16 @@ import {
   loadCredentials,
   CHAT_MODELS,
   DEFAULT_CHAT_MODEL,
+  refreshChatModels,
 } from "./antigravity-provider.js";
+import type { ToolCall, ToolResult } from "./tools.js";
 import { runOnboarding } from "./onboarding.js";
 import {
-  brand, icon, grad, forgeDivider, SPARK_LINES,
+  brand, icon, grad, SPARK_LINES,
 } from "./theme.js";
 import {
   startForgeSpinner,
   animatePhaseTransition,
-  animateDwarf,
-  animateSparkRain,
   typeText,
   sleep,
 } from "./animations.js";
@@ -62,19 +62,7 @@ interface ReplState {
   running: boolean;
 }
 
-// ─── TRIGGER WORDS ───────────────────────────────────────────
-// When the user says one of these, transition to pipeline mode.
 
-const FORGE_TRIGGERS = [
-  "do it", "build it", "forge it", "start", "başla",
-  "run it", "execute", "make it", "ship it", "let's go",
-  "hammer it", "fire it up",
-];
-
-function isForgeTriggered(input: string): boolean {
-  const lower = input.toLowerCase().trim();
-  return FORGE_TRIGGERS.some(t => lower === t || lower.startsWith(t + " "));
-}
 
 // ─── PROJECT DETECTION ───────────────────────────────────────
 
@@ -145,18 +133,36 @@ function detectProject(cwd: string): { name: string; info: string; fileTree: str
 // ─── SYSTEM PROMPT ───────────────────────────────────────────
 
 function buildSystemPrompt(projectName: string, projectInfo: string, fileTree: string): string {
-  return `You are Foreman, an AI coding assistant that lives in the terminal. You help developers plan, discuss, and build software projects.
+  const cwd = process.cwd();
+  return `You are Foreman — an AI coding assistant that runs in the terminal with full filesystem and shell access.
 
-You're in CHAT mode — have a natural conversation. Help the user think through their ideas, analyze their codebase, answer questions, and plan work.
+TOOLS AVAILABLE:
+- bash: Run shell commands (build, test, git, install, etc.)
+- read_file: Read file contents (supports line ranges)
+- write_file: Create or overwrite files (creates directories automatically)
+- edit_file: Make targeted string replacements in existing files
+- search_files: Find files by name/glob pattern
+- grep: Search file contents for text/regex patterns
+- list_dir: List directory contents with sizes
 
-When the user is ready to execute, they'll say "forge it", "do it", "build it" or use /forge.
+WORKFLOW — Think atomically, act precisely:
+1. UNDERSTAND — Read relevant files first. Never guess at file contents.
+2. PLAN — Think about the minimal set of changes needed.
+3. EXECUTE — Use tools to make changes. One focused action at a time.
+4. VERIFY — Run builds/tests after changes when possible.
 
-Keep responses concise and useful. Use code blocks when showing code. Be direct.
+RULES:
+- ALWAYS use write_file or edit_file to create/modify files. NEVER print code for the user to copy.
+- Be concise in text responses. Let your tool actions do the talking.
+- When editing, read the file first so you know the exact content to replace.
+- After making changes, verify by running relevant commands (build, test, lint).
+- If a task is complex, break it into small steps and execute them one at a time.
 
-Current project: ${projectName}
+Working directory: ${cwd}
+Project: ${projectName}
 ${projectInfo}
 
-Files:
+Files in project:
 ${fileTree}`;
 }
 
@@ -231,26 +237,14 @@ async function animateModelSwitch(oldModel: string, newModel: string) {
   console.log("");
 }
 
-// ─── FORGE TRANSITION ────────────────────────────────────────
 
-async function animateForgeTransition() {
-  console.log("");
-  console.log(`    ${brand.ember("╔══════════════════════════════════════╗")}`);
-  console.log(`    ${brand.ember("║")} ${brand.gold("⚒")}  ${grad.forge("LIGHTING THE FORGE...")}              ${brand.ember("║")}`);
-  console.log(`    ${brand.ember("╚══════════════════════════════════════╝")}`);
-  console.log("");
-
-  await animateDwarf(2500, 200);
-  await animateSparkRain(50, 800, 120);
-  console.log("");
-}
 
 // ─── SLASH COMMAND HANDLERS ──────────────────────────────────
 
 async function handleSlashCommand(
   input: string,
   state: ReplState,
-): Promise<"continue" | "exit" | "forge"> {
+): Promise<"continue" | "exit"> {
   const parts = input.slice(1).split(/\s+/);
   const cmd = parts[0].toLowerCase();
   const arg = parts.slice(1).join(" ");
@@ -264,7 +258,11 @@ async function handleSlashCommand(
     case "forge":
     case "run":
     case "go":
-      return "forge";
+      // Forge is now integrated — just tell the user
+      console.log(`    ${icon.done} ${brand.green("Tools are always active — just type your request!")}`);
+      console.log(`    ${brand.dim("Foreman will automatically read/write files and run commands.")}`);
+      console.log("");
+      return "continue";
 
     case "clear":
       // Keep only system prompt
@@ -316,11 +314,29 @@ async function handleSlashCommand(
       console.log(`    ${brand.dim("─".repeat(44))}`);
       console.log(`    ${brand.cyan("/model <name>")}   ${brand.dim("Switch model")}`);
       console.log(`    ${brand.cyan("/models")}         ${brand.dim("List available models")}`);
-      console.log(`    ${brand.cyan("/forge")}          ${brand.dim("Transition to pipeline mode")}`);
+      console.log(`    ${brand.cyan("/tools")}          ${brand.dim("List available tools")}`);
       console.log(`    ${brand.cyan("/status")}         ${brand.dim("Show session status")}`);
       console.log(`    ${brand.cyan("/clear")}          ${brand.dim("Clear conversation history")}`);
       console.log(`    ${brand.cyan("/help")}           ${brand.dim("Show this help")}`);
       console.log(`    ${brand.cyan("/exit")}           ${brand.dim("Exit (or Ctrl+C)")}`);
+      console.log("");
+      console.log(`    ${brand.dim("Just type your request — Foreman will use tools automatically.")}`);
+      console.log("");
+      return "continue";
+
+    case "tools":
+      console.log("");
+      console.log(`    ${brand.gold("◆ Available Tools")}`);
+      console.log(`    ${brand.dim("─".repeat(44))}`);
+      console.log(`    ${brand.cyan("bash")}            ${brand.dim("Run shell commands")}`);
+      console.log(`    ${brand.cyan("read_file")}       ${brand.dim("Read file contents")}`);
+      console.log(`    ${brand.cyan("write_file")}      ${brand.dim("Create or overwrite files")}`);
+      console.log(`    ${brand.cyan("edit_file")}       ${brand.dim("Edit specific parts of a file")}`);
+      console.log(`    ${brand.cyan("search_files")}    ${brand.dim("Find files by name pattern")}`);
+      console.log(`    ${brand.cyan("grep")}            ${brand.dim("Search file contents")}`);
+      console.log(`    ${brand.cyan("list_dir")}        ${brand.dim("List directory contents")}`);
+      console.log("");
+      console.log(`    ${brand.dim("Foreman uses these automatically based on your requests.")}`);
       console.log("");
       return "continue";
 
@@ -353,21 +369,37 @@ async function handleChatTurn(input: string, state: ReplState): Promise<void> {
     let firstToken = true;
     let responseText = "";
 
-    const result = await state.provider.streamChat(
+    const result = await state.provider.streamChatWithTools(
       state.messages,
       state.model,
       (token: string) => {
         if (firstToken) {
-          // Stop spinner, print response prefix
           spinner.stop();
           process.stdout.write(`\n    ${brand.gold("🔥 foreman ›")} `);
           firstToken = false;
         }
-        // Stream token directly to stdout
         process.stdout.write(token);
         responseText += token;
       },
-      4096,
+      (call: ToolCall) => {
+        if (firstToken) {
+          spinner.stop();
+          firstToken = false;
+        }
+        const argsPreview = call.args.command ?? call.args.path ?? call.args.pattern ?? call.args.directory ?? ".";
+        console.log(`\n    ${brand.cyan("⚙")} ${brand.bold(call.name)} ${brand.dim(String(argsPreview).slice(0, 80))}`);
+      },
+      (result: ToolResult) => {
+        const lines = result.content.split("\n");
+        const preview = lines.slice(0, 3).join("\n      ");
+        const remaining = lines.length - 3;
+        const statusIcon = result.isError ? icon.fail : icon.done;
+        console.log(`      ${statusIcon} ${brand.dim(preview.slice(0, 300))}`);
+        if (remaining > 0) {
+          console.log(`      ${brand.dim(`... ${remaining} more lines`)}`);
+        }
+      },
+      32768,
     );
 
     if (firstToken) {
@@ -415,26 +447,6 @@ async function handleChatTurn(input: string, state: ReplState): Promise<void> {
   console.log("");
 }
 
-// ─── SUMMARIZE CONVERSATION ──────────────────────────────────
-// For passing context when transitioning to pipeline /forge mode.
-
-function summarizeConversation(messages: ChatMessage[]): string {
-  const nonSystem = messages.filter(m => m.role !== "system");
-  if (nonSystem.length === 0) return "";
-
-  // Use the last few user messages to build a task summary
-  const userMessages = nonSystem.filter(m => m.role === "user");
-  const lastUserMsg = userMessages[userMessages.length - 1]?.content ?? "";
-
-  // If there's an assistant summary, include that too
-  const lastAssistant = nonSystem.filter(m => m.role === "assistant").pop();
-  const assistantContext = lastAssistant
-    ? `\n\nContext from conversation:\n${lastAssistant.content.slice(0, 500)}`
-    : "";
-
-  return `${lastUserMsg}${assistantContext}`;
-}
-
 // ─── MAIN REPL ───────────────────────────────────────────────
 
 export async function startRepl(): Promise<void> {
@@ -465,6 +477,8 @@ export async function startRepl(): Promise<void> {
   if (creds) {
     try {
       provider = new AntigravityProvider(creds);
+      // Discover models from API in background (non-blocking)
+      refreshChatModels(creds).catch(() => {/* silent */ });
     } catch (err: any) {
       console.log(`    ${icon.fail} ${brand.red("Failed to initialize provider:")} ${brand.dim(err.message)}`);
     }
@@ -541,28 +555,11 @@ export async function startRepl(): Promise<void> {
           rl.close();
           return;
         }
-        if (result === "forge") {
-          state.running = false;
-          rl.close();
-          await transitionToForge(state);
-          return;
-        }
         askQuestion();
         return;
       }
 
-      // Check for forge trigger phrases
-      if (isForgeTriggered(input)) {
-        state.running = false;
-        rl.close();
-
-        // Add the trigger as a user message for context
-        state.messages.push({ role: "user", content: input });
-        await transitionToForge(state);
-        return;
-      }
-
-      // Normal chat
+      // Normal chat (everything goes through tools now)
       await handleChatTurn(input, state);
       askQuestion();
     });
@@ -571,28 +568,3 @@ export async function startRepl(): Promise<void> {
   askQuestion();
 }
 
-// ─── FORGE TRANSITION ────────────────────────────────────────
-
-async function transitionToForge(state: ReplState): Promise<void> {
-  const task = summarizeConversation(state.messages);
-
-  if (!task) {
-    console.log(`    ${icon.warn} ${brand.gold("No task to forge — say something first!")}`);
-    console.log("");
-    return;
-  }
-
-  // Cinematic transition
-  if (process.stdout.isTTY) {
-    await animateForgeTransition();
-  }
-
-  console.log(`    ${brand.gold("◆ Transitioning to pipeline mode...")}`);
-  console.log(`    ${brand.dim("Task:")} ${task.slice(0, 80)}${task.length > 80 ? "..." : ""}`);
-  console.log("");
-  console.log(`    ${brand.dim("Run:")} ${brand.cyan(`foreman run "${task.slice(0, 60).replace(/"/g, '\\"')}${task.length > 60 ? "..." : ""}"`)}`);
-  console.log("");
-
-  forgeDivider();
-  console.log("");
-}

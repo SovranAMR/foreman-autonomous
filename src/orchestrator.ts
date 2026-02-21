@@ -332,6 +332,19 @@ export class Orchestrator {
     if (this.engine.state.canTransition("verifying")) {
       this.engine.state.transition("verifying", "Pipeline execution complete, final verify");
     }
+
+    // ─── CHAIN REPAIR — fix any orphaned refs from compaction ──
+    const repairResult = this.engine.repairChain(visionChain.id);
+    if (!repairResult.healthy) {
+      this.emit({
+        type: "error",
+        message: `Chain repair found ${repairResult.repaired} issues: ${repairResult.details.slice(0, 200)}`,
+      });
+    }
+
+    // ─── MEMORY SYNC — write memory to MEMORY.md ────────────
+    this.engine.syncMemory();
+
     if (this.engine.state.canTransition("complete")) {
       this.engine.state.transition("complete", "Pipeline complete");
     }

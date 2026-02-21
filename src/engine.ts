@@ -34,6 +34,25 @@ import { runWithFallback } from "./model-fallback.js";
 import { guardContextWindow } from "./context-guard.js";
 import { buildCompactContext, shouldCompact, estimateThoughtTokens } from "./context-compression.js";
 import { BlockedError, NoProviderError, formatErrorMessage } from "./errors.js";
+import { ExecutionEngine } from "./execution-engine.js";
+
+// ─── ENGINE SUBSYSTEMS ───────────────────────────────────────
+import { ProcessRegistry } from "./process-registry.js";
+import { CommandQueue } from "./command-queue.js";
+import { repairTranscript } from "./transcript-repair.js";
+import { extractCodeFences, extractTables, extractSections, extractLists, parseFrontmatter } from "./markdown-intelligence.js";
+import { TaskScheduler } from "./task-scheduler.js";
+import { scanProject } from "./security-scanner.js";
+import { batchWrite } from "./batch-file-engine.js";
+import { syncMemoryMd } from "./memory-md-bridge.js";
+import { LinkIntelligence } from "./link-intelligence.js";
+import { EditEngine } from "./edit-engine.js";
+import { ApprovalEngine } from "./approval-engine.js";
+import { checkChainHealth } from "./chain-repair.js";
+import { buildIntelligentContext } from "./context-intelligence.js";
+import { parseBuildOutput, parseTestOutput, analyzeOutput } from "./verification-engine.js";
+import { GitEngine } from "./git-engine.js";
+import { searchFiles } from "./research-engine.js";
 
 // ─── ENGINE CONFIG ───────────────────────────────────────────
 
@@ -43,6 +62,8 @@ export interface EngineConfig {
   rateLimitOverride?: Partial<RateLimitConfig & { backoffBaseMs: number }>;
   /** Max retry for format correction (default: 2) */
   maxFormatRetries?: number;
+  /** Brave Search API key for web research */
+  braveApiKey?: string;
 }
 
 // ─── STEP RESULT ─────────────────────────────────────────────
@@ -73,6 +94,15 @@ export class Engine {
   readonly sessions: SessionManager;
   readonly cache: CacheManager;
 
+  // ─── SUBSYSTEMS ─────────────────────────────────────────────
+  readonly processRegistry: ProcessRegistry;
+  readonly commandQueue: CommandQueue;
+  readonly scheduler: TaskScheduler;
+  readonly editEngine: EditEngine;
+  readonly approvalEngine: ApprovalEngine;
+  readonly git: GitEngine;
+  readonly linkIntelligence: LinkIntelligence;
+
   private config: EngineConfig;
   private maxFormatRetries: number;
 
@@ -100,6 +130,15 @@ export class Engine {
     this.memory = new MemoryManager(config.projectRoot);
     this.sessions = new SessionManager(config.projectRoot);
     this.cache = new CacheManager(config.projectRoot);
+
+    // ─── SUBSYSTEM INITIALIZATION ───────────────────────────
+    this.processRegistry = new ProcessRegistry();
+    this.commandQueue = new CommandQueue();
+    this.scheduler = new TaskScheduler();
+    this.editEngine = new EditEngine();
+    this.approvalEngine = new ApprovalEngine(config.projectRoot);
+    this.git = new GitEngine(new ExecutionEngine(config.projectRoot));
+    this.linkIntelligence = new LinkIntelligence();
 
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Cache → Session: cache hit'te session'a token tasarrufunu bildir
@@ -247,32 +286,16 @@ export class Engine {
 
     this.thoughts.update(thought.id, { status: "thinking" });
 
-    // 2. Compile context — memory + session + referenced thoughts + context compression
+    // 2. Compile context — intelligent context with layer-aware budgets
     const referencedThoughts = contextRefs
       .filter(ref => ref.startsWith("t_"))
       .map(ref => this.thoughts.get(ref))
       .filter((t): t is Thought => t !== null);
     const chain = this.chains.get(chainId);
 
-    // Context compression — if chain is long, summarize old thoughts
     const allChainThoughts = chain
       ? chain.thoughts.map(id => this.thoughts.get(id)).filter((t): t is Thought => t !== null)
       : referencedThoughts;
-
-    let compressedContext = "";
-    if (allChainThoughts.length > 5 && shouldCompact({
-      thoughts: allChainThoughts,
-      contextWindow: 128_000, // default, real value should come from model
-      threshold: 0.4,
-    })) {
-      const compact = buildCompactContext({
-        thoughts: allChainThoughts,
-        maxTokens: 8000,
-        recentFullCount: 3,
-        existingSummary: chain?.contextSummary,
-      });
-      compressedContext = compact.context;
-    }
 
     // Memory context — hot + warm (tag match)
     const thoughtTags = referencedThoughts.flatMap(t => t.input.split(/\s+/).filter(w => w.length > 3));
@@ -281,10 +304,18 @@ export class Engine {
     // Session context — summaries of previous sessions
     const sessionContext = this.sessions.buildSessionContext(2);
 
-    // If compression is active, use it; otherwise use normal context
-    const contextText = compressedContext
-      ? `${memoryContext}\n${sessionContext}\n${compressedContext}`
-      : buildContextText(chain, referencedThoughts, memoryContext, sessionContext);
+    // Use intelligent context engine — layer-aware budgets, relevance scoring,
+    // progressive summarization, decision anchoring
+    const intelligentCtx = buildIntelligentContext({
+      thoughts: allChainThoughts,
+      currentInput: input,
+      currentLayer: layer,
+      contextWindowTokens: 128_000,
+      chainSummary: chain?.contextSummary,
+    });
+
+    // Combine memory + session + intelligent context
+    const contextText = `${memoryContext}\n${sessionContext}\n${intelligentCtx.text}`;
 
     const systemPrompt = getSystemPrompt(layer, phase);
     const userPrompt = buildUserPrompt(input, contextText);
@@ -553,5 +584,78 @@ export class Engine {
       tokenCost: result.tokenUsage.total,
       model: result.model,
     };
+  }
+
+  // ─── SUBSYSTEM METHODS ──────────────────────────────────────
+
+  /**
+   * Repair a thought chain — fix orphaned refs, stale thoughts, duplicates.
+   * Uses both ChainRepair (health check) and TranscriptRepair (orphan detection).
+   */
+  repairChain(chainId: string): { healthy: boolean; repaired: number; details: string } {
+    const chain = this.chains.get(chainId);
+    if (!chain) return { healthy: false, repaired: 0, details: "Chain not found" };
+
+    const thoughts = chain.thoughts
+      .map(id => this.thoughts.get(id))
+      .filter((t): t is Thought => t !== null);
+
+    // Chain health check (stale, confidence, duplicates, circular)
+    const health = checkChainHealth(thoughts);
+
+    // Transcript repair (orphaned tool calls/results, contextRef integrity, layer gaps)
+    const repairReport = repairTranscript(thoughts);
+
+    const totalIssues = health.issueCount + repairReport.report.totalRepairs;
+
+    return {
+      healthy: health.healthy && repairReport.report.totalRepairs === 0,
+      repaired: totalIssues,
+      details: [
+        ...health.issues.map(i => `[chain] ${i.type}: ${i.description}`),
+        repairReport.report.totalRepairs > 0
+          ? `[transcript] ${repairReport.report.droppedOrphanResults} orphan results, ${repairReport.report.droppedOrphanCalls} orphan calls, ${repairReport.report.repairedContextRefs} broken refs, ${repairReport.report.insertedGapMarkers} gap markers`
+          : "",
+      ].filter(Boolean).join("\n") || "All clear",
+    };
+  }
+
+  /**
+   * Run a security scan on the project.
+   */
+  runSecurityScan() {
+    return scanProject(this.config.projectRoot);
+  }
+
+  /**
+   * Sync memory JSON → MEMORY.md (human-readable).
+   */
+  syncMemory(): void {
+    syncMemoryMd(this.memory, this.config.projectRoot);
+  }
+
+  /**
+   * Graceful shutdown — stop scheduler, drain command queue, kill processes.
+   */
+  async shutdown(): Promise<void> {
+    this.scheduler.shutdown();
+    await this.commandQueue.drainAll();
+    this.processRegistry.killAll("SIGTERM");
+
+    // Final memory sync
+    this.syncMemory();
+
+    // Consolidate memory
+    this.memory.consolidate();
+
+    // End active session
+    const activeSession = this.sessions.getActive();
+    if (activeSession) {
+      this.sessions.end(
+        activeSession.id,
+        "completed",
+        `Session ended via shutdown — ${this.state.snapshot().totalTokens} tokens used`,
+      );
+    }
   }
 }
