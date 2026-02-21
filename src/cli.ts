@@ -21,6 +21,7 @@ import { Engine } from "./engine.js";
 import { MockProvider } from "./provider.js";
 import { AnthropicProvider } from "./anthropic-provider.js";
 import { OpenAIProvider } from "./openai-provider.js";
+import { Orchestrator } from "./orchestrator.js";
 
 const program = new Command();
 
@@ -250,37 +251,48 @@ program
       }
     }
 
-    // Chain oluştur
-    const chain = engine.chains.create({
-      name: task.slice(0, 50),
-      goal: task,
-      layer: opts.layer as any,
-    });
-
     console.log(`🚀 Görev başlatıldı: "${task}"`);
-    console.log(`🔗 Chain: ${chain.id}`);
-    console.log(`📐 Katman: ${opts.layer}`);
     console.log("");
 
-    // İlk düşünce
-    try {
-      const thought = await engine.step(
-        chain.id,
-        task,
-        opts.layer as any,
-      );
+    // Orchestrator
+    const orchestrator = new Orchestrator(engine);
 
-      console.log(`💭 Thought ${thought.id} tamamlandı`);
-      console.log(`   Confidence: ${(thought.confidence * 100).toFixed(0)}%`);
-      console.log(`   Tokens: ${thought.tokenCost}`);
-      console.log("");
-      console.log("Reasoning:");
-      console.log(thought.reasoning.slice(0, 500));
-      console.log("");
-      console.log("Output:");
-      console.log(thought.output.slice(0, 500));
+    // Event logging
+    orchestrator.on(event => {
+      switch (event.type) {
+        case "phase_start":
+          console.log(`\n── ${event.phase.toUpperCase()} ──`);
+          console.log(`   ${event.detail}`);
+          break;
+        case "thought_complete":
+          console.log(`   💭 ${event.thought.id} [${event.thought.layer}] — confidence: ${(event.thought.confidence * 100).toFixed(0)}%`);
+          break;
+        case "block_detected":
+          console.log(`   ⚠️  BLOCK: ${event.reason}`);
+          break;
+        case "reflection":
+          console.log(`   🔄 Reflection (${event.atomCount} atoms): ${event.summary.slice(0, 100)}`);
+          break;
+        case "pipeline_complete":
+          console.log(`\n${"═".repeat(50)}`);
+          console.log(`✅ Pipeline tamamlandı`);
+          console.log(`   Thoughts: ${event.totalThoughts}`);
+          console.log(`   Tokens: ${event.totalTokens}`);
+          break;
+        case "error":
+          console.error(`   ❌ ${event.message}`);
+          break;
+      }
+    });
+
+    try {
+      const result = await orchestrator.run(task);
+      if (!result.success) {
+        console.log("\n⚠️  Pipeline tamamlanamadı (BLOCK durumu).");
+        console.log("   `foreman status` ile durumu kontrol edin.");
+      }
     } catch (err: any) {
-      console.error(`❌ Hata: ${err.message}`);
+      console.error(`\n❌ Hata: ${err.message}`);
       process.exit(1);
     }
   });
