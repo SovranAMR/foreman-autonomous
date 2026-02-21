@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 # FOREMAN — Entry Point
 # Resolves tsx and runs cli.ts directly
+# Disable compile cache to prevent stale cached modules
+
+export NODE_DISABLE_COMPILE_CACHE=1
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+
+# npm global install creates symlink: bin/foreman -> ../../projects/foreman/bin/foreman
+# So SCRIPT_DIR is the actual project's bin/ dir
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 CLI="$PROJECT_DIR/src/cli.ts"
 TSX="$PROJECT_DIR/node_modules/.bin/tsx"
+
+if [ ! -f "$CLI" ]; then
+  echo "Error: cli.ts not found at $CLI" >&2
+  exit 1
+fi
 
 if [ ! -f "$TSX" ]; then
   TSX="$(command -v tsx 2>/dev/null)"
 fi
 
-if [ -z "$TSX" ] || [ ! -f "$TSX" ]; then
-  echo "Error: tsx not found. Run: npm install" >&2
+if [ -z "$TSX" ]; then
+  echo "Error: tsx not found. Run: cd $PROJECT_DIR && npm install" >&2
   exit 1
 fi
 
