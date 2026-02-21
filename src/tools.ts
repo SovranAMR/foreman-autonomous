@@ -374,6 +374,30 @@ export function createToolExecutor(projectRoot: string): (call: ToolCall) => Too
   const gitEngine = new GitEngine(engine);
   const linkIntel = new LinkIntelligence();
 
+  return createToolDispatcher(projectRoot, engine, editEngine, gitEngine, linkIntel);
+}
+
+/**
+ * Create a tool executor connected to Engine's subsystems.
+ * Reuses Engine's ApprovalEngine, ProcessRegistry, etc.
+ */
+export function createEngineToolExecutor(
+  projectRoot: string,
+  execEngine: ExecutionEngine,
+  editEngine: EditEngine,
+  gitEngine: GitEngine,
+  linkIntel: LinkIntelligence,
+): (call: ToolCall) => ToolResult {
+  return createToolDispatcher(projectRoot, execEngine, editEngine, gitEngine, linkIntel);
+}
+
+function createToolDispatcher(
+  projectRoot: string,
+  engine: ExecutionEngine,
+  editEngine: EditEngine,
+  gitEngine: GitEngine,
+  linkIntel: LinkIntelligence,
+): (call: ToolCall) => ToolResult {
   return (call: ToolCall): ToolResult => {
     try {
       switch (call.name) {

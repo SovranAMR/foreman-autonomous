@@ -149,6 +149,10 @@ export class Engine {
     // so all shell commands get risk assessment
     this.git.executor.connectApproval(this.approvalEngine);
 
+    // Connect CommandQueue to GitEngine's ExecutionEngine
+    // so async commands get serialized through priority lanes
+    this.git.executor.connectQueue(this.commandQueue);
+
     // Attach signal bridge — forward SIGTERM/SIGINT to child processes
     this.processRegistry.attachSignalBridge();
 

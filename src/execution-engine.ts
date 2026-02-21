@@ -32,6 +32,7 @@ import { execSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { ProcessRegistry, createSessionId } from "./process-registry.js";
 import type { ApprovalEngine } from "./approval-engine.js";
+import type { CommandQueue } from "./command-queue.js";
 import type { Layer } from "./types.js";
 
 // ─── TYPES ───────────────────────────────────────────────────
@@ -200,6 +201,9 @@ export class ExecutionEngine {
   /** Approval engine for command risk assessment */
   private approvalEngine: ApprovalEngine | null = null;
 
+  /** Command queue for async serialization */
+  private commandQueue: CommandQueue | null = null;
+
   constructor(projectRoot: string, allowedPaths?: string[]) {
     this.projectRoot = projectRoot;
     this.allowedPaths = allowedPaths ?? [
@@ -222,6 +226,14 @@ export class ExecutionEngine {
    */
   connectApproval(approval: ApprovalEngine): void {
     this.approvalEngine = approval;
+  }
+
+  /**
+   * Connect a CommandQueue for async command serialization.
+   * When connected, runShellAsync routes through the queue.
+   */
+  connectQueue(queue: CommandQueue): void {
+    this.commandQueue = queue;
   }
 
   // ─── PATH SECURITY ──────────────────────────────────────
@@ -471,6 +483,25 @@ export class ExecutionEngine {
       };
     }
 
+    // Approval engine risk check
+    if (this.approvalEngine) {
+      const assessment = this.approvalEngine.assess(command, "worker");
+      if (assessment.decision === "deny") {
+        return {
+          pid: undefined,
+          promise: Promise.resolve({
+            success: false,
+            stdout: "",
+            stderr: `Command denied by approval engine: ${assessment.reason} (risk: ${(assessment.riskScore * 100).toFixed(0)}%)`,
+            exitCode: -1,
+          }),
+          kill: () => {},
+          writeStdin: () => {},
+          closeStdin: () => {},
+        };
+      }
+    }
+
     // Validate env vars — block LD_PRELOAD, NODE_OPTIONS, PATH etc.
     if (options.env) {
       const envError = validateEnv(options.env);
@@ -617,6 +648,15 @@ export class ExecutionEngine {
             _signal ?? null,
             timedOut ? "timeout" : (killed ? "killed" : undefined),
           );
+        }
+
+        // ── Approval learning ──
+        if (this.approvalEngine) {
+          if (success) {
+            this.approvalEngine.reportSuccess(command);
+          } else {
+            this.approvalEngine.reportFailure(command);
+          }
         }
 
         resolve({
