@@ -168,6 +168,12 @@ export class Engine {
       this.memory.consolidate();
     });
 
+    // Event-driven tasks — triggered by orchestrator pipeline events
+    this.scheduler.addEventTask("pipeline_success", () => {
+      this.syncMemory();
+      this.memory.consolidate();
+    });
+
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Cache → Session: cache hit'te session'a token tasarrufunu bildir
     this.cache.onEvent((event) => {
@@ -672,6 +678,9 @@ export class Engine {
 
     // Final memory sync
     this.syncMemory();
+
+    // Clear caches
+    this.linkIntelligence.clearCache();
 
     // Consolidate memory
     this.memory.consolidate();

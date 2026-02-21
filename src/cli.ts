@@ -1008,6 +1008,32 @@ intCmd
   });
 
 intCmd
+  .command("processes")
+  .description("Active and recent background processes")
+  .option("-d, --dir <path>", "Project directory")
+  .action((_opts: any) => {
+    // Show child processes of current PID
+    try {
+      const output = execSync("ps --ppid " + process.pid + " -o pid,stat,time,comm --no-headers 2>/dev/null", {
+        encoding: "utf-8",
+        timeout: 5000,
+      }).trim();
+      console.log(brand.gold("\n  ◆ Active Processes\n"));
+      if (!output) {
+        console.log(`  ${icon.pending} No active child processes.`);
+      } else {
+        for (const line of output.split("\n")) {
+          console.log(`  ${brand.dim(line.trim())}`);
+        }
+      }
+    } catch {
+      console.log(brand.gold("\n  ◆ Active Processes\n"));
+      console.log(`  ${icon.pending} No active child processes.`);
+    }
+    console.log("");
+  });
+
+intCmd
   .command("approvals")
   .description("Approval engine audit trail")
   .option("-d, --dir <path>", "Project directory")
@@ -1142,6 +1168,32 @@ program
       // Non-git project — skip
     }
 
+    console.log("");
+  });
+
+// ─── ROLLBACK ─────────────────────────────────────────────────
+
+program
+  .command("rollback <hash>")
+  .description("Rollback a specific thought's commit by hash")
+  .option("-d, --dir <path>", "Project directory")
+  .option("-t, --thought <id>", "Thought ID (for metadata)")
+  .action((hash: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const exec = new ExecutionEngine(projectRoot);
+    const git = new GitEngine(exec);
+    const thoughtId = opts.thought ?? "unknown";
+
+    console.log(brand.gold(`\n  ◆ Rollback: ${hash.slice(0, 7)}\n`));
+
+    const result = git.rollbackThought(hash, thoughtId);
+    if (result.success) {
+      console.log(`  ${icon.done} ${brand.green("Rollback successful")}`);
+      console.log(`  ${brand.dim("Revert commit:")} ${result.revertHash?.slice(0, 7) ?? "ok"}`);
+    } else {
+      console.log(`  ${icon.fail} ${brand.red("Rollback failed")}`);
+      console.log(`  ${brand.dim(result.error ?? "Unknown error")}`);
+    }
     console.log("");
   });
 

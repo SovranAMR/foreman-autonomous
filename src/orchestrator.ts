@@ -570,6 +570,15 @@ export class Orchestrator {
       totalTokens,
     });
 
+    // Fire scheduler events for pipeline lifecycle
+    try {
+      if (success) {
+        this.engine.scheduler.fireEvent("pipeline_success");
+      } else {
+        this.engine.scheduler.fireEvent("pipeline_failure");
+      }
+    } catch { /* scheduler events are best-effort */ }
+
     return { success, totalThoughts, totalTokens, visionChainId, blockedAt };
   }
 
