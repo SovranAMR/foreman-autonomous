@@ -1,14 +1,16 @@
 #!/usr/bin/env npx tsx
 /**
- * FOREMAN — CLI Entry Point
+ * FOREMAN — CLI
  *
  * Komutlar:
+ *   foreman setup           — API key kurulumu (interaktif)
  *   foreman init <name>     — yeni proje oluştur
  *   foreman status          — mevcut durumu göster
- *   foreman run <task>      — görev çalıştır (düşünce zinciri)
+ *   foreman run <task>      — görev çalıştır (tam pipeline)
  *   foreman history [n]     — son N geçişi göster
  *   foreman thoughts        — thought listesi
  *   foreman chains          — chain listesi
+ *   foreman providers       — provider durumu
  */
 
 import { Command } from "commander";
@@ -22,13 +24,40 @@ import { MockProvider } from "./provider.js";
 import { AnthropicProvider } from "./anthropic-provider.js";
 import { OpenAIProvider } from "./openai-provider.js";
 import { Orchestrator } from "./orchestrator.js";
+import {
+  brand, icon, grad, printLogo,
+  phaseHeader, thoughtLine, blockLine,
+  reflectionLine, completionBox, statusBox,
+} from "./theme.js";
+import { runSetup, getApiKey, printProviderStatus } from "./setup.js";
 
 const program = new Command();
 
 program
   .name("foreman")
-  .description("AI agent orchestrator — atomic thought chains")
+  .description(grad.logo("AI Agent Orchestrator — Atomic Thought Chains"))
   .version("0.1.0");
+
+// ─── SETUP ────────────────────────────────────────────────────
+
+program
+  .command("setup")
+  .description("API key kurulumu (Anthropic / OpenAI)")
+  .action(async () => {
+    await runSetup();
+  });
+
+// ─── PROVIDERS ────────────────────────────────────────────────
+
+program
+  .command("providers")
+  .description("Kayıtlı LLM provider'ları göster")
+  .action(() => {
+    printLogo();
+    console.log(brand.gold("  ◆ Provider Durumu\n"));
+    printProviderStatus();
+    console.log("");
+  });
 
 // ─── INIT ─────────────────────────────────────────────────────
 
@@ -39,29 +68,30 @@ program
   .action((name: string, opts: { dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
 
-    // state.json var mı kontrol
+    printLogo();
+
     if (existsSync(join(projectRoot, "state.json"))) {
-      console.log("⚠️  Bu dizinde zaten bir Foreman projesi var.");
-      console.log(`   ${projectRoot}/state.json`);
+      console.log(`  ${icon.warn} Bu dizinde zaten bir Foreman projesi var.`);
+      console.log(brand.dim(`     ${projectRoot}/state.json`));
       return;
     }
 
-    // Dizinleri oluştur
     for (const dir of ["thoughts", "chains", "projects"]) {
       mkdirSync(join(projectRoot, dir), { recursive: true });
     }
 
-    // State oluştur
     const sm = StateManager.create(projectRoot, name);
     sm.save();
 
-    console.log(`✅ Foreman projesi oluşturuldu: "${name}"`);
-    console.log(`   📁 ${projectRoot}`);
-    console.log(`   📄 state.json`);
-    console.log(`   📁 thoughts/`);
-    console.log(`   📁 chains/`);
+    console.log(`  ${icon.done} ${brand.gold("Proje oluşturuldu:")} ${brand.bold(name)}`);
     console.log("");
-    console.log(`Sonraki adım: foreman run "görev tanımı"`);
+    console.log(`     📁 ${brand.dim(projectRoot)}`);
+    console.log(`     📄 state.json`);
+    console.log(`     📁 thoughts/`);
+    console.log(`     📁 chains/`);
+    console.log("");
+    console.log(`  Sonraki: ${brand.cyan(`foreman run "${name} için görev"`)}`);
+    console.log("");
   });
 
 // ─── STATUS ───────────────────────────────────────────────────
@@ -75,40 +105,31 @@ program
     const sm = StateManager.load(projectRoot, false);
 
     if (!sm) {
-      console.log("❌ Foreman projesi bulunamadı. Önce `foreman init <name>` çalıştırın.");
+      printLogo();
+      console.log(`  ${icon.fail} Foreman projesi bulunamadı.`);
+      console.log(`  ${brand.dim("Önce:")} ${brand.cyan("foreman init <name>")}`);
       return;
     }
 
     const snap = sm.snapshot();
     const thoughts = new ThoughtManager(projectRoot);
     const chains = new ChainManager(projectRoot);
-
     const allThoughts = thoughts.list();
-    const allChains = chains.list();
 
-    const doneCount = allThoughts.filter(t => t.status === "done").length;
-    const pendingCount = allThoughts.filter(t => t.status === "pending").length;
-    const blockedCount = allThoughts.filter(t => t.status === "blocked").length;
-
-    console.log("┌─────────────────────────────────────────┐");
-    console.log(`│  FOREMAN — ${snap.projectName.padEnd(29)}│`);
-    console.log("├─────────────────────────────────────────┤");
-    console.log(`│  State:    ${snap.currentState.padEnd(29)}│`);
-    console.log(`│  Chains:   ${String(allChains.length).padEnd(29)}│`);
-    console.log(`│  Thoughts: ${String(allThoughts.length).padEnd(29)}│`);
-    console.log(`│    ✅ Done:    ${String(doneCount).padEnd(25)}│`);
-    console.log(`│    ⏳ Pending: ${String(pendingCount).padEnd(25)}│`);
-    console.log(`│    🚫 Blocked: ${String(blockedCount).padEnd(24)}│`);
-    console.log(`│  Tokens:   ${String(snap.totalTokens).padEnd(29)}│`);
-    console.log(`│  Session:  ${snap.sessionStartedAt.slice(0, 19).padEnd(29)}│`);
-    console.log("└─────────────────────────────────────────┘");
-
-    if (snap.activeChainId) {
-      console.log(`\n🔗 Active chain: ${snap.activeChainId}`);
-    }
-    if (snap.activeThoughtId) {
-      console.log(`💭 Active thought: ${snap.activeThoughtId}`);
-    }
+    statusBox({
+      name: snap.projectName,
+      state: snap.currentState,
+      chains: chains.list().length,
+      thoughts: allThoughts.length,
+      done: allThoughts.filter(t => t.status === "done").length,
+      pending: allThoughts.filter(t => t.status === "pending").length,
+      blocked: allThoughts.filter(t => t.status === "blocked").length,
+      tokens: snap.totalTokens,
+      session: snap.sessionStartedAt,
+      activeChain: snap.activeChainId,
+      activeThought: snap.activeThoughtId,
+    });
+    console.log("");
   });
 
 // ─── HISTORY ──────────────────────────────────────────────────
@@ -123,26 +144,29 @@ program
     const sm = StateManager.load(projectRoot, false);
 
     if (!sm) {
-      console.log("❌ Foreman projesi bulunamadı.");
+      console.log(`  ${icon.fail} Foreman projesi bulunamadı.`);
       return;
     }
 
     const history = sm.recentHistory(parseInt(opts.count));
 
     if (history.length === 0) {
-      console.log("📭 Henüz geçiş yok.");
+      console.log(`  ${icon.pending} Henüz geçiş yok.`);
       return;
     }
 
-    console.log("State Geçişleri:");
-    console.log("─".repeat(60));
+    console.log(brand.gold("\n  ◆ State Geçişleri\n"));
     for (const h of history) {
-      const time = h.at.slice(11, 19);
-      const arrow = `${h.from} → ${h.to}`;
+      const time = brand.dim(h.at.slice(11, 19));
+      const from = brand.dim(h.from);
+      const to = brand.cyan(h.to);
       const ctx = [h.thoughtId, h.chainId].filter(Boolean).join(", ");
-      console.log(`  ${time}  ${arrow.padEnd(30)} ${h.reason}`);
-      if (ctx) console.log(`           ${ctx}`);
+
+      console.log(`  ${time}  ${from} ${icon.arrow} ${to}`);
+      console.log(`  ${brand.dim("         ")}${brand.dim(h.reason)}`);
+      if (ctx) console.log(`  ${brand.dim("         ")}${brand.purple(ctx)}`);
     }
+    console.log("");
   });
 
 // ─── THOUGHTS ─────────────────────────────────────────────────
@@ -164,17 +188,25 @@ program
     const list = tm.list(filter);
 
     if (list.length === 0) {
-      console.log("📭 Thought bulunamadı.");
+      console.log(`  ${icon.pending} Thought bulunamadı.`);
       return;
     }
 
-    console.log(`Thoughts (${list.length}):`);
-    console.log("─".repeat(70));
+    console.log(brand.gold(`\n  ◆ Thoughts (${list.length})\n`));
     for (const t of list) {
-      const statusIcon = t.status === "done" ? "✅" : t.status === "blocked" ? "🚫" : "⏳";
-      const conf = t.confidence > 0 ? ` (${(t.confidence * 100).toFixed(0)}%)` : "";
-      console.log(`  ${statusIcon} ${t.id.padEnd(8)} [${t.layer.padEnd(11)}] ${t.input.slice(0, 45)}${conf}`);
+      const statusIcon = t.status === "done" ? icon.done
+        : t.status === "blocked" ? icon.block
+        : icon.pending;
+      const layerIcon = icon[t.layer as keyof typeof icon] ?? "•";
+      const conf = t.confidence > 0
+        ? brand.dim(` ${(t.confidence * 100).toFixed(0)}%`)
+        : "";
+
+      console.log(
+        `  ${statusIcon} ${brand.bold(t.id.padEnd(8))} ${layerIcon} ${brand.dim(t.layer.padEnd(11))} ${t.input.slice(0, 40)}${conf}`
+      );
     }
+    console.log("");
   });
 
 // ─── CHAINS ───────────────────────────────────────────────────
@@ -190,31 +222,34 @@ program
     const list = cm.list();
 
     if (list.length === 0) {
-      console.log("📭 Chain bulunamadı.");
+      console.log(`  ${icon.pending} Chain bulunamadı.`);
       return;
     }
 
-    console.log(`Chains (${list.length}):`);
-    console.log("─".repeat(60));
+    console.log(brand.gold(`\n  ◆ Chains (${list.length})\n`));
     for (const c of list) {
-      const statusIcon = c.status === "completed" ? "✅" : c.status === "blocked" ? "🚫" : "🔄";
-      console.log(`  ${statusIcon} ${c.id.padEnd(25)} ${c.name}`);
-      console.log(`     ${c.thoughts.length} thoughts | ${c.goal.slice(0, 40)}`);
+      const statusIcon = c.status === "completed" ? icon.done
+        : c.status === "blocked" ? icon.block
+        : icon.active;
+
+      console.log(`  ${statusIcon} ${brand.bold(c.id.padEnd(25))} ${brand.gold(c.name)}`);
+      console.log(`     ${brand.dim(`${c.thoughts.length} thoughts`)} ${icon.arrow} ${brand.dim(c.goal.slice(0, 40))}`);
     }
+    console.log("");
   });
 
 // ─── RUN ──────────────────────────────────────────────────────
 
 program
   .command("run <task>")
-  .description("Bir görev çalıştır (düşünce zinciri başlat)")
-  .option("-l, --layer <layer>", "Başlangıç katmanı", "visioner")
-  .option("-m, --mock", "Mock provider kullan (gerçek API yerine)")
+  .description("Görev çalıştır (tam pipeline)")
+  .option("-m, --mock", "Mock provider kullan (test)")
   .option("-d, --dir <path>", "Proje dizini")
-  .action(async (task: string, opts: { layer: string; mock?: boolean; dir?: string }) => {
+  .action(async (task: string, opts: { mock?: boolean; dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
 
-    // Engine oluştur
+    printLogo();
+
     const engine = new Engine({
       projectRoot,
       projectName: "foreman",
@@ -228,59 +263,71 @@ program
         supportedModels: ["mock-model", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro"],
         generate: mock.generate.bind(mock),
       });
-      console.log("🔧 Mock provider aktif");
+      console.log(`  ${icon.warn} ${brand.gold("Mock provider aktif")}\n`);
     } else {
-      // Gerçek provider'lar — API key varsa kaydet
-      try {
-        const anthropic = new AnthropicProvider();
-        engine.providers.register(anthropic);
-        console.log("✅ Anthropic provider kayıtlı");
-      } catch { /* API key yok, atla */ }
+      // Config'den veya env var'dan key al
+      const anthropicKey = getApiKey("anthropic");
+      const openaiKey = getApiKey("openai");
 
-      try {
-        const openai = new OpenAIProvider();
-        engine.providers.register(openai);
-        console.log("✅ OpenAI provider kayıtlı");
-      } catch { /* API key yok, atla */ }
+      if (anthropicKey) {
+        try {
+          const anthropic = new AnthropicProvider(anthropicKey);
+          engine.providers.register(anthropic);
+          console.log(`  ${icon.done} Anthropic ${brand.dim("(Claude)")}`);
+        } catch (e: any) {
+          console.log(`  ${icon.fail} Anthropic: ${brand.dim(e.message)}`);
+        }
+      }
+
+      if (openaiKey) {
+        try {
+          const openai = new OpenAIProvider(openaiKey);
+          engine.providers.register(openai);
+          console.log(`  ${icon.done} OpenAI ${brand.dim("(GPT)")}`);
+        } catch (e: any) {
+          console.log(`  ${icon.fail} OpenAI: ${brand.dim(e.message)}`);
+        }
+      }
 
       if (engine.providers.size === 0) {
-        console.error("❌ Hiçbir LLM provider bulunamadı.");
-        console.error("   ANTHROPIC_API_KEY veya OPENAI_API_KEY env var ayarlayın.");
-        console.error("   Veya --mock flag'ı ile mock provider kullanın.");
+        console.log("");
+        console.log(`  ${icon.fail} ${brand.red("Hiçbir LLM provider bulunamadı.")}`);
+        console.log(`     ${brand.cyan("foreman setup")} çalıştırarak API key ekleyin.`);
+        console.log(`     veya ${brand.dim("--mock")} flag'ı ile test edin.`);
         process.exit(1);
       }
+      console.log("");
     }
 
-    console.log(`🚀 Görev başlatıldı: "${task}"`);
-    console.log("");
+    console.log(`  ${brand.gold("◆")} ${brand.bold(task)}`);
 
     // Orchestrator
     const orchestrator = new Orchestrator(engine);
 
-    // Event logging
     orchestrator.on(event => {
       switch (event.type) {
         case "phase_start":
-          console.log(`\n── ${event.phase.toUpperCase()} ──`);
-          console.log(`   ${event.detail}`);
+          phaseHeader(event.phase, event.detail);
           break;
         case "thought_complete":
-          console.log(`   💭 ${event.thought.id} [${event.thought.layer}] — confidence: ${(event.thought.confidence * 100).toFixed(0)}%`);
+          thoughtLine(
+            event.thought.id,
+            event.thought.layer,
+            event.thought.confidence,
+            event.thought.tokenCost,
+          );
           break;
         case "block_detected":
-          console.log(`   ⚠️  BLOCK: ${event.reason}`);
+          blockLine(event.reason);
           break;
         case "reflection":
-          console.log(`   🔄 Reflection (${event.atomCount} atoms): ${event.summary.slice(0, 100)}`);
+          reflectionLine(event.atomCount, event.summary);
           break;
         case "pipeline_complete":
-          console.log(`\n${"═".repeat(50)}`);
-          console.log(`✅ Pipeline tamamlandı`);
-          console.log(`   Thoughts: ${event.totalThoughts}`);
-          console.log(`   Tokens: ${event.totalTokens}`);
+          completionBox(event.totalThoughts, event.totalTokens, true);
           break;
         case "error":
-          console.error(`   ❌ ${event.message}`);
+          console.log(`  ${icon.fail} ${brand.red(event.message)}`);
           break;
       }
     });
@@ -288,13 +335,15 @@ program
     try {
       const result = await orchestrator.run(task);
       if (!result.success) {
-        console.log("\n⚠️  Pipeline tamamlanamadı (BLOCK durumu).");
-        console.log("   `foreman status` ile durumu kontrol edin.");
+        completionBox(result.totalThoughts, result.totalTokens, false);
+        console.log(`  ${brand.dim("foreman status")} ile durumu kontrol edin.`);
       }
     } catch (err: any) {
-      console.error(`\n❌ Hata: ${err.message}`);
+      console.log("");
+      console.log(`  ${icon.fail} ${brand.red(err.message)}`);
       process.exit(1);
     }
+    console.log("");
   });
 
 // ─── PARSE ────────────────────────────────────────────────────
