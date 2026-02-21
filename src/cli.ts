@@ -34,6 +34,7 @@ import { Engine } from "./engine.js";
 import { MockProvider } from "./provider.js";
 import { AnthropicProvider } from "./anthropic-provider.js";
 import { OpenAIProvider } from "./openai-provider.js";
+import { GeminiProvider } from "./gemini-provider.js";
 import { Orchestrator } from "./orchestrator.js";
 import { execSync } from "node:child_process";
 import { homedir } from "node:os";
@@ -235,7 +236,7 @@ program
       const mock = new MockProvider("I need more context. Please clarify the task.");
       engine.providers.register({
         name: "mock",
-        supportedModels: ["mock-model", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro"],
+        supportedModels: ["mock-model", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro", "gemini-ultra"],
         generate: mock.generate.bind(mock),
       });
       console.log(`  ${icon.warn} ${brand.gold("Mock provider aktif")}\n`);
@@ -261,6 +262,17 @@ program
           console.log(`  ${icon.done} OpenAI ${brand.dim("(GPT)")}`);
         } catch (e: any) {
           console.log(`  ${icon.fail} OpenAI: ${brand.dim(e.message)}`);
+        }
+      }
+
+      const googleKey = getApiKey("google");
+      if (googleKey) {
+        try {
+          const gemini = new GeminiProvider(googleKey);
+          engine.providers.register(gemini);
+          console.log(`  ${icon.done} Google ${brand.dim("(Gemini)")}`);
+        } catch (e: any) {
+          console.log(`  ${icon.fail} Google: ${brand.dim(e.message)}`);
         }
       }
 

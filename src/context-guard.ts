@@ -30,8 +30,9 @@ export const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   "gpt-4o": 128_000,
   "gpt-4o-mini": 128_000,
   "gpt-4-turbo": 128_000,
-  "gemini-pro": 1_000_000,
-  "gemini-flash": 1_000_000,
+  "gemini-pro": 1_048_576,
+  "gemini-flash": 1_048_576,
+  "gemini-ultra": 1_048_576,
 };
 
 const DEFAULT_CONTEXT_WINDOW = 128_000;

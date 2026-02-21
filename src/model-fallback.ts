@@ -66,22 +66,28 @@ export const DEFAULT_LAYER_MODELS: Record<Layer, ModelCandidate[]> = {
   visioner: [
     { provider: "anthropic", model: "claude-opus" },
     { provider: "openai", model: "gpt-4o" },
+    { provider: "google", model: "gemini-ultra" },
     { provider: "anthropic", model: "claude-sonnet" },
   ],
   strategist: [
     { provider: "anthropic", model: "claude-opus" },
     { provider: "anthropic", model: "claude-sonnet" },
+    { provider: "google", model: "gemini-ultra" },
     { provider: "openai", model: "gpt-4o" },
   ],
   researcher: [
     { provider: "openai", model: "gpt-4o" },
+    { provider: "google", model: "gemini-pro" },
     { provider: "anthropic", model: "claude-sonnet" },
     { provider: "openai", model: "gpt-4o-mini" },
+    { provider: "google", model: "gemini-flash" },
   ],
   worker: [
     { provider: "anthropic", model: "claude-sonnet" },
     { provider: "openai", model: "gpt-4o" },
+    { provider: "google", model: "gemini-pro" },
     { provider: "openai", model: "gpt-4o-mini" },
+    { provider: "google", model: "gemini-flash" },
   ],
 };
 
