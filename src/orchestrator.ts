@@ -53,7 +53,7 @@ export class Orchestrator {
 
   /**
    * Thought BLOCK kontrolü.
-   * Parse başarısız veya confidence çok düşükse → BLOCK.
+   * Parse başarısız, validation fail, veya katman bazlı düşük confidence → BLOCK.
    */
   private checkBlock(result: StepResult, phase: string): boolean {
     if (result.thought.status === "blocked") {
@@ -74,11 +74,14 @@ export class Orchestrator {
       return true;
     }
 
-    if (result.thought.confidence < 0.3) {
+    // Katman bazlı confidence — engine zaten threshold kontrolü yaptı
+    // Ama engine "warn" veriyorsa orchestrator bilgilendirilmeli
+    const confLevel = this.engine.evaluateConfidence(result.thought.layer as any, result.thought.confidence);
+    if (confLevel === "block") {
       this.emit({
         type: "block_detected",
         thought: result.thought,
-        reason: `Very low confidence: ${(result.thought.confidence * 100).toFixed(0)}%`,
+        reason: `Confidence too low for ${result.thought.layer}: ${(result.thought.confidence * 100).toFixed(0)}%`,
       });
       return true;
     }
