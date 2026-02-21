@@ -244,6 +244,7 @@ export class MemoryManager {
   /**
    * Thought'tan memory çıkar.
    * Vizyoner kararları, araştırma bulguları, işçi dersleri otomatik memory olur.
+   * Duplicate koruması: aynı içerik varsa ekleme, var olanı güncelle.
    */
   extractFromThought(thought: {
     id: string;
@@ -270,32 +271,92 @@ export class MemoryManager {
       ? thought.output.slice(0, 200) + "..."
       : thought.output;
 
+    const fullContent = `[${thought.layer}] ${content}`;
+
+    // Duplicate koruması — benzer içerik varsa güncelle, tekrar ekleme
+    const existing = this.findSimilar(fullContent);
+    if (existing) {
+      // Var olan memory'nin importance'ını güncelle (daha yüksek confidence → daha önemli)
+      const newImportance = Math.max(existing.importance, thought.confidence * 0.8);
+      this.update(existing.id, {
+        importance: newImportance,
+        useCount: existing.useCount + 1,
+        lastUsedAt: new Date().toISOString(),
+      });
+      return existing;
+    }
+
     return this.create({
       category,
-      content: `[${thought.layer}] ${content}`,
+      content: fullContent,
       source: { type: "thought", ref: thought.id },
-      importance: thought.confidence * 0.8, // confidence'a oranla
+      importance: thought.confidence * 0.8,
       tags: thought.tags ?? [],
     });
   }
 
   /**
-   * Kullanılmayan memory'leri temizle.
-   * Son 7 gündür kullanılmamış ve importance < 0.5 olanları expire et.
+   * Benzer içerik var mı kontrol et.
+   * Basit: ilk 80 karakterin %70'i eşleşiyorsa benzer kabul et.
+   */
+  private findSimilar(content: string): MemoryEntry | null {
+    const target = content.toLowerCase().slice(0, 80);
+    const all = this.list();
+
+    for (const entry of all) {
+      const existing = entry.content.toLowerCase().slice(0, 80);
+      if (this.similarity(target, existing) > 0.7) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Basit karakter benzerlik oranı (Jaccard benzeri).
+   */
+  private similarity(a: string, b: string): number {
+    if (a === b) return 1;
+    if (a.length === 0 || b.length === 0) return 0;
+
+    const wordsA = new Set(a.split(/\s+/));
+    const wordsB = new Set(b.split(/\s+/));
+    const intersection = [...wordsA].filter(w => wordsB.has(w)).length;
+    const union = new Set([...wordsA, ...wordsB]).size;
+    return union === 0 ? 0 : intersection / union;
+  }
+
+  /**
+   * Kullanılmayan memory'leri temizle + importance decay.
+   *
+   * - Son 7 gündür kullanılmamış ve importance < 0.5 → expire
+   * - 3+ gündür kullanılmamış memory'lerin importance'ı %5 düşer (decay)
+   * - Manual source memory'ler decay'den muaf (kullanıcı bilinçli eklemiş)
    */
   cleanup(maxAgeDays: number = 7): number {
     const all = this.list({ includeExpired: false });
-    const cutoff = Date.now() - maxAgeDays * 86400_000;
+    const expireCutoff = Date.now() - maxAgeDays * 86400_000;
+    const decayCutoff = Date.now() - 3 * 86400_000;
     let cleaned = 0;
 
     for (const entry of all) {
-      if (entry.importance >= 0.5) continue; // önemli memory'leri koru
       const lastUsed = entry.lastUsedAt
         ? new Date(entry.lastUsedAt).getTime()
         : new Date(entry.createdAt).getTime();
-      if (lastUsed < cutoff) {
+
+      // Expire: düşük importance + uzun süredir kullanılmamış
+      if (entry.importance < 0.5 && lastUsed < expireCutoff) {
         this.expire(entry.id);
         cleaned++;
+        continue;
+      }
+
+      // Decay: 3+ gün kullanılmamış, manual değilse importance %5 düş
+      if (entry.source.type !== "manual" && lastUsed < decayCutoff && entry.importance > 0.2) {
+        const decayed = Math.max(0.1, entry.importance * 0.95);
+        if (decayed !== entry.importance) {
+          this.update(entry.id, { importance: decayed });
+        }
       }
     }
 

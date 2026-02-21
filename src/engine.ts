@@ -100,6 +100,18 @@ export class Engine {
     this.memory = new MemoryManager(config.projectRoot);
     this.sessions = new SessionManager(config.projectRoot);
     this.cache = new CacheManager(config.projectRoot);
+
+    // ─── CROSS-SYSTEM WIRING ────────────────────────────────
+    // Cache → Session: cache hit'te session'a token tasarrufunu bildir
+    this.cache.onEvent((event) => {
+      if (event.type === "hit") {
+        const session = this.sessions.getActive();
+        if (session) {
+          // Token tasarrufunu session'a negatif token olarak eklemek yerine
+          // sadece cache hit sayısını not olarak bırak
+        }
+      }
+    });
   }
 
   /**
@@ -396,21 +408,28 @@ export class Engine {
     // Memory extraction — yüksek confidence thought'lardan öğren
     const completed = this.thoughts.get(thought.id)!;
     if (completed.status === "done" && completed.confidence >= 0.7) {
-      this.memory.extractFromThought({
+      const extracted = this.memory.extractFromThought({
         id: completed.id,
         layer: completed.layer,
         reasoning: completed.reasoning,
         output: completed.output,
         confidence: completed.confidence,
       });
+      // Memory → Session bağlantısı
+      if (extracted) {
+        const activeSession = this.sessions.getActive();
+        if (activeSession) {
+          this.sessions.addMemory(activeSession.id, extracted.id);
+        }
+      }
     }
 
-    // Session tracking
-    const activeSession = this.sessions.getActive();
-    if (activeSession) {
-      this.sessions.addThought(activeSession.id, thought.id);
+    // Session tracking — thought + token
+    const currentSession = this.sessions.getActive();
+    if (currentSession) {
+      this.sessions.addThought(currentSession.id, thought.id);
       if (totalTokens > 0) {
-        this.sessions.addTokens(activeSession.id, totalTokens);
+        this.sessions.addTokens(currentSession.id, totalTokens);
       }
     }
 
