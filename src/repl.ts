@@ -347,6 +347,9 @@ async function handleSlashCommand(
       console.log(`    ${brand.cyan("web_fetch")}       ${brand.dim("Fetch URL content")}`);
       console.log(`    ${brand.cyan("analyze_link")}    ${brand.dim("Classify and analyze URLs")}`);
       console.log(`    ${brand.cyan("parse_markdown")}  ${brand.dim("Extract code/tables/sections")}`);
+      console.log(`    ${brand.cyan("list_processes")} ${brand.dim("Active background processes")}`);
+      console.log(`    ${brand.cyan("approval_audit")}${brand.dim(" Command approval history")}`);
+      console.log(`    ${brand.cyan("git_diff")}       ${brand.dim("Classified git diff analysis")}`);
       console.log("");
       console.log(`    ${brand.dim("Foreman uses these automatically based on your requests.")}`);
       console.log("");

@@ -16,7 +16,7 @@ import { Engine } from "./engine.js";
 import type { StepResult } from "./engine.js";
 import type { Layer, Thought, Chain } from "./types.js";
 import type { DecomposeParseResult, AtomizeParseResult } from "./parser.js";
-import { parseBuildOutput, parseTestOutput } from "./verification-engine.js";
+import { parseBuildOutput, parseTestOutput, analyzeOutput } from "./verification-engine.js";
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
@@ -119,6 +119,32 @@ export class Orchestrator {
     // ─── CACHE PURGE ────────────────────────────────────────
     // Delete expired cache entries
     this.engine.cache.purgeExpired();
+
+    // ─── GIT SAFETY — stash guard + task branch ─────────────
+    try {
+      // Protect any uncommitted work before the pipeline makes changes
+      const stashResult = this.engine.git.stashSave("foreman-pipeline-guard");
+      if (stashResult.hasChanges) {
+        this.emit({
+          type: "phase_start",
+          phase: "git_safety",
+          detail: "Stashed uncommitted changes for safety",
+        });
+      }
+
+      // Create a task branch for isolation
+      const slug = task.slice(0, 30).replace(/[^a-zA-Z0-9-]/g, "-").toLowerCase();
+      const branchResult = this.engine.git.createTaskBranch("task", slug);
+      if (branchResult.success) {
+        this.emit({
+          type: "phase_start",
+          phase: "git_branch",
+          detail: `Working on branch: ${branchResult.branch}`,
+        });
+      }
+    } catch {
+      // Git safety is best-effort — continue on non-git projects
+    }
 
     // ─── 1. VISION ──────────────────────────────────────────
 
@@ -307,6 +333,11 @@ export class Orchestrator {
         if (execResult.thought.workerProtocol?.step7_verify) {
           const verifyText = execResult.thought.workerProtocol.step7_verify;
 
+          // Pattern analysis — classify output as errors, warnings, info
+          const patterns = analyzeOutput(verifyText);
+          const errorPatterns = patterns.filter(p => p.type === "error");
+          const warningPatterns = patterns.filter(p => p.type === "warning");
+
           // If worker ran build/test, parse the output for structured results
           const hasBuild = /build|compile|tsc|tsx/i.test(verifyText);
           const hasTest = /test|pass|fail|assert/i.test(verifyText);
@@ -314,18 +345,22 @@ export class Orchestrator {
           if (hasBuild) {
             const buildResult = parseBuildOutput(verifyText);
             if (buildResult.errors.length > 0) {
+              const fixHints = buildResult.errors
+                .filter(e => e.suggestion)
+                .map(e => e.suggestion)
+                .slice(0, 3);
               this.emit({
                 type: "verification",
                 phase: "build",
                 passed: false,
-                detail: `${buildResult.errors.length} build errors in ${atom.slice(0, 30)}`,
+                detail: `${buildResult.errors.length} build errors in ${atom.slice(0, 30)}${fixHints.length > 0 ? ` | Fixes: ${fixHints.join("; ")}` : ""}`,
               });
             } else {
               this.emit({
                 type: "verification",
                 phase: "build",
                 passed: true,
-                detail: `Build clean for ${atom.slice(0, 30)}`,
+                detail: `Build clean for ${atom.slice(0, 30)}${warningPatterns.length > 0 ? ` (${warningPatterns.length} warnings)` : ""}`,
               });
             }
           }
@@ -348,6 +383,16 @@ export class Orchestrator {
               });
             }
           }
+
+          // General output patterns (even if not build/test)
+          if (!hasBuild && !hasTest && errorPatterns.length > 0) {
+            this.emit({
+              type: "verification",
+              phase: "output",
+              passed: false,
+              detail: `${errorPatterns.length} error patterns detected in ${atom.slice(0, 30)}`,
+            });
+          }
         }
 
         // ── REFLECT every 5 atoms ──
@@ -358,9 +403,18 @@ export class Orchestrator {
             this.engine.state.transition("reflecting", `Reflection after ${atomCount} atoms`);
           }
 
+          // Get actual git diff for context-aware reflection
+          let diffContext = "";
+          try {
+            const summary = this.engine.git.summarizeChanges();
+            if (summary) {
+              diffContext = `\n\nGit changes so far:\n${summary}`;
+            }
+          } catch { /* non-git project */ }
+
           const reflectResult = await this.engine.stepWithPhase(
             visionChain.id,
-            `We've completed ${atomCount} atoms so far. Review the work done and check:\n1. Is it still aligned with the original vision?\n2. Any quality issues or drift?\n3. Should we adjust the plan?\n\nOriginal vision:\n${visionOutput.slice(0, 500)}`,
+            `We've completed ${atomCount} atoms so far. Review the work done and check:\n1. Is it still aligned with the original vision?\n2. Any quality issues or drift?\n3. Should we adjust the plan?\n\nOriginal vision:\n${visionOutput.slice(0, 500)}${diffContext}`,
             "visioner",
             "reflect",
             [visionResult.thought.id],
@@ -375,13 +429,25 @@ export class Orchestrator {
         }
       }
 
-      // ── GIT CHECKPOINT — save progress after each block ──
+      // ── GIT CHECKPOINT — save progress after each block with thought metadata ──
       try {
         const gitStatus = this.engine.git.executor.gitStatus();
         if (!gitStatus.clean) {
-          const commitResult = this.engine.git.commit(
-            `checkpoint: Block ${i + 1}/${blocks.length} — ${block.slice(0, 50)}`,
-          );
+          // Get the last atom's thought for metadata
+          const lastAtomThought = atoms.length > 0
+            ? this.engine.thoughts.get(
+                this.engine.chains.get(visionChain.id)?.thoughts.slice(-1)[0] ?? ""
+              )
+            : null;
+
+          const commitResult = this.engine.git.commitThought({
+            message: `Block ${i + 1}/${blocks.length}: ${block.slice(0, 50)}`,
+            chainId: visionChain.id,
+            thoughtId: lastAtomThought?.id ?? "unknown",
+            layer: "worker",
+            atomIndex: atomCount,
+            atomTotal: atoms.length,
+          });
           if (commitResult.success) {
             this.emit({
               type: "phase_end",

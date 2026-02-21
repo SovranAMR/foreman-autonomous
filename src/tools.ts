@@ -360,6 +360,46 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["content"],
     },
   },
+  {
+    name: "list_processes",
+    description:
+      "List active and recently finished background processes (async shell commands).",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "approval_audit",
+    description:
+      "Show the command approval audit trail — which commands were allowed/denied and their risk scores.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Max entries to return. Default 20.",
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "git_diff",
+    description:
+      "Analyze git diff — shows changed files with pattern classification (source/test/config/doc).",
+    parameters: {
+      type: "object",
+      properties: {
+        staged: {
+          type: "boolean",
+          description: "If true, show only staged changes. Default: all changes.",
+        },
+      },
+      required: [],
+    },
+  },
 ];
 
 // ─── TOOL EXECUTOR ───────────────────────────────────────────
@@ -435,6 +475,12 @@ function createToolDispatcher(
           return executeAnalyzeLink(linkIntel, call.args);
         case "parse_markdown":
           return executeParseMarkdown(call.args);
+        case "list_processes":
+          return executeListProcesses();
+        case "approval_audit":
+          return executeApprovalAudit(projectRoot, call.args);
+        case "git_diff":
+          return executeGitDiff(gitEngine, call.args);
         default:
           return { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
       }
@@ -1007,6 +1053,74 @@ function executeParseMarkdown(args: Record<string, unknown>): ToolResult {
     content: parts.join("\n") || "No extractable content found.",
     isError: false,
   };
+}
+
+// ─── NEW TOOL IMPLEMENTATIONS (list_processes, approval_audit, git_diff) ─────
+
+function executeListProcesses(): ToolResult {
+  // ProcessRegistry is a singleton-like — but tools.ts doesn't have access to
+  // Engine's instance. Return info about current PID's child processes instead.
+  try {
+    const result = spawnSync("ps", ["--ppid", String(process.pid), "-o", "pid,stat,time,comm", "--no-headers"], {
+      encoding: "utf-8",
+      timeout: 5000,
+    });
+    const output = (result.stdout || "").trim();
+    if (!output) {
+      return { name: "list_processes", content: "No active child processes.", isError: false };
+    }
+    return { name: "list_processes", content: `Active processes:\n${output}`, isError: false };
+  } catch {
+    return { name: "list_processes", content: "Process listing unavailable.", isError: true };
+  }
+}
+
+function executeApprovalAudit(projectRoot: string, args: Record<string, unknown>): ToolResult {
+  const limit = (args.limit as number) || 20;
+  try {
+    const auditPath = join(projectRoot, ".foreman", "approvals.json");
+    if (!existsSync(auditPath)) {
+      return { name: "approval_audit", content: "No approval history yet.", isError: false };
+    }
+    const data = JSON.parse(readFileSync(auditPath, "utf-8"));
+    const history = (data.history ?? []).slice(-limit);
+    if (history.length === 0) {
+      return { name: "approval_audit", content: "No approval history entries.", isError: false };
+    }
+
+    const lines = history.map((h: any) => {
+      const risk = h.riskScore !== undefined ? ` (risk: ${(h.riskScore * 100).toFixed(0)}%)` : "";
+      return `${h.decision === "allow" ? "✅" : "❌"} ${h.command?.slice(0, 60)}${risk} [${h.layer ?? "?"}]`;
+    });
+    return { name: "approval_audit", content: lines.join("\n"), isError: false };
+  } catch (err) {
+    return { name: "approval_audit", content: `Error reading audit: ${err}`, isError: true };
+  }
+}
+
+function executeGitDiff(git: GitEngine, args: Record<string, unknown>): ToolResult {
+  try {
+    const staged = args.staged as boolean ?? false;
+    const changes = git.classifyChanges(staged);
+    const summary = git.summarizeChanges(staged);
+
+    if (changes.length === 0) {
+      return { name: "git_diff", content: "No changes.", isError: false };
+    }
+
+    const lines: string[] = [];
+    if (summary) lines.push(summary);
+    lines.push("");
+    for (const c of changes.slice(0, 30)) {
+      lines.push(`  ${c.kind} ${c.file} +${c.insertions}/-${c.deletions}`);
+    }
+    if (changes.length > 30) {
+      lines.push(`  ... and ${changes.length - 30} more files`);
+    }
+    return { name: "git_diff", content: lines.join("\n"), isError: false };
+  } catch {
+    return { name: "git_diff", content: "Git diff failed (not a git repo?).", isError: true };
+  }
 }
 
 // ─── GEMINI FUNCTION DECLARATIONS FORMAT ─────────────────────
