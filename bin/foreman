@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# FOREMAN — Entry Point
+# Resolves tsx and runs cli.ts directly
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+CLI="$PROJECT_DIR/src/cli.ts"
+TSX="$PROJECT_DIR/node_modules/.bin/tsx"
+
+if [ ! -f "$TSX" ]; then
+  TSX="$(command -v tsx 2>/dev/null)"
+fi
+
+if [ -z "$TSX" ] || [ ! -f "$TSX" ]; then
+  echo "Error: tsx not found. Run: npm install" >&2
+  exit 1
+fi
+
+exec "$TSX" "$CLI" "$@"
