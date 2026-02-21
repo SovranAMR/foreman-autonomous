@@ -1,8 +1,8 @@
 /**
  * FOREMAN — Visual Theme
  *
- * Forge teması: çekiç vuran ustalar, kıvılcımlar, demir dövme.
- * CLI'da her şey canlı, hareketli, etkileyici.
+ * Forge theme: hammer-striking smiths, sparks, ironworking.
+ * Everything in CLI is vivid, animated, impressive.
  */
 
 import chalk from "chalk";
@@ -47,7 +47,7 @@ export const grad = {
 // ─── ICONS ───────────────────────────────────────────────────
 
 export const icon = {
-  // Phases — forge teması
+  // Phases — forge theme
   vision:    "🔮",
   decompose: "⚒️",
   research:  "🔍",
@@ -95,46 +95,66 @@ export const LOGO = `
     ██║     ╚██████╔╝██║  ██║███████╗██║ ╚═╝ ██║██║  ██║██║ ╚████║
     ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝`;
 
-// Çekiç vuran usta — forge animasyonu frame'leri
+// Hammer-striking blacksmith — larger, more detailed forge animation
 const DWARF_FRAMES = [
-  // Frame 1: Çekiç havada
+  // Frame 0: Waiting — hammer raised high
   `
-       ${brand.gold("✦")}  ${brand.ember("*")}
-      ${brand.steel("╔═╗")}    ${brand.orange("╱")}${brand.gold("╲")}
-      ${brand.steel("║▓║")}   ${brand.orange("╱")}  ${brand.gold("╲")}    ${brand.gold("✦")}
-      ${brand.steel("╚╩╝")}  ${brand.ember("◣")}${brand.orange("══")}${brand.ember("◢")}
-      ${brand.dim("╱║╲")}  ${brand.dim("║")}${brand.ember("▓▓")}${brand.dim("║")}
-      ${brand.dim("╱ ╲")} ${brand.ember("╚══╝")}
-      ${brand.dim("╱   ╲")} ${brand.orange("░▒▓")}`,
+        ${brand.gold("✦")}   ${brand.ember("·")}          ${brand.gold("·")}
+               ${brand.orange("╱")}${brand.gold("█")}${brand.orange("╲")}
+      ${brand.steel("╔═══╗")}  ${brand.orange("╱")}   ${brand.gold("╲")}
+      ${brand.steel("║")}${brand.cyan("◈◈◈")}${brand.steel("║")} ${brand.orange("╱")}     ${brand.gold("╲")}
+      ${brand.steel("║")}${brand.gold(" ▓ ")}${brand.steel("║")}
+      ${brand.steel("╠═══╣")}  ${brand.ember("╔═══════╗")}
+      ${brand.dim(" ╱║╲")}   ${brand.ember("║")}${brand.orange("▓▓▓▓▓▓▓")}${brand.ember("║")}
+      ${brand.dim("╱ ║ ╲")}  ${brand.ember("╚═══════╝")}
+     ${brand.dim("╱  ║  ╲")}  ${brand.orange("░░▒▒▓▓░░")}
+     ${brand.dim("╱       ╲")}`,
 
-  // Frame 2: Çekiç inerken
+  // Frame 1: Hammer swinging down
   `
-      ${brand.gold("✦")}
-      ${brand.steel("╔═╗")}  ${brand.ember("*")}  ${brand.gold("✦")}
-      ${brand.steel("║▓║")} ${brand.orange("╲")}${brand.gold("╱")}
-      ${brand.steel("╚╩╝")}  ${brand.ember("◣")}${brand.orange("══")}${brand.ember("◢")}  ${brand.ember("*")}
-      ${brand.dim("╱║╲")}  ${brand.dim("║")}${brand.ember("▓▓")}${brand.dim("║")}
-      ${brand.dim("╱ ╲")} ${brand.ember("╚══╝")}
-      ${brand.dim("╱   ╲")} ${brand.orange("░▒▓")}`,
+                           ${brand.gold("·")}
+      ${brand.steel("╔═══╗")}   ${brand.ember("·")}  ${brand.gold("✦")}
+      ${brand.steel("║")}${brand.cyan("◈◈◈")}${brand.steel("║")}${brand.orange("╲")}${brand.gold("█")}${brand.orange("╱")}
+      ${brand.steel("║")}${brand.gold(" ▓ ")}${brand.steel("║")}
+      ${brand.steel("╠═══╣")}  ${brand.ember("╔═══════╗")}
+      ${brand.dim(" ╱║╲")}   ${brand.ember("║")}${brand.orange("▓▓▓▓▓▓▓")}${brand.ember("║")}
+      ${brand.dim("╱ ║ ╲")}  ${brand.ember("╚═══════╝")}
+     ${brand.dim("╱  ║  ╲")}  ${brand.orange("░░▒▒▓▓░░")}
+     ${brand.dim("╱       ╲")}
+        ${brand.ember("·")}`,
 
-  // Frame 3: VURUŞ! Kıvılcımlar saçılıyor
+  // Frame 2: STRIKE! Sparks explode!
   `
-      ${brand.gold("✦")} ${brand.ember("*")}   ${brand.gold("✦")}
-      ${brand.steel("╔═╗")} ${brand.ember("*")}
-      ${brand.steel("║▓╠")}${brand.gold("═")}${brand.ember("◣")}${brand.orange("══")}${brand.ember("◢")} ${brand.gold("✦")}
-      ${brand.steel("╚╩╝")} ${brand.dim("║")}${brand.ember("▓▓")}${brand.dim("║")} ${brand.ember("*")}
-      ${brand.dim("╱║╲")} ${brand.ember("╚══╝")}  ${brand.gold("✦")}
-      ${brand.dim("╱ ╲")} ${brand.orange("░▒▓")}
-     ${brand.ember("*")} ${brand.dim("╱   ╲")} ${brand.gold("✦")} ${brand.ember("*")}`,
+      ${brand.gold("✦")} ${brand.ember("*")} ${brand.gold("✦")}     ${brand.ember("*")} ${brand.gold("✦")}
+      ${brand.steel("╔═══╗")} ${brand.ember("*")}  ${brand.orange("✧")}  ${brand.ember("*")}
+      ${brand.steel("║")}${brand.cyan("◈◈◈")}${brand.steel("╠")}${brand.gold("═")}${brand.orange("█")}
+      ${brand.steel("║")}${brand.gold(" ▓ ")}${brand.steel("║")}     ${brand.gold("✦")}  ${brand.ember("*")}
+      ${brand.steel("╠═══╣")}  ${brand.ember("╔═══════╗")}
+   ${brand.gold("✦")} ${brand.dim(" ╱║╲")}   ${brand.ember("║")}${brand.orange("▓█▓█▓█▓")}${brand.ember("║")} ${brand.gold("✦")}
+      ${brand.dim("╱ ║ ╲")}  ${brand.ember("╚═══════╝")}  ${brand.ember("*")}
+     ${brand.dim("╱  ║  ╲")}  ${brand.orange("░▒▓█▓▒░░")}
+   ${brand.ember("*")} ${brand.dim("╱       ╲")} ${brand.gold("✦")} ${brand.ember("*")}`,
+
+  // Frame 3: Sparks fading, embers glowing
+  `
+             ${brand.dim("·")}       ${brand.dim("·")}
+      ${brand.steel("╔═══╗")}   ${brand.dim("·")}
+      ${brand.steel("║")}${brand.cyan("◈◈◈")}${brand.steel("║")}  ${brand.ember("◣")}${brand.orange("═══")}${brand.ember("◢")}  ${brand.dim("·")}
+      ${brand.steel("║")}${brand.gold(" ▓ ")}${brand.steel("║")}  ${brand.ember("║")}${brand.orange("▓▓▓")}${brand.ember("║")}
+      ${brand.steel("╠═══╣")}  ${brand.ember("╔═══════╗")}
+      ${brand.dim(" ╱║╲")}   ${brand.ember("║")}${brand.orange("▓▓▓▓▓▓▓")}${brand.ember("║")}
+      ${brand.dim("╱ ║ ╲")}  ${brand.ember("╚═══════╝")}  ${brand.dim("·")}
+     ${brand.dim("╱  ║  ╲")}  ${brand.orange("░░▒▒▓▓░░")}
+     ${brand.dim("╱       ╲")}`,
 ];
 
-// Kıvılcım çizgileri
+// Spark lines
 const SPARK_LINES = [
   `${brand.ember("·")} ${brand.gold("✦")} ${brand.ember("·")} ${brand.orange("✧")} ${brand.ember("·")} ${brand.gold("✦")} ${brand.ember("·")} ${brand.orange("✧")} ${brand.ember("·")} ${brand.gold("✦")} ${brand.ember("·")} ${brand.orange("✧")} ${brand.ember("·")} ${brand.gold("✦")} ${brand.ember("·")}`,
   `${brand.gold("✧")} ${brand.ember("·")} ${brand.gold("✦")} ${brand.ember("·")} ${brand.orange("✧")} ${brand.ember("·")} ${brand.gold("✦")} ${brand.ember("·")} ${brand.orange("✧")} ${brand.ember("·")} ${brand.gold("✦")} ${brand.ember("·")} ${brand.orange("✧")} ${brand.ember("·")} ${brand.gold("✦")}`,
 ];
 
-// Mini anvil — küçük süs
+// Mini anvil — small decoration
 const MINI_ANVIL = `${brand.steel("⚒")} ${brand.dim("═══")} ${brand.ember("▓")} ${brand.dim("═══")} ${brand.steel("⚒")}`;
 
 // ─── ANIMATED LOGO ───────────────────────────────────────────
@@ -149,13 +169,13 @@ export function printLogo() {
 }
 
 /**
- * Tam forge intro — logo + dwarf + kıvılcımlar.
- * Sadece `foreman run` başlangıcında kullanılır.
+ * Full forge intro — logo + dwarf + sparks.
+ * Used only at the start of `foreman run`.
  */
 export function printForgeIntro() {
   console.log(grad.logo(LOGO));
   console.log("");
-  console.log(DWARF_FRAMES[2]); // vuruş frame'i
+  console.log(DWARF_FRAMES[2]); // strike frame
   console.log("");
   console.log(`    ${SPARK_LINES[0]}`);
   console.log(grad.forge("    ⚒  THE FORGE IS LIT — THOUGHTS WILL BE HAMMERED  ⚒"));
@@ -164,7 +184,7 @@ export function printForgeIntro() {
 }
 
 /**
- * Pipeline başlarken mini forge banner.
+ * Mini forge banner at pipeline start.
  */
 export function printForgeBanner(task: string) {
   const maxLen = 52;
@@ -273,7 +293,7 @@ export function thoughtLine(id: string, layer: string, confidence: number, token
   const confStr = confColor(`${(confidence * 100).toFixed(0)}%`);
   const tokenStr = tokens ? brand.dim(` ${icon.token}${tokens}`) : "";
 
-  // Kıvılcım efekti — yüksek confidence'ta
+  // Spark effect — on high confidence
   const sparkEffect = confidence >= 0.9
     ? ` ${brand.gold("✦")}${brand.ember("✦")}${brand.gold("✦")}`
     : confidence >= 0.8
@@ -382,8 +402,8 @@ export function statusBox(data: {
 // ─── PROGRESS ANIMATIONS ─────────────────────────────────────
 
 /**
- * Demir dövme progress — her thought'ta çağrılır.
- * Terminal'de son satırı güncellemez (non-interactive), sadece basar.
+ * Ironworking progress — called at each thought.
+ * Does not update the last line in terminal (non-interactive), just prints.
  */
 export function forgeProgress(current: number, total: number, label: string) {
   const ratio = total > 0 ? current / total : 0;
@@ -396,7 +416,7 @@ export function forgeProgress(current: number, total: number, label: string) {
   const coldBar = brand.dim("░".repeat(barLen - filled));
   const percent = `${(ratio * 100).toFixed(0)}%`;
 
-  // Rastgele kıvılcım
+  // Random spark
   const sparks = ["✦", "✧", "*", "·"];
   const spark = brand.gold(sparks[current % sparks.length]);
 
@@ -413,7 +433,7 @@ export function forgeDivider() {
 }
 
 /**
- * Başarılı thought — küçük kıvılcım efekti.
+ * Successful thought — small spark effect.
  */
 export function thoughtSpark(id: string, confidence: number) {
   if (confidence >= 0.9) {
@@ -450,15 +470,16 @@ export function doctorFooter(allOk: boolean) {
 // ─── IDLE ANIMATIONS (mini art) ──────────────────────────────
 
 export function printIdleForge() {
-  console.log(brand.dim(`
+  console.log(`
          ${brand.ember(".")} ${brand.gold("·")} ${brand.ember(".")}
         ${brand.ember("·")} ${brand.orange(",")} ${brand.ember("·")}
-       ╔═══╗
-       ║ ${brand.ember("▓")} ║   ${brand.dim("The forge sleeps...")}
-       ╚═╦═╝   ${brand.dim("Awaiting your command.")}
-      ═══╩═══
-      ░░░░░░░
-  `));
+       ${brand.steel("╔═════╗")}
+       ${brand.steel("║")} ${brand.ember("▓▓▓")} ${brand.steel("║")}   ${brand.dim("The forge sleeps...")}
+       ${brand.steel("║")} ${brand.orange("▓█▓")} ${brand.steel("║")}   ${brand.dim("Awaiting your command.")}
+       ${brand.steel("╚══╦══╝")}
+      ${brand.dim("═══")}${brand.steel("╩")}${brand.dim("═══")}
+      ${brand.orange("░░▒▒▓▒▒░░")}
+  `);
 }
 
 // Dwarf frames export for external animation

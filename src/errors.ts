@@ -1,12 +1,12 @@
 /**
  * FOREMAN — Error Handling
  *
- * OpenClaw errors.ts + failover-error.ts'den adapte.
+ * Adapted from OpenClaw errors.ts + failover-error.ts.
  *
- * Merkezi hata yönetimi:
- * - Hata sınıflandırma (classifyLLMError retry.ts'de)
- * - Hata formatlama (kullanıcı-güzel mesajlar)
- * - Typed error sınıfları
+ * Centralized error handling:
+ * - Error classification (classifyLLMError in retry.ts)
+ * - Error formatting (user-friendly messages)
+ * - Typed error classes
  * - Safe JSON extraction (bozuk JSON'dan kurtul)
  */
 
@@ -24,7 +24,7 @@ export class BlockedError extends Error {
   }
 }
 
-/** Bütçe aşıldı */
+/** Budget exceeded */
 export class BudgetExceededError extends Error {
   constructor(
     public readonly budgetType: "thought" | "chain" | "session",
@@ -36,7 +36,7 @@ export class BudgetExceededError extends Error {
   }
 }
 
-/** Provider bulunamadı */
+/** Provider not found */
 export class NoProviderError extends Error {
   constructor(public readonly model: string) {
     super(`No provider found for model: ${model}`);
@@ -44,7 +44,7 @@ export class NoProviderError extends Error {
   }
 }
 
-/** Parse başarısız */
+/** Parse failed */
 export class ParseFailedError extends Error {
   constructor(
     public readonly phase: string,
@@ -56,7 +56,7 @@ export class ParseFailedError extends Error {
   }
 }
 
-/** State geçişi geçersiz */
+/** Invalid state transition */
 export class InvalidTransitionError extends Error {
   constructor(
     public readonly from: string,
@@ -67,7 +67,7 @@ export class InvalidTransitionError extends Error {
   }
 }
 
-/** Validation başarısız */
+/** Validation failed */
 export class ValidationError extends Error {
   constructor(
     public readonly thoughtId: string,
@@ -81,8 +81,8 @@ export class ValidationError extends Error {
 // ─── ERROR FORMATTING ────────────────────────────────────────
 
 /**
- * Herhangi bir hatayı okunabilir mesaja dönüştür.
- * OpenClaw formatErrorMessage'dan adapte.
+ * Convert any error to a readable message.
+ * Adapted from OpenClaw formatErrorMessage.
  */
 export function formatErrorMessage(err: unknown): string {
   if (err instanceof Error) {
@@ -102,7 +102,7 @@ export function formatErrorMessage(err: unknown): string {
 }
 
 /**
- * Hata'dan errno code'u çıkar.
+ * Extract errno code from an error.
  */
 export function extractErrorCode(err: unknown): string | undefined {
   if (!err || typeof err !== "object") return undefined;
@@ -113,7 +113,7 @@ export function extractErrorCode(err: unknown): string | undefined {
 }
 
 /**
- * Hata'dan HTTP status code'u çıkar.
+ * Extract HTTP status code from an error.
  */
 export function extractStatusCode(err: unknown): number | undefined {
   if (!err || typeof err !== "object") return undefined;
@@ -124,7 +124,7 @@ export function extractStatusCode(err: unknown): number | undefined {
 // ─── SAFE JSON ───────────────────────────────────────────────
 
 /**
- * JSON parse et, bozuksa null dön (throw etme).
+ * Parse JSON, return null if malformed (don't throw).
  */
 export function safeJsonParse<T = unknown>(text: string): T | null {
   try {
@@ -135,7 +135,7 @@ export function safeJsonParse<T = unknown>(text: string): T | null {
 }
 
 /**
- * JSON parse et, bozuksa default değer dön.
+ * Parse JSON, return default value if malformed.
  */
 export function safeJsonParseOr<T>(text: string, defaultValue: T): T {
   try {
@@ -151,8 +151,8 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from "n
 import { dirname } from "node:path";
 
 /**
- * JSON dosyası oku — yoksa veya bozuksa undefined dön.
- * OpenClaw json-file.ts'den adapte.
+ * Read JSON file — return undefined if missing or malformed.
+ * Adapted from OpenClaw json-file.ts.
  */
 export function loadJsonFile<T = unknown>(path: string): T | undefined {
   try {
@@ -165,8 +165,8 @@ export function loadJsonFile<T = unknown>(path: string): T | undefined {
 }
 
 /**
- * JSON dosyası yaz — dizin yoksa oluştur, izinleri ayarla.
- * OpenClaw json-file.ts'den adapte.
+ * Write JSON file — create directory if missing, set permissions.
+ * Adapted from OpenClaw json-file.ts.
  */
 export function saveJsonFile(path: string, data: unknown): void {
   const dir = dirname(path);
@@ -177,6 +177,6 @@ export function saveJsonFile(path: string, data: unknown): void {
   try {
     chmodSync(path, 0o600);
   } catch {
-    // Windows'da chmod çalışmayabilir
+    // chmod may not work on Windows
   }
 }

@@ -3,13 +3,13 @@
  *
  * Tam pipeline: task → vision → decompose → research → execute → verify → reflect
  *
- * Pipeline'ın kendisi enforce eder:
- * - Vision çıktısı parse edilemezse → BLOCK
- * - Decompose'dan blok çıkmazsa → BLOCK
- * - Worker 8-adım protokolü eksikse → retry → BLOCK
- * - Parse başarısızlığında 2 retry
- * - Düşük confidence'ta BLOCK sinyali
- * - Her 5 atomda reflection (vizyon sapması kontrolü)
+ * The pipeline itself enforces:
+ * - If vision output can't be parsed → BLOCK
+ * - If no blocks come from decompose → BLOCK
+ * - If worker 8-step protocol is incomplete → retry → BLOCK
+ * - 2 retries on parse failure
+ * - BLOCK signal on low confidence
+ * - Reflection every 5 atoms (vision drift check)
  */
 
 import { Engine } from "./engine.js";
@@ -52,8 +52,8 @@ export class Orchestrator {
   }
 
   /**
-   * Thought BLOCK kontrolü.
-   * Parse başarısız, validation fail, veya katman bazlı düşük confidence → BLOCK.
+   * Thought BLOCK check.
+   * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */
   private checkBlock(result: StepResult, phase: string): boolean {
     if (result.thought.status === "blocked") {
@@ -74,8 +74,8 @@ export class Orchestrator {
       return true;
     }
 
-    // Katman bazlı confidence — engine zaten threshold kontrolü yaptı
-    // Ama engine "warn" veriyorsa orchestrator bilgilendirilmeli
+    // Layer-based confidence — engine already checked thresholds
+    // But if engine gives "warn", orchestrator should be notified
     const confLevel = this.engine.evaluateConfidence(result.thought.layer as any, result.thought.confidence);
     if (confLevel === "block") {
       this.emit({
@@ -90,10 +90,10 @@ export class Orchestrator {
   }
 
   /**
-   * Tam pipeline çalıştır.
+   * Run the full pipeline.
    *
-   * Session, memory, cache — hepsi otomatik yönetilir.
-   * Kullanıcı sadece `foreman run "görev"` der.
+   * Session, memory, cache — all managed automatically.
+   * User simply runs `foreman run "task"`.
    */
   async run(task: string): Promise<{
     success: boolean;
@@ -105,17 +105,17 @@ export class Orchestrator {
     let totalThoughts = 0;
 
     // ─── SESSION AUTO-START ─────────────────────────────────
-    // Kullanıcı session start/end ile uğraşmaz — pipeline kendi yönetir
+    // User doesn't deal with session start/end — pipeline manages it
     const session = this.engine.sessions.start({
       projectId: this.engine.state.snapshot().projectName,
     });
 
     // ─── MEMORY CLEANUP ─────────────────────────────────────
-    // Her run başında expired/cold memory'leri temizle
+    // Clean up expired/cold memories at the start of each run
     this.engine.memory.cleanup();
 
     // ─── CACHE PURGE ────────────────────────────────────────
-    // Süresi dolmuş cache entry'lerini sil
+    // Delete expired cache entries
     this.engine.cache.purgeExpired();
 
     // ─── 1. VISION ──────────────────────────────────────────
@@ -174,7 +174,7 @@ export class Orchestrator {
       return this.buildResult(false, totalThoughts, visionChain.id, "decompose");
     }
 
-    // Parse edilmiş blokları AL — artık string parse değil, yapısal data
+    // GET parsed blocks — no longer string parse, but structural data
     const blocks: string[] = decomposeResult.parsed?.blocks
       ?? this.fallbackParseBlocks(decomposeResult.thought.output);
 
@@ -243,7 +243,7 @@ export class Orchestrator {
         return this.buildResult(false, totalThoughts, visionChain.id, `atomize_block_${i + 1}`);
       }
 
-      // Parse edilmiş atomları AL
+      // GET parsed atoms
       const atoms: string[] = atomizeResult.parsed?.atoms
         ?? this.fallbackParseBlocks(atomizeResult.thought.output);
 
@@ -253,7 +253,7 @@ export class Orchestrator {
           thought: atomizeResult.thought,
           reason: `No atoms extracted from block ${i + 1}`,
         });
-        continue; // bu bloğu atla, sonrakine geç
+        continue; // skip this block, move to next
       }
 
       // ── 3c. EXECUTE EACH ATOM ──
@@ -279,14 +279,14 @@ export class Orchestrator {
         atomCount++;
         this.emit({ type: "thought_complete", thought: execResult.thought });
 
-        // Worker BLOCK — 8-adım eksik veya confidence çok düşük
+        // Worker BLOCK — 8-step incomplete or confidence too low
         if (execResult.thought.status === "blocked") {
           this.emit({
             type: "block_detected",
             thought: execResult.thought,
             reason: execResult.thought.blockedReason ?? "Worker protocol incomplete",
           });
-          // Atom BLOCK non-fatal — sonraki atoma geç
+          // Atom BLOCK non-fatal — move to next atom
           continue;
         }
 
@@ -376,7 +376,7 @@ export class Orchestrator {
   }
 
   /**
-   * Fallback: parse edilmiş data yoksa eski yöntemle blok/atom parse et.
+   * Fallback: if no parsed data, parse blocks/atoms using the old method.
    */
   private fallbackParseBlocks(text: string): string[] {
     const lines = text.split("\n").filter(l => l.trim().length > 0);

@@ -1,8 +1,8 @@
 /**
  * FOREMAN — Validators
  *
- * Thought tamamlanmadan önce çalışan doğrulama kuralları.
- * Foreman'ın disiplin guardrail'ı — bu kuralları geçemeyen
+ * Validation rules that run before a thought is completed.
+ * Foreman's discipline guardrail — thoughts that can't pass these rules
  * thought "done" olamaz.
  */
 
@@ -31,8 +31,8 @@ function merge(...results: ValidationResult[]): ValidationResult {
 // ─── INDIVIDUAL VALIDATORS ───────────────────────────────────
 
 /**
- * Reasoning boş olamaz.
- * Tüm katmanlar için geçerli.
+ * Reasoning cannot be empty.
+ * Applies to all layers.
  */
 export function validateReasoning(thought: Thought): ValidationResult {
   if (!thought.reasoning || thought.reasoning.trim().length === 0) {
@@ -42,7 +42,7 @@ export function validateReasoning(thought: Thought): ValidationResult {
 }
 
 /**
- * Output boş olamaz (done durumunda).
+ * Output cannot be empty (in done state).
  */
 export function validateOutput(thought: Thought): ValidationResult {
   if (thought.status === "done" && (!thought.output || thought.output.trim().length === 0)) {
@@ -52,7 +52,7 @@ export function validateOutput(thought: Thought): ValidationResult {
 }
 
 /**
- * Confidence 0-1 arasında olmalı.
+ * Confidence must be between 0-1.
  */
 export function validateConfidence(thought: Thought): ValidationResult {
   if (thought.confidence < 0 || thought.confidence > 1) {
@@ -66,11 +66,11 @@ export function validateConfidence(thought: Thought): ValidationResult {
  */
 export function validateWorkerProtocol(thought: Thought): ValidationResult {
   if (thought.layer !== "worker") {
-    return ok(); // sadece worker katmanı için
+    return ok(); // only for worker layer
   }
 
   if (thought.status !== "done") {
-    return ok(); // henüz done değilse kontrol etme
+    return ok(); // don't check if not done yet
   }
 
   if (!thought.workerProtocol) {
@@ -81,7 +81,7 @@ export function validateWorkerProtocol(thought: Thought): ValidationResult {
 }
 
 /**
- * WorkerProtocol'ün 8 adımının hepsi dolu olmalı.
+ * All 8 steps of WorkerProtocol must be filled.
  */
 export function validateProtocolSteps(protocol: WorkerProtocol): ValidationResult {
   const steps: (keyof WorkerProtocol)[] = [
@@ -109,8 +109,8 @@ export function validateProtocolSteps(protocol: WorkerProtocol): ValidationResul
 // ─── COMPOSITE VALIDATOR ─────────────────────────────────────
 
 /**
- * Bir thought'un "done" olabilirliğini kontrol et.
- * Tüm kuralları birlikte çalıştırır.
+ * Check whether a thought can be marked "done".
+ * Runs all rules together.
  */
 export function validateThoughtCompletion(thought: Thought): ValidationResult {
   return merge(

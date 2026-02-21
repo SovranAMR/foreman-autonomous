@@ -1,8 +1,8 @@
 /**
  * FOREMAN — OpenAI Provider
  *
- * GPT modelleri üzerinden gerçek LLM çağrısı.
- * OPENAI_API_KEY env var'dan okunur.
+ * Real LLM calls via GPT models.
+ * OPENAI_API_KEY is read from env vars.
  */
 
 import OpenAI from "openai";

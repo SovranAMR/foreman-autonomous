@@ -79,7 +79,7 @@ program.action(async () => {
   printLogo();
 
   // ── Dwarf strikes the anvil ──
-  await animateDwarf(1600, 120);
+  await animateDwarf(3000, 150);
   console.log("");
 
   // ── Forge divider ──

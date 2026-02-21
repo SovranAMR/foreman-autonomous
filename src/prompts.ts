@@ -1,14 +1,14 @@
 /**
  * FOREMAN — Prompt Templates v2
  *
- * Her katmanın system prompt'u:
- * 1. Kimliğini tanımlar (kim olduğu, ne yaptığı)
- * 2. Diğer katmanlarla ilişkisini açıklar
- * 3. Aldığı bağlamı nasıl kullanacağını belirtir
- * 4. Çıktı formatını sıkı tanımlar (parser'la birebir uyumlu)
- * 5. BLOCK sinyali koşullarını açıklar
+ * Each layer's system prompt:
+ * 1. Defines its identity (who it is, what it does)
+ * 2. Explains its relationship with other layers
+ * 3. Specifies how it will use the received context
+ * 4. Strictly defines output format (exactly compatible with parser)
+ * 5. Explains BLOCK signal conditions
  *
- * Memory context ve session context ayrı fonksiyonlarla enjekte edilir.
+ * Memory context and session context are injected via separate functions.
  */
 
 import type { Layer, Thought, Chain } from "./types.js";
@@ -249,9 +249,9 @@ const PHASE_PROMPTS: Record<string, string> = {
 };
 
 /**
- * Phase'e göre system prompt döndür.
- * Katman bazlı değil phase bazlı — çünkü Strategist'in
- * decompose ve atomize prompt'ları farklı olabilir.
+ * Return system prompt by phase.
+ * Phase-based not layer-based — because the Strategist's
+ * decompose and atomize prompts may differ.
  */
 export function getSystemPrompt(layer: Layer, phase?: string): string {
   if (phase && PHASE_PROMPTS[phase]) {
@@ -263,8 +263,8 @@ export function getSystemPrompt(layer: Layer, phase?: string): string {
 // ─── CONTEXT BUILDER ─────────────────────────────────────────
 
 /**
- * Düşünce bağlamını metin olarak oluştur.
- * Önceki düşüncelerden, chain summary'sinden, memory'den derlenir.
+ * Build thought context as text.
+ * Compiled from previous thoughts, chain summary, memory.
  */
 export function buildContextText(
   chain: Chain | null,
@@ -274,12 +274,12 @@ export function buildContextText(
 ): string {
   const parts: string[] = [];
 
-  // Memory — en üstte, her zaman görünür
+  // Memory — at the top, always visible
   if (memoryContext && memoryContext.length > 0) {
     parts.push(memoryContext);
   }
 
-  // Session context — önceki oturumların özeti
+  // Session context — summary of previous sessions
   if (sessionContext && sessionContext.length > 0) {
     parts.push(sessionContext);
   }
@@ -293,7 +293,7 @@ export function buildContextText(
     }
   }
 
-  // Referenced thoughts — katman ve çıktı bilgisiyle
+  // Referenced thoughts — with layer and output info
   if (referencedThoughts.length > 0) {
     parts.push("\n## Referenced Thoughts:");
     for (const t of referencedThoughts) {
@@ -301,7 +301,7 @@ export function buildContextText(
       parts.push(`\n### ${t.id} [${t.layer}] (confidence: ${confLabel})`);
       parts.push(`Input: ${t.input}`);
       if (t.output) {
-        // Output'u kısalt — 500 char yeter
+        // Truncate output — 500 chars is enough
         parts.push(`Output: ${t.output.slice(0, 500)}`);
       }
       if (t.reasoning && t.reasoning !== t.output) {
@@ -314,7 +314,7 @@ export function buildContextText(
 }
 
 /**
- * User prompt oluştur — düşüncenin input'u + bağlam.
+ * Build user prompt — thought's input + context.
  */
 export function buildUserPrompt(
   input: string,

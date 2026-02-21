@@ -1,10 +1,10 @@
 /**
  * FOREMAN — State Machine
  *
- * Foreman'ın disiplin mekanizması.
- * Her state değişikliği bu sınıf üzerinden geçer.
- * Geçersiz geçişler REJECT edilir.
- * Her geçiş loglanır (audit trail).
+ * Foreman's discipline mechanism.
+ * Every state change goes through this class.
+ * Invalid transitions are REJECTED.
+ * Every transition is logged (audit trail).
  */
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -52,7 +52,7 @@ export class CorruptedStateError extends Error {
 
 // ─── STATE MANAGER ────────────────────────────────────────────
 
-/** Max geçiş kaydı — bellek taşmasını engeller */
+/** Max transition records — prevents memory overflow */
 const MAX_HISTORY = 200;
 
 export class StateManager {
@@ -60,10 +60,10 @@ export class StateManager {
   private autoPersist: boolean;
 
   /**
-   * Mevcut bir ForemanState ile oluştur (resume)
-   * veya fresh state için StateManager.create() kullan.
+   * Create with an existing ForemanState (resume)
+   * or use StateManager.create() for fresh state.
    *
-   * @param autoPersist - true ise her transition() sonrası otomatik save()
+   * @param autoPersist - if true, auto save() after each transition()
    */
   constructor(state: ForemanState, autoPersist: boolean = true) {
     this.state = { ...state };
@@ -71,7 +71,7 @@ export class StateManager {
   }
 
   /**
-   * Yeni bir proje için fresh state oluştur.
+   * Create fresh state for a new project.
    */
   static create(projectRoot: string, projectName: string, autoPersist: boolean = true): StateManager {
     const now = new Date().toISOString();
@@ -87,8 +87,8 @@ export class StateManager {
   }
 
   /**
-   * state.json dosyasından oku ve StateManager döndür.
-   * Dosya yoksa null döner (fresh create gerekir).
+   * Read from state.json and return StateManager.
+   * Returns null if file doesn't exist (fresh create needed).
    *
    * @throws CorruptedStateError - dosya var ama parse edilemiyor
    */
@@ -108,21 +108,21 @@ export class StateManager {
   }
 
   /**
-   * Mevcut sistem durumunu döndür.
+   * Return current system state.
    */
   current(): SystemState {
     return this.state.currentState;
   }
 
   /**
-   * Tam state snapshot'ı döndür (readonly).
+   * Return full state snapshot (readonly).
    */
   snapshot(): Readonly<ForemanState> {
     return { ...this.state };
   }
 
   /**
-   * Bu geçiş geçerli mi kontrol et.
+   * Check if this transition is valid.
    */
   canTransition(to: SystemState): boolean {
     const validTargets = VALID_TRANSITIONS[this.state.currentState];
@@ -130,12 +130,12 @@ export class StateManager {
   }
 
   /**
-   * State geçişi yap.
+   * Perform state transition.
    *
    * @param to - hedef state
-   * @param reason - ZORUNLU geçiş sebebi
+   * @param reason - REQUIRED transition reason
    * @param context - opsiyonel thought/chain bilgisi
-   * @throws InvalidTransitionError - geçersiz geçiş
+   * @throws InvalidTransitionError - invalid transition
    * @throws MissingReasonError - sebep yok
    * @returns yeni state
    */
@@ -149,12 +149,12 @@ export class StateManager {
       throw new MissingReasonError();
     }
 
-    // Geçiş geçerli mi
+    // Is transition valid
     if (!this.canTransition(to)) {
       throw new InvalidTransitionError(this.state.currentState, to);
     }
 
-    // Geçiş kaydı oluştur
+    // Create transition record
     const transition: StateTransition = {
       from: this.state.currentState,
       to,
@@ -164,11 +164,11 @@ export class StateManager {
       chainId: context?.chainId,
     };
 
-    // State güncelle
+    // Update state
     this.state.currentState = to;
     this.state.lastUpdatedAt = transition.at;
 
-    // Active chain/thought güncelle
+    // Update active chain/thought
     if (context?.chainId !== undefined) {
       this.state.activeChainId = context.chainId;
     }
@@ -182,7 +182,7 @@ export class StateManager {
       this.state.activeThoughtId = undefined;
     }
 
-    // History'ye ekle (max sınırla)
+    // Add to history (limit to max)
     this.state.history.push(transition);
     if (this.state.history.length > MAX_HISTORY) {
       this.state.history = this.state.history.slice(-MAX_HISTORY);
@@ -197,14 +197,14 @@ export class StateManager {
   }
 
   /**
-   * Token harcaması ekle (rate limit bütçe takibi).
+   * Add token usage (rate limit budget tracking).
    */
   addTokens(count: number): void {
     this.state.totalTokens += count;
   }
 
   /**
-   * Son N geçişi döndür.
+   * Return last N transitions.
    */
   recentHistory(n: number = 10): readonly StateTransition[] {
     return this.state.history.slice(-n);
@@ -223,7 +223,7 @@ export class StateManager {
   }
 
   /**
-   * state.json dosya yolunu döndür.
+   * Return path to state.json file.
    */
   get stateFilePath(): string {
     return join(this.state.projectRoot, "state.json");

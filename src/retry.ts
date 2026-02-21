@@ -1,27 +1,27 @@
 /**
  * FOREMAN — Retry Engine
  *
- * OpenClaw'dan adapte edildi (src/infra/retry.ts + backoff.ts).
+ * Adapted from OpenClaw (src/infra/retry.ts + backoff.ts).
  *
  * Farklar:
- * - LLM-specific: rate limit, quota, auth error ayrımı
- * - Provider-aware: hangi provider'dan geldi, fallback'e ne geçsin
- * - Katman-aware: worker retry'ı vizyonerden farklı davranalabilir
+ * - LLM-specific: rate limit, quota, auth error differentiation
+ * - Provider-aware: which provider it came from, what to fall back to
+ * - Layer-aware: worker retry may behave differently from visioner
  * - Event-emitting: orchestrator'a retry durumunu bildiriyor
  */
 
 // ─── TYPES ───────────────────────────────────────────────────
 
 export interface RetryConfig {
-  /** Toplam deneme sayısı (ilk dahil) */
+  /** Total number of attempts (including first) */
   maxAttempts: number;
-  /** Başlangıç bekleme süresi (ms) */
+  /** Initial wait time (ms) */
   initialDelayMs: number;
-  /** Maksimum bekleme süresi (ms) */
+  /** Maximum wait time (ms) */
   maxDelayMs: number;
-  /** Exponential backoff çarpanı */
+  /** Exponential backoff multiplier */
   factor: number;
-  /** Jitter oranı (0-1). 0.2 = ±20% rastgelelik */
+  /** Jitter ratio (0-1). 0.2 = ±20% randomness */
   jitter: number;
 }
 
@@ -37,13 +37,13 @@ export type ErrorClassifier = (err: unknown) => ErrorClass;
 
 export type ErrorClass =
   | "rate_limit"     // 429 — bekle ve tekrar dene
-  | "quota"          // bütçe/kota aşıldı — farklı provider'a geç
-  | "auth"           // yetkilendirme hatası — deneme
-  | "timeout"        // zaman aşımı — tekrar dene
-  | "overloaded"     // 529/503 — sunucu meşgul, bekle
-  | "context_length" // prompt çok uzun — kısalt ve tekrar dene
-  | "transient"      // geçici ağ hatası — tekrar dene
-  | "fatal";         // düzeltilemez — dur
+  | "quota"          // budget/quota exceeded — switch to different provider
+  | "auth"           // authorization error — no retry
+  | "timeout"        // timeout — retry
+  | "overloaded"     // 529/503 — server busy, wait
+  | "context_length" // prompt too long — shorten and retry
+  | "transient"      // transient network error — retry
+  | "fatal";         // unrecoverable — stop
 
 export interface BackoffPolicy {
   initialMs: number;
@@ -73,8 +73,8 @@ export const AGGRESSIVE_RETRY_CONFIG: RetryConfig = {
 // ─── ERROR CLASSIFICATION ────────────────────────────────────
 
 /**
- * LLM API hatalarını sınıflandır.
- * OpenClaw'daki failover-error.ts'den esinlenildi.
+ * Classify LLM API errors.
+ * Inspired by OpenClaw's failover-error.ts.
  */
 export function classifyLLMError(err: unknown): ErrorClass {
   if (!err || typeof err !== "object") return "fatal";
@@ -93,12 +93,12 @@ export function classifyLLMError(err: unknown): ErrorClass {
     return "overloaded";
   }
 
-  // Auth — status check ÖNCE, mesaj check SONRA
+  // Auth — status check FIRST, message check AFTER
   if (status === 401 || status === 403) {
     return "auth";
   }
 
-  // Context length — quota'dan ÖNCE kontrol et (her ikisi de "exceeded" içerebilir)
+  // Context length — check BEFORE quota (both may contain "exceeded")
   if (/context.?length|too.?long|max.?tokens|token.?limit/i.test(message)) {
     return "context_length";
   }
@@ -108,7 +108,7 @@ export function classifyLLMError(err: unknown): ErrorClass {
     return "quota";
   }
 
-  // Auth — mesaj bazlı (status yoksa)
+  // Auth — message-based (if no status)
   if (/auth|permission|forbidden|invalid.*key|api.?key.*invalid/i.test(message)) {
     return "auth";
   }
@@ -127,7 +127,7 @@ export function classifyLLMError(err: unknown): ErrorClass {
 }
 
 /**
- * Hata sınıfına göre retry yapılmalı mı?
+ * Should retry based on error class?
  */
 export function isRetryable(errorClass: ErrorClass): boolean {
   return errorClass === "rate_limit"
@@ -137,7 +137,7 @@ export function isRetryable(errorClass: ErrorClass): boolean {
 }
 
 /**
- * Hata sınıfına göre farklı provider'a fallback yapılmalı mı?
+ * Should fallback to a different provider based on error class?
  */
 export function shouldFallback(errorClass: ErrorClass): boolean {
   return errorClass === "quota"
@@ -148,8 +148,8 @@ export function shouldFallback(errorClass: ErrorClass): boolean {
 // ─── BACKOFF COMPUTATION ─────────────────────────────────────
 
 /**
- * Exponential backoff ile bekleme süresi hesapla.
- * OpenClaw backoff.ts'den adapte.
+ * Calculate wait time with exponential backoff.
+ * Adapted from OpenClaw backoff.ts.
  */
 export function computeBackoff(config: RetryConfig, attempt: number): number {
   const base = config.initialDelayMs * config.factor ** Math.max(attempt - 1, 0);
@@ -159,8 +159,8 @@ export function computeBackoff(config: RetryConfig, attempt: number): number {
 }
 
 /**
- * Rate limit response'ından retry-after süresini çıkar.
- * Anthropic ve OpenAI farklı formatlar kullanır.
+ * Extract retry-after duration from rate limit response.
+ * Anthropic and OpenAI use different formats.
  */
 export function extractRetryAfterMs(err: unknown): number | null {
   if (!err || typeof err !== "object") return null;
@@ -191,8 +191,8 @@ export function extractRetryAfterMs(err: unknown): number | null {
 export type OnRetryCallback = (info: RetryInfo) => void;
 
 /**
- * Async fonksiyonu retry ile çalıştır.
- * OpenClaw retryAsync'den adapte, LLM-specific eklemelerle.
+ * Run an async function with retry.
+ * Adapted from OpenClaw retryAsync, with LLM-specific additions.
  */
 export async function retryAsync<T>(
   fn: () => Promise<T>,
@@ -209,7 +209,7 @@ export async function retryAsync<T>(
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
-    // Abort kontrolü
+    // Abort check
     if (options?.abortSignal?.aborted) {
       throw new Error("Aborted", { cause: lastError });
     }
@@ -225,7 +225,7 @@ export async function retryAsync<T>(
         break;
       }
 
-      // Fatal veya auth — retry'sız dur
+      // Fatal or auth — stop without retry
       if (errorClass === "fatal" || errorClass === "auth") {
         break;
       }
@@ -238,7 +238,7 @@ export async function retryAsync<T>(
 
       // Retryable — bekle ve tekrar dene
       if (isRetryable(errorClass)) {
-        // Rate limit'te server'ın söylediği süreyi kullan
+        // Use the server-specified wait time for rate limits
         const serverDelay = errorClass === "rate_limit" ? extractRetryAfterMs(err) : null;
         const computedDelay = computeBackoff(config, attempt);
         const delayMs = serverDelay ? Math.max(serverDelay, computedDelay) : computedDelay;
@@ -255,7 +255,7 @@ export async function retryAsync<T>(
         continue;
       }
 
-      // Bilinmeyen hata sınıfı — dur
+      // Unknown error class — stop
       break;
     }
   }

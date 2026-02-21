@@ -1,14 +1,14 @@
 /**
  * FOREMAN — Task Manager
  *
- * Görev yönetimi: oluştur, güncelle, bağımlılık çöz, sırala.
+ * Task management: create, update, resolve dependencies, sort.
  * Her task: {projectRoot}/tasks/task_XXX.json
  *
- * Görev dağılımı pipeline'da şöyle çalışır:
- * 1. Vizyoner projeyi tanımlar
- * 2. Stratejist task'ları oluşturur (decompose → task)
- * 3. TaskManager bağımlılıkları çözer, sıra belirler
- * 4. Her task sırayla orchestrator'a verilir
+ * Task distribution in the pipeline works as follows:
+ * 1. Visioner defines the project
+ * 2. Strategist creates tasks (decompose → task)
+ * 3. TaskManager resolves dependencies, determines order
+ * 4. Each task is given to the orchestrator in sequence
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
@@ -69,7 +69,7 @@ export class TaskManager {
   }
 
   /**
-   * Yeni task oluştur.
+   * Create a new task.
    */
   create(input: CreateTaskInput): Task {
     this.ensureDir();
@@ -114,7 +114,7 @@ export class TaskManager {
   }
 
   /**
-   * Task güncelle.
+   * Update a task.
    */
   update(id: string, patch: UpdateTaskInput): Task {
     const existing = this.get(id);
@@ -122,7 +122,7 @@ export class TaskManager {
 
     const updated: Task = { ...existing, ...patch };
 
-    // Status geçişlerinde otomatik zaman damgası
+    // Automatic timestamp on status transitions
     if (patch.status === "in_progress" && !existing.startedAt) {
       updated.startedAt = new Date().toISOString();
     }
@@ -135,7 +135,7 @@ export class TaskManager {
   }
 
   /**
-   * Task'a chain bağla.
+   * Attach a chain to a task.
    */
   addChain(taskId: string, chainId: string): Task {
     const task = this.get(taskId);
@@ -148,7 +148,7 @@ export class TaskManager {
   }
 
   /**
-   * Task'a subtask bağla.
+   * Attach a subtask to a task.
    */
   addSubtask(parentId: string, subtaskId: string): Task {
     const parent = this.get(parentId);
@@ -172,7 +172,7 @@ export class TaskManager {
   }
 
   /**
-   * Tüm task'ları listele (filtreli).
+   * List all tasks (with filter).
    */
   list(filter?: TaskFilter): Task[] {
     this.ensureDir();
@@ -195,7 +195,7 @@ export class TaskManager {
         if (filter?.assignedLayer && task.assignedLayer !== filter.assignedLayer) continue;
 
         tasks.push(task);
-      } catch { /* bozuk dosya atla */ }
+      } catch { /* skip corrupt file */ }
     }
 
     return tasks;
@@ -204,8 +204,8 @@ export class TaskManager {
   // ─── DEPENDENCY RESOLUTION ─────────────────────────────────
 
   /**
-   * Bir task'ın başlanabilir olup olmadığını kontrol et.
-   * Tüm bağımlılıkları "done" veya "cancelled" ise → ready.
+   * Check if a task is ready to start.
+   * All dependencies are "done" or "cancelled" → ready.
    */
   isReady(taskId: string): boolean {
     const task = this.get(taskId);
@@ -219,8 +219,8 @@ export class TaskManager {
   }
 
   /**
-   * Tüm hazır (ready) task'ları döndür.
-   * Bağımlılıkları çözülmüş, başlanabilir görevler.
+   * Return all ready tasks.
+   * Tasks with resolved dependencies, ready to start.
    */
   getReadyTasks(projectId?: string): Task[] {
     const all = this.list({ projectId, status: "backlog" });
@@ -228,15 +228,15 @@ export class TaskManager {
   }
 
   /**
-   * Bağımlılık döngüsü kontrolü (cycle detection).
-   * DFS ile dolaşır, döngü varsa true döner.
+   * Dependency cycle detection.
+   * Traverses with DFS, returns true if a cycle is found.
    */
   hasCycle(taskId: string): boolean {
     const visited = new Set<string>();
     const stack = new Set<string>();
 
     const dfs = (id: string): boolean => {
-      if (stack.has(id)) return true; // döngü!
+      if (stack.has(id)) return true; // cycle!
       if (visited.has(id)) return false;
 
       visited.add(id);
@@ -257,15 +257,15 @@ export class TaskManager {
   }
 
   /**
-   * Topolojik sıralama — bağımlılık sırasıyla görev listesi.
-   * Bağımlılığı olmayan görevler önce, bağımlılar sonra.
+   * Topological sort — task list in dependency order.
+   * Tasks without dependencies first, dependent ones after.
    */
   topologicalSort(projectId?: string): Task[] {
     const all = this.list({ projectId });
     const inDegree = new Map<string, number>();
     const adjList = new Map<string, string[]>();
 
-    // Grafik oluştur
+    // Build graph
     for (const task of all) {
       inDegree.set(task.id, task.dependsOn.length);
       for (const dep of task.dependsOn) {
@@ -284,7 +284,7 @@ export class TaskManager {
 
     const sorted: Task[] = [];
     while (queue.length > 0) {
-      // Öncelik sırası: critical > high > medium > low
+      // Priority order: critical > high > medium > low
       queue.sort((a, b) => {
         const ta = all.find(t => t.id === a)!;
         const tb = all.find(t => t.id === b)!;

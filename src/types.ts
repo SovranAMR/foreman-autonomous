@@ -1,51 +1,51 @@
 /**
  * FOREMAN — Core Type System
  *
- * Bu dosya Foreman'ın temel veri yapılarını tanımlar.
- * Her tip ARCHITECTURE.md ile tutarlıdır.
- * Her ekleme bir thought dosyasına karşılık gelir.
+ * This file defines Foreman's core data structures.
+ * Every type is consistent with ARCHITECTURE.md.
+ * Each addition corresponds to a thought file.
  */
 
 // ─── LAYER (Katman) ───────────────────────────────────────────
 // t_001
 
 /**
- * Foreman'ın 4 düşünce katmanı.
+ * Foreman's 4 thought layers.
  *
- * - visioner:    Ruh, yön, estetik. "Bu NEDEN var?"
- * - strategist:  Parçalama, planlama. "Bu NASIL organize edilir?"
- * - researcher:  Bilgi toplama. "Başkaları NE yaptı?"
- * - worker:      Uygulama + taktik muhakeme. "BURADA ne yapmalıyım?"
+ * - visioner:    Soul, direction, aesthetics. "WHY does this exist?"
+ * - strategist:  Decomposition, planning. "HOW should this be organized?"
+ * - researcher:  Gathering information. "WHAT have others done?"
+ * - worker:      Implementation + tactical reasoning. "What should I do HERE?"
  */
 export type Layer = "visioner" | "strategist" | "researcher" | "worker";
 
 /**
- * Her katmanın çalışma kuralları.
+ * Operating rules for each layer.
  * Runtime'da override edilebilir — model isimleri default.
  */
 export interface LayerConfig {
-  /** Katman kimliği */
+  /** Layer identifier */
   readonly layer: Layer;
 
   /** Tercih edilen LLM modeli (runtime'da override edilebilir) */
   defaultModel: string;
 
-  /** Bir zincirde maksimum düşünce sayısı */
+  /** Maximum number of thoughts per chain */
   maxThoughtsPerChain: number;
 
-  /** Bu katmanda araştırma zorunlu mu */
+  /** Is research required in this layer */
   requiresResearch: boolean;
 
-  /** Bu katmanda doğrulama zorunlu mu */
+  /** Is verification required in this layer */
   requiresVerification: boolean;
 
-  /** Bu katman üst katmanı durdurabilir mi (BLOCK sinyali) */
+  /** Can this layer block the parent layer (BLOCK signal) */
   canBlockParent: boolean;
 }
 
 /**
- * Varsayılan katman konfigürasyonları.
- * ARCHITECTURE.md'deki LAYER_CONFIGS ile birebir tutarlı.
+ * Default layer configurations.
+ * Exactly consistent with LAYER_CONFIGS in ARCHITECTURE.md.
  */
 export const DEFAULT_LAYER_CONFIGS: Readonly<Record<Layer, LayerConfig>> = {
   visioner: {
@@ -54,7 +54,7 @@ export const DEFAULT_LAYER_CONFIGS: Readonly<Record<Layer, LayerConfig>> = {
     maxThoughtsPerChain: 50,
     requiresResearch: true,
     requiresVerification: true,
-    canBlockParent: false, // en üst katman
+    canBlockParent: false, // top layer
   },
   strategist: {
     layer: "strategist",
@@ -68,7 +68,7 @@ export const DEFAULT_LAYER_CONFIGS: Readonly<Record<Layer, LayerConfig>> = {
     layer: "researcher",
     defaultModel: "gpt-4o",
     maxThoughtsPerChain: 20,
-    requiresResearch: true, // zaten araştırma katmanı
+    requiresResearch: true, // already the research layer
     requiresVerification: false,
     canBlockParent: true,
   },
@@ -76,7 +76,7 @@ export const DEFAULT_LAYER_CONFIGS: Readonly<Record<Layer, LayerConfig>> = {
     layer: "worker",
     defaultModel: "claude-sonnet",
     maxThoughtsPerChain: 15,
-    requiresResearch: false, // taktik düşünce, derin araştırma yok
+    requiresResearch: false, // tactical thinking, no deep research
     requiresVerification: true, // build/test zorunlu
     canBlockParent: true,
   },
@@ -86,41 +86,41 @@ export const DEFAULT_LAYER_CONFIGS: Readonly<Record<Layer, LayerConfig>> = {
 // t_002
 
 /**
- * Bir düşüncenin yaşam döngüsü.
+ * Lifecycle of a thought.
  *
- * Akış: pending → thinking → [researching] → executing → verifying → done
- * Her noktadan → blocked mümkün.
- * done → reverted mümkün (geri alma).
+ * Flow: pending → thinking → [researching] → executing → verifying → done
+ * From any point → blocked is possible.
+ * done → reverted is possible (rollback).
  *
- * "researching" opsiyonel — araştırma gerekmeyen düşünceler atlayabilir.
+ * "researching" is optional — thoughts not requiring research can skip it.
  */
 export type ThoughtStatus =
-  | "pending"      // oluşturuldu, başlamadı
-  | "thinking"     // muhakeme yapılıyor
-  | "researching"  // araştırma yapılıyor
-  | "executing"    // karar verildi, uygulanıyor
-  | "verifying"    // uygulama bitti, doğrulanıyor
-  | "done"         // tamamlandı
-  | "blocked"      // devam edilemiyor
-  | "reverted";    // yapılan iş geri alındı
+  | "pending"      // created, not started
+  | "thinking"     // reasoning in progress
+  | "researching"  // research in progress
+  | "executing"    // decided, being implemented
+  | "verifying"    // implementation done, being verified
+  | "done"         // completed
+  | "blocked"      // cannot continue
+  | "reverted";    // work was rolled back
 
 /**
- * Doğrulama yöntemi.
- * Her düşüncenin output'u bu yöntemlerden biriyle doğrulanır.
+ * Verification method.
+ * Each thought's output is verified with one of these methods.
  */
 export type VerificationMethod =
-  | "build"        // `build` komutu çalışıyor mu
-  | "test"         // testler geçiyor mu
+  | "build"        // does `build` command pass
+  | "test"         // do tests pass
   | "metric"       // FPS, lighthouse, bundle size vb.
-  | "screenshot"   // görsel doğrulama
-  | "logic";       // mantıksal tutarlılık (LLM self-check)
+  | "screenshot"   // visual verification
+  | "logic";       // logical consistency (LLM self-check)
 
 // ─── THOUGHT ──────────────────────────────────────────────────
 // t_003
 
 /**
- * Sistemin atom birimi. Her vizyon, strateji, araştırma ve kod parçası
- * bir Thought olarak doğar, muhakeme edilir, uygulanır, doğrulanır.
+ * The atomic unit of the system. Every vision, strategy, research, and code piece
+ * is born as a Thought, reasoned about, implemented, and verified.
  *
  * Bir Thought asla muhakemesiz tamamlanamaz.
  * Bir Thought asla output'suz "done" olamaz.
@@ -132,163 +132,163 @@ export interface Thought {
   /** Hangi zincire ait: "chain_001_types" */
   readonly chainId: string;
 
-  /** Hangi katmanda çalışıyor */
+  /** Which layer it operates in */
   readonly layer: Layer;
 
   // ── Input ──
 
-  /** Bu düşüncenin sorusu / görevi */
+  /** This thought's question / task */
   readonly input: string;
 
   /**
-   * Bağımlı olduğu referanslar.
+   * Dependencies / references.
    * Format: "t_001" (thought), "file:src/x.ts" (dosya), "url:..." (web)
    */
   readonly contextRefs: readonly string[];
 
-  // ── Muhakeme (ZORUNLU) ──
+  // ── Reasoning (REQUIRED) ──
 
   /**
-   * Bu kararı NEDEN veriyorum.
-   * Runtime'da boş string kabul edilmez — enforce edilir.
+   * WHY am I making this decision.
+   * Empty string is not accepted at runtime — enforced.
    */
   reasoning: string;
 
-  // ── Araştırma (opsiyonel) ──
+  // ── Research (optional) ──
 
-  /** Bu düşünce araştırma gerektiriyor mu */
+  /** Does this thought require research */
   needsResearch: boolean;
 
-  /** Araştırma sorgusu (needsResearch=true ise doldurulur) */
+  /** Research query (filled if needsResearch=true) */
   researchQuery?: string;
 
-  /** Araştırma bulguları */
+  /** Research findings */
   researchFindings?: string;
 
   // ── Output ──
 
   /**
-   * Bu düşüncenin cevabı / sonucu.
-   * "done" durumunda boş olamaz — enforce edilir.
+   * This thought's answer / result.
+   * Cannot be empty in "done" state — enforced.
    */
   output: string;
 
-  /** 0-1 arası güven skoru. Düşükse üst katman bilgilendirilir. */
+  /** 0-1 confidence score. If low, the parent layer is notified. */
   confidence: number;
 
-  // ── Doğrulama ──
+  // ── Verification ──
 
-  /** Doğrulama gerekli mi */
+  /** Is verification required */
   needsVerification: boolean;
 
-  /** Doğrulama yöntemi */
+  /** Verification method */
   verificationMethod?: VerificationMethod;
 
-  /** Doğrulama sonucu */
+  /** Verification result */
   verified?: boolean;
 
-  /** Doğrulama başarısızlık sebebi */
+  /** Verification failure reason */
   verificationFailure?: string;
 
-  // ── Akış ──
+  // ── Flow ──
 
   /** Mevcut durum */
   status: ThoughtStatus;
 
-  /** Sonraki thought id (zincir bağlantısı) */
+  /** Next thought id (chain link) */
   next?: string;
 
   /** Neden durdu (status=blocked ise) */
   blockedReason?: string;
 
   /**
-   * İşçi düşünme protokolü.
-   * Sadece layer="worker" thought'larında doldurulur.
+   * Worker thinking protocol.
+   * Only filled in layer="worker" thoughts.
    * Runtime'da worker thought'u bu olmadan "done" olamaz.
    */
   workerProtocol?: WorkerProtocol;
 
   // ── Meta ──
 
-  /** Oluşturulma zamanı (ISO 8601) */
+  /** Creation time (ISO 8601) */
   readonly createdAt: string;
 
-  /** Tamamlanma zamanı (ISO 8601) */
+  /** Completion time (ISO 8601) */
   completedAt?: string;
 
-  /** Harcanan token (rate limit bütçe takibi için) */
+  /** Tokens spent (for rate limit budget tracking) */
   tokenCost?: number;
 
-  /** Kullanılan LLM modeli */
+  /** LLM model used */
   model?: string;
 }
 
 // ─── TASK SYSTEM ──────────────────────────────────────────────
 
 /**
- * Task önceliği.
- * Pipeline sıralama ve görev dağılımında kullanılır.
+ * Task priority.
+ * Used in pipeline sorting and task distribution.
  */
 export type TaskPriority = "critical" | "high" | "medium" | "low";
 
 /**
  * Task durumu.
  *
- * Akış: backlog → ready → in_progress → review → done
- * Her noktadan → blocked mümkün.
- * done → cancelled mümkün (iptal).
+ * Flow: backlog → ready → in_progress → review → done
+ * From any point → blocked is possible.
+ * done → cancelled is possible.
  */
 export type TaskStatus =
-  | "backlog"       // tanımlandı ama henüz planlanmadı
-  | "ready"         // planlandı, bağımlılıkları karşılandı, başlanabilir
-  | "in_progress"   // üzerinde çalışılıyor (chain aktif)
-  | "review"        // tamamlandı, doğrulama bekliyor
-  | "done"          // tamamlandı ve doğrulandı
-  | "blocked"       // bağımlılık veya BLOCK sinyali
+  | "backlog"       // defined but not yet planned
+  | "ready"         // planned, dependencies met, ready to start
+  | "in_progress"   // being worked on (chain active)
+  | "review"        // completed, awaiting verification
+  | "done"          // completed and verified
+  | "blocked"       // dependency or BLOCK signal
   | "cancelled";    // iptal edildi
 
 /**
- * Task tipi — hangi tür iş olduğunu belirler.
+ * Task type — determines what kind of work.
  */
 export type TaskType =
-  | "feature"       // yeni özellik
-  | "bug"           // hata düzeltme
-  | "research"      // araştırma görevi
-  | "design"        // tasarım/estetik
-  | "refactor"      // yeniden yapılandırma
+  | "feature"       // new feature
+  | "bug"           // bug fix
+  | "research"      // research task
+  | "design"        // design/aesthetics
+  | "refactor"      // restructuring
   | "test"          // test yazma
-  | "docs"          // dokümantasyon
-  | "idea";         // sıfırdan fikir inşası
+  | "docs"          // documentation
+  | "idea";         // building an idea from scratch
 
 /**
- * Task — Görev birimi.
+ * Task — Unit of work.
  *
- * Project'in altında, Thought'un üstünde.
- * Bir Task bir veya birden fazla Chain üretir.
- * Subtask'lar parent task altında hiyerarşik.
+ * Below Project, above Thought.
+ * A Task produces one or more Chains.
+ * Subtasks are hierarchical under the parent task.
  *
- * Hiyerarşi: Project → Task (→ Subtask) → Chain → Thought
+ * Hierarchy: Project → Task (→ Subtask) → Chain → Thought
  */
 export interface Task {
   /** Benzersiz kimlik: "task_001" */
   readonly id: string;
 
-  /** Ait olduğu proje */
+  /** Owning project */
   readonly projectId: string;
 
-  /** Üst görev (subtask ise) */
+  /** Parent task (if subtask) */
   parentTaskId?: string;
 
-  /** Görev başlığı — kısa ve net */
+  /** Task title — short and clear */
   title: string;
 
-  /** Detaylı açıklama */
+  /** Detailed description */
   description: string;
 
-  /** Görev tipi */
+  /** Task type */
   type: TaskType;
 
-  /** Öncelik */
+  /** Priority */
   priority: TaskPriority;
 
   /** Mevcut durum */
@@ -298,26 +298,26 @@ export interface Task {
   assignedLayer?: Layer;
 
   /**
-   * Bağımlılıklar — bu görev başlamadan önce
-   * tamamlanması gereken diğer görev ID'leri.
+   * Dependencies — other task IDs that must
+   * be completed before this task can start.
    */
   dependsOn: string[];
 
   /**
-   * Bu görevden üretilen chain ID'leri.
-   * Bir task birden fazla chain üretebilir.
+   * Chain IDs produced from this task.
+   * A task can produce multiple chains.
    */
   chainIds: string[];
 
   /**
-   * Alt görev ID'leri.
-   * Task decompose edilince subtask'lar oluşur.
+   * Subtask IDs.
+   * Subtasks are created when a task is decomposed.
    */
   subtaskIds: string[];
 
   /**
-   * Etiketler — filtreleme ve gruplama için.
-   * Örn: ["hero", "mobile", "animation"]
+   * Tags — for filtering and grouping.
+   * E.g.: ["hero", "mobile", "animation"]
    */
   tags: string[];
 
@@ -327,7 +327,7 @@ export interface Task {
   effort?: number;
 
   /**
-   * Kabul kriterleri — task ne zaman "done" sayılır.
+   * Acceptance criteria — when task is considered "done".
    */
   acceptanceCriteria: string[];
 
@@ -336,112 +336,112 @@ export interface Task {
    */
   blockedReason?: string;
 
-  /** Oluşturulma zamanı */
+  /** Creation time */
   readonly createdAt: string;
 
-  /** Başlangıç zamanı (in_progress olduğunda) */
+  /** Start time (when in_progress) */
   startedAt?: string;
 
-  /** Tamamlanma zamanı */
+  /** Completion time */
   completedAt?: string;
 
-  /** Toplam token harcaması */
+  /** Total token usage */
   totalTokens: number;
 
-  /** Notlar — insan veya vizyoner notları */
+  /** Notes — human or visioner notes */
   notes: string[];
 }
 
 /**
- * Proje — en üst seviye organizasyon birimi.
+ * Project — top-level organizational unit.
  *
- * Bir proje birden fazla task içerir.
- * Foreman bir seferde bir projeye odaklanır.
+ * A project contains multiple tasks.
+ * Foreman focuses on one project at a time.
  */
 export interface Project {
   /** Benzersiz kimlik: "proj_001" */
   readonly id: string;
 
-  /** Proje adı */
+  /** Project name */
   name: string;
 
-  /** Proje açıklaması */
+  /** Project description */
   description: string;
 
-  /** Vizyon özeti (vizyoner çıktısından) */
+  /** Vision summary (from visioner output) */
   vision?: string;
 
-  /** Task ID'leri (üst seviye, subtask'lar dahil değil) */
+  /** Task IDs (top level, subtasks not included) */
   taskIds: string[];
 
   /** Proje durumu */
   status: "planning" | "active" | "paused" | "completed" | "archived";
 
-  /** Oluşturulma zamanı */
+  /** Creation time */
   readonly createdAt: string;
 
-  /** Toplam token harcaması */
+  /** Total token usage */
   totalTokens: number;
 }
 
 // ─── MEMORY & SESSION SYSTEM ──────────────────────────────────
 
 /**
- * Memory entry — öğrenilen bilgi parçası.
+ * Memory entry — a piece of learned information.
  *
- * Foreman önceki çalışmalardan öğrenir:
- * - Hangi yaklaşım işe yaradı/yaramadı
+ * Foreman learns from previous work:
+ * - Which approach worked/didn't work
  * - Proje-spesifik kararlar
- * - Kullanıcı tercihleri
- * - Teknik kısıtlar
+ * - User preferences
+ * - Technical constraints
  *
  * Memory, prompt context'e enjekte edilir —
- * aynı hatayı iki kez yapmamak için.
+ * to avoid making the same mistake twice.
  */
 export interface MemoryEntry {
   /** Benzersiz kimlik */
   readonly id: string;
 
-  /** Hangi projeye ait (global memory için "global") */
+  /** Which project it belongs to ("global" for global memory) */
   projectId: string;
 
   /** Kategori */
   category: MemoryCategory;
 
-  /** İçerik — öğrenilen bilgi */
+  /** Content — learned information */
   content: string;
 
-  /** Kaynak — nereden öğrenildi */
+  /** Source — where it was learned from */
   source: MemorySource;
 
-  /** Önem skoru (0-1). Yüksek = her zaman context'e girer */
+  /** Importance score (0-1). High = always enters context */
   importance: number;
 
-  /** İlgili etiketler — semantic search için */
+  /** Related tags — for semantic search */
   tags: string[];
 
-  /** Kaç kez kullanıldı (referans edildi) */
+  /** How many times used (referenced) */
   useCount: number;
 
-  /** Son kullanım zamanı */
+  /** Last usage time */
   lastUsedAt?: string;
 
-  /** Oluşturulma zamanı */
+  /** Creation time */
   readonly createdAt: string;
 
-  /** Süresi dolmuş mu (soft delete) */
+  /** Has it expired (soft delete) */
   expired: boolean;
 }
 
 export type MemoryCategory =
-  | "decision"      // mimari/tasarım kararı
-  | "preference"    // kullanıcı tercihi ("hover yasak", "mobile-first")
-  | "constraint"    // teknik kısıt ("no Three.js", "max 3 CSS anim")
-  | "lesson"        // öğrenilen ders ("Lenis Safari'de flicker yapıyor")
-  | "pattern"       // işe yarayan pattern ("Canvas2D > SVG for this case")
-  | "context"       // proje bağlamı ("Eyricediş = diş kliniği, Bursa")
-  | "error"         // yapılan hata ve çözümü
-  | "reference";    // dış kaynak referansı
+  | "decision"      // architectural/design decision
+  | "preference"    // user preference ("no hover", "mobile-first")
+  | "constraint"    // technical constraint ("no Three.js", "max 3 CSS anim")
+  | "lesson"        // lesson learned ("Lenis flickers in Safari")
+  | "pattern"       // working pattern ("Canvas2D > SVG for this case")
+  | "context"       // project context ("Eyricedis = dental clinic, Bursa")
+  | "error"         // mistake made and its solution
+  | "reference";    // external source reference
 
 export interface MemorySource {
   /** Kaynak tipi */
@@ -451,11 +451,11 @@ export interface MemorySource {
 }
 
 /**
- * Session — çalışma oturumu.
+ * Session — work session.
  *
- * Bir session, Foreman'ın bir oturumda yaptığı tüm işin kaydı.
- * Cross-session memory: önceki session'ların özetleri
- * yeni session'a bağlam olarak verilir.
+ * A session is the record of all work Foreman did in one sitting.
+ * Cross-session memory: summaries of previous sessions
+ * are provided as context to the new session.
  */
 export interface Session {
   /** Benzersiz kimlik */
@@ -464,25 +464,25 @@ export interface Session {
   /** Proje ID */
   projectId: string;
 
-  /** Başlangıç zamanı */
+  /** Start time */
   readonly startedAt: string;
 
-  /** Bitiş zamanı */
+  /** End time */
   endedAt?: string;
 
   /** Bu session'da tamamlanan task'lar */
   completedTaskIds: string[];
 
-  /** Bu session'da üretilen thought'lar */
+  /** Thoughts produced in this session */
   thoughtIds: string[];
 
-  /** Bu session'da oluşturulan memory'ler */
+  /** Memories created in this session */
   memoryIds: string[];
 
-  /** Session özeti (session bitince LLM tarafından üretilir) */
+  /** Session summary (generated by LLM when session ends) */
   summary?: string;
 
-  /** Toplam token harcaması */
+  /** Total token usage */
   totalTokens: number;
 
   /** Session durumu */
@@ -490,17 +490,17 @@ export interface Session {
 }
 
 /**
- * Cache entry — LLM çağrı cache'i.
+ * Cache entry — LLM call cache.
  *
- * Aynı prompt + model kombinasyonu tekrar gelirse
- * LLM çağrısı yapmadan cache'den döndür.
- * Token tasarrufu + hız.
+ * If the same prompt + model combination comes again
+ * return from cache without making an LLM call.
+ * Token savings + speed.
  */
 export interface CacheEntry {
   /** Cache key (prompt hash) */
   readonly key: string;
 
-  /** Kullanılan model */
+  /** Model used */
   model: string;
 
   /** Katman */
@@ -509,19 +509,19 @@ export interface CacheEntry {
   /** LLM response (raw text) */
   response: string;
 
-  /** Token kullanımı */
+  /** Token usage */
   tokenUsage: { input: number; output: number; total: number };
 
-  /** Oluşturulma zamanı */
+  /** Creation time */
   readonly createdAt: string;
 
-  /** Son erişim zamanı */
+  /** Last access time */
   lastAccessedAt: string;
 
-  /** Kaç kez kullanıldı */
+  /** Times used */
   hitCount: number;
 
-  /** TTL — milisaniye cinsinden yaşam süresi */
+  /** TTL — lifetime in milliseconds */
   ttlMs: number;
 }
 
@@ -530,44 +530,44 @@ export interface CacheEntry {
 
 /**
  * Chain durumu. Thought status'undan daha basit —
- * chain bireysel thought'ların agregasyonu.
+ * chain is the aggregation of individual thoughts.
  */
 export type ChainStatus =
-  | "active"       // çalışıyor, thought'lar işleniyor
-  | "paused"       // duraklatıldı (insan müdahalesi veya bekleme)
-  | "completed"    // tüm thought'lar done
+  | "active"       // running, thoughts being processed
+  | "paused"       // paused (human intervention or waiting)
+  | "completed"    // all thoughts done
   | "blocked";     // bir thought blocked, chain durdu
 
 /**
- * Düşünce zinciri. Aynı amaca yönelik thought'ların sıralı dizisi.
+ * Thought chain. Ordered sequence of thoughts aimed at the same goal.
  *
- * Chain'ler hiyerarşik olabilir — bir stratejist chain'i
- * birden fazla worker alt-chain'i doğurabilir (fraktal decomposition).
+ * Chains can be hierarchical — a strategist chain
+ * can spawn multiple worker sub-chains (fractal decomposition).
  */
 export interface Chain {
   /** Benzersiz kimlik: "chain_001_types" */
   readonly id: string;
 
-  /** İnsan-okunabilir isim: "Tip Sistemi" */
+  /** Human-readable name: "Type System" */
   readonly name: string;
 
-  /** Bu zincirin amacı — tek cümle */
+  /** This chain's purpose — single sentence */
   readonly goal: string;
 
   /** Dominant katman */
   readonly layer: Layer;
 
   /**
-   * Üst zincir id'si.
-   * Fraktal decomposition: stratejist bloğu atomize edince
-   * alt chain oluşturur, parent'ı stratejist chain'i olur.
+   * Parent chain id.
+   * Fractal decomposition: when strategist atomizes a block,
+   * it creates a sub-chain whose parent is the strategist chain.
    */
   readonly parentChainId?: string;
 
   /**
-   * Thought id listesi (sıralı).
-   * Thought nesnelerinin kendisi değil, sadece id referansları.
-   * Lazy loading — ihtiyaç olunca dosyadan yüklenir.
+   * Thought id list (ordered).
+   * Not the thought objects themselves, just id references.
+   * Lazy loading — loaded from file when needed.
    */
   thoughts: string[];
 
@@ -575,16 +575,16 @@ export interface Chain {
   status: ChainStatus;
 
   /**
-   * Önceki zincirlerin ve bu zincirin birikmiş özeti.
-   * Context compression — uzun zincirlerde token tasarrufu.
-   * Yeni thought'lar bu özeti bağlam olarak kullanır.
+   * Accumulated summary of previous chains and this chain.
+   * Context compression — token savings in long chains.
+   * New thoughts use this summary as context.
    */
   contextSummary: string;
 
-  /** Oluşturulma zamanı (ISO 8601) */
+  /** Creation time (ISO 8601) */
   readonly createdAt: string;
 
-  /** Tamamlanma zamanı (ISO 8601) */
+  /** Completion time (ISO 8601) */
   completedAt?: string;
 }
 
@@ -592,27 +592,27 @@ export interface Chain {
 // t_005
 
 /**
- * Foreman'ın global durumu.
- * Sistem her an TEK BİR durumda — iç içe geçme yok.
+ * Foreman's global state.
+ * System is in exactly ONE state at any time — no nesting.
  */
 export type SystemState =
-  | "idle"             // hiçbir şey yapmıyor
-  | "visioning"        // vizyon oluşturuluyor (vizyoner çalışıyor)
-  | "decomposing"      // parçalanıyor (stratejist çalışıyor)
-  | "researching"      // araştırılıyor (araştırmacı çalışıyor)
-  | "executing"        // atom yapılıyor (işçi çalışıyor)
+  | "idle"             // doing nothing
+  | "visioning"        // vision being created (visioner working)
+  | "decomposing"      // decomposing (strategist working)
+  | "researching"      // researching (researcher working)
+  | "executing"        // atom being executed (worker working)
   | "verifying"        // kontrol ediliyor
-  | "reflecting"       // geri bakılıyor (tutarlılık kontrolü)
+  | "reflecting"       // reviewing (consistency check)
   | "blocked"          // problem var, devam edilemiyor
-  | "awaiting_human"   // insan onayı bekliyor
-  | "complete";        // tüm iş bitti
+  | "awaiting_human"   // waiting for human approval
+  | "complete";        // all work done
 
 /**
- * Geçerli state geçişleri.
- * Burada tanımlanmayan bir geçiş runtime'da REJECT edilir.
+ * Valid state transitions.
+ * A transition not defined here is REJECTED at runtime.
  *
- * Dead state yok — her state'in en az bir çıkışı var.
- * "complete" sadece "idle"a dönebilir (yeni iş için).
+ * No dead states — every state has at least one exit.
+ * "complete" can only return to "idle" (for new work).
  */
 export const VALID_TRANSITIONS: Readonly<Record<SystemState, readonly SystemState[]>> = {
   idle:            ["visioning"],
@@ -631,45 +631,45 @@ export const VALID_TRANSITIONS: Readonly<Record<SystemState, readonly SystemStat
 // t_006
 
 /**
- * İşçinin her atom için zorunlu düşünme adımları.
+ * Worker's mandatory thinking steps for each atom.
  *
- * Bu protokol, işçinin körlemesine kod yazmasını engeller.
- * Her adım string — runtime'da boş string REJECT edilir.
+ * This protocol prevents the worker from writing code blindly.
+ * Each step is a string — empty string is REJECTED at runtime.
  *
- * Akış:
- *   ÖNCE:  read → context → impact → decide → predict
- *   YAPMA: execute
- *   SONRA: verify → report
+ * Flow:
+ *   BEFORE: read → context → impact → decide → predict
+ *   DO:     execute
+ *   AFTER:  verify → report
  */
 export interface WorkerProtocol {
-  // ── Yapmadan ÖNCE ──
+  // ── BEFORE doing ──
 
-  /** Hedef dosyayı oku, ilgili satırları bul */
+  /** Read target file, find relevant lines */
   step1_read: string;
 
-  /** Mevcut kodu anla — ne var, ne yok, ne bağlı */
+  /** Understand existing code — what exists, what's missing, what's connected */
   step2_context: string;
 
-  /** Bu değişiklik neyi etkiler? Yan etki var mı? */
+  /** What does this change affect? Any side effects? */
   step3_impact: string;
 
-  /** Tam olarak ne yazacağım, nereye yazacağım */
+  /** Exactly what I will write, where I will write it */
   step4_decide: string;
 
-  /** Bu değişiklikten sonra ekran/davranış nasıl olacak */
+  /** How screen/behavior will look after this change */
   step5_predict: string;
 
   // ── Yapma ──
 
-  /** Uygulanan değişikliğin özeti */
+  /** Summary of the applied change */
   step6_execute: string;
 
-  // ── Yaptıktan SONRA ──
+  // ── AFTER doing ──
 
-  /** Build çalışıyor mu? Beklentim karşılandı mı? */
+  /** Does build work? Were my expectations met? */
   step7_verify: string;
 
-  /** Ne yaptım, ne değişti, beklenmedik şey var mı */
+  /** What I did, what changed, anything unexpected */
   step8_report: string;
 }
 
@@ -677,14 +677,14 @@ export interface WorkerProtocol {
 // t_007
 
 /**
- * Model rotasyonu — tek provider'a yüklenmemek için.
- * 429 gelince fallback listesinden sonraki modele geçer.
+ * Model rotation — to avoid overloading a single provider.
+ * Switches to next model from fallback list on 429.
  */
 export interface ModelRotation {
   /** Ana model */
   primary: string;
 
-  /** Yedek modeller (sıralı) */
+  /** Backup models (ordered) */
   fallback: readonly string[];
 
   /** 429 gelince otomatik rotate et */
@@ -692,44 +692,44 @@ export interface ModelRotation {
 }
 
 /**
- * Token bütçesi — kontrolsüz harcamayı engeller.
- * Aşılınca thought "blocked" olur, sebep: "budget_exceeded".
+ * Token budget — prevents uncontrolled spending.
+ * When exceeded, thought becomes "blocked", reason: "budget_exceeded".
  */
 export interface TokenBudget {
-  /** Tek bir düşüncenin max token harcaması */
+  /** Max token usage for a single thought */
   perThought: number;
 
-  /** Tek bir zincirin max token harcaması */
+  /** Max token usage for a single chain */
   perChain: number;
 
-  /** Tüm session'ın max token harcaması */
+  /** Max token usage for the entire session */
   perSession: number;
 }
 
 /**
- * Rate limit konfigürasyonu.
- * Throttle + model rotasyonu + token bütçesi.
+ * Rate limit configuration.
+ * Throttle + model rotation + token budget.
  */
 export interface RateLimitConfig {
-  /** Çağrılar arası minimum bekleme (ms) */
+  /** Minimum delay between calls (ms) */
   minDelayBetweenCalls: number;
 
-  /** Dakikada max çağrı sayısı (burst koruması) */
+  /** Max calls per minute (burst protection) */
   maxCallsPerMinute: number;
 
-  /** Burst sonrası bekleme süresi (ms) */
+  /** Wait time after burst (ms) */
   cooldownAfterBurst: number;
 
-  /** 429 sonrası bekleme stratejisi */
+  /** Wait strategy after 429 */
   backoffStrategy: "exponential";
 
-  /** Maksimum yeniden deneme sayısı */
+  /** Maximum retry count */
   maxRetries: number;
 
-  /** Model rotasyonu kuralları */
+  /** Model rotation rules */
   modelRotation: ModelRotation;
 
-  /** Token bütçesi */
+  /** Token budget */
   budget: TokenBudget;
 }
 
@@ -737,60 +737,60 @@ export interface RateLimitConfig {
 // t_008
 
 /**
- * Bir state geçişinin kaydı.
+ * Record of a state transition.
  * Audit trail — ne zaman, nereden nereye, neden.
  */
 export interface StateTransition {
-  /** Önceki durum */
+  /** Previous state */
   from: SystemState;
 
   /** Sonraki durum */
   to: SystemState;
 
-  /** Geçiş sebebi */
+  /** Transition reason */
   reason: string;
 
-  /** Geçiş zamanı (ISO 8601) */
+  /** Transition time (ISO 8601) */
   at: string;
 
-  /** İlgili thought id (varsa) */
+  /** Related thought id (if any) */
   thoughtId?: string;
 
-  /** İlgili chain id (varsa) */
+  /** Related chain id (if any) */
   chainId?: string;
 }
 
 /**
- * Foreman'ın global runtime durumu.
+ * Foreman's global runtime state.
  * state.json olarak persist edilir.
- * Her session'da ilk okunan, her geçişte güncellenen dosya.
+ * File read first in each session, updated on each transition.
  */
 export interface ForemanState {
   /** Mevcut sistem durumu */
   currentState: SystemState;
 
-  /** Aktif çalışan zincir (varsa) */
+  /** Currently active chain (if any) */
   activeChainId?: string;
 
-  /** Aktif çalışan düşünce (varsa) */
+  /** Currently active thought (if any) */
   activeThoughtId?: string;
 
-  /** Proje kök dizini */
+  /** Project root directory */
   projectRoot: string;
 
-  /** Proje adı */
+  /** Project name */
   projectName: string;
 
-  /** Son N geçiş (audit trail) */
+  /** Last N transitions (audit trail) */
   history: StateTransition[];
 
-  /** Toplam harcanan token (session bazlı) */
+  /** Total tokens spent (per session) */
   totalTokens: number;
 
-  /** Session başlangıç zamanı */
+  /** Session start time */
   sessionStartedAt: string;
 
-  /** Son güncelleme zamanı */
+  /** Last update time */
   lastUpdatedAt: string;
 }
 
@@ -798,22 +798,22 @@ export interface ForemanState {
 // t_009
 
 /**
- * Engine'e "düşün" komutu.
+ * "Think" command to the engine.
  */
 export interface ThinkRequest {
-  /** Ne hakkında düşün */
+  /** What to think about */
   input: string;
 
-  /** Hangi katmanda düşün */
+  /** Which layer to think in */
   layer: Layer;
 
-  /** Bağlam referansları */
+  /** Context references */
   contextRefs: string[];
 
-  /** Bağlam metni (önceki düşüncelerden derlenen) */
+  /** Context text (compiled from previous thoughts) */
   contextText?: string;
 
-  /** Kısıtlamalar */
+  /** Constraints */
   constraints?: {
     maxTokens?: number;
     timeoutMs?: number;
@@ -822,45 +822,45 @@ export interface ThinkRequest {
 }
 
 /**
- * Engine'in düşünce output'u.
+ * Engine's thought output.
  */
 export interface ThinkResult {
-  /** Muhakeme (neden bu sonuca vardım) */
+  /** Reasoning (why I reached this conclusion) */
   reasoning: string;
 
-  /** Sonuç */
+  /** Result */
   output: string;
 
-  /** Güven skoru (0-1) */
+  /** Confidence score (0-1) */
   confidence: number;
 
-  /** Araştırma gerekiyor mu */
+  /** Is research needed */
   needsResearch: boolean;
 
-  /** Araştırma sorgusu (needsResearch=true ise) */
+  /** Research query (if needsResearch=true) */
   researchQuery?: string;
 
-  /** Sonraki adım önerisi */
+  /** Suggested next step */
   suggestedNext?: string;
 
   /** Harcanan token */
   tokenCost: number;
 
-  /** Kullanılan model */
+  /** Model used */
   model: string;
 }
 
 /**
- * Araştırma sonucu.
+ * Research result.
  */
 export interface ResearchResult {
-  /** Araştırma sorgusu */
+  /** Research query */
   query: string;
 
   /** Bulunan kaynaklar */
   sources: readonly ResearchSource[];
 
-  /** Sentezlenmiş bulgular */
+  /** Synthesized findings */
   findings: string;
 
   /** Ne kadar ilgili bulgu bulundu (0-1) */
@@ -871,16 +871,16 @@ export interface ResearchResult {
 }
 
 /**
- * Tek bir araştırma kaynağı.
+ * A single research source.
  */
 export interface ResearchSource {
   /** Kaynak URL'i veya dosya yolu */
   ref: string;
 
-  /** Kaynak başlığı */
+  /** Source title */
   title: string;
 
-  /** İlgili kısmın özeti */
+  /** Summary of the relevant part */
   snippet: string;
 }
 
@@ -888,18 +888,18 @@ export interface ResearchSource {
  * Kod uygulama sonucu.
  */
 export interface ExecuteResult {
-  /** Başarılı mı */
+  /** Was it successful */
   success: boolean;
 
-  /** Değişen dosyalar */
+  /** Changed files */
   filesChanged: readonly string[];
 
-  /** Build geçti mi (null = build çalıştırılmadı) */
+  /** Did build pass (null = build was not run) */
   buildPassed: boolean | null;
 
-  /** Hata mesajı (success=false ise) */
+  /** Error message (if success=false) */
   error?: string;
 
-  /** Commit hash (commit atıldıysa) */
+  /** Commit hash (if commit was made) */
   commitHash?: string;
 }

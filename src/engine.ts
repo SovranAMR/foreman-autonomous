@@ -1,11 +1,11 @@
 /**
  * FOREMAN — Engine
  *
- * Ana motor — düşünce üretme, doğrulama, retry.
- * Tüm alt sistemleri koordine eder.
+ * Main engine — thought generation, validation, retry.
+ * Coordinates all subsystems.
  *
- * ÖNEMLİ: Engine prompt'la "lütfen formatla" demez, parse eder.
- * Parse başarısızsa retry eder. Retry da başarısızsa BLOCK.
+ * IMPORTANT: Engine doesn't tell the prompt to "please format", it parses.
+ * If parse fails, it retries. If retry also fails, BLOCK.
  */
 
 import type {
@@ -48,16 +48,16 @@ export interface EngineConfig {
 // ─── STEP RESULT ─────────────────────────────────────────────
 
 /**
- * step() artık sadece Thought döndürmüyor.
- * Parse edilen yapısal data'yı da döndürüyor.
+ * step() no longer returns just a Thought.
+ * It also returns the parsed structural data.
  */
 export interface StepResult {
   thought: Thought;
-  /** Parse edilmiş yapısal data (phase'e göre tip değişir) */
+  /** Parsed structural data (type varies by phase) */
   parsed: any;
-  /** Parse başarılı mı (retry dahil) */
+  /** Was parse successful (including retries) */
   formatValid: boolean;
-  /** Kaç retry yapıldı */
+  /** How many retries were performed */
   retryCount: number;
 }
 
@@ -76,12 +76,12 @@ export class Engine {
   private config: EngineConfig;
   private maxFormatRetries: number;
 
-  /** Katman bazlı confidence eşikleri */
+  /** Layer-based confidence thresholds */
   private readonly confidenceThresholds: Record<Layer, { warn: number; block: number }> = {
-    visioner:    { warn: 0.6, block: 0.4 },  // vizyon yüksek emin olmalı
-    strategist:  { warn: 0.5, block: 0.3 },  // plan biraz belirsiz olabilir
-    researcher:  { warn: 0.4, block: 0.2 },  // araştırma düşük relevance olabilir
-    worker:      { warn: 0.6, block: 0.35 }, // uygulama emin olmalı
+    visioner:    { warn: 0.6, block: 0.4 },  // vision must have high certainty
+    strategist:  { warn: 0.5, block: 0.3 },  // plan can be somewhat uncertain
+    researcher:  { warn: 0.4, block: 0.2 },  // research may have low relevance
+    worker:      { warn: 0.6, block: 0.35 }, // execution must be certain
   };
 
   constructor(config: EngineConfig) {
@@ -108,15 +108,15 @@ export class Engine {
         const session = this.sessions.getActive();
         if (session) {
           // Token tasarrufunu session'a negatif token olarak eklemek yerine
-          // sadece cache hit sayısını not olarak bırak
+          // just leave cache hit count as a note
         }
       }
     });
   }
 
   /**
-   * Katman için confidence değerlendirmesi.
-   * Her katmanın eşiği farklı — vizyoner yüksek emin olmalı, araştırmacı daha toleranslı.
+   * Confidence evaluation for a layer.
+   * Each layer has different thresholds — visioner must be highly certain, researcher is more tolerant.
    */
   evaluateConfidence(layer: Layer, confidence: number): "ok" | "warn" | "block" {
     const thresh = this.confidenceThresholds[layer];
@@ -126,8 +126,8 @@ export class Engine {
   }
 
   /**
-   * LLM'e tek bir çağrı yap — model fallback + context guard ile.
-   * Mock modda fallback chain'i bypass eder.
+   * Make a single LLM call — with model fallback + context guard.
+   * In mock mode, bypasses the fallback chain.
    */
   async callLLM(
     systemPrompt: string,
@@ -141,19 +141,19 @@ export class Engine {
       ?? this.rateLimiter.currentModel()
       ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel;
 
-    // Context window guard — prompt sığıyor mu?
+    // Context window guard — does the prompt fit?
     const guard = guardContextWindow({
       model,
       systemPrompt,
       userPrompt,
-      contextText: "", // context zaten userPrompt'a dahil
+      contextText: "", // context is already included in userPrompt
     });
 
     if (!guard.isSafe) {
       throw new BlockedError("pre-call", layer, guard.warning ?? "Context window exceeded");
     }
 
-    // Mock provider varsa → doğrudan çağır, fallback chain'e girme
+    // If mock provider exists → call directly, don't enter fallback chain
     const mockProvider = this.providers.getProviderForModel("mock-model");
     if (mockProvider) {
       const result = await mockProvider.generate(
@@ -169,7 +169,7 @@ export class Engine {
       return result;
     }
 
-    // Model fallback ile çağır
+    // Call with model fallback
     const fallbackResult = await runWithFallback({
       registry: this.providers,
       layer,
@@ -186,11 +186,11 @@ export class Engine {
       onRetry: (info) => {
         // Rate limiter'a bildir
         if (info.attempt > 1) {
-          this.rateLimiter.onSuccess(); // önceki denemenin cooldown'ını resetle
+          this.rateLimiter.onSuccess(); // reset previous attempt's cooldown
         }
       },
       onFallback: (from, to, errorClass) => {
-        // Fallback bilgisi — loglama için
+        // Fallback info — for logging
       },
     });
 
@@ -203,14 +203,14 @@ export class Engine {
   }
 
   /**
-   * Phase-aware step: LLM çağır → parse et → başarısızsa retry → validate → persist.
+   * Phase-aware step: call LLM → parse → retry on failure → validate → persist.
    *
-   * Bu metod pipeline'ın gerçek disiplin noktası:
-   * 1. LLM çağrısı yapılır
-   * 2. Çıktı phase'e göre parse edilir (vision/decompose/research/atomize/execute)
-   * 3. Parse başarısızsa → LLM'e retry prompt gönderilir (max 2 retry)
-   * 4. Worker thought'larında 8-adım protokol parse edilir ve Thought'a yazılır
-   * 5. Validator çalıştırılır — geçemezse thought "blocked" olur
+   * This method is the pipeline's real discipline point:
+   * 1. LLM call is made
+   * 2. Output is parsed according to phase (vision/decompose/research/atomize/execute)
+   * 3. If parse fails → retry prompt is sent to LLM (max 2 retries)
+   * 4. In worker thoughts, the 8-step protocol is parsed and written to the Thought
+   * 5. Validator runs — if it fails, thought becomes "blocked"
    */
   async stepWithPhase(
     chainId: string,
@@ -219,7 +219,7 @@ export class Engine {
     phase: ParsePhase,
     contextRefs: string[] = [],
   ): Promise<StepResult> {
-    // 1. Thought oluştur
+    // 1. Create thought
     const thought = this.thoughts.create({
       chainId,
       layer,
@@ -230,7 +230,7 @@ export class Engine {
     this.chains.addThought(chainId, thought.id);
     this.rateLimiter.resetThoughtBudget();
 
-    // State geçişi
+    // State transition
     const stateMap: Record<Layer, "visioning" | "decomposing" | "researching" | "executing"> = {
       visioner: "visioning",
       strategist: "decomposing",
@@ -247,14 +247,14 @@ export class Engine {
 
     this.thoughts.update(thought.id, { status: "thinking" });
 
-    // 2. Bağlam derle — memory + session + referenced thoughts + context compression
+    // 2. Compile context — memory + session + referenced thoughts + context compression
     const referencedThoughts = contextRefs
       .filter(ref => ref.startsWith("t_"))
       .map(ref => this.thoughts.get(ref))
       .filter((t): t is Thought => t !== null);
     const chain = this.chains.get(chainId);
 
-    // Context compression — zincir uzunsa eski thought'ları özetle
+    // Context compression — if chain is long, summarize old thoughts
     const allChainThoughts = chain
       ? chain.thoughts.map(id => this.thoughts.get(id)).filter((t): t is Thought => t !== null)
       : referencedThoughts;
@@ -262,7 +262,7 @@ export class Engine {
     let compressedContext = "";
     if (allChainThoughts.length > 5 && shouldCompact({
       thoughts: allChainThoughts,
-      contextWindow: 128_000, // default, gerçek değer model'den alınmalı
+      contextWindow: 128_000, // default, real value should come from model
       threshold: 0.4,
     })) {
       const compact = buildCompactContext({
@@ -278,10 +278,10 @@ export class Engine {
     const thoughtTags = referencedThoughts.flatMap(t => t.input.split(/\s+/).filter(w => w.length > 3));
     const memoryContext = this.memory.buildContextBlock(thoughtTags);
 
-    // Session context — önceki oturumların özetleri
+    // Session context — summaries of previous sessions
     const sessionContext = this.sessions.buildSessionContext(2);
 
-    // Eğer compression aktifse, onu kullan; değilse normal context
+    // If compression is active, use it; otherwise use normal context
     const contextText = compressedContext
       ? `${memoryContext}\n${sessionContext}\n${compressedContext}`
       : buildContextText(chain, referencedThoughts, memoryContext, sessionContext);
@@ -289,7 +289,7 @@ export class Engine {
     const systemPrompt = getSystemPrompt(layer, phase);
     const userPrompt = buildUserPrompt(input, contextText);
 
-    // 3. Cache kontrol — aynı prompt+model daha önce sorulmuş mu?
+    // 3. Cache check — has the same prompt+model been asked before?
     const cacheKey = this.cache.makeKey(systemPrompt, userPrompt, DEFAULT_LAYER_CONFIGS[layer].defaultModel);
     const cached = this.cache.get(cacheKey);
 
@@ -298,12 +298,12 @@ export class Engine {
     let resultModel: string;
 
     if (cached) {
-      // Cache hit — LLM çağrısı yok
+      // Cache hit — no LLM call
       rawText = cached.response;
-      totalTokens = 0; // token harcanmadı
+      totalTokens = 0; // no tokens spent
       resultModel = cached.model;
     } else {
-      // Cache miss — LLM çağrısı
+      // Cache miss — LLM call
       let result = await this.callLLM(systemPrompt, userPrompt, layer);
       rawText = result.text;
       totalTokens = result.tokenUsage.total;
@@ -321,7 +321,7 @@ export class Engine {
     let retryCount = 0;
     let parseResult = parseForPhase(phase, rawText);
 
-    // 4. Parse başarısızsa → retry
+    // 4. If parse fails → retry
     while (!parseResult.ok && retryCount < this.maxFormatRetries) {
       retryCount++;
       const retryPrompt = buildRetryPrompt(
@@ -345,9 +345,9 @@ export class Engine {
     if (parseResult.ok) {
       parsedData = parseResult.data;
 
-      // Phase'e göre data çıkar
+      // Extract data according to phase
       if (phase === "execute") {
-        // Worker — 8-adım protokol
+        // Worker — 8-step protocol
         workerProtocol = parsedData.protocol;
         confidence = parsedData.confidence;
         reasoning = Object.entries(workerProtocol!)
@@ -373,7 +373,7 @@ export class Engine {
       }
     }
 
-    // 5. Thought güncelle
+    // 5. Update thought
     const updateData: Partial<Thought> = {
       reasoning,
       output,
@@ -387,7 +387,7 @@ export class Engine {
       updateData.workerProtocol = workerProtocol;
     }
 
-    // 6. Validation — parse başarısızsa veya validator reject ederse → blocked
+    // 6. Validation — if parse failed or validator rejects → blocked
     if (!formatValid) {
       updateData.status = "blocked";
       updateData.blockedReason = `Format parse failed after ${retryCount} retries. Missing: ${
@@ -399,7 +399,7 @@ export class Engine {
 
     const updated = this.thoughts.update(thought.id, updateData);
 
-    // Worker validation (8-adım tam mı?)
+    // Worker validation (are all 8 steps complete?)
     if (updated.status === "done" && updated.layer === "worker") {
       const validation = validateThoughtCompletion(updated);
       if (!validation.valid) {
@@ -410,7 +410,7 @@ export class Engine {
       }
     }
 
-    // Katman bazlı confidence değerlendirmesi
+    // Layer-based confidence evaluation
     const finalThought = this.thoughts.get(thought.id)!;
     if (finalThought.status === "done") {
       const confLevel = this.evaluateConfidence(layer, finalThought.confidence);
@@ -422,7 +422,7 @@ export class Engine {
       }
     }
 
-    // Memory extraction — yüksek confidence thought'lardan öğren
+    // Memory extraction — learn from high-confidence thoughts
     const completed = this.thoughts.get(thought.id)!;
     if (completed.status === "done" && completed.confidence >= 0.7) {
       const extracted = this.memory.extractFromThought({
@@ -432,7 +432,7 @@ export class Engine {
         output: completed.output,
         confidence: completed.confidence,
       });
-      // Memory → Session bağlantısı
+      // Memory → Session connection
       if (extracted) {
         const activeSession = this.sessions.getActive();
         if (activeSession) {
@@ -466,8 +466,8 @@ export class Engine {
   }
 
   /**
-   * Eski step() — geriye uyumluluk için.
-   * Yeni kod stepWithPhase() kullanmalı.
+   * Legacy step() — for backward compatibility.
+   * New code should use stepWithPhase().
    */
   async step(
     chainId: string,
@@ -487,7 +487,7 @@ export class Engine {
   }
 
   /**
-   * Eski think() — geriye uyumluluk.
+   * Legacy think() — backward compatibility.
    */
   async think(request: ThinkRequest): Promise<ThinkResult> {
     await this.rateLimiter.acquire();

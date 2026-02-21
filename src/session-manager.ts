@@ -1,8 +1,8 @@
 /**
  * FOREMAN — Session Manager
  *
- * Çalışma oturumlarını yönetir.
- * Önceki session'ların özetleri yeni session'lara bağlam olarak verilir.
+ * Manages work sessions.
+ * Summaries of previous sessions are provided as context to new sessions.
  *
  * Her session: {projectRoot}/sessions/ses_XXX.json
  */
@@ -23,12 +23,12 @@ export class SessionManager {
   }
 
   /**
-   * Yeni session başlat.
+   * Start a new session.
    */
   start(input: CreateSessionInput): Session {
     this.ensureDir();
 
-    // Önceki aktif session'ı kapat
+    // Close previous active session
     const active = this.getActive();
     if (active) {
       this.end(active.id, "abandoned");
@@ -51,7 +51,7 @@ export class SessionManager {
   }
 
   /**
-   * Aktif session'ı al.
+   * Get the active session.
    */
   getActive(): Session | null {
     const all = this.list();
@@ -109,7 +109,7 @@ export class SessionManager {
   }
 
   /**
-   * Session'ı bitir.
+   * End a session.
    */
   end(sessionId: string, status: "completed" | "abandoned" = "completed", summary?: string): Session {
     const session = this.get(sessionId);
@@ -135,7 +135,7 @@ export class SessionManager {
   }
 
   /**
-   * Tüm session'ları listele.
+   * List all sessions.
    */
   list(): Session[] {
     this.ensureDir();
@@ -153,7 +153,7 @@ export class SessionManager {
   }
 
   /**
-   * Son N session'ın özetlerini al — cross-session context için.
+   * Get summaries of last N sessions — for cross-session context.
    */
   getRecentSummaries(count: number = 3): string[] {
     const all = this.list()
@@ -164,7 +164,7 @@ export class SessionManager {
   }
 
   /**
-   * Cross-session bağlam metni oluştur.
+   * Build cross-session context text.
    */
   buildSessionContext(count: number = 3): string {
     const summaries = this.getRecentSummaries(count);
@@ -178,7 +178,7 @@ export class SessionManager {
   }
 
   /**
-   * İstatistikler.
+   * Statistics.
    */
   stats(): SessionStats {
     const all = this.list();

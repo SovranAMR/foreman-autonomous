@@ -1,12 +1,12 @@
 /**
  * FOREMAN — Memory Manager
  *
- * Öğrenilen bilgileri kalıcı olarak saklar ve gerektiğinde prompt'a enjekte eder.
+ * Persistently stores learned information and injects it into prompts when needed.
  *
- * Üç katmanlı hafıza:
+ * Three-tier memory:
  * 1. Hot memory — importance >= 0.8, her prompt'a girer
  * 2. Warm memory — importance >= 0.5, ilgili tag varsa girer
- * 3. Cold memory — importance < 0.5, sadece search ile erişilir
+ * 3. Cold memory — importance < 0.5, accessible only via search
  *
  * Her memory dosyaya persist edilir: {projectRoot}/memory/mem_XXX.json
  */
@@ -49,7 +49,7 @@ export class MemoryManager {
   }
 
   /**
-   * Yeni memory oluştur.
+   * Create a new memory.
    */
   create(input: CreateMemoryInput): MemoryEntry {
     this.ensureDir();
@@ -73,7 +73,7 @@ export class MemoryManager {
   }
 
   /**
-   * Memory oku.
+   * Read memory.
    */
   get(id: string): MemoryEntry | null {
     const filePath = this.filePath(id);
@@ -86,7 +86,7 @@ export class MemoryManager {
   }
 
   /**
-   * Memory güncelle.
+   * Update memory.
    */
   update(id: string, patch: Partial<Omit<MemoryEntry, "id" | "createdAt">>): MemoryEntry {
     const existing = this.get(id);
@@ -97,8 +97,8 @@ export class MemoryManager {
   }
 
   /**
-   * Memory'yi "kullanıldı" olarak işaretle.
-   * useCount artar, lastUsedAt güncellenir.
+   * Mark memory as "used".
+   * useCount increases, lastUsedAt is updated.
    */
   touch(id: string): MemoryEntry {
     const entry = this.get(id);
@@ -117,7 +117,7 @@ export class MemoryManager {
   }
 
   /**
-   * Tüm memory'leri listele (filtreli).
+   * List all memories (with filter).
    */
   list(filter?: MemoryFilter): MemoryEntry[] {
     this.ensureDir();
@@ -148,7 +148,7 @@ export class MemoryManager {
 
   /**
    * HOT memory — importance >= 0.8.
-   * Her prompt'a eklenir. Kritik kararlar, kısıtlar, tercihler.
+   * Added to every prompt. Critical decisions, constraints, preferences.
    */
   getHotMemories(projectId?: string): MemoryEntry[] {
     return this.list({ projectId, minImportance: 0.8 })
@@ -156,20 +156,20 @@ export class MemoryManager {
   }
 
   /**
-   * WARM memory — ilgili tag'lere göre.
-   * Prompt'a eklenir eğer tag eşleşiyorsa.
+   * WARM memory — by relevant tags.
+   * Added to prompt if tag matches.
    */
   getWarmMemories(tags: string[], projectId?: string): MemoryEntry[] {
     const all = this.list({ projectId, minImportance: 0.5 });
     return all.filter(entry =>
-      entry.importance < 0.8 && // hot olanları hariç tut
+      entry.importance < 0.8 && // exclude hot ones
       entry.tags.some(t => tags.includes(t))
     );
   }
 
   /**
-   * Prompt'a eklenecek memory context'i oluştur.
-   * Hot + warm memory'leri metin olarak döndürür.
+   * Build memory context to add to prompt.
+   * Returns hot + warm memories as text.
    */
   buildContextBlock(tags: string[] = [], projectId?: string, maxTokens: number = 2000): string {
     const hot = this.getHotMemories(projectId);
@@ -178,7 +178,7 @@ export class MemoryManager {
 
     if (all.length === 0) return "";
 
-    // Touch — kullanım sayısını artır
+    // Touch — increment use count
     for (const entry of all) {
       this.touch(entry.id);
     }
@@ -191,7 +191,7 @@ export class MemoryManager {
     }
 
     const text = parts.join("\n");
-    // Token limiti aşıyorsa kes
+    // Truncate if exceeding token limit
     if (text.length > maxTokens * 4) { // ~4 char/token
       return text.slice(0, maxTokens * 4) + "\n... (truncated)";
     }
@@ -228,7 +228,7 @@ export class MemoryManager {
       // Recency bonus
       if (entry.lastUsedAt) {
         const age = Date.now() - new Date(entry.lastUsedAt).getTime();
-        if (age < 3600_000) score += 0.1; // 1 saat içinde kullanılmış
+        if (age < 3600_000) score += 0.1; // used within the last hour
       }
 
       if (score > 0.1) {
@@ -242,9 +242,9 @@ export class MemoryManager {
   // ─── BATCH OPERATIONS ──────────────────────────────────────
 
   /**
-   * Thought'tan memory çıkar.
-   * Vizyoner kararları, araştırma bulguları, işçi dersleri otomatik memory olur.
-   * Duplicate koruması: aynı içerik varsa ekleme, var olanı güncelle.
+   * Extract memory from a thought.
+   * Visioner decisions, research findings, worker lessons automatically become memory.
+   * Duplicate protection: if same content exists, don't add, update existing.
    */
   extractFromThought(thought: {
     id: string;
@@ -254,7 +254,7 @@ export class MemoryManager {
     confidence: number;
     tags?: string[];
   }): MemoryEntry | null {
-    // Düşük confidence → memory değmez
+    // Low confidence → not worth memorizing
     if (thought.confidence < 0.6) return null;
 
     const categoryMap: Record<string, MemoryCategory> = {
@@ -266,17 +266,17 @@ export class MemoryManager {
 
     const category = categoryMap[thought.layer] ?? "context";
 
-    // İçerik: reasoning + output özeti
+    // Content: reasoning + output summary
     const content = thought.output.length > 200
       ? thought.output.slice(0, 200) + "..."
       : thought.output;
 
     const fullContent = `[${thought.layer}] ${content}`;
 
-    // Duplicate koruması — benzer içerik varsa güncelle, tekrar ekleme
+    // Duplicate protection — update if similar content exists, don't add again
     const existing = this.findSimilar(fullContent);
     if (existing) {
-      // Var olan memory'nin importance'ını güncelle (daha yüksek confidence → daha önemli)
+      // Update existing memory's importance (higher confidence → more important)
       const newImportance = Math.max(existing.importance, thought.confidence * 0.8);
       this.update(existing.id, {
         importance: newImportance,
@@ -296,8 +296,8 @@ export class MemoryManager {
   }
 
   /**
-   * Benzer içerik var mı kontrol et.
-   * Basit: ilk 80 karakterin %70'i eşleşiyorsa benzer kabul et.
+   * Check if similar content exists.
+   * Simple: if 70% of the first 80 characters match, consider it similar.
    */
   private findSimilar(content: string): MemoryEntry | null {
     const target = content.toLowerCase().slice(0, 80);
@@ -313,7 +313,7 @@ export class MemoryManager {
   }
 
   /**
-   * Basit karakter benzerlik oranı (Jaccard benzeri).
+   * Simple character similarity ratio (Jaccard-like).
    */
   private similarity(a: string, b: string): number {
     if (a === b) return 1;
@@ -327,11 +327,11 @@ export class MemoryManager {
   }
 
   /**
-   * Kullanılmayan memory'leri temizle + importance decay.
+   * Clean up unused memories + importance decay.
    *
-   * - Son 7 gündür kullanılmamış ve importance < 0.5 → expire
-   * - 3+ gündür kullanılmamış memory'lerin importance'ı %5 düşer (decay)
-   * - Manual source memory'ler decay'den muaf (kullanıcı bilinçli eklemiş)
+   * - Unused for 7+ days and importance < 0.5 → expire
+   * - Memories unused for 3+ days have their importance decreased by 5% (decay)
+   * - Manual source memories are exempt from decay (user consciously added)
    */
   cleanup(maxAgeDays: number = 7): number {
     const all = this.list({ includeExpired: false });
@@ -344,14 +344,14 @@ export class MemoryManager {
         ? new Date(entry.lastUsedAt).getTime()
         : new Date(entry.createdAt).getTime();
 
-      // Expire: düşük importance + uzun süredir kullanılmamış
+      // Expire: low importance + unused for a long time
       if (entry.importance < 0.5 && lastUsed < expireCutoff) {
         this.expire(entry.id);
         cleaned++;
         continue;
       }
 
-      // Decay: 3+ gün kullanılmamış, manual değilse importance %5 düş
+      // Decay: unused for 3+ days, if not manual decrease importance by 5%
       if (entry.source.type !== "manual" && lastUsed < decayCutoff && entry.importance > 0.2) {
         const decayed = Math.max(0.1, entry.importance * 0.95);
         if (decayed !== entry.importance) {
@@ -364,7 +364,7 @@ export class MemoryManager {
   }
 
   /**
-   * İstatistikler.
+   * Statistics.
    */
   stats(): MemoryStats {
     const all = this.list({ includeExpired: true });

@@ -1,10 +1,10 @@
 /**
  * FOREMAN — Rate Limiter
  *
- * LLM çağrılarını throttle eder, model rotasyonu yapar,
- * token bütçesini takip eder.
+ * Throttles LLM calls, performs model rotation,
+ * and tracks token budget.
  *
- * Tek provider'ı boğmadan gece boyunca çalışabilmek için.
+ * To be able to run overnight without overwhelming a single provider.
  */
 
 import type { RateLimitConfig, ModelRotation, TokenBudget } from "./types.js";
@@ -90,14 +90,14 @@ export class RateLimiter {
   }
 
   /**
-   * Çağrı yapmadan önce izin al.
-   * Yeterli süre geçmediyse bekler.
-   * Burst limit aşıldıysa cooldown bekler.
+   * Acquire permission before making a call.
+   * Waits if not enough time has passed.
+   * Waits for cooldown if burst limit is exceeded.
    */
   async acquire(): Promise<void> {
     const now = Date.now();
 
-    // 1. Min delay kontrolü
+    // 1. Min delay check
     const elapsed = now - this.lastCallTime;
     if (elapsed < this.config.minDelayBetweenCalls) {
       const waitTime = this.config.minDelayBetweenCalls - elapsed;
@@ -112,15 +112,15 @@ export class RateLimiter {
       this.callTimestamps = []; // reset window
     }
 
-    // Çağrıyı kaydet
+    // Record the call
     const callTime = Date.now();
     this.lastCallTime = callTime;
     this.callTimestamps.push(callTime);
   }
 
   /**
-   * 429 geldiğinde çağır. Exponential backoff + model rotate.
-   * Döndürdüğü model'i kullan.
+   * Call when 429 is received. Exponential backoff + model rotate.
+   * Use the returned model.
    */
   async onRateLimited(): Promise<string> {
     this.consecutiveRetries++;
@@ -145,7 +145,7 @@ export class RateLimiter {
   }
 
   /**
-   * Başarılı çağrı sonrası. Retry counter sıfırla.
+   * After a successful call. Reset retry counter.
    */
   onSuccess(): void {
     this.consecutiveRetries = 0;
@@ -163,7 +163,7 @@ export class RateLimiter {
   }
 
   /**
-   * Sonraki modele geç. Döngüsel — tüm fallback'leri geçince primary'e döner.
+   * Switch to next model. Circular — returns to primary after exhausting all fallbacks.
    */
   private rotateModel(): string {
     const fallbacks = this.config.modelRotation.fallback;
@@ -173,7 +173,7 @@ export class RateLimiter {
 
     this.currentModelIndex++;
     if (this.currentModelIndex >= fallbacks.length) {
-      // Tüm fallback'ler denendi, primary'e dön
+      // All fallbacks tried, return to primary
       this.currentModelIndex = -1;
       return this.config.modelRotation.primary;
     }
@@ -182,7 +182,7 @@ export class RateLimiter {
   }
 
   /**
-   * Model'i primary'e sıfırla.
+   * Reset model to primary.
    */
   resetModel(): void {
     this.currentModelIndex = -1;
@@ -192,7 +192,7 @@ export class RateLimiter {
   // ─── TOKEN BUDGET ──────────────────────────────────────────
 
   /**
-   * Token harcaması kaydet ve bütçe kontrolü yap.
+   * Record token usage and check budget.
    *
    * @throws BudgetExceededError
    */
@@ -201,7 +201,7 @@ export class RateLimiter {
     this.chainTokens += count;
     this.sessionTokens += count;
 
-    // Bütçe kontrolü
+    // Budget check
     if (this.thoughtTokens > this.config.budget.perThought) {
       throw new BudgetExceededError("thought", this.config.budget.perThought, this.thoughtTokens);
     }
@@ -214,14 +214,14 @@ export class RateLimiter {
   }
 
   /**
-   * Yeni thought başladığında thought token counter sıfırla.
+   * Reset thought token counter when a new thought starts.
    */
   resetThoughtBudget(): void {
     this.thoughtTokens = 0;
   }
 
   /**
-   * Yeni chain başladığında chain token counter sıfırla.
+   * Reset chain token counter when a new chain starts.
    */
   resetChainBudget(): void {
     this.chainTokens = 0;
@@ -229,7 +229,7 @@ export class RateLimiter {
   }
 
   /**
-   * Mevcut token kullanımını döndür.
+   * Return current token usage.
    */
   tokenUsage(): { thought: number; chain: number; session: number } {
     return {

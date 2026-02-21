@@ -1,9 +1,9 @@
 /**
  * FOREMAN — LLM Provider Abstraction
  *
- * Çoklu LLM provider'ı tek arayüzle kullanmak için.
- * Engine bu interface üzerinden LLM çağrısı yapar —
- * hangi provider olduğunu bilmesine gerek yok.
+ * For using multiple LLM providers through a single interface.
+ * Engine makes LLM calls through this interface —
+ * it doesn't need to know which provider it is.
  */
 
 // ─── TYPES ───────────────────────────────────────────────────
@@ -14,53 +14,53 @@ export interface LLMMessage {
 }
 
 export interface GenerateOptions {
-  /** Model tanımlayıcı: "claude-opus", "gpt-4o", "gemini-pro" vb. */
+  /** Model identifier: "claude-opus", "gpt-4o", "gemini-pro" etc. */
   model: string;
 
   /** Max output token */
   maxTokens?: number;
 
-  /** Sıcaklık (0-2) */
+  /** Temperature (0-2) */
   temperature?: number;
 }
 
 export interface GenerateResult {
-  /** Üretilen metin */
+  /** Generated text */
   text: string;
 
-  /** Kullanılan token sayısı (input + output) */
+  /** Token count used (input + output) */
   tokenUsage: {
     input: number;
     output: number;
     total: number;
   };
 
-  /** Kullanılan model */
+  /** Model used */
   model: string;
 }
 
 // ─── PROVIDER INTERFACE ──────────────────────────────────────
 
 /**
- * LLM Provider arayüzü.
- * Her provider (Anthropic, OpenAI, Google) bunu implement eder.
+ * LLM Provider interface.
+ * Each provider (Anthropic, OpenAI, Google) implements this.
  */
 export interface LLMProvider {
-  /** Provider adı */
+  /** Provider name */
   readonly name: string;
 
-  /** Bu provider'ın desteklediği modeller */
+  /** Models supported by this provider */
   readonly supportedModels: readonly string[];
 
-  /** Metin üret */
+  /** Generate text */
   generate(messages: LLMMessage[], options: GenerateOptions): Promise<GenerateResult>;
 }
 
 // ─── MOCK PROVIDER ───────────────────────────────────────────
 
 /**
- * Test için mock LLM provider.
- * Gerçek LLM çağrısı yapmaz — sabit veya programlanabilir yanıt döndürür.
+ * Mock LLM provider for testing.
+ * Does not make real LLM calls — returns fixed or programmable responses.
  */
 export class MockProvider implements LLMProvider {
   readonly name = "mock";
@@ -75,28 +75,28 @@ export class MockProvider implements LLMProvider {
   }
 
   /**
-   * Sonraki N çağrı için yanıtları sıraya koy.
+   * Queue responses for the next N calls.
    */
   enqueueResponses(...responses: string[]): void {
     this.responseQueue.push(...responses);
   }
 
   async generate(messages: LLMMessage[], options: GenerateOptions): Promise<GenerateResult> {
-    // Çağrıyı kaydet
+    // Record the call
     this.callHistory.push({ messages: [...messages], options: { ...options } });
 
-    // Sıradaki yanıtı al veya smart default kullan
+    // Get next queued response or use smart default
     let text: string;
     if (this.responseQueue.length > 0) {
       text = this.responseQueue.shift()!;
     } else if (this.defaultResponse !== "Mock response") {
       text = this.defaultResponse;
     } else {
-      // Smart mock: system prompt'tan phase'i algıla ve uygun formatta yanıt üret
+      // Smart mock: detect phase from system prompt and generate response in appropriate format
       text = this.generateSmartResponse(messages);
     }
 
-    // Token simülasyonu: input + output karakter sayısına göre
+    // Token simulation: based on input + output character count
     const inputChars = messages.reduce((sum, m) => sum + m.content.length, 0);
     const outputChars = text.length;
 
@@ -112,13 +112,13 @@ export class MockProvider implements LLMProvider {
   }
 
   /**
-   * System prompt'tan phase algıla ve parser'ın kabul edeceği formatta mock yanıt üret.
+   * Detect phase from system prompt and generate mock response in a format the parser will accept.
    */
   private generateSmartResponse(messages: LLMMessage[]): string {
     const systemPrompt = messages.find(m => m.role === "system")?.content ?? "";
     const userPrompt = messages.find(m => m.role === "user")?.content ?? "";
 
-    // Task'ı user prompt'tan çıkar
+    // Extract task from user prompt
     const taskMatch = userPrompt.match(/(?:Your Task:|Project:)\s*(.*)/s);
     const task = taskMatch?.[1]?.trim().slice(0, 100) ?? "the given task";
 
@@ -192,8 +192,8 @@ NEEDS_RESEARCH: false`;
 // ─── PROVIDER REGISTRY ───────────────────────────────────────
 
 /**
- * Model adından provider'ı seçen registry.
- * Engine bunu kullanarak doğru provider'ı çağırır.
+ * Registry that selects provider by model name.
+ * Engine uses this to call the correct provider.
  */
 export class ProviderRegistry {
   private providers: Map<string, LLMProvider> = new Map();
@@ -210,7 +210,7 @@ export class ProviderRegistry {
   }
 
   /**
-   * Model adından provider'ı bul.
+   * Find provider by model name.
    */
   getProviderForModel(model: string): LLMProvider | null {
     // Exact match
@@ -230,7 +230,7 @@ export class ProviderRegistry {
   }
 
   /**
-   * Kayıtlı provider sayısı.
+   * Number of registered providers.
    */
   get size(): number {
     return this.providers.size;

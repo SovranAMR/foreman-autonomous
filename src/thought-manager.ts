@@ -1,7 +1,7 @@
 /**
  * FOREMAN — Thought Manager
  *
- * Thought nesnelerini JSON dosyalar olarak yönetir.
+ * Manages thought objects as JSON files.
  * Her thought: {projectRoot}/thoughts/t_XXX.json
  */
 
@@ -12,7 +12,7 @@ import type { Thought, Layer, ThoughtStatus } from "./types.js";
 // ─── INPUT TYPES ──────────────────────────────────────────────
 
 /**
- * Thought oluştururken gerekli alanlar.
+ * Required fields when creating a thought.
  * id, createdAt, status otomatik doldurulur.
  */
 export interface CreateThoughtInput {
@@ -23,7 +23,7 @@ export interface CreateThoughtInput {
 }
 
 /**
- * Thought güncellerken değiştirilebilecek alanlar.
+ * Fields that can be changed when updating a thought.
  */
 export interface UpdateThoughtInput {
   reasoning?: string;
@@ -64,9 +64,9 @@ export class ThoughtManager {
   }
 
   /**
-   * Yeni thought oluştur.
-   * ID otomatik üretilir (auto-increment).
-   * Başlangıç status: "pending".
+   * Create a new thought.
+   * ID is generated automatically (auto-increment).
+   * Initial status: "pending".
    */
   create(input: CreateThoughtInput): Thought {
     this.ensureDir();
@@ -96,7 +96,7 @@ export class ThoughtManager {
   }
 
   /**
-   * Thought oku. Yoksa null döner.
+   * Read a thought. Returns null if not found.
    */
   get(id: string): Thought | null {
     const filePath = this.filePath(id);
@@ -112,8 +112,8 @@ export class ThoughtManager {
   }
 
   /**
-   * Thought güncelle (partial merge).
-   * Yoksa hata fırlatır.
+   * Update a thought (partial merge).
+   * Throws error if not found.
    */
   update(id: string, patch: UpdateThoughtInput): Thought {
     const existing = this.get(id);
@@ -127,7 +127,7 @@ export class ThoughtManager {
   }
 
   /**
-   * Tüm thought'ları listele (opsiyonel filter).
+   * List all thoughts (optional filter).
    */
   list(filter?: ThoughtFilter): Thought[] {
     this.ensureDir();
@@ -149,7 +149,7 @@ export class ThoughtManager {
 
         thoughts.push(thought);
       } catch {
-        // Bozuk dosyayı atla
+        // Skip corrupt file
       }
     }
 
@@ -157,7 +157,7 @@ export class ThoughtManager {
   }
 
   /**
-   * Thought var mı kontrol et.
+   * Check if a thought exists.
    */
   exists(id: string): boolean {
     return existsSync(this.filePath(id));
@@ -181,8 +181,8 @@ export class ThoughtManager {
   }
 
   /**
-   * Sonraki thought ID'sini üret.
-   * Mevcut dosyaları tarar, en büyük numara + 1.
+   * Generate next thought ID.
+   * Scans existing files, highest number + 1.
    */
   private nextId(): string {
     this.ensureDir();

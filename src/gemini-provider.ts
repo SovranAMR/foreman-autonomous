@@ -1,8 +1,8 @@
 /**
  * FOREMAN — Google Gemini Provider
  *
- * Google AI Studio / Gemini API üzerinden gerçek LLM çağrısı.
- * GOOGLE_API_KEY env var'dan veya config'den okunur.
+ * Real LLM calls via Google AI Studio / Gemini API.
+ * GOOGLE_API_KEY is read from env vars or config.
  *
  * SDK: @google/genai (GA — v1.x)
  */
@@ -12,7 +12,7 @@ import type { LLMProvider, LLMMessage, GenerateOptions, GenerateResult } from ".
 
 // ─── MODEL MAPPING ───────────────────────────────────────────
 
-/** Kısa model adından Gemini API model adına */
+/** Short model name to Gemini API model name */
 const MODEL_MAP: Record<string, string> = {
   "gemini-pro":   "gemini-2.0-flash",
   "gemini-flash": "gemini-2.0-flash-lite",
@@ -53,7 +53,7 @@ export class GeminiProvider implements LLMProvider {
   ): Promise<GenerateResult> {
     const model = resolveModel(options.model);
 
-    // System mesajını ayır
+    // Separate system message
     const systemMsg = messages.find(m => m.role === "system");
     const nonSystemMsgs = messages.filter(m => m.role !== "system");
 
@@ -72,10 +72,10 @@ export class GeminiProvider implements LLMProvider {
       },
     });
 
-    // Text çıkar
+    // Extract text
     const text = response.text ?? "";
 
-    // Token kullanımı
+    // Token usage
     const usage = response.usageMetadata;
     const inputTokens = usage?.promptTokenCount ?? 0;
     const outputTokens = usage?.candidatesTokenCount ?? 0;

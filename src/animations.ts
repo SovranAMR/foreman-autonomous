@@ -35,45 +35,57 @@ function clearLines(n: number): string {
 // ─── DWARF FORGE ANIMATION ──────────────────────────────────
 
 const DWARF_FRAMES_RAW = [
-  // Frame 0: Idle — hammer raised
+  // Frame 0: Waiting — hammer raised high
   [
-    `         .  ·  .         `,
-    `        ╔═╗  /\\         `,
-    `        ║▓║ /  \\        `,
-    `        ╚╩╝ ◣══◢        `,
-    `        /║\\ ║▓▓║        `,
-    `        / \\ ╚══╝        `,
-    `       /   \\ ░▒▓        `,
+    `      ✦   ·          ·    `,
+    `             ╱█╲          `,
+    `    ╔═══╗  ╱   ╲         `,
+    `    ║◈◈◈║ ╱     ╲        `,
+    `    ║ ▓ ║                 `,
+    `    ╠═══╣  ╔═══════╗     `,
+    `     ╱║╲   ║▓▓▓▓▓▓▓║     `,
+    `    ╱ ║ ╲  ╚═══════╝     `,
+    `   ╱  ║  ╲  ░░▒▒▓▓░░    `,
+    `   ╱       ╲             `,
   ],
   // Frame 1: Hammer swinging down
   [
+    `                     ·    `,
+    `    ╔═══╗   ·  ✦         `,
+    `    ║◈◈◈║╲█╱             `,
+    `    ║ ▓ ║                 `,
+    `    ╠═══╣  ╔═══════╗     `,
+    `     ╱║╲   ║▓▓▓▓▓▓▓║     `,
+    `    ╱ ║ ╲  ╚═══════╝     `,
+    `   ╱  ║  ╲  ░░▒▒▓▓░░    `,
+    `   ╱       ╲             `,
+    `      ·                  `,
+  ],
+  // Frame 2: STRIKE! Sparks explode!
+  [
+    `    ✦ * ✦     * ✦        `,
+    `    ╔═══╗ *  ✧  *        `,
+    `    ║◈◈◈╠═█              `,
+    `    ║ ▓ ║     ✦  *       `,
+    `    ╠═══╣  ╔═══════╗     `,
+    ` ✦  ╱║╲   ║▓█▓█▓█▓║ ✦   `,
+    `    ╱ ║ ╲  ╚═══════╝  *  `,
+    `   ╱  ║  ╲  ░▒▓█▓▒░░    `,
+    ` *  ╱       ╲ ✦ *        `,
     `                         `,
-    `        ╔═╗   *         `,
-    `        ║▓║\\             `,
-    `        ╚╩╝ ◣══◢        `,
-    `        /║\\ ║▓▓║        `,
-    `        / \\ ╚══╝        `,
-    `       /   \\ ░▒▓        `,
   ],
-  // Frame 2: STRIKE! Sparks!
+  // Frame 3: Sparks fading, embers
   [
-    `      *  ✦  *    ✦      `,
-    `        ╔═╗  ✧    *     `,
-    `        ║▓╠═◣══◢  ✦    `,
-    `        ╚╩╝ ║▓▓║   *   `,
-    `     ✦  /║\\ ╚══╝  ✧    `,
-    `        / \\ ░▒▓    ✦   `,
-    `     *  /   \\  ✦  *     `,
-  ],
-  // Frame 3: Sparks fading
-  [
-    `           ·        ·   `,
-    `        ╔═╗    ·        `,
-    `        ║▓║  ◣══◢  ·   `,
-    `        ╚╩╝ ║▓▓║       `,
-    `        /║\\ ╚══╝       `,
-    `        / \\ ░▒▓  ·     `,
-    `       /   \\            `,
+    `           ·        ·    `,
+    `    ╔═══╗   ·            `,
+    `    ║◈◈◈║  ◣═══◢  ·     `,
+    `    ║ ▓ ║  ║▓▓▓║         `,
+    `    ╠═══╣  ╔═══════╗     `,
+    `     ╱║╲   ║▓▓▓▓▓▓▓║     `,
+    `    ╱ ║ ╲  ╚═══════╝  ·  `,
+    `   ╱  ║  ╲  ░░▒▒▓▓░░    `,
+    `   ╱       ╲             `,
+    `                         `,
   ],
 ];
 
@@ -81,13 +93,18 @@ function colorDwarfFrame(frameIdx: number): string[] {
   const raw = DWARF_FRAMES_RAW[frameIdx];
   return raw.map(line => {
     return line
-      .replace(/╔═╗|║▓║|╚╩╝|║▓╠═/g, m => brand.steel(m))
-      .replace(/◣══◢/g, m => brand.ember(m))
-      .replace(/║▓▓║|╚══╝/g, m => brand.ember(m))
-      .replace(/\/║\\/g, m => brand.dim(m))
-      .replace(/\/ \\/g, m => brand.dim(m))
-      .replace(/\/   \\/g, m => brand.dim(m))
-      .replace(/░▒▓/g, m => brand.orange(m))
+      .replace(/╔═══╗|║◈◈◈║|║◈◈◈╠═█|║ ▓ ║|╠═══╣/g, m => brand.steel(m))
+      .replace(/◣═══◢/g, m => brand.ember(m))
+      .replace(/╔═══════╗|╚═══════╝/g, m => brand.ember(m))
+      .replace(/║▓▓▓▓▓▓▓║|║▓█▓█▓█▓║|║▓▓▓║/g, m => brand.orange(m))
+      .replace(/╱█╲|╲█╱|═█/g, m => brand.gold(m))
+      .replace(/╱║╲/g, m => brand.dim(m))
+      .replace(/╱ ║ ╲/g, m => brand.dim(m))
+      .replace(/╱  ║  ╲/g, m => brand.dim(m))
+      .replace(/╱       ╲/g, m => brand.dim(m))
+      .replace(/╱   ╲|╱     ╲/g, m => brand.dim(m))
+      .replace(/░░▒▒▓▓░░|░▒▓█▓▒░░/g, m => brand.orange(m))
+      .replace(/◈/g, m => brand.cyan(m))
       .replace(/✦/g, m => brand.gold(m))
       .replace(/✧/g, m => brand.orange(m))
       .replace(/\*/g, m => brand.ember(m))

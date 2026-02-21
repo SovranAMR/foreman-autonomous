@@ -1,14 +1,14 @@
 /**
  * FOREMAN — Execution Engine
  *
- * Worker katmanının gerçek dünyada iş yapmasını sağlar:
- * - Dosya okuma / yazma / düzenleme
- * - Shell komut çalıştırma (build, test, lint)
+ * Enables the worker layer to do real-world work:
+ * - File read / write / edit
+ * - Shell command execution (build, test, lint)
  * - Git commit
- * - Proje yapısı keşfi
+ * - Project structure discovery
  *
- * Worker LLM'den gelen STEP6_EXECUTE talimatlarını
- * bu engine üzerinden gerçek dosya operasyonlarına çevirir.
+ * Translates STEP6_EXECUTE instructions from the worker LLM
+ * into real file operations through this engine.
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from "node:fs";
@@ -50,9 +50,9 @@ export interface ProjectTree {
 
 export class ExecutionEngine {
   private projectRoot: string;
-  /** Yazma izni olan dosya pattern'leri (güvenlik) */
+  /** File patterns with write permission (security) */
   private allowedPaths: string[];
-  /** Yasaklı dosya pattern'leri */
+  /** Denied file patterns */
   private deniedPaths: string[] = [
     "node_modules",
     ".git/objects",
@@ -70,21 +70,21 @@ export class ExecutionEngine {
   // ─── PATH SECURITY ──────────────────────────────────────
 
   /**
-   * Path güvenlik kontrolü — projectRoot dışına çıkmayı engelle.
+   * Path security check — prevent escaping outside projectRoot.
    */
   private securePath(filePath: string): string {
-    // Mutlak path ise direkt kullan, göreli ise projectRoot'a birleştir
+    // If absolute path, use directly; if relative, join with projectRoot
     const resolved = filePath.startsWith("/")
       ? filePath
       : join(this.projectRoot, filePath);
 
-    // Traversal kontrolü — projectRoot dışına çıkma
+    // Traversal check — don't escape outside projectRoot
     const rel = relative(this.projectRoot, resolved);
     if (rel.startsWith("..") || rel.startsWith("/")) {
       throw new Error(`Path traversal denied: ${filePath} resolves outside project root`);
     }
 
-    // Yasaklı path kontrolü
+    // Denied path check
     for (const denied of this.deniedPaths) {
       if (denied.startsWith("*")) {
         // Glob: *.key → .key ile biten
@@ -102,7 +102,7 @@ export class ExecutionEngine {
   // ─── FILE OPERATIONS ─────────────────────────────────────
 
   /**
-   * Dosya oku.
+   * Read file.
    */
   readFile(filePath: string): FileResult {
     try {
@@ -118,7 +118,7 @@ export class ExecutionEngine {
   }
 
   /**
-   * Dosya yaz (oluştur veya üzerine yaz).
+   * Write file (create or overwrite).
    */
   writeFile(filePath: string, content: string): FileResult {
     try {
@@ -135,7 +135,7 @@ export class ExecutionEngine {
   }
 
   /**
-   * Dosyada metin değiştir (exact match).
+   * Replace text in file (exact match).
    */
   editFile(filePath: string, oldText: string, newText: string): FileResult {
     try {
@@ -195,11 +195,11 @@ export class ExecutionEngine {
   // ─── SHELL COMMANDS ──────────────────────────────────────
 
   /**
-   * Shell komutu çalıştır (build, test, lint vb.)
-   * Güvenlik: sadece projectRoot'ta, timeout 60s.
+   * Run shell command (build, test, lint, etc.)
+   * Security: only in projectRoot, timeout 60s.
    */
   runShell(command: string, timeoutMs: number = 60_000): ShellResult {
-    // Tehlikeli komutları engelle
+    // Block dangerous commands
     const dangerous = ["rm -rf /", "sudo", "chmod 777", "curl | sh", "wget | sh"];
     for (const d of dangerous) {
       if (command.includes(d)) {
@@ -234,7 +234,7 @@ export class ExecutionEngine {
   // ─── PROJECT DISCOVERY ───────────────────────────────────
 
   /**
-   * Proje yapısını keşfet (dosya ağacı).
+   * Discover project structure (file tree).
    */
   discoverProject(maxDepth: number = 3): ProjectTree {
     const files: string[] = [];
@@ -293,7 +293,7 @@ export class ExecutionEngine {
   // ─── GIT ─────────────────────────────────────────────────
 
   /**
-   * Git commit (verilen dosyaları stage + commit).
+   * Git commit (stage + commit given files).
    */
   gitCommit(message: string, files?: string[]): ShellResult {
     if (files && files.length > 0) {
@@ -309,7 +309,7 @@ export class ExecutionEngine {
   }
 
   /**
-   * Git diff (unstaged değişiklikler).
+   * Git diff (unstaged changes).
    */
   gitDiff(): ShellResult {
     return this.runShell("git diff --stat");

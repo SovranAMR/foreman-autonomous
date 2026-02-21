@@ -1,13 +1,13 @@
 /**
  * FOREMAN — Research Engine
  *
- * Researcher katmanına web araştırma yeteneği verir:
+ * Gives the researcher layer web research capabilities:
  * - Web search (fetch-based, no API key needed)
  * - URL fetch & content extraction
  * - File system research (grep, AST scan)
  * - npm/package research
  *
- * Araştırma sonuçları Researcher'ın prompt'una enjekte edilir.
+ * Research results are injected into the Researcher's prompt.
  */
 
 import { execSync } from "node:child_process";
@@ -30,7 +30,7 @@ export interface ResearchContext {
 // ─── WEB SEARCH ──────────────────────────────────────────────
 
 /**
- * DuckDuckGo Lite ile web araştırma (API key gerekmez).
+ * Web research with DuckDuckGo Lite (no API key required).
  * Fallback: curl ile HTML parse.
  */
 export async function webSearch(query: string, maxResults: number = 5): Promise<SearchResult[]> {
@@ -60,7 +60,7 @@ export async function webSearch(query: string, maxResults: number = 5): Promise<
       const title = stripHtml(match[2]);
       const snippet = stripHtml(match[3]);
 
-      // DDG redirect URL'lerini çöz
+      // Resolve DDG redirect URLs
       const actualUrl = decodeURIComponent(
         rawUrl.replace(/.*uddg=/, "").replace(/&.*$/, "")
       );
@@ -70,7 +70,7 @@ export async function webSearch(query: string, maxResults: number = 5): Promise<
       }
     }
 
-    // Regex çalışmadıysa basit parse dene
+    // If regex didn't work, try simple parse
     if (results.length === 0) {
       const simpleRegex = /<a[^>]+class="result__url"[^>]*[^>]*>([\s\S]*?)<\/a>/g;
       let simpleMatch;
@@ -91,8 +91,8 @@ export async function webSearch(query: string, maxResults: number = 5): Promise<
 // ─── URL FETCH ───────────────────────────────────────────────
 
 /**
- * URL'den içerik çek ve metin olarak döndür.
- * HTML → basit metin dönüşümü.
+ * Fetch content from URL and return as text.
+ * HTML → plain text conversion.
  */
 export async function fetchUrl(url: string, maxChars: number = 5000): Promise<string> {
   try {
@@ -128,7 +128,7 @@ export async function fetchUrl(url: string, maxChars: number = 5000): Promise<st
 // ─── NPM/PACKAGE RESEARCH ────────────────────────────────────
 
 /**
- * npm paketi hakkında bilgi al.
+ * Get information about an npm package.
  */
 export async function npmInfo(packageName: string): Promise<string> {
   try {
@@ -159,7 +159,7 @@ export async function npmInfo(packageName: string): Promise<string> {
 // ─── FILE SYSTEM RESEARCH ────────────────────────────────────
 
 /**
- * Proje dosyalarında pattern ara.
+ * Search for pattern in project files.
  */
 export function searchFiles(
   projectRoot: string,
@@ -191,8 +191,8 @@ export function searchFiles(
 // ─── COMBINED RESEARCH ───────────────────────────────────────
 
 /**
- * Tam araştırma: web + dosya sistemi.
- * Researcher katmanının kullanacağı tek fonksiyon.
+ * Full research: web + file system.
+ * The single function used by the researcher layer.
  */
 export async function research(params: {
   query: string;
@@ -203,7 +203,7 @@ export async function research(params: {
 }): Promise<ResearchContext> {
   const { query, projectRoot, includeWeb = true, includeFiles = true, fileGlob = "*.ts" } = params;
 
-  // Paralel araştırma
+  // Parallel research
   const [webResults, fileResults] = await Promise.all([
     includeWeb ? webSearch(query) : Promise.resolve([]),
     includeFiles
@@ -211,7 +211,7 @@ export async function research(params: {
       : Promise.resolve([]),
   ]);
 
-  // Özet oluştur
+  // Build summary
   const summaryParts: string[] = [];
 
   if (webResults.length > 0) {

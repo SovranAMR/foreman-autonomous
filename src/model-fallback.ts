@@ -1,16 +1,16 @@
 /**
  * FOREMAN — Model Fallback
  *
- * OpenClaw model-fallback.ts'den adapte edildi.
+ * Adapted from OpenClaw model-fallback.ts.
  *
- * LLM çağrısı başarısız olduğunda:
- * 1. Hata sınıflandır (rate_limit, quota, auth, timeout, overloaded, context_length, fatal)
- * 2. Retryable ise → backoff ile tekrar dene (aynı model)
- * 3. Fallback gerektiriyorsa → sonraki model'e geç
- * 4. Tüm modeller tükenirse → hata at
+ * When an LLM call fails:
+ * 1. Classify error (rate_limit, quota, auth, timeout, overloaded, context_length, fatal)
+ * 2. If retryable → retry with backoff (same model)
+ * 3. If fallback needed → switch to next model
+ * 4. If all models exhausted → throw error
  *
- * OpenClaw'dan fark: auth profile rotation yok (henüz),
- * ama katman bazlı model tercihi var.
+ * Difference from OpenClaw: no auth profile rotation (yet),
+ * but layer-based model preferences exist.
  */
 
 import type { Layer } from "./types.js";
@@ -50,17 +50,17 @@ export interface FallbackResult<T> {
 }
 
 export interface FallbackConfig {
-  /** Katman bazlı model tercihleri */
+  /** Layer-based model preferences */
   layerModels: Record<Layer, ModelCandidate[]>;
-  /** Retry konfigürasyonu */
+  /** Retry configuration */
   retry: RetryConfig;
 }
 
 // ─── DEFAULTS ────────────────────────────────────────────────
 
 /**
- * Katman bazlı model fallback zinciri.
- * Her katman farklı modellere düşebilir.
+ * Layer-based model fallback chain.
+ * Each layer can fall back to different models.
  */
 export const DEFAULT_LAYER_MODELS: Record<Layer, ModelCandidate[]> = {
   visioner: [
@@ -102,24 +102,24 @@ export const DEFAULT_LAYER_MODELS: Record<Layer, ModelCandidate[]> = {
 // ─── FALLBACK RUNNER ─────────────────────────────────────────
 
 /**
- * LLM çağrısını model fallback zinciriyle çalıştır.
+ * Run LLM call with model fallback chain.
  *
- * Akış:
- * 1. Birincil model ile dene
- * 2. Retryable hata → backoff ile tekrar dene (aynı model, max 3)
- * 3. Fallback hata (quota/auth/context) → sonraki model'e geç
- * 4. Tüm modeller başarısız → son hatayı at
+ * Flow:
+ * 1. Try with primary model
+ * 2. Retryable error → retry with backoff (same model, max 3)
+ * 3. Fallback error (quota/auth/context) → switch to next model
+ * 4. All models failed → throw last error
  */
 export async function runWithFallback<T>(params: {
   /** Provider registry — hangi provider hangi modeli destekler */
   registry: ProviderRegistry;
-  /** Hangi katman için çalışıyor */
+  /** Which layer this is running for */
   layer: Layer;
   /** Model fallback listesi (opsiyonel — yoksa default) */
   candidates?: ModelCandidate[];
   /** Retry config (opsiyonel) */
   retry?: RetryConfig;
-  /** Asıl çalıştırılacak fonksiyon */
+  /** The actual function to run */
   run: (provider: LLMProvider, model: string) => Promise<T>;
   /** Retry bildirimi */
   onRetry?: (info: RetryInfo & { model: string }) => void;
@@ -133,7 +133,7 @@ export async function runWithFallback<T>(params: {
   const attempts: FallbackAttempt[] = [];
   let lastError: unknown;
 
-  // Sadece erişilebilir modelleri filtrele
+  // Filter to only accessible models
   const availableCandidates = candidates.filter(c =>
     params.registry.getProviderForModel(c.model) !== null
   );
@@ -186,7 +186,7 @@ export async function runWithFallback<T>(params: {
         attempt: i + 1,
       });
 
-      // Fatal hata — başka model deneme
+      // Fatal error — don't try other models
       if (errorClass === "fatal") break;
 
       // Fallback bildirimi
@@ -197,7 +197,7 @@ export async function runWithFallback<T>(params: {
     }
   }
 
-  // Tüm modeller başarısız
+  // All models failed
   if (attempts.length <= 1 && lastError) {
     throw lastError;
   }

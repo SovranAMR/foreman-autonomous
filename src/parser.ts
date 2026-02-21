@@ -1,9 +1,9 @@
 /**
  * FOREMAN — Response Parser
  *
- * LLM çıktılarını yapısal verilere dönüştürür.
- * Her katmanın beklediği format farklı — parser her formatı bilir.
- * Parse başarısızsa retry veya BLOCK sinyali üretir.
+ * Converts LLM outputs to structured data.
+ * Each layer expects a different format — the parser knows every format.
+ * If parse fails, produces a retry or BLOCK signal.
  */
 
 import type { Layer, WorkerProtocol } from "./types.js";
@@ -54,7 +54,7 @@ function extractField(text: string, field: string, stopFields: string[] = []): s
     const stopPattern = stopFields.map(f => f + "\\s*[:.\\s]").join("|");
     patternStr = `${field}\\s*[:.\\s]\\s*([\\s\\S]*?)(?=${stopPattern}|$)`;
   } else {
-    // Boş stopFields — son alana kadar yakala
+    // Empty stopFields — capture until the last field
     patternStr = `${field}\\s*[:.\\s]\\s*([\\s\\S]*)$`;
   }
 
@@ -79,8 +79,8 @@ function extractBoolean(text: string, field: string): boolean | null {
 // ─── BLOCK / ATOM PARSER ─────────────────────────────────────
 
 /**
- * Numaralı liste parse et.
- * "Block 1: ...", "1. ...", "- ...", "* ..." formatlarını tanır.
+ * Parse a numbered list.
+ * Recognizes "Block 1: ...", "1. ...", "- ...", "* ..." formats.
  */
 export function parseNumberedList(text: string): string[] {
   const lines = text.split("\n").filter(l => l.trim().length > 0);
@@ -103,8 +103,8 @@ export function parseNumberedList(text: string): string[] {
 // ─── LAYER-SPECIFIC PARSERS ──────────────────────────────────
 
 /**
- * Vizyoner çıktısını parse et.
- * Beklenen: REASONING, OUTPUT, CONFIDENCE, NEEDS_RESEARCH
+ * Parse visioner output.
+ * Expected: REASONING, OUTPUT, CONFIDENCE, NEEDS_RESEARCH
  */
 export function parseVisionResponse(text: string): { ok: true; data: VisionParseResult } | { ok: false; error: ParseError } {
   const reasoning = extractField(text, "REASONING", ["OUTPUT", "CONFIDENCE", "NEEDS_RESEARCH"]);
@@ -133,8 +133,8 @@ export function parseVisionResponse(text: string): { ok: true; data: VisionParse
 }
 
 /**
- * Stratejist decompose çıktısını parse et.
- * Beklenen: REASONING, OUTPUT (numaralı bloklar), CONFIDENCE
+ * Parse strategist decompose output.
+ * Expected: REASONING, OUTPUT (numbered blocks), CONFIDENCE
  */
 export function parseDecomposeResponse(text: string): { ok: true; data: DecomposeParseResult } | { ok: false; error: ParseError } {
   const reasoning = extractField(text, "REASONING", ["OUTPUT", "CONFIDENCE"]);
@@ -156,7 +156,7 @@ export function parseDecomposeResponse(text: string): { ok: true; data: Decompos
   }
 
   if (blocks.length > 8) {
-    // Kural: max 8 blok. Fazlasını kes.
+    // Rule: max 8 blocks. Trim the excess.
     blocks.length = 8;
   }
 
@@ -171,9 +171,9 @@ export function parseDecomposeResponse(text: string): { ok: true; data: Decompos
 }
 
 /**
- * Araştırmacı çıktısını parse et.
+ * Parse researcher output.
  * Beklenen: FINDINGS, RELEVANCE, RISKS
- * REASONING opsiyonel (araştırmacı bazen doğrudan bulguya geçer)
+ * REASONING optional (researcher sometimes goes directly to findings)
  */
 export function parseResearchResponse(text: string): { ok: true; data: ResearchParseResult } | { ok: false; error: ParseError } {
   const reasoning = extractField(text, "REASONING", ["FINDINGS", "RELEVANCE", "RISKS"]);
@@ -200,14 +200,14 @@ export function parseResearchResponse(text: string): { ok: true; data: ResearchP
 }
 
 /**
- * Stratejist atomize çıktısını parse et.
- * Beklenen: OUTPUT (numaralı atomlar), CONFIDENCE
+ * Parse strategist atomize output.
+ * Expected: OUTPUT (numbered atoms), CONFIDENCE
  */
 export function parseAtomizeResponse(text: string): { ok: true; data: AtomizeParseResult } | { ok: false; error: ParseError } {
   const outputRaw = extractField(text, "OUTPUT", ["CONFIDENCE", "NEEDS_RESEARCH"]);
   const confidence = extractNumber(text, "CONFIDENCE");
 
-  // OUTPUT yoksa tüm text'ten parse dene
+  // If no OUTPUT, try parsing from full text
   const source = outputRaw ?? text;
   const atoms = parseNumberedList(source);
 
@@ -229,9 +229,9 @@ export function parseAtomizeResponse(text: string): { ok: true; data: AtomizePar
 }
 
 /**
- * Worker çıktısını parse et.
+ * Parse worker output.
  * Beklenen: STEP1_READ ... STEP8_REPORT, CONFIDENCE
- * 8 adımın HEPSİ zorunlu.
+ * ALL 8 steps are required.
  */
 export function parseWorkerResponse(text: string): { ok: true; data: WorkerParseResult } | { ok: false; error: ParseError } {
   const steps: (keyof WorkerProtocol)[] = [
@@ -290,8 +290,8 @@ export function parseWorkerResponse(text: string): { ok: true; data: WorkerParse
 // ─── LAYER ROUTER ────────────────────────────────────────────
 
 /**
- * Katmana göre doğru parser'ı seç ve çalıştır.
- * phase bilgisi hangi parse formatının kullanılacağını belirler.
+ * Select and run the correct parser for the layer.
+ * The phase info determines which parse format to use.
  */
 export type ParsePhase = "vision" | "decompose" | "research" | "atomize" | "execute" | "reflect";
 
@@ -314,7 +314,7 @@ export function parseForPhase(phase: ParsePhase, text: string) {
 // ─── RETRY PROMPT ────────────────────────────────────────────
 
 /**
- * Parse başarısızsa LLM'e geri gönderilecek düzeltme prompt'u oluştur.
+ * Build correction prompt to send back to LLM if parse fails.
  */
 export function buildRetryPrompt(error: ParseError, phase: ParsePhase): string {
   const formatGuide: Record<ParsePhase, string> = {
