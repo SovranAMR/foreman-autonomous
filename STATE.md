@@ -18,6 +18,7 @@ foreman init "proje" && foreman run "görev" --mock
 | Faz 1.5: Orkestratör | ✅ | Tam pipeline (vision→execute→reflect), event system |
 | Faz 1.7: UI + Installer | ✅ | Theme, gradient logo, setup wizard, install.sh |
 | Faz 2: Gerçek LLM Test | ⏳ | API key ayarla, gerçek görevle test et |
+| Faz 3: Research Engine | ✅ | OpenClaw transplant: Brave Search API, web fetch (Readability + HTML→MD), SSRF koruması, cache |
 | Faz 3: Research Engine | ⏳ | Web search, dosya araştırma |
 | Faz 4: Execution Engine | ⏳ | Dosya okuma/yazma, build/test, git commit |
 | Faz 5: Context & Memory | ⏳ | Context compression, cross-session memory |

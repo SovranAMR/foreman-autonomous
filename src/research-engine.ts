@@ -1,127 +1,124 @@
 /**
  * FOREMAN — Research Engine
  *
- * Gives the researcher layer web research capabilities:
- * - Web search (fetch-based, no API key needed)
- * - URL fetch & content extraction
- * - File system research (grep, AST scan)
+ * Gives the researcher layer real research capabilities:
+ * - Web search via Brave Search API (replaces fragile DuckDuckGo HTML scraping)
+ * - URL fetch with content extraction (Readability → HTML→MD → raw)
+ * - File system research (grep, pattern search)
  * - npm/package research
  *
- * Research results are injected into the Researcher's prompt.
+ * This is the unified research interface for the orchestrator.
+ * All web infrastructure lives in web-search-engine.ts and web-fetch-engine.ts.
+ *
+ * Research results are injected into the Researcher's prompt context.
  */
 
 import { execSync } from "node:child_process";
+import {
+  braveSearch,
+  quickSearch,
+  type SearchResult,
+  type SearchResponse,
+} from "./web-search-engine.js";
+import { webFetch, quickFetch, type FetchResponse } from "./web-fetch-engine.js";
 
 // ─── TYPES ───────────────────────────────────────────────────
 
-export interface SearchResult {
-  title: string;
-  url: string;
-  snippet: string;
+export type { SearchResult, SearchResponse } from "./web-search-engine.js";
+export type { FetchResponse } from "./web-fetch-engine.js";
+
+export interface FileSearchResult {
+  file: string;
+  line: number;
+  text: string;
 }
 
 export interface ResearchContext {
   query: string;
   webResults: SearchResult[];
-  fileResults: Array<{ file: string; line: number; text: string }>;
+  fileResults: FileSearchResult[];
+  fetchedContent: Array<{ url: string; text: string; title?: string }>;
   summary: string;
+}
+
+export interface ResearchConfig {
+  /** Brave Search API key (or set BRAVE_API_KEY env) */
+  braveApiKey?: string;
+  /** Max web search results */
+  maxSearchResults?: number;
+  /** Max file search results */
+  maxFileResults?: number;
+  /** Max chars when fetching a URL */
+  fetchMaxChars?: number;
+  /** Search timeout in seconds */
+  timeoutSeconds?: number;
+  /** Cache TTL in minutes */
+  cacheTtlMinutes?: number;
 }
 
 // ─── WEB SEARCH ──────────────────────────────────────────────
 
 /**
- * Web research with DuckDuckGo Lite (no API key required).
- * Fallback: curl ile HTML parse.
+ * Web search via Brave Search API.
+ *
+ * If API key is provided → full Brave Search with caching, region, freshness.
+ * If no API key → returns empty (no fallback to unreliable scrapers).
+ *
+ * Design decision: we don't fall back to DuckDuckGo HTML scraping.
+ * It's fragile, breaks randomly, and gives poor results.
+ * Either use a proper API or don't search at all.
  */
-export async function webSearch(query: string, maxResults: number = 5): Promise<SearchResult[]> {
-  const results: SearchResult[] = [];
-
-  try {
-    // DuckDuckGo HTML API
-    const encoded = encodeURIComponent(query);
-    const url = `https://html.duckduckgo.com/html/?q=${encoded}`;
-
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; Foreman/1.0; +https://github.com/SovranAMR/foreman)",
-      },
-    });
-
-    if (!response.ok) return results;
-
-    const html = await response.text();
-
-    // Parse results from DDG HTML
-    const resultRegex = /<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
-
-    let match;
-    while ((match = resultRegex.exec(html)) !== null && results.length < maxResults) {
-      const rawUrl = match[1];
-      const title = stripHtml(match[2]);
-      const snippet = stripHtml(match[3]);
-
-      // Resolve DDG redirect URLs
-      const actualUrl = decodeURIComponent(
-        rawUrl.replace(/.*uddg=/, "").replace(/&.*$/, "")
-      );
-
-      if (title && actualUrl && !actualUrl.includes("duckduckgo.com")) {
-        results.push({ title, url: actualUrl, snippet });
-      }
-    }
-
-    // If regex didn't work, try simple parse
-    if (results.length === 0) {
-      const simpleRegex = /<a[^>]+class="result__url"[^>]*[^>]*>([\s\S]*?)<\/a>/g;
-      let simpleMatch;
-      while ((simpleMatch = simpleRegex.exec(html)) !== null && results.length < maxResults) {
-        const urlText = stripHtml(simpleMatch[1]).trim();
-        if (urlText && urlText.includes(".")) {
-          results.push({ title: urlText, url: `https://${urlText}`, snippet: "" });
-        }
-      }
-    }
-  } catch {
-    // Web search failed silently
+export async function webSearch(
+  query: string,
+  config?: ResearchConfig,
+): Promise<SearchResult[]> {
+  const apiKey = config?.braveApiKey || process.env.BRAVE_API_KEY;
+  if (!apiKey) {
+    return [];
   }
 
-  return results;
+  try {
+    const response = await braveSearch({
+      query,
+      apiKey,
+      count: config?.maxSearchResults ?? 5,
+      timeoutSeconds: config?.timeoutSeconds,
+      cacheTtlMinutes: config?.cacheTtlMinutes,
+    });
+    return response.results;
+  } catch {
+    // Search failed — don't crash the pipeline
+    return [];
+  }
 }
 
 // ─── URL FETCH ───────────────────────────────────────────────
 
 /**
- * Fetch content from URL and return as text.
- * HTML → plain text conversion.
+ * Fetch content from a URL and return as readable text.
+ *
+ * Three-tier extraction:
+ *   1. Readability (best) — @mozilla/readability
+ *   2. HTML→Markdown (fallback) — regex-based
+ *   3. Raw text (last resort)
+ *
+ * SSRF protected: won't fetch from private/internal IPs.
  */
-export async function fetchUrl(url: string, maxChars: number = 5000): Promise<string> {
+export async function fetchUrl(
+  url: string,
+  config?: ResearchConfig,
+): Promise<{ text: string; title?: string }> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; Foreman/1.0)",
-        "Accept": "text/html,text/plain,application/json",
-      },
-      signal: AbortSignal.timeout(10_000),
+    const result = await webFetch({
+      url,
+      extractMode: "markdown",
+      maxChars: config?.fetchMaxChars ?? 10_000,
+      timeoutSeconds: config?.timeoutSeconds,
+      cacheTtlMinutes: config?.cacheTtlMinutes,
     });
-
-    if (!response.ok) return `[Error: HTTP ${response.status}]`;
-
-    const contentType = response.headers.get("content-type") ?? "";
-    const text = await response.text();
-
-    if (contentType.includes("json")) {
-      return text.slice(0, maxChars);
-    }
-
-    // HTML → metin
-    const cleaned = stripHtml(text)
-      .replace(/\s+/g, " ")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-
-    return cleaned.slice(0, maxChars);
+    return { text: result.text, title: result.title };
   } catch (err: any) {
-    return `[Error: ${err.message}]`;
+    return { text: `[Fetch error: ${err.message}]` };
   }
 }
 
@@ -129,6 +126,7 @@ export async function fetchUrl(url: string, maxChars: number = 5000): Promise<st
 
 /**
  * Get information about an npm package.
+ * Direct registry query — no API key needed.
  */
 export async function npmInfo(packageName: string): Promise<string> {
   try {
@@ -138,14 +136,13 @@ export async function npmInfo(packageName: string): Promise<string> {
 
     if (!response.ok) return `Package "${packageName}" not found`;
 
-    const data = await response.json() as any;
+    const data = (await response.json()) as any;
     const parts: string[] = [];
     parts.push(`**${data.name}** v${data.version}`);
     if (data.description) parts.push(data.description);
     if (data.homepage) parts.push(`Homepage: ${data.homepage}`);
     if (data.repository?.url) parts.push(`Repo: ${data.repository.url}`);
 
-    // Dependencies count
     const depCount = Object.keys(data.dependencies ?? {}).length;
     const devDepCount = Object.keys(data.devDependencies ?? {}).length;
     parts.push(`Dependencies: ${depCount} runtime, ${devDepCount} dev`);
@@ -159,14 +156,14 @@ export async function npmInfo(packageName: string): Promise<string> {
 // ─── FILE SYSTEM RESEARCH ────────────────────────────────────
 
 /**
- * Search for pattern in project files.
+ * Search for pattern in project files using grep.
  */
 export function searchFiles(
   projectRoot: string,
   pattern: string,
   glob: string = "*.ts",
   maxResults: number = 20,
-): Array<{ file: string; line: number; text: string }> {
+): FileSearchResult[] {
   try {
     const stdout = execSync(
       `grep -rn "${pattern.replace(/"/g, '\\"')}" --include="${glob}" . 2>/dev/null || true`,
@@ -175,13 +172,13 @@ export function searchFiles(
 
     return stdout
       .split("\n")
-      .filter(l => l.length > 0)
-      .map(line => {
+      .filter((l) => l.length > 0)
+      .map((line) => {
         const match = line.match(/^\.\/(.+?):(\d+):(.*)/);
         if (!match) return null;
         return { file: match[1], line: parseInt(match[2]), text: match[3].trim() };
       })
-      .filter((r): r is { file: string; line: number; text: string } => r !== null)
+      .filter((r): r is FileSearchResult => r !== null)
       .slice(0, maxResults);
   } catch {
     return [];
@@ -191,25 +188,59 @@ export function searchFiles(
 // ─── COMBINED RESEARCH ───────────────────────────────────────
 
 /**
- * Full research: web + file system.
- * The single function used by the researcher layer.
+ * Full research: web search + URL fetch + file system.
+ * The unified function used by the researcher layer.
+ *
+ * Flow:
+ *   1. Web search (Brave API)
+ *   2. Fetch top N result URLs for deeper content
+ *   3. File system grep in project
+ *   4. Build summary
+ *
+ * All operations run in parallel where possible.
  */
 export async function research(params: {
   query: string;
   projectRoot: string;
+  config?: ResearchConfig;
   includeWeb?: boolean;
   includeFiles?: boolean;
+  fetchTopResults?: number;
   fileGlob?: string;
 }): Promise<ResearchContext> {
-  const { query, projectRoot, includeWeb = true, includeFiles = true, fileGlob = "*.ts" } = params;
+  const {
+    query,
+    projectRoot,
+    config,
+    includeWeb = true,
+    includeFiles = true,
+    fetchTopResults = 2,
+    fileGlob = "*.ts",
+  } = params;
 
-  // Parallel research
+  // Parallel: web search + file search
   const [webResults, fileResults] = await Promise.all([
-    includeWeb ? webSearch(query) : Promise.resolve([]),
+    includeWeb ? webSearch(query, config) : Promise.resolve([]),
     includeFiles
-      ? Promise.resolve(searchFiles(projectRoot, query.split(" ")[0], fileGlob))
+      ? Promise.resolve(searchFiles(projectRoot, query.split(" ")[0], fileGlob, config?.maxFileResults))
       : Promise.resolve([]),
   ]);
+
+  // Fetch top web result URLs for deeper content
+  let fetchedContent: Array<{ url: string; text: string; title?: string }> = [];
+  if (includeWeb && webResults.length > 0 && fetchTopResults > 0) {
+    const topUrls = webResults.slice(0, fetchTopResults).map((r) => r.url).filter(Boolean);
+    const fetchPromises = topUrls.map(async (url) => {
+      try {
+        const result = await fetchUrl(url, config);
+        return { url, text: result.text.slice(0, 3000), title: result.title };
+      } catch {
+        return null;
+      }
+    });
+    const fetched = await Promise.all(fetchPromises);
+    fetchedContent = fetched.filter((r): r is NonNullable<typeof r> => r !== null);
+  }
 
   // Build summary
   const summaryParts: string[] = [];
@@ -217,8 +248,17 @@ export async function research(params: {
   if (webResults.length > 0) {
     summaryParts.push("## Web Findings:");
     for (const r of webResults) {
-      summaryParts.push(`- **${r.title}**: ${r.snippet}`);
+      summaryParts.push(`- **${r.title}**: ${r.description}`);
       summaryParts.push(`  Source: ${r.url}`);
+    }
+  }
+
+  if (fetchedContent.length > 0) {
+    summaryParts.push("\n## Fetched Content:");
+    for (const f of fetchedContent) {
+      const titleStr = f.title ? ` — ${f.title}` : "";
+      summaryParts.push(`### ${f.url}${titleStr}`);
+      summaryParts.push(f.text.slice(0, 1500));
     }
   }
 
@@ -233,12 +273,17 @@ export async function research(params: {
     query,
     webResults,
     fileResults,
+    fetchedContent,
     summary: summaryParts.join("\n") || "No results found",
   };
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────
+// ─── LEGACY EXPORTS ──────────────────────────────────────────
 
+/**
+ * Legacy stripHtml — kept for backward compatibility.
+ * New code should use web-fetch-utils directly.
+ */
 export function stripHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
