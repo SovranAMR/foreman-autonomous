@@ -1,85 +1,100 @@
 # ⚒ FOREMAN
 
-**AI Agent Orchestrator — Forge Your Ideas into Reality.**
+**Atomic Thought Chain Orchestrator for Agentic Software Engineering**
 
-Foreman is a project-focused AI orchestrator designed for discipline, atomic reasoning, and cinematic terminal experiences. Unlike typical chat assistants, Foreman breaks down complex tasks into atomic thoughts, researches evidence before action, and executes with a strict 4-layer architecture.
-
----
-
-## 🎭 Cinematic Experience
-
-Foreman isn't just a tool; it's a living forge. Featuring high-fidelity terminal animations:
-- ✨ **Spark Rain:** Dynamic particle effects on startup.
-- 🔨 **The Blacksmith:** An animated smith hammering away while thoughts are forged.
-- 🔥 **Glowing Embers:** Breathing fire effects during project initialization.
-- 💤 **Idle Forge:** A resting state "sleeping" anvil awaiting your next command.
+Foreman is a project-scoped AI orchestrator designed to enforce discipline and tactical reasoning in automated development workflows. Unlike standard chat-based agents, Foreman operates through a structured 4-layer architecture, decomposing high-level tasks into atomic units of work (Thoughts) that are researched, validated, and executed with precision.
 
 ---
 
-## 🧠 4-Layer Architecture
+## 🏗 Core Architecture: The Forge Pipeline
 
-1. **🔮 Visioner (Soul):** Defines the "WHY" and aesthetic direction.
-2. **🧩 Strategist (Plan):** Decomposes tasks into logical blocks and atomic units.
-3. **🔍 Researcher (Evidence):** Gathers information and patterns before execution.
-4. **🔨 Worker (Execution):** Implements code following a strict 8-step tactical protocol.
+Foreman implements a hierarchical reasoning model where each layer constrains and directs the next, ensuring alignment with project vision and technical constraints.
+
+### 1. 🔮 Visioner (Layer 1: Direction)
+Defines the high-level intent, aesthetic soul, and architectural "WHY". It sets the boundaries for the Strategist and can be influenced by the Worker through "BLOCK" feedback loops.
+
+### 2. 🧩 Strategist (Layer 2: Decomposition)
+- **Decompose Mode**: Breaks the vision into 5-8 logical execution blocks.
+- **Atomize Mode**: Further splits blocks into 3-6 actionable Atomic Thoughts.
+
+### 3. 🔍 Researcher (Layer 3: Evidence)
+Gathers external patterns, documentation, and project-local information. It provides the factual foundation before the Worker commits to a decision.
+
+### 4. 🔨 Worker (Layer 4: Execution)
+Follows a strict **8-Step Tactical Protocol**:
+`Read` → `Context` → `Impact` → `Decide` → `Predict` → `Execute` → `Verify` → `Report`
 
 ---
 
-## 🚀 Quick Start
+## ⚡ Key Technical Features
 
-### Installation
+- **🧠 3-Tier Memory System**: Persistent storage with relevance-based retrieval (Hot/Warm/Cold tiers).
+- **🔗 Transactional State Machine**: Every transition is audited and persisted in `state.json` to prevent corruption.
+- **🪙 Token Budgeting & Rate Limiting**: Built-in sliding window throttles and model rotation to prevent API exhaustion.
+- **⚡ SHA-256 Response Caching**: Intelligent caching of LLM outputs to save tokens and reduce latency.
+- **⚒️ Interactive REPL**: A live terminal environment for project discussion, model switching, and task triggering.
 
+---
+
+## 🚀 Installation
+
+### Prerequisites
+- **Node.js**: ≥ 22.x
+- **NPM**: Latest stable
+
+### Setup from Source
 ```bash
-# Clone the repository
 git clone https://github.com/SovranAMR/foreman.git
 cd foreman
-
-# Install dependencies
 npm install
-
-# Install globally to use 'foreman' command anywhere
-npm i -g .
+npm i -g .  # Installs the global 'foreman' binary
 ```
 
-### Setup & Login
-
+### Authentication
+Foreman supports multiple providers with **Antigravity OAuth** as the recommended path:
 ```bash
-foreman login      # Authenticate via Google Antigravity OAuth (Recommended)
-foreman setup      # Manual API key configuration (Anthropic/OpenAI/Google)
+foreman login  # Interactive Google Cloud OAuth flow
 ```
-
-### Usage
-
+Alternatively, configure keys manually:
 ```bash
-foreman                 # Enter the interactive REPL (Jarvis-style Chat)
-foreman init my-project # Scaffold a new Foreman-managed project
-foreman run "task"      # Execute the full 4-layer forge pipeline
+foreman setup  # Configure Anthropic, OpenAI, or Gemini keys
 ```
 
 ---
 
-## 🛠 Commands
+## 🛠 Command Reference
 
-- `foreman login` — Authenticate with Google Antigravity (Free & Powerful)
-- `foreman doctor` — Check system health and provider status
-- `foreman status` — View active session, token usage, and project memory
-- `foreman board` — Visual Kanban board of your project tasks
-- `foreman task add/list/done` — Manage atomic project tasks
+### Main Commands
+- `foreman` — Launch the **Interactive REPL** (Chat Mode).
+- `foreman run "<task>"` — Execute a task through the full 4-layer pipeline.
+- `foreman init <name>` — Scaffold a new project workspace.
+- `foreman status` — Display active session, memory stats, and token usage.
+- `foreman doctor` — Perform system health checks and provider diagnostics.
+
+### Project Management
+- `foreman board` — Display the project's task list in a Kanban format.
+- `foreman task add/list/done` — Direct manipulation of project sub-tasks.
+
+### Developer Internals
+- `foreman internals memory` — Inspect the vector-like memory store.
+- `foreman internals thoughts` — View the complete thought chain history.
+- `foreman internals providers` — Check LLM provider availability and latency.
+
+---
+
+## 🎨 Visual Identity & Metaphor
+
+Foreman uses the **Blacksmith's Forge** metaphor to visualize technical progress:
+- **Hammering (🔨)**: Active execution of a task.
+- **Sparks (✦)**: Success events and token generation.
+- **Embers (🔥)**: System activity and heating up the context window.
+- **Anvil (⚒️)**: The stable project state where work is shaped.
 
 ---
 
-## ⚡ REPL Mode
+## ⚔️ Sovereignty through Discipline
 
-Type `foreman` without arguments to enter the **Interactive REPL**:
-- **Slash Commands:** `/model`, `/forge`, `/clear`, `/exit`.
-- **Streaming:** Real-time token flow with glowing indicators.
-- **Context Aware:** Automatically reads your project files and memory.
+Foreman is built for engineers who refuse to accept broken, non-deterministic agent workflows. It is a thinking blade designed for surgical precision in software construction.
 
 ---
-
-## ⚔️ The Sovereign Intelligence
-
-Built for those who refuse to accept broken systems. Foreman is the thinking blade you didn't see coming.
-
----
-*Created by Ali İlçel & Sov — 2026*
+*Developed by Ali İlçel & Sov — 2026*
