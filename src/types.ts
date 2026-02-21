@@ -384,6 +384,147 @@ export interface Project {
   totalTokens: number;
 }
 
+// ─── MEMORY & SESSION SYSTEM ──────────────────────────────────
+
+/**
+ * Memory entry — öğrenilen bilgi parçası.
+ *
+ * Foreman önceki çalışmalardan öğrenir:
+ * - Hangi yaklaşım işe yaradı/yaramadı
+ * - Proje-spesifik kararlar
+ * - Kullanıcı tercihleri
+ * - Teknik kısıtlar
+ *
+ * Memory, prompt context'e enjekte edilir —
+ * aynı hatayı iki kez yapmamak için.
+ */
+export interface MemoryEntry {
+  /** Benzersiz kimlik */
+  readonly id: string;
+
+  /** Hangi projeye ait (global memory için "global") */
+  projectId: string;
+
+  /** Kategori */
+  category: MemoryCategory;
+
+  /** İçerik — öğrenilen bilgi */
+  content: string;
+
+  /** Kaynak — nereden öğrenildi */
+  source: MemorySource;
+
+  /** Önem skoru (0-1). Yüksek = her zaman context'e girer */
+  importance: number;
+
+  /** İlgili etiketler — semantic search için */
+  tags: string[];
+
+  /** Kaç kez kullanıldı (referans edildi) */
+  useCount: number;
+
+  /** Son kullanım zamanı */
+  lastUsedAt?: string;
+
+  /** Oluşturulma zamanı */
+  readonly createdAt: string;
+
+  /** Süresi dolmuş mu (soft delete) */
+  expired: boolean;
+}
+
+export type MemoryCategory =
+  | "decision"      // mimari/tasarım kararı
+  | "preference"    // kullanıcı tercihi ("hover yasak", "mobile-first")
+  | "constraint"    // teknik kısıt ("no Three.js", "max 3 CSS anim")
+  | "lesson"        // öğrenilen ders ("Lenis Safari'de flicker yapıyor")
+  | "pattern"       // işe yarayan pattern ("Canvas2D > SVG for this case")
+  | "context"       // proje bağlamı ("Eyricediş = diş kliniği, Bursa")
+  | "error"         // yapılan hata ve çözümü
+  | "reference";    // dış kaynak referansı
+
+export interface MemorySource {
+  /** Kaynak tipi */
+  type: "thought" | "user" | "research" | "reflection" | "manual";
+  /** Kaynak ID (thought ID, vs.) */
+  ref?: string;
+}
+
+/**
+ * Session — çalışma oturumu.
+ *
+ * Bir session, Foreman'ın bir oturumda yaptığı tüm işin kaydı.
+ * Cross-session memory: önceki session'ların özetleri
+ * yeni session'a bağlam olarak verilir.
+ */
+export interface Session {
+  /** Benzersiz kimlik */
+  readonly id: string;
+
+  /** Proje ID */
+  projectId: string;
+
+  /** Başlangıç zamanı */
+  readonly startedAt: string;
+
+  /** Bitiş zamanı */
+  endedAt?: string;
+
+  /** Bu session'da tamamlanan task'lar */
+  completedTaskIds: string[];
+
+  /** Bu session'da üretilen thought'lar */
+  thoughtIds: string[];
+
+  /** Bu session'da oluşturulan memory'ler */
+  memoryIds: string[];
+
+  /** Session özeti (session bitince LLM tarafından üretilir) */
+  summary?: string;
+
+  /** Toplam token harcaması */
+  totalTokens: number;
+
+  /** Session durumu */
+  status: "active" | "completed" | "abandoned";
+}
+
+/**
+ * Cache entry — LLM çağrı cache'i.
+ *
+ * Aynı prompt + model kombinasyonu tekrar gelirse
+ * LLM çağrısı yapmadan cache'den döndür.
+ * Token tasarrufu + hız.
+ */
+export interface CacheEntry {
+  /** Cache key (prompt hash) */
+  readonly key: string;
+
+  /** Kullanılan model */
+  model: string;
+
+  /** Katman */
+  layer: Layer;
+
+  /** LLM response (raw text) */
+  response: string;
+
+  /** Token kullanımı */
+  tokenUsage: { input: number; output: number; total: number };
+
+  /** Oluşturulma zamanı */
+  readonly createdAt: string;
+
+  /** Son erişim zamanı */
+  lastAccessedAt: string;
+
+  /** Kaç kez kullanıldı */
+  hitCount: number;
+
+  /** TTL — milisaniye cinsinden yaşam süresi */
+  ttlMs: number;
+}
+
 // ─── CHAIN ────────────────────────────────────────────────────
 // t_004
 

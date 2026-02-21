@@ -38,7 +38,10 @@ import {
 import { runSetup, getApiKey, printProviderStatus } from "./setup.js";
 import { TaskManager } from "./task-manager.js";
 import { ProjectManager } from "./project-manager.js";
-import type { TaskPriority, TaskType } from "./types.js";
+import { MemoryManager } from "./memory-manager.js";
+import { SessionManager } from "./session-manager.js";
+import { CacheManager } from "./cache-manager.js";
+import type { TaskPriority, TaskType, MemoryCategory } from "./types.js";
 
 const program = new Command();
 
@@ -692,6 +695,229 @@ program
         console.log(`     ${brand.bold(b.id)} ${b.title}: ${brand.dim(b.reason)}`);
       }
     }
+    console.log("");
+  });
+
+// ─── MEMORY ───────────────────────────────────────────────────
+
+const memCmd = program
+  .command("memory")
+  .alias("mem")
+  .description("Hafıza yönetimi");
+
+memCmd
+  .command("add <content>")
+  .description("Yeni memory ekle")
+  .option("-d, --dir <path>", "Proje dizini")
+  .option("-c, --category <cat>", "Kategori (decision/preference/constraint/lesson/pattern/context/error/reference)", "context")
+  .option("-i, --importance <n>", "Önem (0-1)", "0.5")
+  .option("--tags <tags>", "Etiketler (virgülle ayrılmış)")
+  .action((content: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const mm = new MemoryManager(projectRoot);
+
+    const entry = mm.create({
+      category: opts.category as MemoryCategory,
+      content,
+      source: { type: "manual" },
+      importance: parseFloat(opts.importance),
+      tags: opts.tags?.split(",").map((s: string) => s.trim()) ?? [],
+    });
+
+    const tempIcon = entry.importance >= 0.8 ? "🔥" : entry.importance >= 0.5 ? "📌" : "📝";
+    console.log(`  ${icon.done} ${tempIcon} ${brand.bold(entry.id)} [${entry.category}]`);
+    console.log(`     ${brand.dim(content.slice(0, 60))}`);
+    console.log("");
+  });
+
+memCmd
+  .command("list")
+  .alias("ls")
+  .description("Memory listesi")
+  .option("-d, --dir <path>", "Proje dizini")
+  .option("-c, --category <cat>", "Kategori filtresi")
+  .option("--hot", "Sadece hot memory (importance >= 0.8)")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const mm = new MemoryManager(projectRoot);
+
+    const filter: any = {};
+    if (opts.category) filter.category = opts.category;
+    if (opts.hot) filter.minImportance = 0.8;
+
+    const list = mm.list(filter);
+    if (list.length === 0) {
+      console.log(`  ${icon.pending} Memory bulunamadı.`);
+      return;
+    }
+
+    console.log(brand.gold(`\n  ◆ Memory (${list.length})\n`));
+    for (const e of list) {
+      const tempIcon = e.importance >= 0.8 ? "🔥" : e.importance >= 0.5 ? "📌" : "📝";
+      const uses = e.useCount > 0 ? brand.dim(` (${e.useCount}×)`) : "";
+      const tags = e.tags.length > 0 ? brand.dim(` [${e.tags.join(",")}]`) : "";
+      console.log(`  ${tempIcon} ${brand.bold(e.id.padEnd(8))} ${brand.cyan(`[${e.category}]`.padEnd(14))} ${e.content.slice(0, 45)}${uses}${tags}`);
+    }
+    console.log("");
+  });
+
+memCmd
+  .command("search <query>")
+  .description("Memory'de ara")
+  .option("-d, --dir <path>", "Proje dizini")
+  .action((query: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const mm = new MemoryManager(projectRoot);
+
+    const results = mm.search(query);
+    if (results.length === 0) {
+      console.log(`  ${icon.pending} Sonuç bulunamadı: "${query}"`);
+      return;
+    }
+
+    console.log(brand.gold(`\n  ◆ Arama: "${query}" (${results.length} sonuç)\n`));
+    for (const r of results.slice(0, 10)) {
+      const score = brand.dim(`${(r.score * 100).toFixed(0)}%`);
+      console.log(`  ${score} ${brand.bold(r.entry.id)} [${r.entry.category}] ${r.entry.content.slice(0, 50)}`);
+    }
+    console.log("");
+  });
+
+memCmd
+  .command("stats")
+  .description("Memory istatistikleri")
+  .option("-d, --dir <path>", "Proje dizini")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const mm = new MemoryManager(projectRoot);
+    const s = mm.stats();
+
+    console.log(brand.gold("\n  ◆ Memory Stats\n"));
+    console.log(`  Total: ${brand.bold(String(s.total))} (${brand.green(String(s.active))} active, ${brand.dim(String(s.expired))} expired)`);
+    console.log(`  🔥 Hot:  ${s.hotCount}`);
+    console.log(`  📌 Warm: ${s.warmCount}`);
+    console.log(`  📝 Cold: ${s.coldCount}`);
+    console.log(`  ${brand.dim("Categories:")} ${Object.entries(s.byCategory).map(([k,v]) => `${k}(${v})`).join(", ")}`);
+    console.log("");
+  });
+
+// ─── SESSION ──────────────────────────────────────────────────
+
+const sesCmd = program
+  .command("session")
+  .alias("ses")
+  .description("Session yönetimi");
+
+sesCmd
+  .command("start")
+  .description("Yeni session başlat")
+  .option("-d, --dir <path>", "Proje dizini")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const sm = new SessionManager(projectRoot);
+    const pm = new ProjectManager(projectRoot);
+    const projects = pm.list();
+    const projectId = projects[0]?.id ?? "proj_001";
+
+    const session = sm.start({ projectId });
+    console.log(`  ${icon.done} Session başlatıldı: ${brand.bold(session.id)}`);
+    console.log("");
+  });
+
+sesCmd
+  .command("end")
+  .description("Aktif session'ı bitir")
+  .option("-d, --dir <path>", "Proje dizini")
+  .option("-s, --summary <text>", "Session özeti")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const sm = new SessionManager(projectRoot);
+    const active = sm.getActive();
+    if (!active) {
+      console.log(`  ${icon.pending} Aktif session yok.`);
+      return;
+    }
+    sm.end(active.id, "completed", opts.summary);
+    console.log(`  ${icon.done} Session kapatıldı: ${brand.bold(active.id)}`);
+    if (opts.summary) console.log(`     ${brand.dim(opts.summary)}`);
+    console.log("");
+  });
+
+sesCmd
+  .command("list")
+  .alias("ls")
+  .description("Session listesi")
+  .option("-d, --dir <path>", "Proje dizini")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const sm = new SessionManager(projectRoot);
+    const list = sm.list();
+
+    if (list.length === 0) {
+      console.log(`  ${icon.pending} Session bulunamadı.`);
+      return;
+    }
+
+    console.log(brand.gold(`\n  ◆ Sessions (${list.length})\n`));
+    for (const s of list) {
+      const si = s.status === "active" ? brand.green("●") :
+                 s.status === "completed" ? icon.done : brand.dim("○");
+      const dur = s.endedAt
+        ? brand.dim(` ${Math.round((new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 60000)}min`)
+        : brand.green(" active");
+      console.log(`  ${si} ${brand.bold(s.id)} ${brand.dim(s.startedAt.slice(0, 16))}${dur} ${icon.thought}${s.thoughtIds.length} ${icon.token}${s.totalTokens}`);
+      if (s.summary) console.log(`     ${brand.dim(s.summary.slice(0, 60))}`);
+    }
+    console.log("");
+  });
+
+// ─── CACHE ────────────────────────────────────────────────────
+
+const cacheCmd = program
+  .command("cache")
+  .description("LLM cache yönetimi");
+
+cacheCmd
+  .command("stats")
+  .description("Cache istatistikleri")
+  .option("-d, --dir <path>", "Proje dizini")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const cm = new CacheManager(projectRoot);
+    const s = cm.stats();
+
+    console.log(brand.gold("\n  ◆ Cache Stats\n"));
+    console.log(`  ${s.enabled ? brand.green("Enabled") : brand.red("Disabled")}`);
+    console.log(`  Entries: ${brand.bold(String(s.entries))}/${s.maxEntries}`);
+    console.log(`  Hits:    ${brand.bold(String(s.totalHits))}`);
+    console.log(`  ${icon.token} Saved:  ${brand.green(String(s.totalTokensSaved))} tokens`);
+    if (Object.keys(s.byLayer).length > 0) {
+      console.log(`  ${brand.dim("By layer:")} ${Object.entries(s.byLayer).map(([k,v]) => `${k}(${v})`).join(", ")}`);
+    }
+    console.log("");
+  });
+
+cacheCmd
+  .command("clear")
+  .description("Cache'i temizle")
+  .option("-d, --dir <path>", "Proje dizini")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const cm = new CacheManager(projectRoot);
+    const cleared = cm.clear();
+    console.log(`  ${icon.done} ${cleared} cache entry silindi.`);
+    console.log("");
+  });
+
+cacheCmd
+  .command("purge")
+  .description("Süresi dolmuş cache'leri temizle")
+  .option("-d, --dir <path>", "Proje dizini")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const cm = new CacheManager(projectRoot);
+    const purged = cm.purgeExpired();
+    console.log(`  ${icon.done} ${purged} expired entry silindi.`);
     console.log("");
   });
 
