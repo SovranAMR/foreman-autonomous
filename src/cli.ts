@@ -2,26 +2,26 @@
 /**
  * FOREMAN — CLI
  *
- * Kullanıcı Komutları (nihai kullanıcı bunları kullanır):
- *   foreman setup           — API key kurulumu (interaktif)
- *   foreman init <name>     — yeni proje oluştur
- *   foreman status          — mevcut durumu göster (memory/session/cache dahil)
- *   foreman run <task>      — görev çalıştır (tam pipeline — session/memory/cache otomatik)
- *   foreman task add        — yeni görev ekle
- *   foreman task list       — görev listesi
- *   foreman task show <id>  — görev detayı
- *   foreman task done <id>  — görevi tamamla
- *   foreman board           — kanban board görünümü
- *   foreman doctor          — sistem sağlık kontrolü
+ * User Commands:
+ *   foreman setup           — configure API keys (interactive)
+ *   foreman init <name>     — create a new project
+ *   foreman status          — show current status (memory/session/cache included)
+ *   foreman run <task>      — run a task (full pipeline — session/memory/cache automatic)
+ *   foreman task add        — add a new task
+ *   foreman task list       — list tasks
+ *   foreman task show <id>  — task details
+ *   foreman task done <id>  — mark task as done
+ *   foreman board           — kanban board view
+ *   foreman doctor          — system health check
  *
- * Geliştirici Komutları (debug/inspect — normal kullanıcı görmez):
- *   foreman internals thoughts    — thought listesi
- *   foreman internals chains      — chain listesi
- *   foreman internals history     — state geçiş tarihi
- *   foreman internals memory      — memory listesi
- *   foreman internals sessions    — session listesi
- *   foreman internals cache       — cache istatistikleri
- *   foreman internals providers   — provider durumu
+ * Developer Commands (debug/inspect — hidden from end users):
+ *   foreman internals thoughts    — list thoughts
+ *   foreman internals chains      — list chains
+ *   foreman internals history     — state transition history
+ *   foreman internals memory      — list memories
+ *   foreman internals sessions    — list sessions
+ *   foreman internals cache       — cache statistics
+ *   foreman internals providers   — provider status
  */
 
 import { Command } from "commander";
@@ -69,11 +69,38 @@ program
   .description(grad.logo("AI Agent Orchestrator — Atomic Thought Chains"))
   .version("0.1.0");
 
+// ─── DEFAULT COMMAND (welcome screen) ─────────────────────────
+
+program.action(() => {
+  printLogo();
+
+  console.log(brand.gold("  ◆ Commands\n"));
+  console.log(`    ${brand.cyan("setup")}       ${brand.dim("Configure API keys (Anthropic / OpenAI / Google)")}`);
+  console.log(`    ${brand.cyan("login")}       ${brand.dim("Authenticate with Google Antigravity OAuth")}`);
+  console.log(`    ${brand.cyan("doctor")}      ${brand.dim("System health check")}`);
+  console.log(`    ${brand.cyan("init")} ${brand.dim("<name>")} ${brand.dim("Initialize a new Foreman project")}`);
+  console.log(`    ${brand.cyan("status")}      ${brand.dim("Show current project status")}`);
+  console.log(`    ${brand.cyan("run")} ${brand.dim("<task>")}  ${brand.dim("Run a task through the full pipeline")}`);
+  console.log(`    ${brand.cyan("task")}        ${brand.dim("Task management")}`);
+  console.log(`    ${brand.cyan("board")}       ${brand.dim("Kanban board view")}`);
+  console.log(`    ${brand.cyan("internals")}   ${brand.dim("Developer tools (debug/inspect)")}`);
+  console.log("");
+
+  console.log(brand.gold("  ◆ Quick Start\n"));
+  console.log(`    ${brand.dim("$")} ${brand.cyan("foreman login")}              ${brand.dim("# authenticate via Google OAuth")}`);
+  console.log(`    ${brand.dim("$")} ${brand.cyan("foreman init my-project")}    ${brand.dim("# create a project")}`);
+  console.log(`    ${brand.dim("$")} ${brand.cyan('foreman run "build an API"')} ${brand.dim("# run a task")}`);
+  console.log("");
+
+  console.log(`    ${brand.dim("https://github.com/nicksov/foreman")}`);
+  console.log("");
+});
+
 // ─── SETUP ────────────────────────────────────────────────────
 
 program
   .command("setup")
-  .description("API key kurulumu (Anthropic / OpenAI)")
+  .description("Configure API keys (Anthropic / OpenAI / Google)")
   .action(async () => {
     await runSetup();
   });
@@ -82,18 +109,18 @@ program
 
 program
   .command("login")
-  .description("Google Antigravity OAuth ile giriş yap (Gemini + Claude + GPT)")
+  .description("Authenticate with Google Antigravity OAuth")
   .action(async () => {
     printLogo();
 
     const existingCreds = loadCredentials();
     if (existingCreds && Date.now() < existingCreds.expiresAt) {
-      console.log(`    ${icon.done} ${brand.green("Zaten giriş yapılmış!")}`);
+      console.log(`    ${icon.done} ${brand.green("Already authenticated!")}`);
       console.log(`    ${brand.dim("Email:")} ${existingCreds.email ?? "?"}`);
       console.log(`    ${brand.dim("Project:")} ${existingCreds.projectId}`);
       console.log(`    ${brand.dim("Expires:")} ${new Date(existingCreds.expiresAt).toLocaleString()}`);
       console.log("");
-      console.log(`    ${brand.dim("Yeniden giriş için:")} ${brand.cyan("foreman login --force")}`);
+      console.log(`    ${brand.dim("To re-authenticate:")} ${brand.cyan("foreman login --force")}`);
       console.log("");
 
       const args = process.argv;
@@ -103,8 +130,8 @@ program
     try {
       const creds = await loginAntigravity();
       saveCredentials(creds);
-      console.log(`    ${icon.done} ${brand.green("Credentials kaydedildi!")}`);
-      console.log(`    ${brand.dim("Artık")} ${brand.cyan("foreman run")} ${brand.dim("ile Antigravity modellerini kullanabilirsiniz.")}`);
+      console.log(`    ${icon.done} ${brand.green("Credentials saved!")}`);
+      console.log(`    ${brand.dim("You can now use")} ${brand.cyan("foreman run")} ${brand.dim("with Antigravity models.")}`);
       console.log("");
     } catch (err: any) {
       console.log(`    ${icon.fail} ${brand.red(err.message)}`);
@@ -116,7 +143,7 @@ program
 
 program
   .command("doctor")
-  .description("Sistem sağlık kontrolü")
+  .description("System health check")
   .action(() => {
     printLogo();
     doctorHeader();
@@ -128,14 +155,14 @@ program
     const nodeMajor = parseInt(nodeVer.slice(1).split(".")[0]);
     const nodeOk = nodeMajor >= 20;
     if (!nodeOk) allOk = false;
-    doctorItem(nodeOk, `Node.js ${nodeVer}`, nodeOk ? undefined : "20+ gerekli");
+    doctorItem(nodeOk, `Node.js ${nodeVer}`, nodeOk ? undefined : "20+ required");
 
     // npm
     try {
       const npmVer = execSync("npm -v", { encoding: "utf-8" }).trim();
       doctorItem(true, `npm ${npmVer}`);
     } catch {
-      doctorItem(false, "npm bulunamadı");
+      doctorItem(false, "npm not found");
       allOk = false;
     }
 
@@ -151,14 +178,14 @@ program
         ? `expired — foreman login`
         : `${antigravCreds.email ?? "?"} (expires ${new Date(antigravCreds.expiresAt).toLocaleTimeString()})`);
     } else {
-      doctorItem(false, `Antigravity OAuth`, "foreman login ile giriş yapın");
+      doctorItem(false, `Antigravity OAuth`, "run foreman login to authenticate");
     }
 
     // Config
     console.log("");
     const configDir = join(homedir(), ".foreman");
     const configExists = existsSync(configDir);
-    doctorItem(configExists, `Config dizini`, configDir);
+    doctorItem(configExists, `Config directory`, configDir);
     if (!configExists) allOk = false;
 
     doctorFooter(allOk);
@@ -168,15 +195,15 @@ program
 
 program
   .command("init <name>")
-  .description("Yeni Foreman projesi oluştur")
-  .option("-d, --dir <path>", "Proje dizini (varsayılan: mevcut dizin)")
+  .description("Initialize a new Foreman project")
+  .option("-d, --dir <path>", "Project directory (default: current directory)")
   .action(async (name: string, opts: { dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
 
     printLogo();
 
     if (existsSync(join(projectRoot, "state.json"))) {
-      console.log(`  ${icon.warn} Bu dizinde zaten bir Foreman projesi var.`);
+      console.log(`  ${icon.warn} A Foreman project already exists in this directory.`);
       console.log(brand.dim(`     ${projectRoot}/state.json`));
       return;
     }
@@ -190,7 +217,7 @@ program
 
     if (process.stdout.isTTY) await animateFire(1000, 150);
 
-    console.log(`  ${icon.done} ${brand.gold("Proje oluşturuldu:")} ${brand.bold(name)}`);
+    console.log(`  ${icon.done} ${brand.gold("Project created:")} ${brand.bold(name)}`);
     console.log("");
     console.log(`     📁 ${brand.dim(projectRoot)}`);
     console.log(`     📄 state.json`);
@@ -201,7 +228,7 @@ program
     if (process.stdout.isTTY) {
       await typeText(`  The forge awaits: foreman run "${name}"`, 25, brand.cyan);
     } else {
-      console.log(`  Sonraki: ${brand.cyan(`foreman run "${name} için görev"`)}`);
+      console.log(`  Next: ${brand.cyan(`foreman run "your task for ${name}"`)}`);
     }
     console.log("");
   });
@@ -210,8 +237,8 @@ program
 
 program
   .command("status")
-  .description("Mevcut proje durumunu göster")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("Show current project status")
+  .option("-d, --dir <path>", "Project directory")
   .action((opts: { dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const sm = StateManager.load(projectRoot, false);
@@ -219,8 +246,8 @@ program
     if (!sm) {
       printLogo();
       printIdleForge();
-      console.log(`    ${icon.fail} Foreman projesi bulunamadı.`);
-      console.log(`    ${brand.dim("Önce:")} ${brand.cyan("foreman init <name>")}`);
+      console.log(`    ${icon.fail} No Foreman project found.`);
+      console.log(`    ${brand.dim("First:")} ${brand.cyan("foreman init <name>")}`);
       return;
     }
 
@@ -243,7 +270,7 @@ program
       activeThought: snap.activeThoughtId,
     });
 
-    // Memory özeti
+    // Memory summary
     const mm = new MemoryManager(projectRoot);
     const memStats = mm.stats();
     if (memStats.total > 0) {
@@ -251,19 +278,19 @@ program
       console.log(`     🔥 ${memStats.hotCount} hot  📌 ${memStats.warmCount} warm  📝 ${memStats.coldCount} cold  (${memStats.total} total)`);
     }
 
-    // Session özeti
+    // Session summary
     const sesm = new SessionManager(projectRoot);
     const activeSession = sesm.getActive();
     const allSessions = sesm.list();
     if (allSessions.length > 0) {
       console.log(brand.gold("  ◆ Sessions"));
       if (activeSession) {
-        console.log(`     ${brand.green("●")} Aktif: ${brand.bold(activeSession.id)} (${activeSession.thoughtIds.length} thoughts, ${activeSession.totalTokens} tokens)`);
+        console.log(`     ${brand.green("●")} Active: ${brand.bold(activeSession.id)} (${activeSession.thoughtIds.length} thoughts, ${activeSession.totalTokens} tokens)`);
       }
       console.log(`     ${allSessions.length} total session`);
     }
 
-    // Cache özeti
+    // Cache summary
     const cm = new CacheManager(projectRoot);
     const cacheStats = cm.stats();
     if (cacheStats.entries > 0 || cacheStats.totalHits > 0) {
@@ -278,15 +305,15 @@ program
 
 program
   .command("run <task>")
-  .description("Görev çalıştır (tam pipeline)")
-  .option("-m, --mock", "Mock provider kullan (test)")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("Run a task through the full pipeline")
+  .option("-m, --mock", "Use mock provider (test)")
+  .option("-d, --dir <path>", "Project directory")
   .action(async (task: string, opts: { mock?: boolean; dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
 
     printForgeIntro();
 
-    // Dwarf çekiç animasyonu — forge açılışı
+    // Dwarf hammer animation — forge opening
     await animateDwarf(2000, 250);
     await animateSparkRain(40, 600, 100);
     console.log("");
@@ -296,7 +323,7 @@ program
       projectName: "foreman",
     });
 
-    // Provider'ları kaydet
+    // Register providers
     if (opts.mock) {
       const mock = new MockProvider("I need more context. Please clarify the task.");
       engine.providers.register({
@@ -304,23 +331,23 @@ program
         supportedModels: ["mock-model", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro", "gemini-ultra"],
         generate: mock.generate.bind(mock),
       });
-      console.log(`  ${icon.warn} ${brand.gold("Mock provider aktif")}\n`);
+      console.log(`  ${icon.warn} ${brand.gold("Mock provider active")}\n`);
     } else {
-      // Provider yoksa → otomatik onboarding (ilk çalıştırma)
+      // No provider → automatic onboarding (first run)
       if (!hasAnyProvider()) {
-        console.log(`    ${icon.warn} ${brand.gold("Henüz bir LLM provider ayarlanmamış.")}`);
+        console.log(`    ${icon.warn} ${brand.gold("No LLM provider configured.")}`);
         const success = await runOnboarding();
         if (!success) {
           console.log("");
-          console.log(`    ${icon.fail} ${brand.red("Kurulum tamamlanamadı.")}`);
-          console.log(`    ${brand.cyan("foreman login")} — Google Antigravity OAuth (önerilen)`);
-          console.log(`    ${brand.cyan("foreman setup")} — API key ile kurulum`);
-          console.log(`    ${brand.dim("--mock")} — test modu`);
+          console.log(`    ${icon.fail} ${brand.red("Setup could not be completed.")}`);
+          console.log(`    ${brand.cyan("foreman login")} — Google Antigravity OAuth (recommended)`);
+          console.log(`    ${brand.cyan("foreman setup")} — configure with API key`);
+          console.log(`    ${brand.dim("--mock")} — test mode`);
           process.exit(1);
         }
       }
 
-      // Config'den veya env var'dan key al
+      // Get key from config or env var
       const anthropicKey = getApiKey("anthropic");
       const openaiKey = getApiKey("openai");
 
@@ -369,10 +396,10 @@ program
 
       if (engine.providers.size === 0) {
         console.log("");
-        console.log(`  ${icon.fail} ${brand.red("Hiçbir LLM provider bulunamadı.")}`);
-        console.log(`     ${brand.cyan("foreman login")} — Google Antigravity OAuth (ücretsiz, önerilen)`);
-        console.log(`     ${brand.cyan("foreman setup")} — API key ile (Anthropic/OpenAI/Google)`);
-        console.log(`     veya ${brand.dim("--mock")} flag'ı ile test edin.`);
+        console.log(`  ${icon.fail} ${brand.red("No LLM provider found.")}`);
+        console.log(`     ${brand.cyan("foreman login")} — Google Antigravity OAuth (free, recommended)`);
+        console.log(`     ${brand.cyan("foreman setup")} — configure with API key (Anthropic/OpenAI/Google)`);
+        console.log(`     or use the ${brand.dim("--mock")} flag for testing.`);
         process.exit(1);
       }
       console.log("");
@@ -388,7 +415,7 @@ program
     orchestrator.on(event => {
       switch (event.type) {
         case "phase_start":
-          // Eğer TTY ise animasyonlu geçiş, değilse statik
+          // TTY → animated transition, otherwise static
           if (process.stdout.isTTY) {
             animatePhaseTransition(lastPhase || null, event.phase);
           }
@@ -429,7 +456,7 @@ program
           await animateCompletion(false);
         }
         completionBox(result.totalThoughts, result.totalTokens, false);
-        console.log(`  ${brand.dim("foreman status")} ile durumu kontrol edin.`);
+        console.log(`  Check status with ${brand.dim("foreman status")}.`);
       }
     } catch (err: any) {
       console.log("");
@@ -443,25 +470,25 @@ program
 
 const taskCmd = program
   .command("task")
-  .description("Görev yönetimi");
+  .description("Task management");
 
 taskCmd
   .command("add <title>")
-  .description("Yeni görev ekle")
-  .option("-d, --dir <path>", "Proje dizini")
-  .option("-p, --priority <p>", "Öncelik (critical/high/medium/low)", "medium")
-  .option("-t, --type <t>", "Tip (feature/bug/research/design/refactor/test/docs/idea)", "feature")
-  .option("--depends <ids>", "Bağımlılıklar (virgülle ayrılmış)")
-  .option("--tags <tags>", "Etiketler (virgülle ayrılmış)")
+  .description("Add a new task")
+  .option("-d, --dir <path>", "Project directory")
+  .option("-p, --priority <p>", "Priority (critical/high/medium/low)", "medium")
+  .option("-t, --type <t>", "Type (feature/bug/research/design/refactor/test/docs/idea)", "feature")
+  .option("--depends <ids>", "Dependencies (comma-separated)")
+  .option("--tags <tags>", "Tags (comma-separated)")
   .option("--effort <n>", "Effort (1-8)")
-  .option("--desc <text>", "Açıklama")
-  .option("--parent <id>", "Üst görev ID")
+  .option("--desc <text>", "Description")
+  .option("--parent <id>", "Parent task ID")
   .action((title: string, opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const tm = new TaskManager(projectRoot);
     const pm = new ProjectManager(projectRoot);
 
-    // İlk projeyi bul
+    // Find first project
     const projects = pm.list();
     const projectId = projects[0]?.id ?? "proj_001";
 
@@ -477,7 +504,7 @@ taskCmd
       parentTaskId: opts.parent,
     });
 
-    // Projeye bağla
+    // Link to project
     if (projects[0]) {
       pm.addTask(projectId, task.id);
     }
@@ -493,11 +520,11 @@ taskCmd
 taskCmd
   .command("list")
   .alias("ls")
-  .description("Görev listesi")
-  .option("-d, --dir <path>", "Proje dizini")
-  .option("-s, --status <s>", "Status filtresi")
-  .option("-p, --priority <p>", "Öncelik filtresi")
-  .option("-t, --tag <tag>", "Etiket filtresi")
+  .description("List tasks")
+  .option("-d, --dir <path>", "Project directory")
+  .option("-s, --status <s>", "Status filter")
+  .option("-p, --priority <p>", "Priority filter")
+  .option("-t, --tag <tag>", "Tag filter")
   .action((opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const tm = new TaskManager(projectRoot);
@@ -510,11 +537,11 @@ taskCmd
     const list = tm.list(filter);
 
     if (list.length === 0) {
-      console.log(`  ${icon.pending} Görev bulunamadı.`);
+      console.log(`  ${icon.pending} No tasks found.`);
       return;
     }
 
-    console.log(brand.gold(`\n  ◆ Görevler (${list.length})\n`));
+    console.log(brand.gold(`\n  ◆ Tasks (${list.length})\n`));
 
     const prioIcon: Record<string, string> = {
       critical: brand.red("▲▲"),
@@ -559,15 +586,15 @@ taskCmd
 
 taskCmd
   .command("show <id>")
-  .description("Görev detayı")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("Task details")
+  .option("-d, --dir <path>", "Project directory")
   .action((id: string, opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const tm = new TaskManager(projectRoot);
 
     const task = tm.get(id);
     if (!task) {
-      console.log(`  ${icon.fail} Görev bulunamadı: ${id}`);
+      console.log(`  ${icon.fail} Task not found: ${id}`);
       return;
     }
 
@@ -584,25 +611,25 @@ taskCmd
     console.log(brand.gold(`  ╰${"─".repeat(w)}╯`));
 
     if (task.description !== task.title) {
-      console.log(`\n  ${brand.dim("Açıklama:")} ${task.description}`);
+      console.log(`\n  ${brand.dim("Description:")} ${task.description}`);
     }
     if (task.dependsOn.length > 0) {
-      console.log(`  ${brand.dim("Bağımlılıklar:")} ${task.dependsOn.join(", ")}`);
+      console.log(`  ${brand.dim("Dependencies:")} ${task.dependsOn.join(", ")}`);
     }
     if (task.tags.length > 0) {
-      console.log(`  ${brand.dim("Etiketler:")} ${task.tags.join(", ")}`);
+      console.log(`  ${brand.dim("Tags:")} ${task.tags.join(", ")}`);
     }
     if (task.acceptanceCriteria.length > 0) {
-      console.log(`  ${brand.dim("Kabul Kriterleri:")}`);
+      console.log(`  ${brand.dim("Acceptance Criteria:")}`);
       for (const c of task.acceptanceCriteria) {
         console.log(`     ${brand.dim("•")} ${c}`);
       }
     }
     if (task.chainIds.length > 0) {
-      console.log(`  ${brand.dim("Chain'ler:")} ${task.chainIds.join(", ")}`);
+      console.log(`  ${brand.dim("Chains:")} ${task.chainIds.join(", ")}`);
     }
     if (task.notes.length > 0) {
-      console.log(`  ${brand.dim("Notlar:")}`);
+      console.log(`  ${brand.dim("Notes:")}`);
       for (const n of task.notes) {
         console.log(`     ${brand.dim(n)}`);
       }
@@ -615,51 +642,51 @@ taskCmd
 
 taskCmd
   .command("done <id>")
-  .description("Görevi tamamla")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("Mark task as done")
+  .option("-d, --dir <path>", "Project directory")
   .action((id: string, opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const tm = new TaskManager(projectRoot);
     const task = tm.update(id, { status: "done" });
-    console.log(`  ${icon.done} ${brand.bold(task.id)} ${brand.green("tamamlandı")}`);
+    console.log(`  ${icon.done} ${brand.bold(task.id)} ${brand.green("completed")}`);
   });
 
 taskCmd
   .command("block <id>")
-  .description("Görevi blokla")
-  .option("-d, --dir <path>", "Proje dizini")
-  .option("-r, --reason <text>", "Bloklama sebebi")
+  .description("Block a task")
+  .option("-d, --dir <path>", "Project directory")
+  .option("-r, --reason <text>", "Block reason")
   .action((id: string, opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const tm = new TaskManager(projectRoot);
     const task = tm.update(id, { status: "blocked", blockedReason: opts.reason ?? "Blocked" });
-    console.log(`  ${icon.block} ${brand.bold(task.id)} ${brand.red("bloklandı")}: ${opts.reason ?? ""}`);
+    console.log(`  ${icon.block} ${brand.bold(task.id)} ${brand.red("blocked")}: ${opts.reason ?? ""}`);
   });
 
 taskCmd
   .command("note <id> <text>")
-  .description("Göreve not ekle")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("Add a note to a task")
+  .option("-d, --dir <path>", "Project directory")
   .action((id: string, text: string, opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const tm = new TaskManager(projectRoot);
     tm.addNote(id, text);
-    console.log(`  ${icon.done} Not eklendi → ${brand.bold(id)}`);
+    console.log(`  ${icon.done} Note added → ${brand.bold(id)}`);
   });
 
 // ─── BOARD (Kanban) ───────────────────────────────────────────
 
 program
   .command("board")
-  .description("Kanban board görünümü")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("Kanban board view")
+  .option("-d, --dir <path>", "Project directory")
   .action((opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const tm = new TaskManager(projectRoot);
 
     const all = tm.list();
     if (all.length === 0) {
-      console.log(`  ${icon.pending} Görev bulunamadı.`);
+      console.log(`  ${icon.pending} No tasks found.`);
       return;
     }
 
@@ -683,7 +710,7 @@ program
     };
 
     for (const t of all) {
-      if (!t.parentTaskId) { // üst seviye task'lar
+      if (!t.parentTaskId) { // top-level tasks
         const col = colMap[t.status] ?? "📋 BACKLOG";
         columns[col].push(t);
       }
@@ -713,7 +740,7 @@ program
         const effort = t.effort ? brand.dim(` ${t.effort}pt`) : "";
         console.log(`  ${prioMark} ${brand.bold(t.id)} ${t.title}${effort}`);
 
-        // Subtask'ları göster
+        // Show subtasks
         for (const subId of t.subtaskIds) {
           const sub = tm.get(subId);
           if (sub) {
@@ -746,14 +773,14 @@ program
 const intCmd = program
   .command("internals")
   .alias("int")
-  .description("Geliştirici araçları (debug/inspect)");
+  .description("Developer tools (debug/inspect)");
 
 intCmd
   .command("thoughts")
-  .description("Thought listesi")
-  .option("-c, --chain <id>", "Chain ID filtresi")
-  .option("-s, --status <status>", "Status filtresi")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("List thoughts")
+  .option("-c, --chain <id>", "Chain ID filter")
+  .option("-s, --status <status>", "Status filter")
+  .option("-d, --dir <path>", "Project directory")
   .action((opts: { chain?: string; status?: string; dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const tm = new ThoughtManager(projectRoot);
@@ -765,7 +792,7 @@ intCmd
     const list = tm.list(filter);
 
     if (list.length === 0) {
-      console.log(`  ${icon.pending} Thought bulunamadı.`);
+      console.log(`  ${icon.pending} No thoughts found.`);
       return;
     }
 
@@ -788,8 +815,8 @@ intCmd
 
 intCmd
   .command("chains")
-  .description("Chain listesi")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("List chains")
+  .option("-d, --dir <path>", "Project directory")
   .action((opts: { dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const cm = new ChainManager(projectRoot);
@@ -797,7 +824,7 @@ intCmd
     const list = cm.list();
 
     if (list.length === 0) {
-      console.log(`  ${icon.pending} Chain bulunamadı.`);
+      console.log(`  ${icon.pending} No chains found.`);
       return;
     }
 
@@ -815,26 +842,26 @@ intCmd
 
 intCmd
   .command("history")
-  .description("State geçiş tarihi")
-  .option("-n, --count <n>", "Kaç geçiş", "10")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("State transition history")
+  .option("-n, --count <n>", "Number of transitions", "10")
+  .option("-d, --dir <path>", "Project directory")
   .action((opts: { count: string; dir?: string }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const sm = StateManager.load(projectRoot, false);
 
     if (!sm) {
-      console.log(`  ${icon.fail} Foreman projesi bulunamadı.`);
+      console.log(`  ${icon.fail} No Foreman project found.`);
       return;
     }
 
     const history = sm.recentHistory(parseInt(opts.count));
 
     if (history.length === 0) {
-      console.log(`  ${icon.pending} Henüz geçiş yok.`);
+      console.log(`  ${icon.pending} No transitions yet.`);
       return;
     }
 
-    console.log(brand.gold("\n  ◆ State Geçişleri\n"));
+    console.log(brand.gold("\n  ◆ State Transitions\n"));
     for (const h of history) {
       const time = brand.dim(h.at.slice(11, 19));
       const from = brand.dim(h.from);
@@ -851,11 +878,11 @@ intCmd
 intCmd
   .command("memory")
   .alias("mem")
-  .description("Memory listesi")
-  .option("-d, --dir <path>", "Proje dizini")
-  .option("-c, --category <cat>", "Kategori filtresi")
-  .option("--hot", "Sadece hot memory")
-  .option("-q, --query <q>", "Arama")
+  .description("List memories")
+  .option("-d, --dir <path>", "Project directory")
+  .option("-c, --category <cat>", "Category filter")
+  .option("--hot", "Hot memory only")
+  .option("-q, --query <q>", "Search")
   .action((opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const mm = new MemoryManager(projectRoot);
@@ -863,10 +890,10 @@ intCmd
     if (opts.query) {
       const results = mm.search(opts.query);
       if (results.length === 0) {
-        console.log(`  ${icon.pending} Sonuç bulunamadı: "${opts.query}"`);
+        console.log(`  ${icon.pending} No results found: "${opts.query}"`);
         return;
       }
-      console.log(brand.gold(`\n  ◆ Arama: "${opts.query}" (${results.length} sonuç)\n`));
+      console.log(brand.gold(`\n  ◆ Search: "${opts.query}" (${results.length} results)\n`));
       for (const r of results.slice(0, 10)) {
         const score = brand.dim(`${(r.score * 100).toFixed(0)}%`);
         console.log(`  ${score} ${brand.bold(r.entry.id)} [${r.entry.category}] ${r.entry.content.slice(0, 50)}`);
@@ -881,7 +908,7 @@ intCmd
 
     const list = mm.list(filter);
     if (list.length === 0) {
-      console.log(`  ${icon.pending} Memory bulunamadı.`);
+      console.log(`  ${icon.pending} No memories found.`);
       return;
     }
 
@@ -897,15 +924,15 @@ intCmd
 
 intCmd
   .command("sessions")
-  .description("Session listesi")
-  .option("-d, --dir <path>", "Proje dizini")
+  .description("List sessions")
+  .option("-d, --dir <path>", "Project directory")
   .action((opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const sm = new SessionManager(projectRoot);
     const list = sm.list();
 
     if (list.length === 0) {
-      console.log(`  ${icon.pending} Session bulunamadı.`);
+      console.log(`  ${icon.pending} No sessions found.`);
       return;
     }
 
@@ -924,23 +951,23 @@ intCmd
 
 intCmd
   .command("cache")
-  .description("Cache istatistikleri")
-  .option("-d, --dir <path>", "Proje dizini")
-  .option("--clear", "Cache'i temizle")
-  .option("--purge", "Expired entry'leri sil")
+  .description("Cache statistics")
+  .option("-d, --dir <path>", "Project directory")
+  .option("--clear", "Clear cache")
+  .option("--purge", "Purge expired entries")
   .action((opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const cm = new CacheManager(projectRoot);
 
     if (opts.clear) {
       const cleared = cm.clear();
-      console.log(`  ${icon.done} ${cleared} cache entry silindi.`);
+      console.log(`  ${icon.done} ${cleared} cache entries cleared.`);
       return;
     }
 
     if (opts.purge) {
       const purged = cm.purgeExpired();
-      console.log(`  ${icon.done} ${purged} expired entry silindi.`);
+      console.log(`  ${icon.done} ${purged} expired entries purged.`);
       return;
     }
 
@@ -958,9 +985,9 @@ intCmd
 
 intCmd
   .command("providers")
-  .description("Provider durumu")
+  .description("Provider status")
   .action(() => {
-    console.log(brand.gold("\n  ◆ Provider Durumu\n"));
+    console.log(brand.gold("\n  ◆ Provider Status\n"));
     printProviderStatus();
     console.log("");
   });

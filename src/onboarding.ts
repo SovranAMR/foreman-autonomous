@@ -1,11 +1,11 @@
 /**
- * FOREMAN — Onboarding (İlk Çalıştırma Kurulumu)
+ * FOREMAN — Onboarding (First Run Setup)
  *
- * OpenClaw/Claude Code tarzı interaktif kurulum:
- * İlk çalıştırmada provider seçimi → OAuth veya API key → kaydet
+ * Interactive setup in the style of OpenClaw/Claude Code:
+ * On first run → provider selection → OAuth or API key → save
  *
- * Provider seçenekleri:
- * 1. Google Antigravity OAuth (önerilen — ücretsiz, Gemini + Claude + GPT)
+ * Provider options:
+ * 1. Google Antigravity OAuth (recommended — free, Gemini + Claude + GPT)
  * 2. Anthropic API Key
  * 3. OpenAI API Key
  * 4. Google Gemini API Key
@@ -50,18 +50,18 @@ export async function runOnboarding(): Promise<boolean> {
   console.log("");
   console.log(`    ${brand.gold("╔════════════════════════════════════════════════╗")}`);
   console.log(`    ${brand.gold("║")}                                                ${brand.gold("║")}`);
-  console.log(`    ${brand.gold("║")}  ${brand.gold("⚒")}  ${grad.forge("FOREMAN — İlk Kurulum")}                      ${brand.gold("║")}`);
+  console.log(`    ${brand.gold("║")}  ${brand.gold("⚒")}  ${grad.forge("FOREMAN — First Run Setup")}                  ${brand.gold("║")}`);
   console.log(`    ${brand.gold("║")}                                                ${brand.gold("║")}`);
-  console.log(`    ${brand.gold("║")}  ${brand.dim("Forge'u ateşlemek için bir LLM provider")}        ${brand.gold("║")}`);
-  console.log(`    ${brand.gold("║")}  ${brand.dim("gerekiyor. Nasıl bağlanmak istersin?")}          ${brand.gold("║")}`);
+  console.log(`    ${brand.gold("║")}  ${brand.dim("To fire up the forge, you need an LLM")}        ${brand.gold("║")}`);
+  console.log(`    ${brand.gold("║")}  ${brand.dim("provider. How would you like to connect?")}      ${brand.gold("║")}`);
   console.log(`    ${brand.gold("║")}                                                ${brand.gold("║")}`);
   console.log(`    ${brand.gold("╚════════════════════════════════════════════════╝")}`);
   console.log("");
 
-  // Provider seçenekleri
-  console.log(`    ${brand.gold("1.")} ${brand.bold("Google Antigravity")} ${brand.green("(önerilen)")}`);
-  console.log(`       ${brand.dim("OAuth ile giriş — Gemini + Claude + GPT hepsi tek hesap")}`);
-  console.log(`       ${brand.dim("Ücretsiz, API key gerekmez")}`);
+  // Provider options
+  console.log(`    ${brand.gold("1.")} ${brand.bold("Google Antigravity")} ${brand.green("(recommended)")}`);
+  console.log(`       ${brand.dim("OAuth sign-in — Gemini + Claude + GPT all in one account")}`);
+  console.log(`       ${brand.dim("Free, no API key required")}`);
   console.log("");
 
   console.log(`    ${brand.cyan("2.")} ${brand.bold("Anthropic API Key")}`);
@@ -79,7 +79,7 @@ export async function runOnboarding(): Promise<boolean> {
   console.log(`       ${brand.dim("https://aistudio.google.com/apikey")}`);
   console.log("");
 
-  const choice = await prompt(`    ${brand.gold("Seçim (1-4):")} `);
+  const choice = await prompt(`    ${brand.gold("Choice (1-4):")} `);
 
   switch (choice) {
     case "1":
@@ -91,7 +91,7 @@ export async function runOnboarding(): Promise<boolean> {
     case "4":
       return await onboardApiKey("google", "GOOGLE_API_KEY", "AIza");
     default:
-      console.log(`    ${icon.warn} ${brand.dim("Geçersiz seçim. 1-4 arası bir sayı girin.")}`);
+      console.log(`    ${icon.warn} ${brand.dim("Invalid choice. Enter a number between 1-4.")}`);
       return false;
   }
 }
@@ -101,7 +101,7 @@ export async function runOnboarding(): Promise<boolean> {
 async function onboardAntigravity(): Promise<boolean> {
   console.log("");
   console.log(`    ${brand.gold("⚒")} ${brand.bold("Google Antigravity OAuth")}`);
-  console.log(`    ${brand.dim("Tarayıcıda Google hesabınızla giriş yapacaksınız.")}`);
+  console.log(`    ${brand.dim("You will sign in with your Google account in the browser.")}`);
   console.log("");
 
   try {
@@ -113,13 +113,13 @@ async function onboardAntigravity(): Promise<boolean> {
     }
 
     console.log("");
-    console.log(`    ${icon.done} ${brand.green("Kurulum tamamlandı!")}`);
-    console.log(`    ${brand.dim("Artık Gemini, Claude ve GPT modellerini kullanabilirsiniz.")}`);
+    console.log(`    ${icon.done} ${brand.green("Setup complete!")}`);
+    console.log(`    ${brand.dim("You can now use Gemini, Claude, and GPT models.")}`);
     console.log("");
     return true;
   } catch (err: any) {
     console.log(`    ${icon.fail} ${brand.red(err.message)}`);
-    console.log(`    ${brand.dim("Tekrar denemek için:")} ${brand.cyan("foreman login")}`);
+    console.log(`    ${brand.dim("To try again:")} ${brand.cyan("foreman login")}`);
     return false;
   }
 }
@@ -139,21 +139,21 @@ async function onboardApiKey(
 
   console.log("");
   console.log(`    ${brand.gold("⚒")} ${brand.bold(labels[provider])} API Key`);
-  console.log(`    ${brand.dim(`${envVar} env var olarak da ayarlanabilir.`)}`);
+  console.log(`    ${brand.dim(`Can also be set as ${envVar} env var.`)}`);
   console.log("");
 
   const key = await prompt(`    ${brand.cyan("API Key:")} `);
 
   if (!key) {
-    console.log(`    ${brand.dim("Atlandı.")}`);
+    console.log(`    ${brand.dim("Skipped.")}`);
     return false;
   }
 
   if (expectedPrefix && !key.startsWith(expectedPrefix)) {
-    console.log(`    ${icon.warn} ${brand.dim(`Key "${expectedPrefix}" ile başlamalı. Yine de kaydediliyor...`)}`);
+    console.log(`    ${icon.warn} ${brand.dim(`Key should start with "${expectedPrefix}". Saving anyway...`)}`);
   }
 
-  // Config'e kaydet
+  // Save to config
   const config = loadConfig();
   if (provider === "anthropic") config.anthropic_api_key = key;
   else if (provider === "openai") config.openai_api_key = key;
@@ -166,7 +166,7 @@ async function onboardApiKey(
   }
 
   console.log("");
-  console.log(`    ${icon.done} ${brand.green(`${labels[provider]} key kaydedildi!`)}`);
+  console.log(`    ${icon.done} ${brand.green(`${labels[provider]} key saved!`)}`);
   console.log("");
   return true;
 }

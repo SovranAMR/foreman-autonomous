@@ -1,8 +1,8 @@
 /**
  * FOREMAN — Antigravity LLM Provider
  *
- * Google Antigravity OAuth token ile Cloud Code Assist API'ye istek atar.
- * OpenClaw ile aynı endpoint ve format:
+ * Sends requests to the Cloud Code Assist API using Google Antigravity OAuth tokens.
+ * Uses the same endpoint and format as OpenClaw:
  *
  * Endpoint: https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:streamGenerateContent?alt=sse
  * Fallback: https://cloudcode-pa.googleapis.com/v1internal:streamGenerateContent?alt=sse
@@ -10,7 +10,7 @@
  * Request body: { project, model, request: { contents, systemInstruction, generationConfig }, requestType: "agent" }
  * Auth: Bearer <accessToken>
  *
- * Bu provider streaming SSE yanıtını parse eder ve text + token bilgisi döndürür.
+ * This provider parses the streaming SSE response and returns text + token info.
  */
 
 import type { LLMProvider, LLMMessage, GenerateOptions, GenerateResult } from "./provider.js";
@@ -45,15 +45,15 @@ function getHeaders(accessToken: string): Record<string, string> {
 
 // ─── MODEL MAPPING ───────────────────────────────────────────
 
-/** Antigravity üzerinden erişilebilen modeller */
+/** Models accessible via Antigravity */
 const ANTIGRAVITY_MODELS: Record<string, string> = {
-  // Gemini modelleri
+  // Gemini models
   "gemini-2.5-pro":       "gemini-2.5-pro-preview-06-05",
   "gemini-2.5-flash":     "gemini-2.5-flash-preview-05-20",
   "gemini-2.0-flash":     "gemini-2.0-flash",
   "gemini-pro":           "gemini-2.0-flash",
   "gemini-flash":         "gemini-2.0-flash-lite",
-  // Claude modelleri (Antigravity üzerinden)
+  // Claude models (via Antigravity)
   "claude-sonnet":        "claude-sonnet-4-20250514",
   "claude-opus":          "claude-opus-4-0520",
   "claude-haiku":         "claude-3-5-haiku-20241022",
@@ -130,7 +130,7 @@ function parseSSEResponse(body: string): { text: string; inputTokens: number; ou
         }
       }
 
-      // Token usage (genelde son SSE event'te gelir)
+      // Token usage (typically in the last SSE event)
       if (data.usageMetadata) {
         inputTokens = data.usageMetadata.promptTokenCount ?? inputTokens;
         outputTokens = data.usageMetadata.candidatesTokenCount ?? outputTokens;
@@ -165,7 +165,7 @@ export class AntigravityProvider implements LLMProvider {
   }
 
   /**
-   * Token expired ise refresh et.
+   * Refresh token if expired.
    */
   private async ensureValidToken(): Promise<void> {
     if (Date.now() >= this.credentials.expiresAt) {
@@ -186,7 +186,7 @@ export class AntigravityProvider implements LLMProvider {
 
     const model = resolveModel(options.model);
 
-    // System message ayır
+    // Separate system message
     const systemMsg = messages.find(m => m.role === "system");
     const nonSystemMsgs = messages.filter(m => m.role !== "system");
 
@@ -202,7 +202,7 @@ export class AntigravityProvider implements LLMProvider {
       systemParts.push({ text: systemMsg.content });
     }
 
-    // Request body — OpenClaw/pi-ai ile aynı format
+    // Request body — same format as OpenClaw/pi-ai
     const requestBody = {
       project: this.credentials.projectId,
       model,
@@ -223,7 +223,7 @@ export class AntigravityProvider implements LLMProvider {
       requestId: `foreman-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     };
 
-    // İki endpoint dene — daily (sandbox) önce, prod fallback
+    // Try both endpoints — daily (sandbox) first, prod fallback
     const endpoints = [DAILY_ENDPOINT, PROD_ENDPOINT];
     let lastError: Error | null = null;
 
