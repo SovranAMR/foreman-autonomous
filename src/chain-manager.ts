@@ -1,8 +1,8 @@
 /**
  * FOREMAN — Chain Manager
  *
- * Chain nesnelerini JSON dosyalar olarak yönetir.
- * Her chain: {projectRoot}/chains/chain_XXX.json
+ * Manages chain objects as JSON files.
+ * Each chain: {projectRoot}/chains/chain_XXX.json
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
@@ -12,22 +12,22 @@ import type { Chain, ChainStatus, Layer } from "./types.js";
 // ─── INPUT TYPES ──────────────────────────────────────────────
 
 /**
- * Chain oluştururken gerekli alanlar.
+ * Required fields when creating a chain.
  */
 export interface CreateChainInput {
-  /** Manuel id (opsiyonel — verilmezse auto-increment) */
+  /** Manual id (optional — auto-increment if not provided) */
   id?: string;
 
-  /** İnsan-okunabilir isim */
+  /** Human-readable name */
   name: string;
 
-  /** Amacı — tek cümle */
+  /** Purpose — single sentence */
   goal: string;
 
-  /** Dominant katman */
+  /** Dominant layer */
   layer: Layer;
 
-  /** Üst chain (fraktal decomposition) */
+  /** Parent chain (fractal decomposition) */
   parentChainId?: string;
 }
 
@@ -41,7 +41,7 @@ export class ChainManager {
   }
 
   /**
-   * Yeni chain oluştur.
+   * Create a new chain.
    */
   create(input: CreateChainInput): Chain {
     this.ensureDir();
@@ -65,7 +65,7 @@ export class ChainManager {
   }
 
   /**
-   * Chain oku. Yoksa null döner.
+   * Read a chain. Returns null if not found.
    */
   get(id: string): Chain | null {
     const filePath = this.filePath(id);
@@ -81,8 +81,8 @@ export class ChainManager {
   }
 
   /**
-   * Chain'e thought ekle.
-   * Thought'un kendisini oluşturmaz — sadece referans ekler.
+   * Add a thought to a chain.
+   * Does not create the thought itself — only adds the reference.
    */
   addThought(chainId: string, thoughtId: string): Chain {
     const chain = this.get(chainId);
@@ -90,7 +90,7 @@ export class ChainManager {
       throw new Error(`Chain not found: ${chainId}`);
     }
 
-    // Duplikat kontrolü
+    // Duplicate check
     if (chain.thoughts.includes(thoughtId)) {
       return chain;
     }
@@ -101,7 +101,7 @@ export class ChainManager {
   }
 
   /**
-   * Chain status güncelle.
+   * Update chain status.
    */
   updateStatus(chainId: string, status: ChainStatus): Chain {
     const chain = this.get(chainId);
@@ -118,7 +118,7 @@ export class ChainManager {
   }
 
   /**
-   * Chain context summary güncelle.
+   * Update chain context summary.
    */
   updateSummary(chainId: string, summary: string): Chain {
     const chain = this.get(chainId);
@@ -132,7 +132,7 @@ export class ChainManager {
   }
 
   /**
-   * Tüm chain'leri listele.
+   * List all chains.
    */
   list(statusFilter?: ChainStatus): Chain[] {
     this.ensureDir();
@@ -149,7 +149,7 @@ export class ChainManager {
         if (statusFilter && chain.status !== statusFilter) continue;
         chains.push(chain);
       } catch {
-        // Bozuk dosyayı atla
+        // Skip corrupt file
       }
     }
 
@@ -157,7 +157,7 @@ export class ChainManager {
   }
 
   /**
-   * Chain var mı kontrol et.
+   * Check if a chain exists.
    */
   exists(id: string): boolean {
     return existsSync(this.filePath(id));

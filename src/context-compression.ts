@@ -1,18 +1,18 @@
 /**
  * FOREMAN — Context Compression
  *
- * OpenClaw compaction.ts'den adapte edildi.
+ * Adapted from OpenClaw compaction.ts.
  *
- * Uzun thought zincirleri context window'u doldurunca:
- * 1. Eski thought'ları özetle (LLM ile)
- * 2. Özeti chain.contextSummary'ye yaz
- * 3. Tam thought'lar yerine özet kullan
+ * When long thought chains fill up the context window:
+ * 1. Summarize old thoughts (via LLM)
+ * 2. Write the summary to chain.contextSummary
+ * 3. Use summary instead of full thoughts
  *
- * OpenClaw'dan fark:
- * - AgentMessage yerine Thought kullanıyor
- * - Token tahmini basit karakter/4 (OpenClaw'da da benzer)
+ * Differences from OpenClaw:
+ * - Uses Thought instead of AgentMessage
+ * - Simple character/4 token estimation (similar to OpenClaw)
  * - Chunk splitting token-aware
- * - Fallback: oversized thought'ları nota düşür
+ * - Fallback: demote oversized thoughts to notes
  */
 
 import type { Thought, Layer } from "./types.js";
@@ -47,8 +47,8 @@ export function estimateThoughtsTokens(thoughts: Thought[]): number {
 // ─── CHUNK SPLITTING ─────────────────────────────────────────
 
 /**
- * Thought'ları token bütçesine göre parçala.
- * OpenClaw chunkMessagesByMaxTokens'dan adapte.
+ * Split thoughts into chunks by token budget.
+ * Adapted from OpenClaw chunkMessagesByMaxTokens.
  */
 export function chunkThoughtsByTokens(
   thoughts: Thought[],
@@ -72,7 +72,7 @@ export function chunkThoughtsByTokens(
     current.push(thought);
     currentTokens += tokens;
 
-    // Tek thought chunk'tan büyükse — kendi chunk'ına koy
+    // If a single thought is larger than a chunk — put it in its own chunk
     if (tokens > maxTokensPerChunk) {
       chunks.push(current);
       current = [];
@@ -90,17 +90,17 @@ export function chunkThoughtsByTokens(
 // ─── CONTEXT BUILDER ─────────────────────────────────────────
 
 /**
- * Thought'lardan compact context metni oluştur.
+ * Build compact context text from thoughts.
  *
- * Strateji:
- * 1. Son N thought'u tam dahil et (freshness)
- * 2. Daha eski thought'ları özetlerine düşür
- * 3. Toplam token bütçesini aşma
+ * Strategy:
+ * 1. Include last N thoughts in full (freshness)
+ * 2. Reduce older thoughts to their summaries
+ * 3. Do not exceed the total token budget
  */
 export function buildCompactContext(params: {
   thoughts: Thought[];
   maxTokens: number;
-  /** Son kaç thought tam dahil edilsin (default: 3) */
+  /** How many recent thoughts to include in full (default: 3) */
   recentFullCount?: number;
   /** Mevcut chain context summary */
   existingSummary?: string;
@@ -129,7 +129,7 @@ export function buildCompactContext(params: {
   // 1. Mevcut summary varsa ekle
   if (params.existingSummary) {
     const summaryTokens = estimateTokens(params.existingSummary);
-    if (usedTokens + summaryTokens < maxTokens * 0.3) { // summary max %30 alsın
+    if (usedTokens + summaryTokens < maxTokens * 0.3) { // summary should take max 30%
       parts.push(`## Previous Context\n${params.existingSummary}`);
       usedTokens += summaryTokens;
     }
@@ -140,7 +140,7 @@ export function buildCompactContext(params: {
   const recentThoughts = thoughts.slice(recentStart);
   const olderThoughts = thoughts.slice(0, recentStart);
 
-  // 3. Eski thought'ları özet olarak ekle
+  // 3. Add older thoughts as summaries
   let summarizedCount = 0;
   if (olderThoughts.length > 0) {
     const summaryLines: string[] = [];
@@ -150,7 +150,7 @@ export function buildCompactContext(params: {
       const line = `- [${t.id}/${t.layer}] ${t.input.slice(0, 60)}… → ${(t.output || "").slice(0, 80)}… (${conf})`;
       const lineTokens = estimateTokens(line);
 
-      if (usedTokens + lineTokens > maxTokens * 0.5) break; // eski thought'lar max %50
+      if (usedTokens + lineTokens > maxTokens * 0.5) break; // older thoughts max 50%
 
       summaryLines.push(line);
       usedTokens += lineTokens;
@@ -162,7 +162,7 @@ export function buildCompactContext(params: {
     }
   }
 
-  // 4. Son thought'ları tam dahil et
+  // 4. Include recent thoughts in full
   let includedFull = 0;
   for (const t of recentThoughts) {
     const section = formatThoughtForContext(t);
@@ -216,8 +216,8 @@ const MIN_CHUNK_RATIO = 0.15;
 const SAFETY_MARGIN = 1.2;
 
 /**
- * Thought boyutuna göre adaptif chunk oranı hesapla.
- * OpenClaw computeAdaptiveChunkRatio'dan adapte.
+ * Calculate adaptive chunk ratio based on thought size.
+ * Adapted from OpenClaw computeAdaptiveChunkRatio.
  */
 export function computeAdaptiveChunkRatio(
   thoughts: Thought[],
@@ -229,7 +229,7 @@ export function computeAdaptiveChunkRatio(
   const avgTokens = (totalTokens / thoughts.length) * SAFETY_MARGIN;
   const avgRatio = avgTokens / contextWindow;
 
-  // Ortalama thought context'in %10'undan büyükse chunk oranını düşür
+  // If average thought is larger than 10% of the context, reduce chunk ratio
   if (avgRatio > 0.1) {
     const reduction = Math.min(avgRatio * 2, BASE_CHUNK_RATIO - MIN_CHUNK_RATIO);
     return Math.max(MIN_CHUNK_RATIO, BASE_CHUNK_RATIO - reduction);
@@ -241,13 +241,13 @@ export function computeAdaptiveChunkRatio(
 // ─── SHOULD COMPACT ──────────────────────────────────────────
 
 /**
- * Compaction gerekli mi?
- * Thought zinciri context window'un belirli bir oranını aşıyorsa true.
+ * Is compaction needed?
+ * Returns true if the thought chain exceeds a certain ratio of the context window.
  */
 export function shouldCompact(params: {
   thoughts: Thought[];
   contextWindow: number;
-  threshold?: number;  // default: 0.6 — context'in %60'ını geçince compact
+  threshold?: number;  // default: 0.6 — compact when exceeding 60% of context
 }): boolean {
   const threshold = params.threshold ?? 0.6;
   const totalTokens = estimateThoughtsTokens(params.thoughts);

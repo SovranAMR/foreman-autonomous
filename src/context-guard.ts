@@ -1,14 +1,14 @@
 /**
  * FOREMAN — Context Window Guard
  *
- * OpenClaw context-window-guard.ts'den adapte.
+ * Adapted from OpenClaw context-window-guard.ts.
  *
- * Her LLM çağrısından önce context window kontrolü:
- * - Prompt + context toplam token'ı model limitini aşıyor mu?
- * - Aşıyorsa otomatik compaction tetikle
- * - Hâlâ sığmıyorsa BLOCK
+ * Context window check before each LLM call:
+ * - Does prompt + context total tokens exceed the model limit?
+ * - If so, trigger automatic compaction
+ * - If it still doesn't fit, BLOCK
  *
- * Model context window bilgileri provider'dan gelir.
+ * Model context window info comes from the provider.
  */
 
 import type { Layer } from "./types.js";
@@ -16,13 +16,13 @@ import { estimateTokens } from "./context-compression.js";
 
 // ─── CONSTANTS ───────────────────────────────────────────────
 
-/** Mutlak minimum context window — bunun altında LLM çağrısı yapma */
+/** Absolute minimum context window — do not make LLM calls below this */
 export const CONTEXT_WINDOW_HARD_MIN = 8_000;
 
-/** Uyarı eşiği — bu kadar az kaldıysa compaction düşün */
+/** Warning threshold — consider compaction if this little remains */
 export const CONTEXT_WINDOW_WARN_BELOW = 16_000;
 
-/** Model başına bilinen context window boyutları (token) */
+/** Known context window sizes per model (tokens) */
 export const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   "claude-opus": 200_000,
   "claude-sonnet": 200_000,
@@ -40,37 +40,37 @@ const DEFAULT_CONTEXT_WINDOW = 128_000;
 // ─── TYPES ───────────────────────────────────────────────────
 
 export interface ContextWindowInfo {
-  /** Model'in toplam context window'u */
+  /** Model's total context window */
   totalTokens: number;
-  /** Şu anda kullanılan token tahmini */
+  /** Estimated tokens currently used */
   usedTokens: number;
-  /** Kalan token */
+  /** Remaining tokens */
   remainingTokens: number;
-  /** Kullanım oranı (0-1) */
+  /** Usage ratio (0-1) */
   usageRatio: number;
-  /** Kaynak (model bilinen mi, default mı) */
+  /** Source (is the model known or default) */
   source: "known" | "default";
 }
 
 export interface ContextWindowGuardResult extends ContextWindowInfo {
-  /** Compaction önerilir mi */
+  /** Is compaction recommended */
   shouldCompact: boolean;
-  /** LLM çağrısı güvenli mi */
+  /** Is the LLM call safe */
   isSafe: boolean;
-  /** Uyarı mesajı (varsa) */
+  /** Warning message (if any) */
   warning?: string;
 }
 
 // ─── GUARD ───────────────────────────────────────────────────
 
 /**
- * Model için context window boyutunu belirle.
+ * Determine context window size for a model.
  */
 export function resolveContextWindow(model: string): { tokens: number; source: "known" | "default" } {
   const known = KNOWN_CONTEXT_WINDOWS[model];
   if (known) return { tokens: known, source: "known" };
 
-  // Model adından tahmin
+  // Guess from model name
   for (const [key, value] of Object.entries(KNOWN_CONTEXT_WINDOWS)) {
     if (model.includes(key)) return { tokens: value, source: "known" };
   }
@@ -79,15 +79,15 @@ export function resolveContextWindow(model: string): { tokens: number; source: "
 }
 
 /**
- * Context window durumunu değerlendir.
- * Her LLM çağrısından ÖNCE çağır.
+ * Evaluate context window status.
+ * Call BEFORE each LLM call.
  */
 export function evaluateContextWindow(params: {
   model: string;
   systemPromptTokens: number;
   userPromptTokens: number;
   contextTokens: number;
-  /** Yanıt için ayrılacak token (default: 4000) */
+  /** Tokens to reserve for response (default: 4000) */
   reserveForResponse?: number;
 }): ContextWindowGuardResult {
   const { tokens: totalTokens, source } = resolveContextWindow(params.model);
@@ -120,7 +120,7 @@ export function evaluateContextWindow(params: {
 }
 
 /**
- * Prompt metinlerinden token tahminleriyle guard çalıştır.
+ * Run guard with token estimates from prompt texts.
  * Convenience wrapper.
  */
 export function guardContextWindow(params: {

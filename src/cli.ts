@@ -71,28 +71,50 @@ program
 
 // ─── DEFAULT COMMAND (welcome screen) ─────────────────────────
 
-program.action(() => {
+program.action(async () => {
+  // ── Spark rain entrance ──
+  await animateSparkRain(60, 40);
+
+  // ── Logo ──
   printLogo();
 
+  // ── Dwarf strikes the anvil ──
+  await animateDwarf(1600, 120);
+  console.log("");
+
+  // ── Forge divider ──
+  forgeDivider();
+  console.log("");
+
+  // ── Commands ──
   console.log(brand.gold("  ◆ Commands\n"));
-  console.log(`    ${brand.cyan("setup")}       ${brand.dim("Configure API keys (Anthropic / OpenAI / Google)")}`);
-  console.log(`    ${brand.cyan("login")}       ${brand.dim("Authenticate with Google Antigravity OAuth")}`);
-  console.log(`    ${brand.cyan("doctor")}      ${brand.dim("System health check")}`);
-  console.log(`    ${brand.cyan("init")} ${brand.dim("<name>")} ${brand.dim("Initialize a new Foreman project")}`);
-  console.log(`    ${brand.cyan("status")}      ${brand.dim("Show current project status")}`);
-  console.log(`    ${brand.cyan("run")} ${brand.dim("<task>")}  ${brand.dim("Run a task through the full pipeline")}`);
-  console.log(`    ${brand.cyan("task")}        ${brand.dim("Task management")}`);
-  console.log(`    ${brand.cyan("board")}       ${brand.dim("Kanban board view")}`);
-  console.log(`    ${brand.cyan("internals")}   ${brand.dim("Developer tools (debug/inspect)")}`);
+  const cmds = [
+    ["run <task>  ", "Run a task through the full pipeline"],
+    ["login       ", "Authenticate with Google Antigravity OAuth"],
+    ["setup       ", "Configure API keys (Anthropic / OpenAI / Google)"],
+    ["init <name> ", "Initialize a new Foreman project"],
+    ["status      ", "Show current project status"],
+    ["doctor      ", "System health check"],
+    ["task        ", "Task management (add / list / show / done)"],
+    ["board       ", "Kanban board view"],
+    ["internals   ", "Developer tools (debug / inspect)"],
+  ];
+  for (const [cmd, desc] of cmds) {
+    console.log(`    ${brand.cyan(cmd)} ${brand.dim(desc)}`);
+  }
   console.log("");
 
+  // ── Quick Start ──
   console.log(brand.gold("  ◆ Quick Start\n"));
-  console.log(`    ${brand.dim("$")} ${brand.cyan("foreman login")}              ${brand.dim("# authenticate via Google OAuth")}`);
-  console.log(`    ${brand.dim("$")} ${brand.cyan("foreman init my-project")}    ${brand.dim("# create a project")}`);
-  console.log(`    ${brand.dim("$")} ${brand.cyan('foreman run "build an API"')} ${brand.dim("# run a task")}`);
+  console.log(`    ${brand.dim("$")} ${brand.cyan("foreman login")}              ${brand.dim("# one-time auth")}`);
+  console.log(`    ${brand.dim("$")} ${brand.cyan("foreman init my-project")}    ${brand.dim("# scaffold a project")}`);
+  console.log(`    ${brand.dim("$")} ${brand.cyan('foreman run "build an API"')} ${brand.dim("# fire up the forge")}`);
   console.log("");
 
-  console.log(`    ${brand.dim("https://github.com/nicksov/foreman")}`);
+  // ── Idle forge art ──
+  printIdleForge();
+
+  console.log(`    ${brand.dim("https://github.com/SovranAMR/foreman")}`);
   console.log("");
 });
 

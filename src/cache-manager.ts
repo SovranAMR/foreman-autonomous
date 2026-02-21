@@ -1,13 +1,13 @@
 /**
  * FOREMAN — Cache Manager
  *
- * LLM çağrı cache'i — aynı prompt tekrar gelirse cache'den döndür.
+ * LLM call cache — return from cache if the same prompt comes again.
  *
  * Hash: SHA-256(systemPrompt + userPrompt + model)
- * TTL: katman bazlı (vizyoner uzun, worker kısa)
- * Eviction: LRU (en az kullanılan ilk silinir)
+ * TTL: layer-based (visioner long, worker short)
+ * Eviction: LRU (least recently used evicted first)
  *
- * Her cache entry: {projectRoot}/cache/cch_XXX.json
+ * Each cache entry: {projectRoot}/cache/cch_XXX.json
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
@@ -18,32 +18,32 @@ import type { CacheEntry, Layer } from "./types.js";
 // ─── CONFIG ──────────────────────────────────────────────────
 
 export interface CacheConfig {
-  /** Cache açık mı */
+  /** Whether cache is enabled */
   enabled: boolean;
-  /** Max cache entry sayısı */
+  /** Max number of cache entries */
   maxEntries: number;
-  /** Cache'lenecek katmanlar (bazı katmanlar skip edilebilir) */
+  /** Layers to cache (some layers can be skipped) */
   cacheableLayers: Layer[];
-  /** Katman bazlı TTL — her katmanın cache ömrü farklı */
+  /** Layer-based TTL — each layer has a different cache lifetime */
   layerTtlMs: Record<Layer, number>;
 }
 
 /**
- * Katman bazlı TTL:
- * - Visioner: 24 saat — vizyon nadiren değişir
- * - Strategist: 4 saat — plan değişebilir ama sık değil
- * - Researcher: 2 saat — araştırma sonuçları güncel olmalı
- * - Worker: 30 dk — uygulama bağlama çok duyarlı
+ * Layer-based TTL:
+ * - Visioner: 24 hours — vision rarely changes
+ * - Strategist: 4 hours — plan may change but not often
+ * - Researcher: 2 hours — research results should stay current
+ * - Worker: 30 min — execution is very context-sensitive
  */
 const DEFAULT_CACHE_CONFIG: CacheConfig = {
   enabled: true,
   maxEntries: 500,
   cacheableLayers: ["visioner", "strategist", "researcher", "worker"],
   layerTtlMs: {
-    visioner: 86_400_000,   // 24 saat
-    strategist: 14_400_000, // 4 saat
-    researcher: 7_200_000,  // 2 saat
-    worker: 1_800_000,      // 30 dakika
+    visioner: 86_400_000,   // 24 hours
+    strategist: 14_400_000, // 4 hours
+    researcher: 7_200_000,  // 2 hours
+    worker: 1_800_000,      // 30 minutes
   },
 };
 
@@ -74,7 +74,7 @@ export class CacheManager {
   }
 
   /**
-   * Event callback ayarla — session/memory entegrasyonu için.
+   * Set event callback — for session/memory integration.
    */
   onEvent(callback: CacheEventCallback): void {
     this.eventCallback = callback;
@@ -85,7 +85,7 @@ export class CacheManager {
   }
 
   /**
-   * Cache key üret — prompt + model hash'i.
+   * Generate cache key — prompt + model hash.
    */
   makeKey(systemPrompt: string, userPrompt: string, model: string): string {
     const raw = `${systemPrompt}\n---\n${userPrompt}\n---\n${model}`;
@@ -93,14 +93,14 @@ export class CacheManager {
   }
 
   /**
-   * Katmana göre TTL al.
+   * Get TTL for a given layer.
    */
   getTtlForLayer(layer: Layer): number {
     return this.config.layerTtlMs[layer] ?? 3_600_000;
   }
 
   /**
-   * Cache'den oku. TTL geçmişse null döner.
+   * Read from cache. Returns null if TTL has expired.
    */
   get(key: string): CacheEntry | null {
     if (!this.config.enabled) return null;
@@ -111,7 +111,7 @@ export class CacheManager {
     try {
       const entry = JSON.parse(readFileSync(filePath, "utf-8")) as CacheEntry;
 
-      // TTL kontrolü
+      // TTL check
       const age = Date.now() - new Date(entry.createdAt).getTime();
       if (age > entry.ttlMs) {
         unlinkSync(filePath);
@@ -119,7 +119,7 @@ export class CacheManager {
         return null;
       }
 
-      // Hit count artır
+      // Increment hit count
       entry.hitCount++;
       entry.lastAccessedAt = new Date().toISOString();
       writeFileSync(filePath, JSON.stringify(entry, null, 2), "utf-8");
@@ -139,7 +139,7 @@ export class CacheManager {
   }
 
   /**
-   * Cache'e yaz — katman bazlı TTL ile.
+   * Write to cache — with layer-based TTL.
    */
   set(
     key: string,

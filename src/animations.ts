@@ -1,13 +1,13 @@
 /**
  * FOREMAN — Terminal Animations
  *
- * Gerçek yanıp sönen, hareket eden CLI animasyonları.
- * ANSI escape kodları ile cursor kontrol, frame-based rendering.
+ * Real blinking, moving CLI animations.
+ * Cursor control with ANSI escape codes, frame-based rendering.
  *
- * - Çekiç vuran dwarf (4 frame loop)
- * - Kıvılcım yağmuru
- * - Forge ateşi (breathing efekt)
- * - Phase geçiş animasyonu
+ * - Hammer-striking dwarf (4 frame loop)
+ * - Spark rain
+ * - Forge fire (breathing effect)
+ * - Phase transition animation
  * - Progress anvil
  */
 
@@ -35,7 +35,7 @@ function clearLines(n: number): string {
 // ─── DWARF FORGE ANIMATION ──────────────────────────────────
 
 const DWARF_FRAMES_RAW = [
-  // Frame 0: Bekleme — çekiç yukarıda
+  // Frame 0: Idle — hammer raised
   [
     `         .  ·  .         `,
     `        ╔═╗  /\\         `,
@@ -45,7 +45,7 @@ const DWARF_FRAMES_RAW = [
     `        / \\ ╚══╝        `,
     `       /   \\ ░▒▓        `,
   ],
-  // Frame 1: Çekiç iniyor
+  // Frame 1: Hammer swinging down
   [
     `                         `,
     `        ╔═╗   *         `,
@@ -55,7 +55,7 @@ const DWARF_FRAMES_RAW = [
     `        / \\ ╚══╝        `,
     `       /   \\ ░▒▓        `,
   ],
-  // Frame 2: VURUŞ! Kıvılcımlar!
+  // Frame 2: STRIKE! Sparks!
   [
     `      *  ✦  *    ✦      `,
     `        ╔═╗  ✧    *     `,
@@ -65,7 +65,7 @@ const DWARF_FRAMES_RAW = [
     `        / \\ ░▒▓    ✦   `,
     `     *  /   \\  ✦  *     `,
   ],
-  // Frame 3: Kıvılcımlar sönüyor
+  // Frame 3: Sparks fading
   [
     `           ·        ·   `,
     `        ╔═╗    ·        `,
@@ -96,10 +96,10 @@ function colorDwarfFrame(frameIdx: number): string[] {
 }
 
 /**
- * Çekiç vuran dwarf animasyonu.
- * @param durationMs - toplam süre (ms)
- * @param frameDelayMs - frame arası gecikme (ms)
- * @returns Promise — animasyon bitince resolve olur
+ * Hammer-striking dwarf animation.
+ * @param durationMs - total duration (ms)
+ * @param frameDelayMs - delay between frames (ms)
+ * @returns Promise — resolves when animation finishes
  */
 export async function animateDwarf(durationMs = 2400, frameDelayMs = 300): Promise<void> {
   const frameCount = DWARF_FRAMES_RAW.length;
@@ -108,7 +108,7 @@ export async function animateDwarf(durationMs = 2400, frameDelayMs = 300): Promi
 
   process.stdout.write(HIDE_CURSOR);
 
-  // İlk frame'i bas
+  // Print first frame
   const firstFrame = colorDwarfFrame(0);
   for (const line of firstFrame) {
     process.stdout.write(`    ${line}\n`);
@@ -118,10 +118,10 @@ export async function animateDwarf(durationMs = 2400, frameDelayMs = 300): Promi
     await sleep(frameDelayMs);
     const frame = colorDwarfFrame(i % frameCount);
 
-    // Önceki frame'i sil
+    // Clear previous frame
     process.stdout.write(clearLines(lineCount));
 
-    // Yeni frame'i bas
+    // Print new frame
     for (const line of frame) {
       process.stdout.write(`    ${line}\n`);
     }
@@ -142,7 +142,7 @@ function randomSpark(): string {
 }
 
 /**
- * Kıvılcım yağmuru — genişlik boyunca rastgele kıvılcımlar.
+ * Spark rain — random sparks across the width.
  */
 export async function animateSparkRain(
   width = 50,
@@ -152,7 +152,7 @@ export async function animateSparkRain(
   const totalFrames = Math.ceil(durationMs / frameDelayMs);
 
   process.stdout.write(HIDE_CURSOR);
-  process.stdout.write("\n"); // boş satır
+  process.stdout.write("\n"); // empty line
 
   for (let i = 0; i < totalFrames; i++) {
     if (i > 0) process.stdout.write(MOVE_UP(1) + CLEAR_LINE);
@@ -184,7 +184,7 @@ const FIRE_FRAMES = [
 ];
 
 /**
- * Forge ateşi — nefes alıp veren alev animasyonu.
+ * Forge fire — breathing flame animation.
  */
 export async function animateFire(durationMs = 1500, frameDelayMs = 200): Promise<void> {
   const totalFrames = Math.ceil(durationMs / frameDelayMs);
@@ -204,14 +204,14 @@ export async function animateFire(durationMs = 1500, frameDelayMs = 200): Promis
 // ─── FORGE SPINNER ───────────────────────────────────────────
 
 const SPINNER_FRAMES = [
-  { char: "⠋", label: "ısıtılıyor...",   color: brand.ember },
-  { char: "⠙", label: "ısıtılıyor...",   color: brand.orange },
-  { char: "⠹", label: "dövülüyor...",    color: brand.gold },
-  { char: "⠸", label: "dövülüyor...",    color: brand.goldBright },
-  { char: "⠼", label: "şekilleniyor...", color: brand.green },
-  { char: "⠴", label: "şekilleniyor...", color: brand.cyan },
-  { char: "⠦", label: "sertleşiyor...", color: brand.purple },
-  { char: "⠧", label: "soğuyor...",      color: brand.steel },
+  { char: "⠋", label: "heating...",   color: brand.ember },
+  { char: "⠙", label: "heating...",   color: brand.orange },
+  { char: "⠹", label: "hammering...", color: brand.gold },
+  { char: "⠸", label: "hammering...", color: brand.goldBright },
+  { char: "⠼", label: "shaping...",   color: brand.green },
+  { char: "⠴", label: "shaping...",   color: brand.cyan },
+  { char: "⠦", label: "tempering...", color: brand.purple },
+  { char: "⠧", label: "cooling...",   color: brand.steel },
 ];
 
 export interface SpinnerHandle {
@@ -219,8 +219,8 @@ export interface SpinnerHandle {
 }
 
 /**
- * Forge spinner — uzun işlem beklerken dönen animasyon.
- * Durdurmak için handle.stop() çağır.
+ * Forge spinner — spinning animation while waiting for long operations.
+ * Call handle.stop() to stop it.
  */
 export function startForgeSpinner(label?: string): SpinnerHandle {
   let frameIdx = 0;
@@ -265,7 +265,7 @@ const PHASE_SYMBOLS: Record<string, string> = {
 };
 
 /**
- * Phase geçiş animasyonu — eski phase sönerken yeni parlıyor.
+ * Phase transition animation — old phase fades out while new one lights up.
  */
 export async function animatePhaseTransition(
   fromPhase: string | null,
@@ -275,7 +275,7 @@ export async function animatePhaseTransition(
 
   process.stdout.write(HIDE_CURSOR);
 
-  // Fade in efekti: nokta nokta yazı beliriyor
+  // Fade-in effect: text appears dot by dot
   const name = toPhase.toUpperCase();
   const steps = [
     `    ${brand.dim("·")}`,
@@ -300,7 +300,7 @@ export async function animatePhaseTransition(
 // ─── PROGRESS ANVIL ──────────────────────────────────────────
 
 /**
- * Anvil üzerinde progress — her adımda çekiç sesi.
+ * Progress on the anvil — hammer sound at each step.
  */
 export async function animateProgressStrike(
   current: number,
@@ -312,11 +312,11 @@ export async function animateProgressStrike(
   const filled = Math.round(ratio * barLen);
   const percent = `${(ratio * 100).toFixed(0)}%`;
 
-  // Çekiç vuruş patternleri
+  // Hammer strike patterns
   const strikes = ["⚒", "🔨", "⚒", "🔨"];
   const strike = strikes[current % strikes.length];
 
-  // Kıvılcım patternleri
+  // Spark patterns
   const sparks = current % 3 === 0
     ? ` ${brand.gold("✦")}${brand.ember("✧")}${brand.gold("✦")}`
     : current % 3 === 1
@@ -343,13 +343,13 @@ export async function animateProgressStrike(
 // ─── COMPLETION FANFARE ──────────────────────────────────────
 
 /**
- * Tamamlanma kutlaması — kıvılcım patlaması + metin.
+ * Completion celebration — spark burst + text.
  */
 export async function animateCompletion(success: boolean): Promise<void> {
   process.stdout.write(HIDE_CURSOR);
 
   if (success) {
-    // Kıvılcım patlaması
+    // Spark burst
     const burstFrames = [
       `                    ${brand.gold("✦")}`,
       `               ${brand.ember("*")} ${brand.gold("✦")} ${brand.orange("✧")}`,
@@ -373,7 +373,7 @@ export async function animateCompletion(success: boolean): Promise<void> {
     console.log(grad.forge("         ║  ⚔️  BLADE FORGED!   ║"));
     console.log(grad.forge("         ╚═══════════════════════╝"));
   } else {
-    // Sönen kor animasyonu
+    // Fading ember animation
     const dimFrames = [
       `    ${brand.orange("( ( ( ")}${brand.ember("🔥")}${brand.orange(" ) ) )")}`,
       `    ${brand.dim("  ( (")} ${brand.ember("🔥")} ${brand.dim(") )  ")}`,
@@ -398,7 +398,7 @@ export async function animateCompletion(success: boolean): Promise<void> {
 // ─── TYPING EFFECT ───────────────────────────────────────────
 
 /**
- * Daktilo efekti — metin karakter karakter yazılır.
+ * Typewriter effect — text appears character by character.
  */
 export async function typeText(
   text: string,

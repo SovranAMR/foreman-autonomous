@@ -1,8 +1,8 @@
 /**
  * FOREMAN — Anthropic Provider
  *
- * Claude API üzerinden gerçek LLM çağrısı.
- * ANTHROPIC_API_KEY env var'dan okunur.
+ * Real LLM calls via the Claude API.
+ * ANTHROPIC_API_KEY is read from env vars.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -10,7 +10,7 @@ import type { LLMProvider, LLMMessage, GenerateOptions, GenerateResult } from ".
 
 // ─── MODEL MAPPING ───────────────────────────────────────────
 
-/** Kısa model adından Anthropic API model adına */
+/** Short model name to Anthropic API model name */
 const MODEL_MAP: Record<string, string> = {
   "claude-opus": "claude-opus-4-0520",
   "claude-sonnet": "claude-sonnet-4-20250514",
@@ -48,7 +48,7 @@ export class AnthropicProvider implements LLMProvider {
     messages: LLMMessage[],
     options: GenerateOptions,
   ): Promise<GenerateResult> {
-    // System mesajını ayır (Anthropic API ayrı system param alıyor)
+    // Separate system message (Anthropic API takes a separate system param)
     const systemMsg = messages.find(m => m.role === "system");
     const nonSystemMsgs = messages.filter(m => m.role !== "system");
 
@@ -65,7 +65,7 @@ export class AnthropicProvider implements LLMProvider {
       messages: anthropicMessages,
     });
 
-    // Text çıkar
+    // Extract text
     const text = response.content
       .filter(block => block.type === "text")
       .map(block => (block as { type: "text"; text: string }).text)
