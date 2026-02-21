@@ -350,6 +350,8 @@ async function handleSlashCommand(
       console.log(`    ${brand.cyan("list_processes")} ${brand.dim("Active background processes")}`);
       console.log(`    ${brand.cyan("approval_audit")}${brand.dim(" Command approval history")}`);
       console.log(`    ${brand.cyan("git_diff")}       ${brand.dim("Classified git diff analysis")}`);
+      console.log(`    ${brand.cyan("edit_range")}     ${brand.dim("Replace content by line range")}`);
+      console.log(`    ${brand.cyan("edit_undo")}      ${brand.dim("Undo last edit on a file")}`);
       console.log("");
       console.log(`    ${brand.dim("Foreman uses these automatically based on your requests.")}`);
       console.log("");

@@ -24,7 +24,7 @@
  */
 
 import { Command } from "commander";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { StateManager } from "./state.js";
 import { ThoughtManager } from "./thought-manager.js";
@@ -64,6 +64,8 @@ import type { TaskPriority, TaskType } from "./types.js";
 import { scanProject } from "./security-scanner.js";
 import { checkChainHealth } from "./chain-repair.js";
 import { repairTranscript } from "./transcript-repair.js";
+import { GitEngine } from "./git-engine.js";
+import { ExecutionEngine } from "./execution-engine.js";
 
 const program = new Command();
 
@@ -1005,6 +1007,29 @@ intCmd
     console.log("");
   });
 
+intCmd
+  .command("approvals")
+  .description("Approval engine audit trail")
+  .option("-d, --dir <path>", "Project directory")
+  .option("-n, --limit <count>", "Max entries", "20")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const auditPath = join(projectRoot, ".foreman", "approvals.json");
+    if (!existsSync(auditPath)) {
+      console.log(`  ${icon.pending} No approval history yet.`);
+      return;
+    }
+    const data = JSON.parse(readFileSync(auditPath, "utf-8"));
+    const history = (data.history ?? []).slice(-Number(opts.limit));
+    console.log(brand.gold(`\n  ◆ Approval History (${history.length} entries)\n`));
+    for (const h of history) {
+      const si = h.decision === "allow" ? brand.green("✔") : brand.red("✖");
+      const risk = h.riskScore !== undefined ? brand.dim(` risk:${(h.riskScore * 100).toFixed(0)}%`) : "";
+      console.log(`  ${si} ${brand.bold(h.command?.slice(0, 50) ?? "?")}${risk} ${brand.dim(`[${h.layer ?? "?"}]`)}`);
+    }
+    console.log("");
+  });
+
 // ─── SECURITY SCAN ────────────────────────────────────────────
 
 program
@@ -1084,6 +1109,39 @@ program
     } else {
       console.log(`  ${brand.red(`${totalIssues} total issues found`)}`);
     }
+
+    // Git conflict check against main branch
+    try {
+      const exec = new ExecutionEngine(projectRoot);
+      const git = new GitEngine(exec);
+      const branchResult = exec.runShell("git branch --show-current");
+      const currentBranch = branchResult.stdout?.trim() ?? "";
+
+      if (currentBranch && currentBranch !== "main" && currentBranch !== "master") {
+        const mainBranch = exec.runShell("git rev-parse --verify main 2>/dev/null").success ? "main" : "master";
+        const conflicts = git.checkConflicts(mainBranch);
+        if (conflicts.hasConflicts) {
+          console.log(`  ${brand.red("⚠")} ${brand.bold("Git conflicts")} with ${mainBranch}: ${conflicts.conflictingFiles.length} files`);
+          for (const f of conflicts.conflictingFiles.slice(0, 5)) {
+            console.log(`    ${brand.dim("→")} ${f}`);
+          }
+        } else {
+          console.log(`  ${icon.done} ${brand.green(`Clean merge with ${mainBranch}`)}`);
+        }
+      }
+
+      // Foreman commit history
+      const foremanHistory = git.getForemanHistory(5);
+      if (foremanHistory.length > 0) {
+        console.log(`\n  ${brand.gold("◆ Recent Foreman Commits")}`);
+        for (const entry of foremanHistory) {
+          console.log(`  ${brand.dim(entry.hash.slice(0, 7))} ${entry.message.slice(0, 60)}`);
+        }
+      }
+    } catch {
+      // Non-git project — skip
+    }
+
     console.log("");
   });
 

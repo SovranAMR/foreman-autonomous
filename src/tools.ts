@@ -400,9 +400,49 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: [],
     },
   },
+  {
+    name: "edit_range",
+    description:
+      "Replace content between specific line numbers. Use when you know exact line range to replace.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Path to the file to edit.",
+        },
+        start_line: {
+          type: "number",
+          description: "Start line (1-indexed, inclusive).",
+        },
+        end_line: {
+          type: "number",
+          description: "End line (1-indexed, inclusive).",
+        },
+        new_content: {
+          type: "string",
+          description: "Replacement content for the specified line range.",
+        },
+      },
+      required: ["path", "start_line", "end_line", "new_content"],
+    },
+  },
+  {
+    name: "edit_undo",
+    description:
+      "Undo the last edit on a file. Reverts to previous content.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Path to the file to undo.",
+        },
+      },
+      required: ["path"],
+    },
+  },
 ];
-
-// ─── TOOL EXECUTOR ───────────────────────────────────────────
 
 /**
  * Creates a tool executor bound to a project root via ExecutionEngine.
@@ -481,6 +521,10 @@ function createToolDispatcher(
           return executeApprovalAudit(projectRoot, call.args);
         case "git_diff":
           return executeGitDiff(gitEngine, call.args);
+        case "edit_range":
+          return executeEditRange(editEngine, call.args);
+        case "edit_undo":
+          return executeEditUndo(editEngine, call.args);
         default:
           return { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
       }
@@ -1121,6 +1165,52 @@ function executeGitDiff(git: GitEngine, args: Record<string, unknown>): ToolResu
   } catch {
     return { name: "git_diff", content: "Git diff failed (not a git repo?).", isError: true };
   }
+}
+
+function executeEditRange(editEngine: EditEngine, args: Record<string, unknown>): ToolResult {
+  const filePath = args.path as string;
+  const startLine = args.start_line as number;
+  const endLine = args.end_line as number;
+  const newContent = args.new_content as string;
+
+  if (!filePath || !startLine || !endLine || newContent === undefined) {
+    return { name: "edit_range", content: "Error: path, start_line, end_line, and new_content are required", isError: true };
+  }
+
+  const result = editEngine.editByLineRange({
+    filePath,
+    startLine,
+    endLine,
+    newContent,
+  });
+
+  if (!result.success) {
+    return { name: "edit_range", content: result.message, isError: true };
+  }
+
+  return {
+    name: "edit_range",
+    content: `Replaced lines ${startLine}-${endLine} in ${filePath}`,
+    isError: false,
+  };
+}
+
+function executeEditUndo(editEngine: EditEngine, args: Record<string, unknown>): ToolResult {
+  const filePath = args.path as string;
+  if (!filePath) {
+    return { name: "edit_undo", content: "Error: path is required", isError: true };
+  }
+
+  const result = editEngine.undo(filePath);
+  if (!result.success) {
+    return { name: "edit_undo", content: result.message, isError: true };
+  }
+
+  return {
+    name: "edit_undo",
+    content: `Undone last edit on ${filePath}`,
+    isError: false,
+  };
 }
 
 // ─── GEMINI FUNCTION DECLARATIONS FORMAT ─────────────────────

@@ -711,6 +711,18 @@ export class ExecutionEngine {
       this.activeProcesses.delete(sessionId);
     });
 
+    // If CommandQueue connected, wrap the promise through the queue
+    // This serializes async commands to prevent resource contention
+    if (this.commandQueue) {
+      const queuedPromise = this.commandQueue.enqueue({
+        execute: () => promise,
+        lane: "shell",
+        priority: "normal",
+      });
+      // Replace the handle's promise with the queued version
+      handle.promise = queuedPromise;
+    }
+
     return handle;
   }
 
