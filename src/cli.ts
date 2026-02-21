@@ -35,6 +35,8 @@ import { MockProvider } from "./provider.js";
 import { AnthropicProvider } from "./anthropic-provider.js";
 import { OpenAIProvider } from "./openai-provider.js";
 import { GeminiProvider } from "./gemini-provider.js";
+import { loginAntigravity } from "./antigravity-oauth.js";
+import { AntigravityProvider, loadCredentials, saveCredentials } from "./antigravity-provider.js";
 import { Orchestrator } from "./orchestrator.js";
 import { execSync } from "node:child_process";
 import { homedir } from "node:os";
@@ -75,6 +77,40 @@ program
     await runSetup();
   });
 
+// ─── LOGIN (Antigravity OAuth) ────────────────────────────────
+
+program
+  .command("login")
+  .description("Google Antigravity OAuth ile giriş yap (Gemini + Claude + GPT)")
+  .action(async () => {
+    printLogo();
+
+    const existingCreds = loadCredentials();
+    if (existingCreds && Date.now() < existingCreds.expiresAt) {
+      console.log(`    ${icon.done} ${brand.green("Zaten giriş yapılmış!")}`);
+      console.log(`    ${brand.dim("Email:")} ${existingCreds.email ?? "?"}`);
+      console.log(`    ${brand.dim("Project:")} ${existingCreds.projectId}`);
+      console.log(`    ${brand.dim("Expires:")} ${new Date(existingCreds.expiresAt).toLocaleString()}`);
+      console.log("");
+      console.log(`    ${brand.dim("Yeniden giriş için:")} ${brand.cyan("foreman login --force")}`);
+      console.log("");
+
+      const args = process.argv;
+      if (!args.includes("--force")) return;
+    }
+
+    try {
+      const creds = await loginAntigravity();
+      saveCredentials(creds);
+      console.log(`    ${icon.done} ${brand.green("Credentials kaydedildi!")}`);
+      console.log(`    ${brand.dim("Artık")} ${brand.cyan("foreman run")} ${brand.dim("ile Antigravity modellerini kullanabilirsiniz.")}`);
+      console.log("");
+    } catch (err: any) {
+      console.log(`    ${icon.fail} ${brand.red(err.message)}`);
+      process.exit(1);
+    }
+  });
+
 // ─── DOCTOR ───────────────────────────────────────────────────
 
 program
@@ -105,6 +141,17 @@ program
     // Providers
     console.log("");
     printProviderStatus();
+
+    // Antigravity OAuth
+    const antigravCreds = loadCredentials();
+    if (antigravCreds) {
+      const expired = Date.now() >= antigravCreds.expiresAt;
+      doctorItem(!expired, `Antigravity OAuth`, expired
+        ? `expired — foreman login`
+        : `${antigravCreds.email ?? "?"} (expires ${new Date(antigravCreds.expiresAt).toLocaleTimeString()})`);
+    } else {
+      doctorItem(false, `Antigravity OAuth`, "foreman login ile giriş yapın");
+    }
 
     // Config
     console.log("");
@@ -287,16 +334,29 @@ program
         try {
           const gemini = new GeminiProvider(googleKey);
           engine.providers.register(gemini);
-          console.log(`  ${icon.done} Google ${brand.dim("(Gemini)")}`);
+          console.log(`  ${icon.done} Google ${brand.dim("(Gemini API Key)")}`);
         } catch (e: any) {
           console.log(`  ${icon.fail} Google: ${brand.dim(e.message)}`);
+        }
+      }
+
+      // Antigravity OAuth credentials
+      const antigravCreds = loadCredentials();
+      if (antigravCreds) {
+        try {
+          const antigrav = new AntigravityProvider(antigravCreds);
+          engine.providers.register(antigrav);
+          console.log(`  ${icon.done} Antigravity ${brand.dim(`(${antigravCreds.email ?? "OAuth"})`)}`);
+        } catch (e: any) {
+          console.log(`  ${icon.fail} Antigravity: ${brand.dim(e.message)}`);
         }
       }
 
       if (engine.providers.size === 0) {
         console.log("");
         console.log(`  ${icon.fail} ${brand.red("Hiçbir LLM provider bulunamadı.")}`);
-        console.log(`     ${brand.cyan("foreman setup")} çalıştırarak API key ekleyin.`);
+        console.log(`     ${brand.cyan("foreman login")} — Google Antigravity OAuth (ücretsiz, önerilen)`);
+        console.log(`     ${brand.cyan("foreman setup")} — API key ile (Anthropic/OpenAI/Google)`);
         console.log(`     veya ${brand.dim("--mock")} flag'ı ile test edin.`);
         process.exit(1);
       }
