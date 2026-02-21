@@ -141,6 +141,11 @@ export class Engine {
     this.linkIntelligence = new LinkIntelligence();
 
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
+    // Connect ProcessRegistry to the GitEngine's ExecutionEngine
+    // so async processes get lifecycle tracking
+    // (Engine's own shell calls go through tools.ts → ExecutionEngine)
+
+    // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Cache → Session: cache hit'te session'a token tasarrufunu bildir
     this.cache.onEvent((event) => {
       if (event.type === "hit") {

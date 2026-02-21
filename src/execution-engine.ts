@@ -30,6 +30,8 @@ import {
 import { join, dirname, relative } from "node:path";
 import { execSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { ProcessRegistry, createSessionId } from "./process-registry.js";
+import type { Layer } from "./types.js";
 
 // ─── TYPES ───────────────────────────────────────────────────
 
@@ -191,12 +193,23 @@ export class ExecutionEngine {
   /** Active async processes */
   private activeProcesses = new Map<string, AsyncShellHandle>();
 
+  /** Process registry for lifecycle tracking */
+  private registry: ProcessRegistry | null = null;
+
   constructor(projectRoot: string, allowedPaths?: string[]) {
     this.projectRoot = projectRoot;
     this.allowedPaths = allowedPaths ?? [
       "src", "public", "components", "lib", "app", "pages",
       "styles", "test", "tests", "__tests__", "scripts", "docs",
     ];
+  }
+
+  /**
+   * Connect a ProcessRegistry for lifecycle tracking of async processes.
+   * When connected, runShellAsync automatically registers sessions.
+   */
+  connectRegistry(registry: ProcessRegistry): void {
+    this.registry = registry;
   }
 
   // ─── PATH SECURITY ──────────────────────────────────────
@@ -505,12 +518,27 @@ export class ExecutionEngine {
       }
     }
 
+    // ── Registry: register session if connected ──
+    const sessionId = createSessionId();
+    if (this.registry) {
+      this.registry.register({
+        id: sessionId,
+        command,
+        pid: child.pid,
+        cwd: options.cwd ?? this.projectRoot,
+      });
+    }
+
     child.stdout?.on("data", (data) => {
       const chunk = sanitizeBinaryOutput(data.toString());
       // Guard against unbounded memory growth
       if (outputBytes < MAX_OUTPUT_ACCUMULATE) {
         stdout += chunk;
         outputBytes += chunk.length;
+      }
+      // Stream to registry
+      if (this.registry) {
+        this.registry.appendOutput(sessionId, "stdout", chunk);
       }
     });
 
@@ -519,6 +547,10 @@ export class ExecutionEngine {
       if (outputBytes < MAX_OUTPUT_ACCUMULATE) {
         stderr += chunk;
         outputBytes += chunk.length;
+      }
+      // Stream to registry
+      if (this.registry) {
+        this.registry.appendOutput(sessionId, "stderr", chunk);
       }
     });
 
@@ -536,6 +568,16 @@ export class ExecutionEngine {
 
         const durationMs = Date.now() - startedAt;
         const success = code === 0 && !timedOut;
+
+        // ── Registry: mark exited ──
+        if (this.registry) {
+          this.registry.markExited(
+            sessionId,
+            code ?? null,
+            _signal ?? null,
+            timedOut ? "timeout" : (killed ? "killed" : undefined),
+          );
+        }
 
         resolve({
           success,
@@ -561,7 +603,6 @@ export class ExecutionEngine {
       });
     });
 
-    const sessionId = `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const handle: AsyncShellHandle = {
       pid: child.pid,
       promise,

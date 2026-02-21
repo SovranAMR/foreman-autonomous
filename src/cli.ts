@@ -61,6 +61,9 @@ import { MemoryManager } from "./memory-manager.js";
 import { SessionManager } from "./session-manager.js";
 import { CacheManager } from "./cache-manager.js";
 import type { TaskPriority, TaskType } from "./types.js";
+import { scanProject } from "./security-scanner.js";
+import { checkChainHealth } from "./chain-repair.js";
+import { repairTranscript } from "./transcript-repair.js";
 
 const program = new Command();
 
@@ -999,6 +1002,88 @@ intCmd
   .action(() => {
     console.log(brand.gold("\n  ◆ Provider Status\n"));
     printProviderStatus();
+    console.log("");
+  });
+
+// ─── SECURITY SCAN ────────────────────────────────────────────
+
+program
+  .command("scan")
+  .description("Security scan — detect secrets, missing .gitignore entries, permissions")
+  .option("-d, --dir <path>", "Project directory")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const result = scanProject(projectRoot);
+
+    console.log(brand.gold("\n  ◆ Security Scan\n"));
+    console.log(`  Scanned ${brand.bold(String(result.scannedFiles))} files in ${result.duration}ms`);
+    console.log(`  Critical: ${result.summary.critical > 0 ? brand.red(String(result.summary.critical)) : brand.green("0")} | High: ${result.summary.high > 0 ? brand.red(String(result.summary.high)) : brand.green("0")} | Medium: ${brand.bold(String(result.summary.medium))} | Low: ${brand.dim(String(result.summary.low))}`);
+
+    if (result.findings.length > 0) {
+      console.log("");
+      for (const f of result.findings.slice(0, 25)) {
+        const sev = f.severity === "critical" ? brand.red(`[${f.severity.toUpperCase()}]`) :
+                    f.severity === "high" ? brand.red(`[${f.severity.toUpperCase()}]`) :
+                    brand.dim(`[${f.severity.toUpperCase()}]`);
+        console.log(`  ${sev} ${f.title}${f.file ? brand.dim(` — ${f.file}:${f.line ?? ""}`) : ""}`);
+        if (f.suggestion) console.log(`    ${brand.dim("→")} ${f.suggestion}`);
+      }
+      if (result.findings.length > 25) {
+        console.log(`  ${brand.dim(`... and ${result.findings.length - 25} more findings`)}`);
+      }
+    } else {
+      console.log(`  ${icon.done} ${brand.green("No security issues found!")}`);
+    }
+    console.log("");
+  });
+
+// ─── CHAIN REPAIR ─────────────────────────────────────────────
+
+program
+  .command("repair")
+  .description("Repair thought chains — fix orphans, stale thoughts, duplicates")
+  .option("-d, --dir <path>", "Project directory")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const chains = new ChainManager(projectRoot);
+    const thoughtsMgr = new ThoughtManager(projectRoot);
+    const allChains = chains.list();
+
+    console.log(brand.gold(`\n  ◆ Chain Repair (${allChains.length} chains)\n`));
+
+    let totalIssues = 0;
+    for (const chain of allChains) {
+      const chainThoughts = chain.thoughts
+        .map((id: string) => thoughtsMgr.get(id))
+        .filter((t: any) => t !== null);
+
+      const health = checkChainHealth(chainThoughts);
+      const transcript = repairTranscript(chainThoughts);
+
+      const issues = health.issueCount + transcript.report.totalRepairs;
+      totalIssues += issues;
+
+      const si = health.healthy && transcript.report.totalRepairs === 0
+        ? icon.done
+        : brand.red("✖");
+      console.log(`  ${si} ${brand.bold(chain.id)} ${brand.dim(chain.name)} — ${issues > 0 ? brand.red(`${issues} issues`) : brand.green("healthy")}`);
+
+      if (health.issues.length > 0) {
+        for (const issue of health.issues.slice(0, 5)) {
+          console.log(`    ${brand.dim("→")} ${issue.type}: ${issue.description}`);
+        }
+      }
+      if (transcript.report.totalRepairs > 0) {
+        console.log(`    ${brand.dim("→")} transcript: ${transcript.report.droppedOrphanResults} orphan results, ${transcript.report.droppedOrphanCalls} orphan calls, ${transcript.report.repairedContextRefs} broken refs`);
+      }
+    }
+
+    console.log("");
+    if (totalIssues === 0) {
+      console.log(`  ${icon.done} ${brand.green("All chains healthy!")}`);
+    } else {
+      console.log(`  ${brand.red(`${totalIssues} total issues found`)}`);
+    }
     console.log("");
   });
 
