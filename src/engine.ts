@@ -145,6 +145,9 @@ export class Engine {
     // so async processes get lifecycle tracking
     // (Engine's own shell calls go through tools.ts → ExecutionEngine)
 
+    // Attach signal bridge — forward SIGTERM/SIGINT to child processes
+    this.processRegistry.attachSignalBridge();
+
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Cache → Session: cache hit'te session'a token tasarrufunu bildir
     this.cache.onEvent((event) => {

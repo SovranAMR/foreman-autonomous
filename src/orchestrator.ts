@@ -16,6 +16,7 @@ import { Engine } from "./engine.js";
 import type { StepResult } from "./engine.js";
 import type { Layer, Thought, Chain } from "./types.js";
 import type { DecomposeParseResult, AtomizeParseResult } from "./parser.js";
+import { parseBuildOutput, parseTestOutput } from "./verification-engine.js";
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ export type OrchestratorEvent =
   | { type: "block_detected"; thought: Thought; reason: string }
   | { type: "format_retry"; phase: string; attempt: number; missing: string[] }
   | { type: "reflection"; summary: string; atomCount: number }
+  | { type: "verification"; phase: string; passed: boolean; detail: string }
   | { type: "pipeline_complete"; totalThoughts: number; totalTokens: number }
   | { type: "error"; message: string };
 
@@ -300,6 +302,53 @@ export class Orchestrator {
         }
 
         this.emit({ type: "phase_end", phase: "execute", detail: `Done: ${atom.slice(0, 40)}` });
+
+        // ── VERIFY: Parse worker's step7_verify for actionable results ──
+        if (execResult.thought.workerProtocol?.step7_verify) {
+          const verifyText = execResult.thought.workerProtocol.step7_verify;
+
+          // If worker ran build/test, parse the output for structured results
+          const hasBuild = /build|compile|tsc|tsx/i.test(verifyText);
+          const hasTest = /test|pass|fail|assert/i.test(verifyText);
+
+          if (hasBuild) {
+            const buildResult = parseBuildOutput(verifyText);
+            if (buildResult.errors.length > 0) {
+              this.emit({
+                type: "verification",
+                phase: "build",
+                passed: false,
+                detail: `${buildResult.errors.length} build errors in ${atom.slice(0, 30)}`,
+              });
+            } else {
+              this.emit({
+                type: "verification",
+                phase: "build",
+                passed: true,
+                detail: `Build clean for ${atom.slice(0, 30)}`,
+              });
+            }
+          }
+
+          if (hasTest) {
+            const testResult = parseTestOutput(verifyText);
+            if (testResult.failed > 0) {
+              this.emit({
+                type: "verification",
+                phase: "test",
+                passed: false,
+                detail: `${testResult.failed}/${testResult.total} tests failed in ${atom.slice(0, 30)}`,
+              });
+            } else if (testResult.total > 0) {
+              this.emit({
+                type: "verification",
+                phase: "test",
+                passed: true,
+                detail: `${testResult.passed}/${testResult.total} tests passed for ${atom.slice(0, 30)}`,
+              });
+            }
+          }
+        }
 
         // ── REFLECT every 5 atoms ──
         if (atomCount > 0 && atomCount % 5 === 0) {
