@@ -14,6 +14,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { MemoryEntry, MemoryCategory, MemorySource } from "./types.js";
+import { SimilarityEngine } from "./similarity-engine.js";
 
 // ─── INPUT TYPES ──────────────────────────────────────────────
 
@@ -199,44 +200,43 @@ export class MemoryManager {
   }
 
   /**
-   * Basit keyword search.
-   * Daha sonra embedding-based semantic search eklenebilir.
+   * Semantic search using TF-IDF + n-gram similarity.
+   *
+   * OpenClaw uses external embedding APIs (OpenAI, Gemini) + SQLite vector.
+   * Foreman computes similarity LOCALLY — zero API calls, zero cost.
+   *
+   * Upgraded from keyword-only (Jaccard word overlap) to proper
+   * TF-IDF cosine similarity + character n-gram overlap.
    */
   search(query: string, projectId?: string): MemorySearchResult[] {
     const all = this.list({ projectId });
-    const queryLower = query.toLowerCase();
-    const words = queryLower.split(/\s+/).filter(w => w.length > 2);
+    if (all.length === 0 || !query.trim()) return [];
 
-    const results: MemorySearchResult[] = [];
+    // Build similarity engine with current corpus
+    const engine = this.buildSimilarityEngine(all);
 
-    for (const entry of all) {
-      const contentLower = entry.content.toLowerCase();
-      const tagStr = entry.tags.join(" ").toLowerCase();
+    const results = engine.search(query, 20, 0.03);
 
-      let score = 0;
-      for (const word of words) {
-        if (contentLower.includes(word)) score += 0.3;
-        if (tagStr.includes(word)) score += 0.2;
-      }
+    return results.map(r => {
+      const entry = all.find(e => e.id === r.id);
+      if (!entry) return null;
 
-      // Category bonus
-      if (entry.category === "decision" || entry.category === "constraint") score += 0.1;
-
-      // Importance bonus
-      score += entry.importance * 0.2;
-
-      // Recency bonus
+      // Boost by importance and recency
+      let boostedScore = r.score;
+      boostedScore += entry.importance * 0.15;
       if (entry.lastUsedAt) {
-        const age = Date.now() - new Date(entry.lastUsedAt).getTime();
-        if (age < 3600_000) score += 0.1; // used within the last hour
+        const ageMs = Date.now() - new Date(entry.lastUsedAt).getTime();
+        if (ageMs < 3600_000) boostedScore += 0.1;  // used within last hour
+        else if (ageMs < 86400_000) boostedScore += 0.05;  // used within last day
+      }
+      if (entry.category === "decision" || entry.category === "constraint") {
+        boostedScore += 0.05;
       }
 
-      if (score > 0.1) {
-        results.push({ entry, score: Math.min(score, 1) });
-      }
-    }
-
-    return results.sort((a, b) => b.score - a.score);
+      return { entry, score: Math.min(boostedScore, 1) };
+    })
+    .filter((r): r is MemorySearchResult => r !== null)
+    .sort((a, b) => b.score - a.score);
   }
 
   // ─── BATCH OPERATIONS ──────────────────────────────────────
@@ -296,18 +296,18 @@ export class MemoryManager {
   }
 
   /**
-   * Check if similar content exists.
-   * Simple: if 70% of the first 80 characters match, consider it similar.
+   * Check if similar content exists using similarity engine.
+   * Upgraded from naive first-80-char Jaccard to proper TF-IDF + n-gram.
    */
   private findSimilar(content: string): MemoryEntry | null {
-    const target = content.toLowerCase().slice(0, 80);
     const all = this.list();
+    if (all.length === 0) return null;
 
-    for (const entry of all) {
-      const existing = entry.content.toLowerCase().slice(0, 80);
-      if (this.similarity(target, existing) > 0.7) {
-        return entry;
-      }
+    const engine = this.buildSimilarityEngine(all);
+    const dup = engine.hasDuplicate(content, 0.6);
+
+    if (dup.isDuplicate && dup.matchId) {
+      return all.find(e => e.id === dup.matchId) ?? null;
     }
     return null;
   }
@@ -324,6 +324,132 @@ export class MemoryManager {
     const intersection = [...wordsA].filter(w => wordsB.has(w)).length;
     const union = new Set([...wordsA, ...wordsB]).size;
     return union === 0 ? 0 : intersection / union;
+  }
+
+  /**
+   * Build a SimilarityEngine from current memory entries.
+   * Used by search() and findSimilar().
+   */
+  private buildSimilarityEngine(entries: MemoryEntry[]): SimilarityEngine {
+    const engine = new SimilarityEngine();
+    for (const entry of entries) {
+      const searchText = `${entry.content} ${entry.tags.join(" ")}`;
+      engine.index(entry.id, searchText);
+    }
+    engine.reindex();
+    return engine;
+  }
+
+  // ─── MEMORY CONSOLIDATION ─────────────────────────────────
+
+  /**
+   * Consolidate similar memories into one.
+   *
+   * OpenClaw has no memory consolidation.
+   * Foreman merges near-duplicate memories:
+   * - Keeps the higher-importance entry
+   * - Merges tags from both
+   * - Combines use counts
+   * - Expires the duplicate
+   *
+   * Returns number of memories consolidated.
+   */
+  consolidate(threshold: number = 0.7): number {
+    const all = this.list();
+    if (all.length < 2) return 0;
+
+    const engine = this.buildSimilarityEngine(all);
+    const merged = new Set<string>();
+    let count = 0;
+
+    for (let i = 0; i < all.length; i++) {
+      const entry = all[i];
+      if (merged.has(entry.id)) continue;
+
+      // Search for similar entries
+      const results = engine.search(entry.content + " " + entry.tags.join(" "), 5, threshold);
+
+      for (const result of results) {
+        if (result.id === entry.id || merged.has(result.id)) continue;
+
+        const other = all.find(e => e.id === result.id);
+        if (!other) continue;
+
+        // Merge: keep higher importance, combine metadata
+        const keeper = entry.importance >= other.importance ? entry : other;
+        const loser = keeper === entry ? other : entry;
+
+        // Merge tags
+        const combinedTags = [...new Set([...keeper.tags, ...loser.tags])];
+
+        // Update keeper
+        this.update(keeper.id, {
+          tags: combinedTags,
+          useCount: keeper.useCount + loser.useCount,
+          importance: Math.max(keeper.importance, loser.importance),
+        });
+
+        // Expire loser
+        this.expire(loser.id);
+        merged.add(loser.id);
+        count++;
+      }
+    }
+
+    return count;
+  }
+
+  // ─── CROSS-PROJECT PATTERNS ────────────────────────────────
+
+  /**
+   * Import high-value patterns from another project.
+   *
+   * OpenClaw has no cross-project memory.
+   * Foreman can transfer learned patterns (decisions, constraints,
+   * error solutions) from one project to another.
+   *
+   * Only imports entries with importance >= threshold and
+   * categories that are transferable (lesson, pattern, error).
+   */
+  importFromProject(
+    sourceProjectRoot: string,
+    importThreshold: number = 0.7,
+  ): { imported: number; skipped: number } {
+    const sourceMem = new MemoryManager(sourceProjectRoot);
+    const sourceEntries = sourceMem.list({ minImportance: importThreshold });
+
+    const transferableCategories: MemoryCategory[] = [
+      "lesson", "pattern", "error", "constraint",
+    ];
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const entry of sourceEntries) {
+      if (!transferableCategories.includes(entry.category)) {
+        skipped++;
+        continue;
+      }
+
+      // Check for duplicates in current project
+      const existing = this.findSimilar(entry.content);
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      this.create({
+        projectId: "imported",
+        category: entry.category,
+        content: `[from: ${sourceProjectRoot}] ${entry.content}`,
+        source: { type: "manual", ref: `imported:${entry.id}` },
+        importance: entry.importance * 0.8, // slightly lower for imports
+        tags: [...entry.tags, "imported"],
+      });
+      imported++;
+    }
+
+    return { imported, skipped };
   }
 
   /**

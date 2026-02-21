@@ -7,7 +7,7 @@
     "foreman": "./bin/foreman"
   },
   "scripts": {
-    "test": "npx tsx src/state.test.ts && npx tsx src/persistence.test.ts && npx tsx src/rate-limiter.test.ts && npx tsx src/parser.test.ts && npx tsx src/engine.test.ts && npx tsx src/orchestrator.test.ts && npx tsx src/enforce.test.ts && npx tsx src/task.test.ts && npx tsx src/memory.test.ts && npx tsx src/infra.test.ts && npx tsx src/execution.test.ts && npx tsx src/web.test.ts && npx tsx src/execution-v2.test.ts && npx tsx src/git-engine.test.ts",
+    "test": "npx tsx src/state.test.ts && npx tsx src/persistence.test.ts && npx tsx src/rate-limiter.test.ts && npx tsx src/parser.test.ts && npx tsx src/engine.test.ts && npx tsx src/orchestrator.test.ts && npx tsx src/enforce.test.ts && npx tsx src/task.test.ts && npx tsx src/memory.test.ts && npx tsx src/infra.test.ts && npx tsx src/execution.test.ts && npx tsx src/web.test.ts && npx tsx src/execution-v2.test.ts && npx tsx src/git-engine.test.ts && npx tsx src/similarity-engine.test.ts",
     "test:state": "npx tsx src/state.test.ts",
     "test:persistence": "npx tsx src/persistence.test.ts",
     "test:rate-limiter": "npx tsx src/rate-limiter.test.ts",
