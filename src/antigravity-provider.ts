@@ -143,6 +143,20 @@ function parseSSEResponse(body: string): { text: string; inputTokens: number; ou
   return { text: fullText, inputTokens, outputTokens };
 }
 
+// ─── CHAT MODELS (for REPL) ──────────────────────────────────
+
+/** Models available in the REPL chat mode */
+export const CHAT_MODELS: Array<{ id: string; label: string; model: string }> = [
+  { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro High",        model: "gemini-3.1-pro-high" },
+  { id: "gemini-3.1-pro-low",  label: "Gemini 3.1 Pro Low",         model: "gemini-3.1-pro-low" },
+  { id: "gemini-3-flash",      label: "Gemini 3 Flash",             model: "gemini-3-flash" },
+  { id: "claude-sonnet-4.6",   label: "Claude Sonnet 4.6 Thinking", model: "claude-sonnet-4-20250514" },
+  { id: "claude-opus-4.6",     label: "Claude Opus 4.6 Thinking",   model: "claude-opus-4-0520" },
+  { id: "gpt-oss-120b",        label: "GPT-OSS 120B Medium",        model: "gpt-oss-120b" },
+];
+
+export const DEFAULT_CHAT_MODEL = "claude-sonnet-4.6";
+
 // ─── PROVIDER ────────────────────────────────────────────────
 
 export class AntigravityProvider implements LLMProvider {
@@ -289,6 +303,187 @@ export class AntigravityProvider implements LLMProvider {
           },
           model,
         };
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+      }
+    }
+
+    throw lastError ?? new Error("All Antigravity endpoints failed");
+  }
+
+  /**
+   * Build the request body shared between generate() and streamChat().
+   */
+  private buildRequestBody(
+    messages: Array<{ role: string; content: string }>,
+    model: string,
+    maxTokens: number,
+  ) {
+    const systemMsg = messages.find(m => m.role === "system");
+    const nonSystemMsgs = messages.filter(m => m.role !== "system");
+
+    const contents = nonSystemMsgs.map(m => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+    const systemParts: Array<{ text: string }> = [];
+    if (systemMsg) {
+      systemParts.push({ text: systemMsg.content });
+    }
+
+    return {
+      project: this.credentials.projectId,
+      model,
+      request: {
+        contents,
+        ...(systemParts.length > 0 ? {
+          systemInstruction: { role: "user", parts: systemParts },
+        } : {}),
+        generationConfig: { maxOutputTokens: maxTokens },
+      },
+      requestType: "agent",
+      userAgent: "foreman",
+      requestId: `foreman-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    };
+  }
+
+  /**
+   * Stream a chat completion — yields text chunks as they arrive from SSE.
+   * Used by the REPL for real-time token streaming.
+   */
+  async streamChat(
+    messages: Array<{ role: string; content: string }>,
+    modelId: string,
+    onToken: (token: string) => void,
+    maxTokens = 4096,
+  ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+    await this.ensureValidToken();
+
+    // Resolve model: check CHAT_MODELS first, then fall back to ANTIGRAVITY_MODELS
+    const chatEntry = CHAT_MODELS.find(m => m.id === modelId);
+    const model = chatEntry ? chatEntry.model : resolveModel(modelId);
+
+    const requestBody = this.buildRequestBody(messages, model, maxTokens);
+
+    const endpoints = [DAILY_ENDPOINT, PROD_ENDPOINT];
+    let lastError: Error | null = null;
+
+    for (const endpoint of endpoints) {
+      try {
+        let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
+          method: "POST",
+          headers: getHeaders(this.credentials.accessToken),
+          body: JSON.stringify(requestBody),
+        });
+
+        // 401/403 → refresh token and retry
+        if (response.status === 401 || response.status === 403) {
+          const refreshed = await refreshAntigravityToken(
+            this.credentials.refreshToken,
+            this.credentials.projectId,
+          );
+          this.credentials = refreshed;
+          saveCredentials(refreshed);
+
+          response = await fetch(`${endpoint}${GENERATE_PATH}`, {
+            method: "POST",
+            headers: getHeaders(this.credentials.accessToken),
+            body: JSON.stringify(requestBody),
+          });
+        }
+
+        if (!response.ok) {
+          const errText = await response.text();
+          lastError = new Error(`Antigravity API error ${response.status}: ${errText.slice(0, 200)}`);
+          continue;
+        }
+
+        // Stream the response body
+        if (!response.body) {
+          // Fallback: read entire body and parse
+          const body = await response.text();
+          const parsed = parseSSEResponse(body);
+          if (parsed.text) onToken(parsed.text);
+          return parsed;
+        }
+
+        let fullText = "";
+        let inputTokens = 0;
+        let outputTokens = 0;
+        let buffer = "";
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          // Process complete SSE lines
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? ""; // keep incomplete last line
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr || jsonStr === "[DONE]") continue;
+
+            try {
+              const data: SSEData = JSON.parse(jsonStr);
+
+              if (data.candidates) {
+                for (const candidate of data.candidates) {
+                  if (candidate.content?.parts) {
+                    for (const part of candidate.content.parts) {
+                      if (part.text && !part.thought) {
+                        fullText += part.text;
+                        onToken(part.text);
+                      }
+                    }
+                  }
+                }
+              }
+
+              if (data.usageMetadata) {
+                inputTokens = data.usageMetadata.promptTokenCount ?? inputTokens;
+                outputTokens = data.usageMetadata.candidatesTokenCount ?? outputTokens;
+              }
+            } catch {
+              // skip unparseable lines
+            }
+          }
+        }
+
+        // Process any remaining buffer
+        if (buffer.startsWith("data: ")) {
+          const jsonStr = buffer.slice(6).trim();
+          if (jsonStr && jsonStr !== "[DONE]") {
+            try {
+              const data: SSEData = JSON.parse(jsonStr);
+              if (data.candidates) {
+                for (const candidate of data.candidates) {
+                  if (candidate.content?.parts) {
+                    for (const part of candidate.content.parts) {
+                      if (part.text && !part.thought) {
+                        fullText += part.text;
+                        onToken(part.text);
+                      }
+                    }
+                  }
+                }
+              }
+              if (data.usageMetadata) {
+                inputTokens = data.usageMetadata.promptTokenCount ?? inputTokens;
+                outputTokens = data.usageMetadata.candidatesTokenCount ?? outputTokens;
+              }
+            } catch { /* ignore */ }
+          }
+        }
+
+        return { text: fullText, inputTokens, outputTokens };
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
       }

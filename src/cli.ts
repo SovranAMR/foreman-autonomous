@@ -53,6 +53,7 @@ import {
   animatePhaseTransition, animateCompletion,
   animateProgressStrike, startForgeSpinner, typeText,
 } from "./animations.js";
+import { startRepl } from "./repl.js";
 import { runSetup, getApiKey, printProviderStatus } from "./setup.js";
 import { TaskManager } from "./task-manager.js";
 import { ProjectManager } from "./project-manager.js";
@@ -68,53 +69,41 @@ program
   .description(grad.logo("AI Agent Orchestrator — Atomic Thought Chains"))
   .version("0.1.0");
 
-// ─── DEFAULT COMMAND (welcome screen) ─────────────────────────
+// ─── DEFAULT COMMAND (REPL chat mode) ─────────────────────────
 
 program.action(async () => {
   // ── Spark rain entrance ──
-  await animateSparkRain(60, 40);
+  if (process.stdout.isTTY) {
+    await animateSparkRain(60, 40);
+  }
 
   // ── Logo ──
   printLogo();
 
   // ── Dwarf strikes the anvil ──
-  await animateDwarf(3000, 150);
+  if (process.stdout.isTTY) {
+    await animateDwarf(3000, 150);
+  }
   console.log("");
 
   // ── Forge divider ──
   forgeDivider();
   console.log("");
 
-  // ── Commands ──
-  console.log(brand.gold("  ◆ Commands\n"));
-  const cmds = [
-    ["run <task>  ", "Run a task through the full pipeline"],
-    ["login       ", "Authenticate with Google Antigravity OAuth"],
-    ["setup       ", "Configure API keys (Anthropic / OpenAI / Google)"],
-    ["init <name> ", "Initialize a new Foreman project"],
-    ["status      ", "Show current project status"],
-    ["doctor      ", "System health check"],
-    ["task        ", "Task management (add / list / show / done)"],
-    ["board       ", "Kanban board view"],
-    ["internals   ", "Developer tools (debug / inspect)"],
-  ];
-  for (const [cmd, desc] of cmds) {
-    console.log(`    ${brand.cyan(cmd)} ${brand.dim(desc)}`);
+  // ── Check credentials & start REPL ──
+  const creds = loadCredentials();
+
+  if (!creds || Date.now() >= creds.expiresAt) {
+    // No credentials — still show commands for reference, then onboard via REPL
+    console.log(brand.gold("  ◆ Quick Start\n"));
+    console.log(`    ${brand.dim("$")} ${brand.cyan("foreman login")}              ${brand.dim("# one-time auth")}`);
+    console.log(`    ${brand.dim("$")} ${brand.cyan("foreman init my-project")}    ${brand.dim("# scaffold a project")}`);
+    console.log(`    ${brand.dim("$")} ${brand.cyan('foreman run "build an API"')} ${brand.dim("# fire up the forge")}`);
+    console.log("");
   }
-  console.log("");
 
-  // ── Quick Start ──
-  console.log(brand.gold("  ◆ Quick Start\n"));
-  console.log(`    ${brand.dim("$")} ${brand.cyan("foreman login")}              ${brand.dim("# one-time auth")}`);
-  console.log(`    ${brand.dim("$")} ${brand.cyan("foreman init my-project")}    ${brand.dim("# scaffold a project")}`);
-  console.log(`    ${brand.dim("$")} ${brand.cyan('foreman run "build an API"')} ${brand.dim("# fire up the forge")}`);
-  console.log("");
-
-  // ── Idle forge art ──
-  printIdleForge();
-
-  console.log(`    ${brand.dim("https://github.com/SovranAMR/foreman")}`);
-  console.log("");
+  // Start interactive REPL
+  await startRepl();
 });
 
 // ─── SETUP ────────────────────────────────────────────────────
