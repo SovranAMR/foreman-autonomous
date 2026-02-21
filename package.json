@@ -7,11 +7,14 @@
     "foreman": "./src/cli.ts"
   },
   "scripts": {
-    "test": "npx tsx src/state.test.ts && npx tsx src/persistence.test.ts && npx tsx src/rate-limiter.test.ts && npx tsx src/engine.test.ts",
+    "test": "npx tsx src/state.test.ts && npx tsx src/persistence.test.ts && npx tsx src/rate-limiter.test.ts && npx tsx src/parser.test.ts && npx tsx src/engine.test.ts && npx tsx src/orchestrator.test.ts && npx tsx src/enforce.test.ts",
     "test:state": "npx tsx src/state.test.ts",
     "test:persistence": "npx tsx src/persistence.test.ts",
     "test:rate-limiter": "npx tsx src/rate-limiter.test.ts",
-    "test:engine": "npx tsx src/engine.test.ts"
+    "test:parser": "npx tsx src/parser.test.ts",
+    "test:engine": "npx tsx src/engine.test.ts",
+    "test:orchestrator": "npx tsx src/orchestrator.test.ts",
+    "test:enforce": "npx tsx src/enforce.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

@@ -47,9 +47,14 @@ OUTPUT: Use a single gold smile arc as the hero focal element. No particles, no 
 CONFIDENCE: 0.85
 NEEDS_RESEARCH: false`,
 
-    // Response for second think() call
+    // Response for second think() call (strategist — decompose format)
     `REASONING: Breaking down the hero into blocks based on the vision.
-OUTPUT: Block 1: Background gradient, Block 2: Smile arc SVG, Block 3: Typography, Block 4: CTA button, Block 5: Scroll indicator
+OUTPUT:
+Block 1: Background gradient
+Block 2: Smile arc SVG
+Block 3: Typography
+Block 4: CTA button
+Block 5: Scroll indicator
 CONFIDENCE: 0.9
 NEEDS_RESEARCH: false`,
 
@@ -112,7 +117,7 @@ CONFIDENCE: 0.9`,
     );
 
     assert.equal(thought.layer, "strategist");
-    assert.ok(thought.output.includes("Block"));
+    assert.ok(thought.output.includes("Background gradient") || thought.output.includes("1."));
   });
 
   await test("Engine.step() worker — follows worker protocol", async () => {
@@ -124,8 +129,11 @@ CONFIDENCE: 0.9`,
     );
 
     assert.equal(thought.layer, "worker");
-    // Worker response should contain protocol steps
-    assert.ok(thought.output.includes("STEP") || thought.reasoning.includes("STEP"));
+    assert.equal(thought.status, "done");
+    // Worker protocol parse edilip Thought'a yazılmış olmalı
+    assert.ok(thought.workerProtocol, "Worker protocol should be populated");
+    assert.ok(thought.workerProtocol!.step1_read.length > 0, "step1_read should not be empty");
+    assert.ok(thought.workerProtocol!.step8_report.length > 0, "step8_report should not be empty");
   });
 
   await test("Thoughts persisted to disk", async () => {
