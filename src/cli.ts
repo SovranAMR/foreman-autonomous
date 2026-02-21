@@ -1016,4 +1016,4 @@ intCmd
 
 // ─── PARSE ────────────────────────────────────────────────────
 
-program.parse();
+program.parseAsync();
