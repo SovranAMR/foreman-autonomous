@@ -65,6 +65,7 @@ import { BrowserEngine } from "./browser-engine.js";
 import { SubAgentEngine } from "./subagent-engine.js";
 import { SessionLifecycle } from "./session-lifecycle.js";
 import { ForgeGatewayBridge } from "./forge-gateway.js";
+import { CognitiveLoadBalancer } from "./cognitive-router.js";
 import { buildIntelligentContext, extractCrossChainContext } from "./context-intelligence.js";
 import { buildCompactContext, chunkThoughtsByTokens, computeAdaptiveChunkRatio, estimateTokens } from "./context-compression.js";
 import { generateMemoryMd, parseMemoryMd, generateCategoryFiles } from "./memory-md-bridge.js";
@@ -140,6 +141,7 @@ export class Engine {
   readonly subAgents: SubAgentEngine;
   readonly sessionLifecycle: SessionLifecycle;
   readonly forgeBridge: ForgeGatewayBridge;
+  readonly router: CognitiveLoadBalancer;
 
   readonly config: EngineConfig;
   private maxFormatRetries: number;
@@ -199,6 +201,17 @@ export class Engine {
     this.subAgents = new SubAgentEngine({ maxConcurrent: 3 });
     this.sessionLifecycle = new SessionLifecycle(config.projectRoot);
     this.forgeBridge = new ForgeGatewayBridge(this);
+    this.router = new CognitiveLoadBalancer();
+
+    // Auto-register all providers into the router
+    for (const provider of this.providers.listProviders()) {
+      this.router.addEndpoint({
+        id: provider.name,
+        provider,
+        priority: 10,
+        rpmLimit: 60,
+      });
+    }
 
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Connect ProcessRegistry to the GitEngine's ExecutionEngine
@@ -316,7 +329,28 @@ export class Engine {
       return result;
     }
 
-    // Call with model fallback
+    // ─── COGNITIVE ROUTER: Multi-provider concurrent routing ──
+    // If router has multiple endpoints, use it for zero-downtime failover
+    if (this.router.size > 1 && this.router.hasAvailableEndpoint()) {
+      try {
+        const routeResult = await this.router.route(
+          [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          { model, maxTokens: 4000, temperature: 0.7 },
+        );
+        const result = routeResult.result;
+        this.rateLimiter.onSuccess();
+        this.rateLimiter.recordTokens(result.tokenUsage.total);
+        this.state.addTokens(result.tokenUsage.total);
+        return result;
+      } catch {
+        // Router exhausted all endpoints — fall through to direct call
+      }
+    }
+
+    // Call with model fallback (single-provider path)
     const fallbackResult = await runWithFallback({
       registry: this.providers,
       layer,

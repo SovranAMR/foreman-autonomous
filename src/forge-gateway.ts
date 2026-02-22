@@ -124,6 +124,21 @@ export class ForgeGatewayBridge {
   }
 
   /**
+   * Notify bridge that a pipeline started (for status tracking).
+   */
+  notifyPipelineStart(task: string): void {
+    // Store pipeline status for gateway queries
+    (this as any)._lastPipelineStatus = { phase: "running", task, startedAt: Date.now() };
+  }
+
+  /**
+   * Notify bridge that a pipeline ended.
+   */
+  notifyPipelineEnd(success: boolean, summary: string): void {
+    (this as any)._lastPipelineStatus = { phase: success ? "complete" : "failed", summary, endedAt: Date.now() };
+  }
+
+  /**
    * Get status of active forge runs.
    */
   getActiveRuns(): Array<{ chatId: string; startedAt: number; duration: number }> {

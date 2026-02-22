@@ -7,7 +7,7 @@
     "foreman": "./bin/foreman"
   },
   "scripts": {
-    "test": "npx tsx src/state.test.ts && npx tsx src/persistence.test.ts && npx tsx src/rate-limiter.test.ts && npx tsx src/parser.test.ts && npx tsx src/engine.test.ts && npx tsx src/orchestrator.test.ts && npx tsx src/enforce.test.ts && npx tsx src/task.test.ts && npx tsx src/memory.test.ts && npx tsx src/infra.test.ts && npx tsx src/execution.test.ts && npx tsx src/web.test.ts && npx tsx src/execution-v2.test.ts && npx tsx src/git-engine.test.ts && npx tsx src/similarity-engine.test.ts && npx tsx src/context-intelligence.test.ts && npx tsx src/verification-engine.test.ts && npx tsx src/edit-engine.test.ts && npx tsx src/approval-engine.test.ts && npx tsx src/chain-repair.test.ts && npx tsx src/batch-file-engine.test.ts && npx tsx src/memory-md-bridge.test.ts && npx tsx src/link-intelligence.test.ts && npx tsx src/process-registry.test.ts && npx tsx src/command-queue.test.ts && npx tsx src/transcript-repair.test.ts && npx tsx src/markdown-intelligence.test.ts && npx tsx src/task-scheduler.test.ts && npx tsx src/security-scanner.test.ts && npx tsx src/messaging-gateway.test.ts && npx tsx --test src/new-engines.test.ts && npx tsx --test src/worker-executor.test.ts && npx tsx --test src/forge-engines.test.ts && npx tsx --test src/core-engines.test.ts && npx tsx --test src/reviewer-gate.test.ts && npx tsx --test src/vision-pipeline.test.ts",
+    "test": "npx tsx src/state.test.ts && npx tsx src/persistence.test.ts && npx tsx src/rate-limiter.test.ts && npx tsx src/parser.test.ts && npx tsx src/engine.test.ts && npx tsx src/orchestrator.test.ts && npx tsx src/enforce.test.ts && npx tsx src/task.test.ts && npx tsx src/memory.test.ts && npx tsx src/infra.test.ts && npx tsx src/execution.test.ts && npx tsx src/web.test.ts && npx tsx src/execution-v2.test.ts && npx tsx src/git-engine.test.ts && npx tsx src/similarity-engine.test.ts && npx tsx src/context-intelligence.test.ts && npx tsx src/verification-engine.test.ts && npx tsx src/edit-engine.test.ts && npx tsx src/approval-engine.test.ts && npx tsx src/chain-repair.test.ts && npx tsx src/batch-file-engine.test.ts && npx tsx src/memory-md-bridge.test.ts && npx tsx src/link-intelligence.test.ts && npx tsx src/process-registry.test.ts && npx tsx src/command-queue.test.ts && npx tsx src/transcript-repair.test.ts && npx tsx src/markdown-intelligence.test.ts && npx tsx src/task-scheduler.test.ts && npx tsx src/security-scanner.test.ts && npx tsx src/messaging-gateway.test.ts && npx tsx --test src/new-engines.test.ts && npx tsx --test src/worker-executor.test.ts && npx tsx --test src/forge-engines.test.ts && npx tsx --test src/core-engines.test.ts && npx tsx --test src/reviewer-gate.test.ts && npx tsx --test src/vision-pipeline.test.ts && npx tsx --test src/cognitive-router.test.ts",
     "test:state": "npx tsx src/state.test.ts",
     "test:persistence": "npx tsx src/persistence.test.ts",
     "test:rate-limiter": "npx tsx src/rate-limiter.test.ts",
@@ -29,7 +29,9 @@
     "grammy": "^1.40.0",
     "linkedom": "^0.18.12",
     "openai": "^6.22.0",
-    "ora": "^8.2.0"
+    "ora": "^8.2.0",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

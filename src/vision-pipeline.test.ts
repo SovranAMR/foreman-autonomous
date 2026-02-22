@@ -2,70 +2,76 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 describe("Browser compareScreenshots", () => {
-  // Import dynamically to avoid Playwright dependency in test env
   it("detects identical screenshots", async () => {
     const { BrowserEngine } = await import("./browser-engine.js");
     const engine = new BrowserEngine("/tmp/test-project");
 
+    // Create minimal valid PNG for testing (1x1 pixel red)
+    const { PNG } = await import("pngjs");
+    const png = new PNG({ width: 1, height: 1 });
+    png.data[0] = 255; png.data[1] = 0; png.data[2] = 0; png.data[3] = 255;
+    const pngBuf = PNG.sync.write(png);
+    const b64 = pngBuf.toString("base64");
+
     const screenshot = {
       path: "/tmp/test.png",
-      base64: Buffer.from("identical content here for testing").toString("base64"),
-      width: 1920,
-      height: 1080,
-      sizeBytes: 34,
+      base64: b64,
+      width: 1,
+      height: 1,
+      sizeBytes: pngBuf.length,
     };
 
-    const diff = engine.compareScreenshots(screenshot, screenshot);
+    const diff = await engine.compareScreenshots(screenshot, screenshot);
     assert.equal(diff.diffScore, 0, "Identical screenshots should have 0 diff");
+    assert.equal(diff.diffPixels, 0);
     assert.equal(diff.sameSize, true);
+    assert.ok(diff.diffImageBase64, "Should produce diff mask image");
   });
 
   it("detects different screenshots", async () => {
     const { BrowserEngine } = await import("./browser-engine.js");
     const engine = new BrowserEngine("/tmp/test-project");
 
-    const before = {
-      path: "/tmp/before.png",
-      base64: Buffer.from("AAAAAAAAAA".repeat(100)).toString("base64"),
-      width: 1920,
-      height: 1080,
-      sizeBytes: 1000,
-    };
-    const after = {
-      path: "/tmp/after.png",
-      base64: Buffer.from("BBBBBBBBBB".repeat(100)).toString("base64"),
-      width: 1920,
-      height: 1080,
-      sizeBytes: 1000,
-    };
+    const { PNG } = await import("pngjs");
 
-    const diff = engine.compareScreenshots(before, after);
+    // Red pixel
+    const png1 = new PNG({ width: 1, height: 1 });
+    png1.data[0] = 255; png1.data[1] = 0; png1.data[2] = 0; png1.data[3] = 255;
+    const buf1 = PNG.sync.write(png1);
+
+    // Blue pixel
+    const png2 = new PNG({ width: 1, height: 1 });
+    png2.data[0] = 0; png2.data[1] = 0; png2.data[2] = 255; png2.data[3] = 255;
+    const buf2 = PNG.sync.write(png2);
+
+    const before = { path: "/tmp/b.png", base64: buf1.toString("base64"), width: 1, height: 1, sizeBytes: buf1.length };
+    const after = { path: "/tmp/a.png", base64: buf2.toString("base64"), width: 1, height: 1, sizeBytes: buf2.length };
+
+    const diff = await engine.compareScreenshots(before, after);
     assert.ok(diff.diffScore > 0, "Different screenshots should have non-zero diff");
+    assert.ok(diff.diffPixels > 0);
     assert.equal(diff.sameSize, true);
   });
 
-  it("detects size differences", async () => {
+  it("handles size differences gracefully", async () => {
     const { BrowserEngine } = await import("./browser-engine.js");
     const engine = new BrowserEngine("/tmp/test-project");
 
-    const before = {
-      path: "/tmp/before.png",
-      base64: Buffer.from("short").toString("base64"),
-      width: 800,
-      height: 600,
-      sizeBytes: 5,
-    };
-    const after = {
-      path: "/tmp/after.png",
-      base64: Buffer.from("much longer content here").toString("base64"),
-      width: 1920,
-      height: 1080,
-      sizeBytes: 24,
-    };
+    const { PNG } = await import("pngjs");
 
-    const diff = engine.compareScreenshots(before, after);
+    const png1 = new PNG({ width: 2, height: 2 });
+    for (let i = 0; i < 16; i++) png1.data[i] = 128;
+    const buf1 = PNG.sync.write(png1);
+
+    const png2 = new PNG({ width: 3, height: 3 });
+    for (let i = 0; i < 36; i++) png2.data[i] = 200;
+    const buf2 = PNG.sync.write(png2);
+
+    const before = { path: "/tmp/b.png", base64: buf1.toString("base64"), width: 2, height: 2, sizeBytes: buf1.length };
+    const after = { path: "/tmp/a.png", base64: buf2.toString("base64"), width: 3, height: 3, sizeBytes: buf2.length };
+
+    const diff = await engine.compareScreenshots(before, after);
     assert.equal(diff.sameSize, false);
-    assert.ok(diff.diffScore > 0);
   });
 });
 

@@ -453,49 +453,123 @@ export class BrowserEngine {
   }
 
   /**
-   * Compare two screenshots pixel-by-pixel.
-   * Returns a diff score (0.0 = identical, 1.0 = completely different).
-   * Uses raw buffer comparison — no external dependencies.
+   * Perceptual screenshot comparison using pixelmatch (SSIM-grade).
+   *
+   * Why not byte-level: GPU acceleration, font anti-aliasing, sub-pixel rendering
+   * cause identical-looking pages to have different byte hashes. pixelmatch
+   * compares decoded RGBA pixels with configurable anti-aliasing tolerance.
+   *
+   * Returns:
+   * - diffScore: 0.0 (identical) → 1.0 (completely different)
+   * - diffPixels: number of meaningfully different pixels
+   * - diffImageBase64: PNG with changed pixels painted red (diff mask)
+   *   → Send ONLY this to Vision LLM for surgical attention focus
+   * - changedRegions: which vertical zones changed
    */
-  compareScreenshots(before: ScreenshotResult, after: ScreenshotResult): {
+  async compareScreenshots(before: ScreenshotResult, after: ScreenshotResult): Promise<{
     diffScore: number;
+    diffPixels: number;
+    totalPixels: number;
     sameSize: boolean;
     changedRegions: string;
-  } {
-    // Size comparison
+    diffImageBase64: string | null;
+  }> {
     const sameSize = before.width === after.width && before.height === after.height;
 
-    // Decode base64 to compare raw bytes
-    const beforeBuf = Buffer.from(before.base64, "base64");
-    const afterBuf = Buffer.from(after.base64, "base64");
+    // Decode PNG buffers to raw RGBA pixel data
+    try {
+      const { PNG } = await import("pngjs");
+      const pixelmatch = (await import("pixelmatch")).default;
 
-    // Simple byte-level diff (PNG compressed, so not pixel-perfect but gives meaningful signal)
-    const minLen = Math.min(beforeBuf.length, afterBuf.length);
-    let diffBytes = 0;
-    for (let i = 0; i < minLen; i++) {
-      if (beforeBuf[i] !== afterBuf[i]) diffBytes++;
-    }
-    // Account for size difference
-    diffBytes += Math.abs(beforeBuf.length - afterBuf.length);
+      const beforePng = PNG.sync.read(Buffer.from(before.base64, "base64"));
+      const afterPng = PNG.sync.read(Buffer.from(after.base64, "base64"));
 
-    const totalBytes = Math.max(beforeBuf.length, afterBuf.length);
-    const diffScore = totalBytes > 0 ? diffBytes / totalBytes : 0;
+      // If sizes differ, resize to smaller (crop comparison)
+      const width = Math.min(beforePng.width, afterPng.width);
+      const height = Math.min(beforePng.height, afterPng.height);
+      const totalPixels = width * height;
 
-    // Rough region analysis based on diff distribution
-    const quarterLen = Math.floor(minLen / 4);
-    const regionDiffs = [0, 0, 0, 0]; // top, upper-mid, lower-mid, bottom
-    for (let i = 0; i < minLen; i++) {
-      if (beforeBuf[i] !== afterBuf[i]) {
-        regionDiffs[Math.min(3, Math.floor(i / quarterLen))]++;
+      // Create diff output image — changed pixels painted in red
+      const diffPng = new PNG({ width, height });
+
+      // pixelmatch with anti-aliasing tolerance
+      // threshold: 0.1 = ignore sub-pixel rendering differences
+      // includeAA: false = skip anti-aliased pixels (font edges, curves)
+      const diffPixels = pixelmatch(
+        beforePng.data,
+        afterPng.data,
+        diffPng.data,
+        width,
+        height,
+        {
+          threshold: 0.1,
+          includeAA: false,
+          alpha: 0.3,           // semi-transparent overlay for unchanged
+          diffColor: [255, 0, 0], // RED for changed pixels
+          diffColorAlt: [255, 165, 0], // ORANGE for anti-aliased changes
+        },
+      );
+
+      const diffScore = totalPixels > 0 ? diffPixels / totalPixels : 0;
+
+      // Encode diff image to base64 PNG — this is what goes to Vision LLM
+      const diffImageBase64 = PNG.sync.write(diffPng).toString("base64");
+
+      // Region analysis: divide image into 4 horizontal strips
+      const stripHeight = Math.floor(height / 4);
+      const regionLabels = ["top", "upper-middle", "lower-middle", "bottom"];
+      const regionDiffs: number[] = [0, 0, 0, 0];
+
+      for (let y = 0; y < height; y++) {
+        const strip = Math.min(3, Math.floor(y / stripHeight));
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          // Check if diff pixel is red (changed)
+          if (diffPng.data[idx] === 255 && diffPng.data[idx + 1] === 0 && diffPng.data[idx + 2] === 0) {
+            regionDiffs[strip]++;
+          }
+        }
       }
-    }
-    const regionLabels = ["top", "upper-middle", "lower-middle", "bottom"];
-    const changedRegions = regionDiffs
-      .map((d, idx) => ({ label: regionLabels[idx], pct: quarterLen > 0 ? (d / quarterLen * 100).toFixed(1) : "0" }))
-      .filter(r => parseFloat(r.pct) > 5)
-      .map(r => `${r.label}: ${r.pct}%`)
-      .join(", ") || "minimal changes";
 
-    return { diffScore, sameSize, changedRegions };
+      const pixelsPerStrip = stripHeight * width;
+      const changedRegions = regionDiffs
+        .map((d, idx) => ({
+          label: regionLabels[idx],
+          pct: pixelsPerStrip > 0 ? (d / pixelsPerStrip * 100).toFixed(1) : "0",
+        }))
+        .filter(r => parseFloat(r.pct) > 1.0)
+        .map(r => `${r.label}: ${r.pct}%`)
+        .join(", ") || "no significant changes";
+
+      return {
+        diffScore,
+        diffPixels,
+        totalPixels,
+        sameSize,
+        changedRegions,
+        diffImageBase64,
+      };
+
+    } catch {
+      // Fallback: byte-level comparison if pixelmatch/pngjs unavailable
+      const beforeBuf = Buffer.from(before.base64, "base64");
+      const afterBuf = Buffer.from(after.base64, "base64");
+      const minLen = Math.min(beforeBuf.length, afterBuf.length);
+      let diffBytes = 0;
+      for (let i = 0; i < minLen; i++) {
+        if (beforeBuf[i] !== afterBuf[i]) diffBytes++;
+      }
+      diffBytes += Math.abs(beforeBuf.length - afterBuf.length);
+      const totalBytes = Math.max(beforeBuf.length, afterBuf.length);
+
+      return {
+        diffScore: totalBytes > 0 ? diffBytes / totalBytes : 0,
+        diffPixels: diffBytes,
+        totalPixels: totalBytes,
+        sameSize,
+        changedRegions: "byte-level fallback",
+        diffImageBase64: null,
+      };
+    }
   }
 }

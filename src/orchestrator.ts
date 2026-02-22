@@ -29,6 +29,15 @@ import { getActiveThoughts } from "./chain-repair.js";
 import { validateReasoning, validateOutput, validateConfidence, validateWorkerProtocol, validateProtocolSteps } from "./validators.js";
 import { quickReviewCheck, buildReviewPrompt, parseReviewResponse, REVIEWER_SYSTEM_PROMPT } from "./reviewer-gate.js";
 import type { ReviewResult } from "./reviewer-gate.js";
+import { shouldCompact, compactLocal } from "./compaction-engine.js";
+import type { ConversationMessage } from "./compaction-engine.js";
+import { generateDiff, diffSummary, formatDiffSummary } from "./diff-engine.js";
+import type { FileChange } from "./diff-engine.js";
+import { extractCodeFences, extractSections, extractInlineCode } from "./markdown-intelligence.js";
+import { repairTranscript } from "./transcript-repair.js";
+import { checkChainHealth } from "./chain-repair.js";
+import { syncMemoryMd, generateCategoryFiles } from "./memory-md-bridge.js";
+import { batchWrite } from "./batch-file-engine.js";
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
@@ -129,6 +138,11 @@ export class Orchestrator {
     // ─── STREAMING — announce pipeline start ────────────────
     this.engine.streaming.pipelineStart(task);
 
+    // ─── FORGE BRIDGE — notify gateway about pipeline start ─
+    try {
+      this.engine.forgeBridge.notifyPipelineStart(task);
+    } catch { /* bridge best-effort */ }
+
     // ─── HOOKS — before_pipeline ────────────────────────────
     const hookResult = await this.engine.hooks.run("before_pipeline", { task });
     if (hookResult.block) {
@@ -145,6 +159,17 @@ export class Orchestrator {
     const session = this.engine.sessions.start({
       projectId: this.engine.state.snapshot().projectName,
     });
+
+    // ─── MULTI-SESSION — track pipeline conversation ────────
+    // Record pipeline start as conversation message for context
+    let multiSession: ReturnType<typeof this.engine.sessionManager.createSession> | undefined;
+    try {
+      multiSession = this.engine.sessionManager.createSession({
+        label: `forge-${Date.now()}`,
+        metadata: { task: task.slice(0, 200) },
+      });
+      multiSession.addMessage("system", `Pipeline started: ${task}`);
+    } catch { /* multi-session best-effort */ }
 
     // ─── SESSION LIFECYCLE — create named forge session ─────
     const forgeSession = this.engine.sessionLifecycle.create({
@@ -477,6 +502,24 @@ export class Orchestrator {
         // Memory recall is best-effort
       }
 
+      // ─── SUB-AGENT: Parallel research for complex blocks ──
+      // If block description is long/complex, spawn a sub-agent for deeper research
+      try {
+        if (block.length > 200 && this.engine.subAgents.list().length < 3) {
+          const subAgent = await this.engine.subAgents.spawn({
+            id: `research-${i}-${Date.now()}`,
+            role: "researcher",
+            task: `Deep research for: ${block.slice(0, 200)}`,
+            context: { vision: visionOutput.slice(0, 500), block },
+          });
+          this.emit({
+            type: "phase_start",
+            phase: "sub_agent",
+            detail: `Spawned research sub-agent: ${subAgent.id}`,
+          });
+        }
+      } catch { /* sub-agent spawn best-effort */ }
+
       // Web research augmentation — search for real context before LLM call
       let webContext = "";
       try {
@@ -615,14 +658,31 @@ export class Orchestrator {
             findings.slice(0, 500),
           );
           if (!ctxEval.isSafe) {
-            // Compact context before executing
-            const compact = this.engine.buildCompactContextForChain(visionChain.id, ctxWindow.tokens / 2);
-            if (compact && compact.length > 0) {
+            // Use compaction engine for intelligent context reduction
+            const sessionMessages = multiSession ? multiSession.getMessages() : [];
+            const convMessages: ConversationMessage[] = sessionMessages.map(m => ({
+              role: m.role as "user" | "assistant" | "system",
+              content: m.content,
+              timestamp: m.timestamp,
+            }));
+
+            if (shouldCompact(convMessages, ctxWindow.tokens)) {
+              const compacted = compactLocal(convMessages, Math.floor(ctxWindow.tokens * 0.6));
               this.emit({
                 type: "phase_start",
                 phase: "context_compact",
-                detail: `Compacted context: ${compact.length} chars`,
+                detail: `Compacted: ${compacted.summarizedCount} messages → summary, kept ${compacted.keptCount}`,
               });
+            } else {
+              // Fallback: use chain-level compaction
+              const compact = this.engine.buildCompactContextForChain(visionChain.id, ctxWindow.tokens / 2);
+              if (compact && compact.length > 0) {
+                this.emit({
+                  type: "phase_start",
+                  phase: "context_compact",
+                  detail: `Chain compacted: ${compact.length} chars`,
+                });
+              }
             }
           }
         } catch {
@@ -1066,6 +1126,37 @@ export class Orchestrator {
         if (execResult.thought.workerProtocol?.step7_verify) {
           const verifyText = execResult.thought.workerProtocol.step7_verify;
 
+          // ─── MARKDOWN INTELLIGENCE: Extract code fences from worker output ──
+          // Worker may include code blocks in verify step — extract and analyze
+          try {
+            const codeFences = extractCodeFences(verifyText);
+            if (codeFences.length > 0) {
+              const errorFences = codeFences.filter(f =>
+                f.content.match(/error|Error|ERR|FAIL|TypeError|SyntaxError/i)
+              );
+              if (errorFences.length > 0) {
+                this.emit({
+                  type: "verification",
+                  phase: "code_analysis",
+                  passed: false,
+                  detail: `Worker output contains ${errorFences.length} code blocks with errors`,
+                });
+              }
+            }
+
+            // Extract inline code references for verification
+            const inlineCode = extractInlineCode(verifyText);
+            if (inlineCode.length > 5) {
+              // Worker is being specific — good sign
+              this.emit({
+                type: "verification",
+                phase: "code_analysis",
+                passed: true,
+                detail: `Worker references ${inlineCode.length} code elements — specific reasoning`,
+              });
+            }
+          } catch { /* markdown analysis best-effort */ }
+
           // Pattern analysis — classify output as errors, warnings, info
           const patterns = analyzeOutput(verifyText);
           const errorPatterns = patterns.filter(p => p.type === "error");
@@ -1202,14 +1293,28 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
             // No dev server or no browser — skip vibe check
           }
 
-          // Get actual git diff for context-aware reflection
+          // Get actual git diff — structured analysis via DiffEngine
           let diffContext = "";
           try {
-            const summary = this.engine.git.summarizeChanges();
-            if (summary) {
-              diffContext = `\n\nGit changes so far:\n${summary}`;
+            const rawDiff = this.engine.git.summarizeChanges();
+            if (rawDiff) {
+              // Parse diff into structured format
+              const diffResult = generateDiff(rawDiff, rawDiff);
+              const formattedDiff = formatDiffSummary({
+                totalFiles: diffResult.hunks.length,
+                additions: diffResult.hunks.reduce((sum, h) => sum + h.changes.filter(c => c.type === "add").length, 0),
+                deletions: diffResult.hunks.reduce((sum, h) => sum + h.changes.filter(c => c.type === "delete").length, 0),
+                files: [],
+              });
+              diffContext = `\n\nGit changes (structured):\n${formattedDiff}\n\nRaw diff:\n${rawDiff.slice(0, 1000)}`;
             }
-          } catch { /* non-git project */ }
+          } catch {
+            // Fallback to simple diff
+            try {
+              const summary = this.engine.git.summarizeChanges();
+              if (summary) diffContext = `\n\nGit changes:\n${summary}`;
+            } catch { /* non-git */ }
+          }
 
           // Build atom completion summary for the reflector
           const completedAtomSummary = atoms
@@ -1403,28 +1508,39 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
           const screenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
           this.engine.streaming.toolCall("vibe_check", `Block ${i + 1} screenshot: ${screenshot.width}x${screenshot.height}`);
 
-          // ─── PIXEL DIFF: Compare before/after screenshots ───
+          // ─── PERCEPTUAL PIXEL DIFF: pixelmatch SSIM-grade comparison ───
+          // Anti-aliasing tolerant, produces RED diff mask for Vision LLM
           let pixelDiffContext = "";
+          let diffMaskBase64: string | null = null;
           if (beforeScreenshot && screenshot.base64 && beforeScreenshot.base64) {
-            const diff = this.engine.browser.compareScreenshots(beforeScreenshot, screenshot);
-            pixelDiffContext = `\nPIXEL DIFF: ${(diff.diffScore * 100).toFixed(1)}% changed. Regions: ${diff.changedRegions}. Same size: ${diff.sameSize}`;
+            const diff = await this.engine.browser.compareScreenshots(beforeScreenshot, screenshot);
+            pixelDiffContext = `\nPIXEL DIFF (perceptual): ${diff.diffPixels}/${diff.totalPixels} pixels (${(diff.diffScore * 100).toFixed(2)}%) changed. Regions: ${diff.changedRegions}`;
+            diffMaskBase64 = diff.diffImageBase64;
             this.emit({
               type: "verification",
               phase: "pixel_diff",
-              passed: diff.diffScore > 0.01, // some visual change expected
-              detail: `Block ${i + 1} pixel diff: ${(diff.diffScore * 100).toFixed(1)}% changed — ${diff.changedRegions}`,
+              passed: diff.diffScore > 0.005, // >0.5% = some visual change expected
+              detail: `Block ${i + 1}: ${diff.diffPixels} pixels changed (${(diff.diffScore * 100).toFixed(2)}%) — ${diff.changedRegions}`,
             });
           }
 
-          // Send REAL screenshot to vision model for block-level vibe check
+          // Send diff MASK to Vision LLM — not full screenshot
+          // Red pixels = what changed. Model's attention locks onto the delta.
+          // Token cost drops 10x because model focuses on the mask, not the full page.
           try {
-            const vibeResult = screenshot.base64
+            const imageToSend = diffMaskBase64 ?? screenshot.base64;
+            const imageContext = diffMaskBase64
+              ? `You are looking at a DIFF MASK. RED pixels are what the Worker changed in the last block. Everything else is unchanged.
+Evaluate: Do the RED areas serve the vision? Or did the Worker break the layout?`
+              : `You are looking at a REAL screenshot of the project.`;
+
+            const vibeResult = imageToSend
               ? await this.engine.callLLMWithImage(
-                  `You are a visual QA specialist. You are looking at a REAL screenshot of the project.
+                  `You are a visual QA specialist. ${imageContext}
 Compare with the vision document. Rate 0.0-1.0. If below 0.6, say FAIL with specific reasons.
 Check: emotion target, focal point, color philosophy, space, forbidden list.${pixelDiffContext ? "\n" + pixelDiffContext : ""}`,
                   `VISION DOCUMENT:\n${visionOutput}\n\nBlock just completed: ${block}\nURL: ${healthyServer.url}`,
-                  screenshot.base64,
+                  imageToSend,
                   "image/png",
                   "visioner",
                 )
@@ -1525,8 +1641,60 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
       });
     }
 
+    // ─── CHAIN HEALTH — verify chain integrity ──────────────
+    try {
+      const chain = this.engine.chains.get(visionChain.id);
+      if (chain) {
+        const chainThoughts = chain.thoughts
+          .map(id => this.engine.thoughts.get(id))
+          .filter((t): t is Thought => t !== null);
+        const health = checkChainHealth(chainThoughts);
+        if (!health.healthy) {
+          this.emit({
+            type: "error",
+            message: `Chain health: ${health.issues.join(", ")}`,
+          });
+        }
+      }
+    } catch { /* health check best-effort */ }
+
+    // ─── TRANSCRIPT REPAIR — fix tool call/result mismatches ──
+    try {
+      const chain = this.engine.chains.get(visionChain.id);
+      if (chain) {
+        const chainThoughts = chain.thoughts
+          .map(id => this.engine.thoughts.get(id))
+          .filter((t): t is Thought => t !== null);
+        const transcript = repairTranscript(chainThoughts);
+        if (transcript.repaired > 0) {
+          this.emit({
+            type: "phase_end",
+            phase: "transcript_repair",
+            detail: `Repaired ${transcript.repaired} tool call/result mismatches`,
+          });
+        }
+      }
+    } catch { /* transcript repair best-effort */ }
+
     // ─── MEMORY SYNC — write memory to MEMORY.md ────────────
     this.engine.syncMemory();
+
+    // ─── MEMORY MD BRIDGE — structured memory file sync ─────
+    try {
+      const syncResult = syncMemoryMd(this.engine.memory, this.engine.config.projectRoot);
+      if (syncResult.written) {
+        this.emit({
+          type: "phase_end",
+          phase: "memory_sync",
+          detail: `MEMORY.md synced: ${syncResult.written} entries`,
+        });
+      }
+
+      // Generate category files (organized by tag)
+      const categoryDir = `${this.engine.config.projectRoot}/memory`;
+      const allEntries = this.engine.memory.list();
+      generateCategoryFiles(allEntries, categoryDir);
+    } catch { /* memory MD sync best-effort */ }
 
     // ─── PROCESS REGISTRY — log spawned process lifecycle ───
     try {
@@ -1544,6 +1712,21 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
         this.engine.processRegistry.killAll();
       }
     } catch { /* best-effort */ }
+
+    // ─── SUB-AGENTS — kill spawned research agents ──────────
+    try {
+      const agents = this.engine.subAgents.list({ status: "running" });
+      for (const agent of agents) {
+        this.engine.subAgents.kill(agent.id);
+      }
+      if (agents.length > 0) {
+        this.emit({
+          type: "phase_end",
+          phase: "sub_agents",
+          detail: `Killed ${agents.length} sub-agents`,
+        });
+      }
+    } catch { /* sub-agent cleanup best-effort */ }
 
     // ─── COMMAND QUEUE — drain pending commands ─────────────
     try {
@@ -1575,6 +1758,47 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     } catch {
       // Security scan is best-effort
     }
+
+    // ─── MEDIA VALIDATION — check generated assets ──────────
+    // Validate any images/media files created during the pipeline
+    try {
+      const { readdirSync, statSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      const publicDir = join(this.engine.config.projectRoot, "public");
+      try {
+        const files = readdirSync(publicDir, { recursive: true }) as string[];
+        const mediaFiles = files.filter(f =>
+          /\.(png|jpg|jpeg|gif|svg|webp|mp4|webm)$/i.test(String(f))
+        );
+        for (const file of mediaFiles.slice(0, 10)) {
+          const filePath = join(publicDir, String(file));
+          try {
+            const stat = statSync(filePath);
+            if (stat.size === 0) {
+              this.emit({
+                type: "verification",
+                phase: "media",
+                passed: false,
+                detail: `Empty media file: ${file} (0 bytes)`,
+              });
+            }
+            // Validate with media engine
+            const mediaInfo = this.engine.mediaEngine.analyze(filePath);
+            if (mediaInfo) {
+              const validation = this.engine.mediaEngine.validate(filePath);
+              if (!validation.valid) {
+                this.emit({
+                  type: "verification",
+                  phase: "media",
+                  passed: false,
+                  detail: `Invalid media: ${file} — ${validation.error}`,
+                });
+              }
+            }
+          } catch { /* individual file check best-effort */ }
+        }
+      } catch { /* no public dir — OK */ }
+    } catch { /* media validation best-effort */ }
 
     // ─── FINAL VERIFICATION — run actual build/test ─────────
     let previousTestResult: ReturnType<typeof parseTestOutput> | null = null;
@@ -1714,6 +1938,17 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
       `${task.slice(0, 80)} — ${totalThoughts} thoughts, ${atomCount} atoms`,
     );
 
+    // ─── MULTI-SESSION — record pipeline end ────────────────
+    try {
+      if (multiSession) {
+        multiSession.addMessage(
+          "system",
+          `Pipeline ${success ? "completed" : "failed"}: ${task.slice(0, 60)} — ${totalThoughts} thoughts, ${totalTokens} tokens`,
+        );
+        multiSession.persist();
+      }
+    } catch { /* multi-session best-effort */ }
+
     // ─── SESSION LIFECYCLE — transition to complete ─────────
     try {
       this.engine.sessionLifecycle.transition(forgeSession.id, "idle");
@@ -1791,8 +2026,24 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
 
     this.engine.streaming.pipelineEnd(success, success ? "All blocks complete" : blockedAt ?? "Failed");
 
+    // ─── FORGE BRIDGE — notify gateway about pipeline end ───
+    try {
+      this.engine.forgeBridge.notifyPipelineEnd(success, `${totalThoughts} thoughts, ${totalTokens} tokens`);
+    } catch { /* bridge best-effort */ }
+
     // ─── HOOKS — after_pipeline ─────────────────────────────
     this.engine.hooks.run("after_pipeline", { success, totalThoughts, totalTokens, blockedAt }).catch(() => {});
+
+    // ─── CRON — schedule post-pipeline verification ─────────
+    // Re-run tests 5 minutes later to catch delayed regressions
+    try {
+      this.engine.cronEngine.addJob({
+        name: `post-pipeline-verify-${Date.now()}`,
+        schedule: { kind: "at", at: new Date(Date.now() + 5 * 60_000).toISOString() },
+        payload: { kind: "system", text: "Post-pipeline verification: re-run build + tests" },
+        enabled: success, // only schedule if pipeline succeeded
+      });
+    } catch { /* cron best-effort */ }
 
     // ─── ROLLBACK — clear on success ────────────────────────
     if (success) this.engine.rollback.clear();

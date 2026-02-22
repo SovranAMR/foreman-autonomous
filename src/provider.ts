@@ -242,4 +242,11 @@ export class ProviderRegistry {
   get size(): number {
     return this.providers.size;
   }
+
+  /**
+   * List all registered providers.
+   */
+  listProviders(): LLMProvider[] {
+    return [...this.providers.values()];
+  }
 }
