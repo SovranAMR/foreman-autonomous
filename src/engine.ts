@@ -792,6 +792,14 @@ export class Engine {
     saveJsonFile(path, data);
   }
 
+  /**
+   * Low-level file edit — simple string replacement via ExecutionEngine.
+   * For advanced editing (fuzzy match, undo, history), use editEngine.edit().
+   */
+  quickEdit(filePath: string, oldText: string, newText: string) {
+    return this.git.executor.editFile(filePath, oldText, newText);
+  }
+
   // ─── PROCESS MANAGEMENT ─────────────────────────────────────
 
   /**
