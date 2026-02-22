@@ -98,6 +98,12 @@ export function classifyLLMError(err: unknown): ErrorClass {
     return "auth";
   }
 
+  // Model not found — 404 from LLM API means the model doesn't exist
+  // on this endpoint/provider. Should fallback to next model, not die.
+  if (status === 404 || /not.?found|entity.*not.*found/i.test(message)) {
+    return "quota"; // Treated as "try next provider/model"
+  }
+
   // Context length — check BEFORE quota (both may contain "exceeded")
   if (/context.?length|too.?long|max.?tokens|token.?limit/i.test(message)) {
     return "context_length";

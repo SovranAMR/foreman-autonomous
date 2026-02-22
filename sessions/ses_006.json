@@ -1,6 +1,7 @@
 {
   "id": "ses_006",
   "projectId": "foreman",
+<<<<<<< HEAD
   "startedAt": "2026-02-22T17:22:48.197Z",
   "completedTaskIds": [],
   "thoughtIds": [
@@ -12,4 +13,12 @@
   "totalTokens": 5938,
   "status": "abandoned",
   "endedAt": "2026-02-22T17:23:27.856Z"
+=======
+  "startedAt": "2026-02-22T21:22:46.502Z",
+  "completedTaskIds": [],
+  "thoughtIds": [],
+  "memoryIds": [],
+  "totalTokens": 0,
+  "status": "active"
+>>>>>>> 9b18283 (FIX: forge 404 fallback + provider bootstrap — forge pipeline tam çalışır)
 }

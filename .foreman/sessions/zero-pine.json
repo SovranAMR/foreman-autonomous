@@ -1,0 +1,15 @@
+{
+  "id": "ef9039ba-e941-46b9-9a1b-975bbf434fb5",
+  "slug": "zero-pine",
+  "status": "active",
+  "createdAt": 1771795536242,
+  "updatedAt": 1771795536242,
+  "context": {
+    "task": "Write a mock API for tasks in src/mock-api.ts",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}

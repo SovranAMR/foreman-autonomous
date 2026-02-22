@@ -1,0 +1,15 @@
+{
+  "id": "4d18d42a-5de1-4ec6-abe7-71f13bade312",
+  "slug": "warm-oak",
+  "status": "active",
+  "createdAt": 1771795576072,
+  "updatedAt": 1771795576072,
+  "context": {
+    "task": "Write a mock API for tasks in src/mock-api.ts",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}

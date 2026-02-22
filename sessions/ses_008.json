@@ -1,12 +1,10 @@
 {
   "id": "ses_008",
   "projectId": "foreman",
-  "startedAt": "2026-02-22T17:25:08.311Z",
+  "startedAt": "2026-02-22T21:26:16.071Z",
   "completedTaskIds": [],
   "thoughtIds": [],
   "memoryIds": [],
   "totalTokens": 0,
-  "status": "completed",
-  "endedAt": "2026-02-22T17:25:10.044Z",
-  "summary": "Session ended via shutdown — 32979 tokens used"
+  "status": "active"
 }

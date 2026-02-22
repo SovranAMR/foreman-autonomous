@@ -1,0 +1,14 @@
+{
+  "id": "t_040",
+  "chainId": "chain_007",
+  "layer": "visioner",
+  "input": "Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: Write a mock API for tasks in src/mock-api.ts\n\nProject Context:\nProject: foreman v0.1.0\nDescription: AI agent orchestrator — atomic thought chains with vision, research, and tactical reasoning\nLanguage: typescript\nBuild: npm (npm)\nRuntime: node\nFiles: 126 (src: src/)\nDeps: 15 prod, 2 dev\nHealth: 50/100\nIssues: No test framework detected; No linter detected; No CI/CD detected; No entry point detected\n\n## Memory\n# Project Memory\n\n_No memories stored yet._\n\n\nINDUSTRY RESEARCH (real examples found):\n- 10 Best API Mocking Tools (2025 Review) - DEV Community [undefined]: undefined\n- The Top API Mocking Tools in 2025 | Zuplo Learning Center [undefined]: undefined\n- Ultimate Guide - The Best Mock API Tools of 2025 [undefined]: undefined\n- Mock API Server | Free REST & SOAP API Mocking Tool | Beeceptor [undefined]: undefined\n- Mock API Generator | Free Mock API Tool Online - Create APIs Instantly | Mockfly [undefined]: undefined",
+  "contextRefs": [],
+  "reasoning": "",
+  "output": "",
+  "confidence": 0,
+  "needsResearch": false,
+  "needsVerification": false,
+  "status": "thinking",
+  "createdAt": "2026-02-22T21:25:37.210Z"
+}

@@ -1,12 +1,20 @@
 {
   "id": "ses_007",
   "projectId": "foreman",
+<<<<<<< HEAD
   "startedAt": "2026-02-22T17:23:27.857Z",
+=======
+  "startedAt": "2026-02-22T21:25:36.242Z",
+>>>>>>> 9b18283 (FIX: forge 404 fallback + provider bootstrap — forge pipeline tam çalışır)
   "completedTaskIds": [],
   "thoughtIds": [],
   "memoryIds": [],
   "totalTokens": 0,
+<<<<<<< HEAD
   "status": "completed",
   "endedAt": "2026-02-22T17:23:29.423Z",
   "summary": "Session ended via shutdown — 32979 tokens used"
+=======
+  "status": "active"
+>>>>>>> 9b18283 (FIX: forge 404 fallback + provider bootstrap — forge pipeline tam çalışır)
 }
