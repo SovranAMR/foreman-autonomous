@@ -27,6 +27,8 @@ import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
 import { getActiveThoughts } from "./chain-repair.js";
 import { validateReasoning, validateOutput, validateConfidence, validateWorkerProtocol, validateProtocolSteps } from "./validators.js";
+import { quickReviewCheck, buildReviewPrompt, parseReviewResponse, REVIEWER_SYSTEM_PROMPT } from "./reviewer-gate.js";
+import type { ReviewResult } from "./reviewer-gate.js";
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
@@ -49,6 +51,12 @@ export class Orchestrator {
   private engine: Engine;
   readonly resume: PipelineResumeEngine;
   private listeners: EventListener[] = [];
+
+  // ─── TOKEN BUDGETS ──────────────────────────────────────────
+  private readonly MAX_TOKENS_PER_ATOM = 8_000;
+  private readonly MAX_TOKENS_PER_BLOCK = 40_000;
+  private readonly MAX_TOKENS_SESSION = 500_000;
+  private readonly MAX_ATOM_RETRIES = 3;
 
   constructor(engine: Engine) {
     this.engine = engine;
@@ -479,6 +487,18 @@ export class Orchestrator {
       for (let j = 0; j < atoms.length; j++) {
         const atom = atoms[j];
 
+        // ─── SESSION BUDGET CHECK ───────────────────────────
+        // Don't start an atom if total session tokens exceeded
+        const sessionTokens = this.engine.state.snapshot().totalTokens;
+        if (sessionTokens > this.MAX_TOKENS_SESSION) {
+          this.emit({
+            type: "error",
+            message: `Session budget exceeded: ${sessionTokens} tokens (max ${this.MAX_TOKENS_SESSION}). Stopping pipeline.`,
+          });
+          this.engine.streaming.error(`💰 Budget exceeded: ${sessionTokens} tokens`);
+          return this.buildResult(false, totalThoughts, visionChain.id, "budget_exceeded");
+        }
+
         // Context window check — evaluate budget before each atom
         try {
           const ctxWindow = this.engine.getContextWindow();
@@ -778,6 +798,79 @@ export class Orchestrator {
 
         this.emit({ type: "phase_end", phase: "execute", detail: `Done: ${atom.slice(0, 40)}` });
 
+        // ─── REVIEWER GATE — Acımasız Denetçi (Tribunal) ────
+        // Different LLM reviews Worker's output against vision document.
+        // Quick local check first, then full LLM review if needed.
+        if (execResult.thought.status === "done" && execResult.thought.workerProtocol) {
+          const protocol = execResult.thought.workerProtocol;
+
+          // Phase 1: Quick local review (no LLM cost)
+          const quickResult = quickReviewCheck(protocol, visionOutput);
+          if (quickResult && quickResult.verdict === "REJECT") {
+            this.emit({
+              type: "verification",
+              phase: "reviewer_quick",
+              passed: false,
+              detail: `Quick review REJECT: ${quickResult.violations.join("; ").slice(0, 120)}`,
+            });
+            this.engine.streaming.error(`🔴 Quick review rejected atom ${j + 1}: ${quickResult.violations[0]?.slice(0, 80)}`);
+
+            // Rollback and skip (treated like BLOCK)
+            try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
+            continue;
+          }
+
+          // Phase 2: Full LLM review (different model — breaks bias)
+          try {
+            let codeDiff = "";
+            try { codeDiff = this.engine.git.summarizeChanges() || ""; } catch { /* non-git */ }
+
+            const reviewPrompt = buildReviewPrompt({
+              protocol,
+              atom,
+              visionDocument: visionOutput,
+              codeDiff,
+              block,
+            });
+
+            // Use a different model for the reviewer (gemini-pro or gpt-4o)
+            // This breaks the echo chamber — Worker can't grade its own homework
+            const reviewLlmResult = await this.engine.callLLM(
+              REVIEWER_SYSTEM_PROMPT,
+              reviewPrompt,
+              "researcher", // uses researcher's model (gpt-4o) — different from worker (sonnet)
+            );
+            totalThoughts++;
+
+            const reviewResult = parseReviewResponse(reviewLlmResult.text);
+
+            this.emit({
+              type: "verification",
+              phase: "reviewer_gate",
+              passed: reviewResult.verdict === "PASS",
+              detail: `Reviewer: ${reviewResult.verdict} (${(reviewResult.confidence * 100).toFixed(0)}%) — ${reviewResult.reasoning.slice(0, 100)}`,
+            });
+            this.engine.streaming.toolCall("reviewer_gate", `${reviewResult.verdict}: ${reviewResult.reasoning.slice(0, 60)}`);
+
+            if (reviewResult.verdict === "REJECT") {
+              this.engine.streaming.error(`🔴 Reviewer REJECTED atom ${j + 1}: ${reviewResult.violations.join(", ").slice(0, 80)}`);
+
+              // Rollback code
+              try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
+
+              // Save rejection feedback for potential retry
+              this.engine.identity.updateMemory(
+                `review_reject_${Date.now()}`,
+                `Atom "${atom.slice(0, 40)}" rejected: ${reviewResult.violations.join(", ").slice(0, 100)}`,
+                "Review History",
+              );
+              continue;
+            }
+          } catch {
+            // Reviewer gate is best-effort — if LLM call fails, continue
+          }
+        }
+
         // ─── CHECKPOINT: Atom complete ───
         this.resume.completeAtom(i, j, 1, execResult.thought.tokenCost ?? 0);
 
@@ -970,6 +1063,57 @@ Be BRUTAL — "looks okay" is not acceptable. Either it matches the vision or it
 
       // ─── STREAMING: Block end ───
       this.engine.streaming.blockEnd(i);
+
+      // ─── VIBE CHECK MILESTONE — Visual verification at block boundary ───
+      try {
+        const servers = await detectDevServers();
+        const healthyServer = servers.find(s => s.healthy);
+        if (healthyServer && this.engine.browser.checkAvailability()) {
+          const screenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
+          this.engine.streaming.toolCall("vibe_check", `Block ${i + 1} screenshot: ${screenshot.width}x${screenshot.height}`);
+
+          // Ask Vision model: does this match the vision?
+          try {
+            const vibeResult = await this.engine.callLLM(
+              `You are a visual QA specialist. Look at the screenshot info and compare with the vision document.
+Answer: Does the current UI match the vision's emotion target, focal point, and color philosophy?
+Be specific. Rate 0.0-1.0. If below 0.6, say FAIL with specific reasons.`,
+              `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT: ${screenshot.width}x${screenshot.height} from ${healthyServer.url}\nBlock just completed: ${block}`,
+              "visioner",
+            );
+            totalThoughts++;
+
+            const vibePass = !vibeResult.text.toLowerCase().includes("fail");
+            this.emit({
+              type: "verification",
+              phase: "vibe_check_block",
+              passed: vibePass,
+              detail: `Block ${i + 1} vibe check: ${vibePass ? "PASS" : "FAIL"} — ${vibeResult.text.slice(0, 100)}`,
+            });
+
+            if (!vibePass) {
+              this.engine.streaming.error(`🎨 Vibe check FAILED for block ${i + 1}: ${vibeResult.text.slice(0, 80)}`);
+              // Don't rollback entire block — just warn. Strategist may adjust next block.
+            }
+          } catch { /* vibe check LLM best-effort */ }
+        }
+      } catch { /* no server or browser — skip */ }
+
+      // ─── MEMORY COMPRESSION — summarize completed block ───
+      // Mutable context: compress old atom details to single summary
+      // Vision document stays immutable (pinned)
+      try {
+        const blockSummary = `Block ${i + 1}/${blocks.length}: ${block.slice(0, 60)} — ${atoms.length} atoms completed`;
+        this.engine.memory.add({
+          content: blockSummary,
+          type: "block_completion",
+          tags: ["foreman", "pipeline", `block_${i + 1}`],
+          source: "orchestrator",
+          projectId: this.engine.state.snapshot().projectName,
+        });
+        // Consolidate old memories to keep context window clean
+        this.engine.memory.consolidate();
+      } catch { /* memory compression best-effort */ }
 
       // ── GIT CHECKPOINT — save progress after each block with thought metadata ──
       try {
