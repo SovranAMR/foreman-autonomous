@@ -796,10 +796,21 @@ export class AntigravityProvider implements LLMProvider {
               onToolCall(fc);
               const result = await (toolExecutor ? toolExecutor(fc) : executeTool(fc));
               onToolResult(result);
+              // Truncate tool results to prevent context window bloat
+              // 8K chars per tool result — enough for meaningful data,
+              // prevents 15K bash outputs from eating the entire context
+              const MAX_TOOL_RESULT = 8_000;
+              let content = result.content;
+              if (content.length > MAX_TOOL_RESULT) {
+                const half = Math.floor(MAX_TOOL_RESULT / 2) - 30;
+                content = content.slice(0, half)
+                  + `\n\n... [${content.length - MAX_TOOL_RESULT} chars truncated] ...\n\n`
+                  + content.slice(-half);
+              }
               toolResultParts.push({
                 functionResponse: {
                   name: fc.name,
-                  response: { content: result.content },
+                  response: { content },
                 },
               });
             }

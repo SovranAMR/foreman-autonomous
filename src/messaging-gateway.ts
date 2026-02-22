@@ -68,7 +68,6 @@ export class MessagingGateway {
   // Conversation limits
   private readonly MAX_HISTORY = 50;
   private readonly CONVERSATION_TTL_MS = 30 * 60 * 1000; // 30 min idle = reset
-  private readonly MAX_RESPONSE_LENGTH = 4000; // Telegram limit ~4096
 
   constructor(config: GatewayConfig) {
     this.config = config;
@@ -336,7 +335,9 @@ export class MessagingGateway {
       content: m.content,
     }));
 
-    if (shouldCompact(compactionMessages, { maxTokens: 80_000 })) {
+    // Compact earlier — 40K tokens instead of 80K to prevent context bloat
+    // from many tool call rounds (each tool call = 2 messages)
+    if (shouldCompact(compactionMessages, { maxTokens: 40_000 })) {
       try {
         // Build summarize function using the provider
         const summarize: SummarizeFunction = async (sysPrompt, userPrompt, model) => {
@@ -358,7 +359,7 @@ export class MessagingGateway {
         };
 
         const compacted = await compactWithLlm(compactionMessages, summarize, {
-          maxTokens: 80_000,
+          maxTokens: 40_000,
           recentKeepCount: 10,
           summaryModel: modelId,
         });
@@ -377,7 +378,7 @@ export class MessagingGateway {
         conversationMessages = conversation.messages;
       } catch (err) {
         console.warn(`[gateway] Compaction failed, using local fallback:`, err);
-        const local = compactLocal(compactionMessages, { maxTokens: 80_000, recentKeepCount: 10 });
+        const local = compactLocal(compactionMessages, { maxTokens: 40_000, recentKeepCount: 10 });
         conversation.messages = local.messages.map(m => ({
           role: m.role,
           content: m.content,
@@ -408,7 +409,7 @@ export class MessagingGateway {
         },
         // onToolResult — log result
         (result: ToolResult) => {
-          const preview = result.content.slice(0, 100);
+          const preview = result.content.slice(0, 200);
           console.log(`[gateway] Result: ${result.name} → ${result.isError ? "❌" : "✔"} ${preview}`);
         },
         // maxTokens
@@ -426,7 +427,7 @@ export class MessagingGateway {
       if (!text) return null;
 
       return {
-        text: this.truncateResponse(text),
+        text,
         parseMode: "markdown",
       };
     } catch (err) {
@@ -473,6 +474,8 @@ export class MessagingGateway {
       "- Building something new from scratch",
       "- Major refactors or redesigns",
       "- UI/design work that needs visual verification",
+      "- Writing documentation that requires reading the entire codebase (README, ARCHITECTURE, etc.)",
+      "- Any task that needs more than 10 tool calls to complete",
       "- The user says 'build', 'create', 'implement', 'redesign', 'refactor' for something non-trivial",
       "",
       "Use direct tools when:",
@@ -481,6 +484,14 @@ export class MessagingGateway {
       "- Fixing a typo or small bug in 1-2 files",
       "- Answering a question about the codebase",
       "- Git status, diff, log",
+      "",
+      "## CRITICAL: Context Management",
+      "You have limited context window. When gathering information:",
+      "- Combine multiple queries into ONE bash command (e.g., `echo '=== FILES ===' && ls src/ && echo '=== LOC ===' && wc -l src/*.ts`)",
+      "- Never run separate tool calls for things you can combine",
+      "- Use `read_file` with specific line ranges instead of reading entire large files",
+      "- Gather ALL data FIRST, then write the output in ONE write_file call",
+      "- Do NOT make more than 20 tool calls for a single task — plan efficiently",
       "",
       "## Capabilities (Tools)",
       "- bash — Run shell commands",
@@ -539,22 +550,6 @@ export class MessagingGateway {
       // Keep system prompt context but trim middle
       conv.messages = conv.messages.slice(-this.MAX_HISTORY);
     }
-  }
-
-  private truncateResponse(text: string): string {
-    if (text.length <= this.MAX_RESPONSE_LENGTH) return text;
-
-    // Smart truncation — find last complete sentence/paragraph
-    const truncated = text.slice(0, this.MAX_RESPONSE_LENGTH);
-    const lastNewline = truncated.lastIndexOf("\n");
-    const lastPeriod = truncated.lastIndexOf(". ");
-
-    const cutPoint = Math.max(lastNewline, lastPeriod);
-    if (cutPoint > this.MAX_RESPONSE_LENGTH * 0.5) {
-      return truncated.slice(0, cutPoint + 1) + "\n\n... (truncated)";
-    }
-
-    return truncated + "\n\n... (truncated)";
   }
 
   private async createChannel(config: ChannelConfig): Promise<Channel> {
