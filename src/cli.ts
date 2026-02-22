@@ -1067,33 +1067,6 @@ intCmd
     printProviderStatus();
     console.log("");
   });
-
-intCmd
-  .command("processes")
-  .description("Active and recent background processes")
-  .option("-d, --dir <path>", "Project directory")
-  .action((_opts: any) => {
-    // Show child processes of current PID
-    try {
-      const output = execSync("ps --ppid " + process.pid + " -o pid,stat,time,comm --no-headers 2>/dev/null", {
-        encoding: "utf-8",
-        timeout: 5000,
-      }).trim();
-      console.log(brand.gold("\n  ◆ Active Processes\n"));
-      if (!output) {
-        console.log(`  ${icon.pending} No active child processes.`);
-      } else {
-        for (const line of output.split("\n")) {
-          console.log(`  ${brand.dim(line.trim())}`);
-        }
-      }
-    } catch {
-      console.log(brand.gold("\n  ◆ Active Processes\n"));
-      console.log(`  ${icon.pending} No active child processes.`);
-    }
-    console.log("");
-  });
-
 intCmd
   .command("approvals")
   .description("Approval engine audit trail")
