@@ -54,6 +54,12 @@ import { EmbeddingEngine } from "./embedding-engine.js";
 import { MultiSessionManager } from "./multi-session.js";
 import { MediaEngine } from "./media-engine.js";
 import { MessageActionsEngine } from "./message-actions.js";
+import { StreamingPipeline, ConsoleTarget } from "./streaming-pipeline.js";
+import { InteractiveConfirm } from "./interactive-confirm.js";
+import { RollbackEngine } from "./rollback-engine.js";
+import { CostTracker } from "./cost-tracker.js";
+import { HooksEngine } from "./hooks-engine.js";
+import { detectProject, type ProjectInfo } from "./project-detector.js";
 import { buildIntelligentContext, extractCrossChainContext } from "./context-intelligence.js";
 import { buildCompactContext, chunkThoughtsByTokens, computeAdaptiveChunkRatio, estimateTokens } from "./context-compression.js";
 import { generateMemoryMd, parseMemoryMd, generateCategoryFiles } from "./memory-md-bridge.js";
@@ -118,6 +124,12 @@ export class Engine {
   readonly sessionManager: MultiSessionManager;
   readonly mediaEngine: MediaEngine;
   readonly messageActions: MessageActionsEngine;
+  readonly streaming: StreamingPipeline;
+  readonly interactive: InteractiveConfirm;
+  readonly rollback: RollbackEngine;
+  readonly costTracker: CostTracker;
+  readonly hooks: HooksEngine;
+  readonly projectInfo: ProjectInfo;
 
   readonly config: EngineConfig;
   private maxFormatRetries: number;
@@ -161,6 +173,15 @@ export class Engine {
     this.sessionManager = new MultiSessionManager(config.projectRoot);
     this.mediaEngine = new MediaEngine(config.projectRoot);
     this.messageActions = new MessageActionsEngine();
+
+    // Forge pipeline engines
+    this.streaming = new StreamingPipeline();
+    this.streaming.addTarget(new ConsoleTarget());
+    this.interactive = new InteractiveConfirm();
+    this.rollback = new RollbackEngine(config.projectRoot);
+    this.costTracker = new CostTracker(config.projectRoot);
+    this.hooks = new HooksEngine();
+    this.projectInfo = detectProject(config.projectRoot);
 
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Connect ProcessRegistry to the GitEngine's ExecutionEngine
@@ -305,6 +326,14 @@ export class Engine {
     this.rateLimiter.onSuccess();
     this.rateLimiter.recordTokens(result.tokenUsage.total);
     this.state.addTokens(result.tokenUsage.total);
+
+    // Track cost
+    this.costTracker.record(
+      result.model ?? model,
+      layer,
+      result.tokenUsage.input,
+      result.tokenUsage.output,
+    );
 
     return result;
   }

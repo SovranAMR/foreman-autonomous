@@ -22,6 +22,7 @@ import { extractOperations, executeOperations, needsExecution, buildExecutionFee
 import { PipelineResumeEngine } from "./pipeline-resume.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall, ToolResult } from "./tools.js";
+import { formatProjectContext } from "./project-detector.js";
 import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
 import { getActiveThoughts } from "./chain-repair.js";
@@ -117,6 +118,20 @@ export class Orchestrator {
   }> {
     let totalThoughts = 0;
 
+    // ─── STREAMING — announce pipeline start ────────────────
+    this.engine.streaming.pipelineStart(task);
+
+    // ─── HOOKS — before_pipeline ────────────────────────────
+    const hookResult = await this.engine.hooks.run("before_pipeline", { task });
+    if (hookResult.block) {
+      this.engine.streaming.error(`Pipeline blocked: ${hookResult.blockReason}`);
+      this.engine.streaming.pipelineEnd(false, hookResult.blockReason);
+      return { success: false, totalThoughts: 0, totalTokens: 0, visionChainId: "", blockedAt: "hooks" };
+    }
+
+    // ─── ROLLBACK — create pipeline-level checkpoint ────────
+    this.engine.rollback.createPoint("pipeline", `Pipeline start: ${task.slice(0, 60)}`);
+
     // ─── SESSION AUTO-START ─────────────────────────────────
     // User doesn't deal with session start/end — pipeline manages it
     const session = this.engine.sessions.start({
@@ -160,6 +175,10 @@ export class Orchestrator {
     // ─── 1. VISION ──────────────────────────────────────────
 
     this.emit({ type: "phase_start", phase: "vision", detail: task });
+    this.engine.streaming.phaseStart("vision", task);
+
+    // Inject project context into vision
+    const projectContext = `\n\nProject Context:\n${formatProjectContext(this.engine.projectInfo)}`;
 
     const visionChain = this.engine.chains.create({
       name: `Vision: ${task.slice(0, 40)}`,
@@ -175,7 +194,7 @@ export class Orchestrator {
 
     const visionResult = await this.engine.stepWithPhase(
       visionChain.id,
-      `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}`,
+      `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}`,
       "visioner",
       "vision",
     );
@@ -190,6 +209,7 @@ export class Orchestrator {
     const visionOutput = visionResult.thought.output;
     this.engine.chains.updateSummary(visionChain.id, visionOutput.slice(0, 500));
     this.emit({ type: "phase_end", phase: "vision", detail: visionOutput.slice(0, 100) });
+    this.engine.streaming.phaseEnd("vision", visionOutput.slice(0, 100));
 
     // ─── CHECKPOINT: Vision complete ───
     this.resume.createCheckpoint(task, visionChain.id);
@@ -1028,6 +1048,16 @@ export class Orchestrator {
     // ─── CHECKPOINT: Pipeline complete — clear ───
     this.resume.updatePhase(success ? "complete" : "failed");
     if (success) this.resume.clearCheckpoint();
+
+    // ─── STREAMING — announce pipeline end ──────────────────
+    const costReport = this.engine.costTracker.formatReport();
+    this.engine.streaming.pipelineEnd(success, success ? "All blocks complete" : blockedAt ?? "Failed");
+
+    // ─── HOOKS — after_pipeline ─────────────────────────────
+    this.engine.hooks.run("after_pipeline", { success, totalThoughts, totalTokens, blockedAt }).catch(() => {});
+
+    // ─── ROLLBACK — clear on success ────────────────────────
+    if (success) this.engine.rollback.clear();
 
     // Fire scheduler events for pipeline lifecycle
     try {
