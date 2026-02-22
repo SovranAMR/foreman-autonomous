@@ -182,6 +182,19 @@ export class Orchestrator {
     // Load identity context once for the pipeline
     this.engine.identity.reload();
 
+    // ─── CLEAN STATE — reset stale references ───────────────
+    // Each forge run must start clean. Old checkpoint/chain references
+    // from previous interrupted runs cause "Chain not found" errors.
+    try {
+      this.resume.clearCheckpoint();
+    } catch { /* best-effort */ }
+    try {
+      // Reset activeChainId in state to prevent stale references
+      if (this.engine.state.raw?.activeChainId) {
+        this.engine.state.raw.activeChainId = null;
+      }
+    } catch { /* best-effort */ }
+
     // ─── MEMORY CLEANUP ─────────────────────────────────────
     // Clean up expired/cold memories at the start of each run
     this.engine.memory.cleanup();

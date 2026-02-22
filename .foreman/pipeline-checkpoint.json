@@ -1,14 +1,1 @@
-{
-  "id": "cp_1771781345237_2mdu",
-  "task": "Count the number of .ts files in src/ and create a one-line summary in /tmp/forge-test-output.txt",
-  "startedAt": 1771781345237,
-  "updatedAt": 1771781345237,
-  "phase": "decompose",
-  "chainId": "chain_011",
-  "completedAtoms": [],
-  "currentBlock": 0,
-  "currentAtom": 0,
-  "totalThoughts": 0,
-  "totalTokens": 0,
-  "visionOutput": "txt`.\n\nOUTPUT: \n- **EMOTION TARGET**: Silent certainty. The profound, immediate trust a user feels when a utility executes perfectly in less than 50 milliseconds without begging for attention.\n- **FOCAL POINT**: The target file (`/tmp/forge-test-output.txt`). The script's entire existence culminates in a single, flawlessly formatted line of text written to this exact location. If the user notices the terminal while it runs, the design has failed.\n- **COLOR PHILOSOPHY**: Pure Void (No color). Terminal colors (ANSI escape codes) are explicitly rejected. *Reason:* This tool writes to a file, not to a human user in a shell. Colors introduce encoding risks and violate the machine-readable nature of background utilities.\n- **MOTION BUDGET**: Zero. Absolutely no progress bars, no spinning cursors, no \"Loading...\" states. *Reason:* The task bounded by `src/` is infinitesimally small for modern I/O. Any animation would artificially delay execution and signal amateurish overhead.\n- **TYPOGRAPHY HIERARCHY**: The output text must be strictly deterministic plaintext. Format: `[Count] .ts files found in src/`. *Reason:* It must be universally parsable by both human eyes (using `cat`) and secondary scripts (using `awk` or `grep`). No emojis, no markdown, no stylized prefixes.\n- **SPACE PHILOSOPHY**: Execution Space (Footprint). The script must occupy the absolute minimum memory and CPU cycles. We rely purely on the native Node.js `fs` module. 100% of the runtime must be dedicated to file traversal, with 0% wasted on dependency resolution.\n- **FORBIDDEN LIST**: \n  1. MUST NOT use external NPM dependencies (No `glob`, no `fast-glob`, no `fs-extra`).\n  2. MUST NOT write success messages to `stdout` (Rule of Silence: only write to the target file; `stdout` is for data pipelines, `stderr` is for fatal errors).\n  3. MUST NOT use asynchronous execution overhead (`async`/`await`) if a simple recursive `fs.readdirSync` cleanly handles the bounded `src/` directory.\n- **REFERENCE BENCHMARKS**:\n  1. `wc` (Unix coreutils) - Does exactly what is asked, outputs raw data, no chat.\n  2. `find` (Unix coreutils) - traverses directories synchronously without external dependencies.\n  3. `true` (Unix coreutils) - The ultimate silent executor."
-}
+{}
