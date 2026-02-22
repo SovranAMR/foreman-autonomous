@@ -41,6 +41,8 @@ import {
   type ConversationMessage,
   type SummarizeFunction,
 } from "./compaction-engine.js";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
 
 // ─── CONVERSATION STATE ──────────────────────────────────────
 
@@ -68,6 +70,7 @@ export class MessagingGateway {
   // Conversation limits
   private readonly MAX_HISTORY = 50;
   private readonly CONVERSATION_TTL_MS = 30 * 60 * 1000; // 30 min idle = reset
+  private readonly CONVERSATIONS_DIR: string;
 
   constructor(config: GatewayConfig) {
     this.config = config;
@@ -75,6 +78,10 @@ export class MessagingGateway {
       projectRoot: config.projectRoot,
       projectName: config.projectName,
     });
+    this.CONVERSATIONS_DIR = join(config.projectRoot, ".foreman", "conversations");
+
+    // Load persisted conversations from disk
+    this.loadConversations();
   }
 
   // ─── LIFECYCLE ────────────────────────────────────────────
@@ -206,6 +213,9 @@ export class MessagingGateway {
         conversation.lastActivity = Date.now();
       }
 
+      // Persist conversation to disk (survives restarts)
+      this.persistConversation(chatKey);
+
       return reply;
     } catch (err) {
       console.error(`[gateway] Error processing message from ${message.senderName}:`, err);
@@ -241,6 +251,7 @@ export class MessagingGateway {
     if (text === "/clear" || text === "/temizle") {
       const chatKey = `${message.channel}:${message.chatId}`;
       this.conversations.delete(chatKey);
+      this.deleteConversationFile(chatKey);
       return { text: "🗑️ Conversation cleared." };
     }
 
@@ -531,6 +542,7 @@ export class MessagingGateway {
     // Reset if expired
     if (conv && Date.now() - conv.lastActivity > this.CONVERSATION_TTL_MS) {
       this.conversations.delete(chatKey);
+      this.deleteConversationFile(chatKey);
       conv = undefined;
     }
 
@@ -555,6 +567,100 @@ export class MessagingGateway {
       // Keep system prompt context but trim middle
       conv.messages = conv.messages.slice(-this.MAX_HISTORY);
     }
+  }
+
+  // ─── CONVERSATION PERSISTENCE ─────────────────────────────
+
+  /**
+   * Persist a single conversation to disk.
+   * Called after every message exchange to survive restarts.
+   */
+  private persistConversation(chatKey: string): void {
+    const conv = this.conversations.get(chatKey);
+    if (!conv) return;
+
+    try {
+      if (!existsSync(this.CONVERSATIONS_DIR)) {
+        mkdirSync(this.CONVERSATIONS_DIR, { recursive: true });
+      }
+
+      // Sanitize chatKey for filename (e.g., "telegram:8325347046" → "telegram_8325347046")
+      const filename = chatKey.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
+      const filePath = join(this.CONVERSATIONS_DIR, filename);
+
+      const data = {
+        chatKey,
+        chatId: conv.chatId,
+        channel: conv.channel,
+        messages: conv.messages,
+        lastActivity: conv.lastActivity,
+        totalTokens: conv.totalTokens,
+        senderName: conv.senderName,
+      };
+
+      writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+    } catch (err) {
+      console.warn(`[gateway] Failed to persist conversation ${chatKey}:`, err);
+    }
+  }
+
+  /**
+   * Load all persisted conversations from disk.
+   * Called once during constructor — restores state after restart.
+   */
+  private loadConversations(): void {
+    try {
+      if (!existsSync(this.CONVERSATIONS_DIR)) return;
+
+      const files = readdirSync(this.CONVERSATIONS_DIR).filter(f => f.endsWith(".json"));
+      let loaded = 0;
+
+      for (const file of files) {
+        try {
+          const filePath = join(this.CONVERSATIONS_DIR, file);
+          const raw = readFileSync(filePath, "utf-8");
+          const data = JSON.parse(raw);
+
+          // Skip expired conversations
+          if (Date.now() - data.lastActivity > this.CONVERSATION_TTL_MS) {
+            continue;
+          }
+
+          const conv: ConversationState = {
+            chatId: data.chatId,
+            channel: data.channel,
+            messages: data.messages ?? [],
+            lastActivity: data.lastActivity,
+            totalTokens: data.totalTokens ?? 0,
+            senderName: data.senderName ?? "Unknown",
+          };
+
+          this.conversations.set(data.chatKey, conv);
+          loaded++;
+        } catch {
+          // Skip corrupted files
+        }
+      }
+
+      if (loaded > 0) {
+        console.log(`[gateway] Restored ${loaded} conversation(s) from disk`);
+      }
+    } catch {
+      // First run — no conversations dir yet
+    }
+  }
+
+  /**
+   * Delete a conversation file from disk.
+   */
+  private deleteConversationFile(chatKey: string): void {
+    try {
+      const filename = chatKey.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
+      const filePath = join(this.CONVERSATIONS_DIR, filename);
+      if (existsSync(filePath)) {
+        unlinkSync(filePath);
+      }
+    } catch { /* best-effort */ }
   }
 
   private async createChannel(config: ChannelConfig): Promise<Channel> {

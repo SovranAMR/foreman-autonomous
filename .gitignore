@@ -12,3 +12,4 @@ src/_test*.ts
 src/_debug*.ts
 .foreman/
 thoughts/
+.foreman/conversations/
