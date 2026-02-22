@@ -43,22 +43,41 @@ export class TelegramChannel implements Channel {
     this.botUsername = me.username ?? "";
     console.log(`[telegram] Bot: @${this.botUsername} (${me.first_name})`);
 
+    // Force-close any existing polling connection
+    // deleteWebhook with drop_pending_updates clears stale state
+    try {
+      await this.bot.api.deleteWebhook({ drop_pending_updates: true });
+    } catch { /* best-effort */ }
+
     // Register message handler
     this.bot.on("message:text", async (ctx) => {
       await this.handleIncoming(ctx);
     });
 
-    // Handle errors gracefully
+    // Handle errors gracefully — don't crash on transient issues
     this.bot.catch((err) => {
-      console.error(`[telegram] Bot error:`, err.message ?? err);
+      const msg = err.message ?? String(err);
+      if (msg.includes("409")) {
+        console.error(`[telegram] 409 Conflict — wait for old connection to expire (~30s)`);
+      } else {
+        console.error(`[telegram] Bot error:`, msg);
+      }
     });
 
-    // Start long polling
+    // Start long polling — drop pending updates to avoid stale messages
     this.bot.start({
+      drop_pending_updates: true,
       onStart: () => {
         this.connected = true;
         console.log(`[telegram] Polling started for @${this.botUsername}`);
       },
+    }).catch((err) => {
+      const msg = String(err);
+      if (msg.includes("409")) {
+        console.error(`[telegram] 409 — another instance still connected. Kill old processes and wait 30s.`);
+      } else {
+        console.error(`[telegram] Fatal polling error:`, msg.slice(0, 200));
+      }
     });
   }
 

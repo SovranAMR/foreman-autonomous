@@ -433,15 +433,16 @@ export class AntigravityProvider implements LLMProvider {
     const nonSystemMsgs = messages.filter(m => m.role !== "system");
 
     const contents = nonSystemMsgs.map(m => {
+      const role = m.role === "assistant" || m.role === "model" ? "model" : "user";
       // Support both string content and pre-built parts arrays
       if (typeof m.content === "string") {
         return {
-          role: m.role === "assistant" ? "model" : "user",
+          role,
           parts: [{ text: m.content }],
         };
       }
       return {
-        role: m.role === "assistant" ? "model" : "user",
+        role,
         parts: m.content,
       };
     });
@@ -703,11 +704,19 @@ export class AntigravityProvider implements LLMProvider {
           }
 
           // Collect the full response (we need to detect function calls)
-          const body = await response.text();
+          // Add 120s timeout to prevent hanging on incomplete streams
+          const bodyPromise = response.text();
+          const timeoutPromise = new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error("Response read timeout (120s)")), 120_000),
+          );
+          const body = await Promise.race([bodyPromise, timeoutPromise]);
+          console.log(`[provider] Response received: ${body.length} chars, iteration ${iteration + 1}`);
           const lines = body.split("\n");
 
           let iterText = "";
           const functionCalls: Array<{ name: string; args: Record<string, any> }> = [];
+          const thoughtParts: any[] = []; // Gemini thought parts with signatures
+          const rawFunctionCallParts: any[] = []; // Raw parts to echo back exactly
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -722,15 +731,33 @@ export class AntigravityProvider implements LLMProvider {
                 for (const candidate of root.candidates) {
                   if (candidate.content?.parts) {
                     for (const part of candidate.content.parts) {
-                      if (part.text && !part.thought) {
-                        iterText += part.text;
-                        onToken(part.text);
+                      // Thinking text (internal reasoning) — skip from output
+                      if (part.thought && part.text) {
+                        // Don't push to thoughtParts — these are pure thinking, 
+                        // not needed for echo. The thoughtSignature on function
+                        // call and text parts is what the API needs.
+                        continue;
                       }
+
+                      // Function call with thoughtSignature — preserve ENTIRE raw part
                       if (part.functionCall) {
                         functionCalls.push({
                           name: part.functionCall.name,
                           args: part.functionCall.args,
                         });
+                        // Keep raw part with thoughtSignature intact
+                        rawFunctionCallParts.push(part);
+                        continue;
+                      }
+
+                      // Normal text output (may have thoughtSignature)
+                      if (part.text && !part.thought) {
+                        iterText += part.text;
+                        onToken(part.text);
+                        // Keep raw part if it has thoughtSignature
+                        if (part.thoughtSignature) {
+                          thoughtParts.push(part);
+                        }
                       }
                     }
                   }
@@ -749,12 +776,19 @@ export class AntigravityProvider implements LLMProvider {
           // If there are function calls, execute them and loop
           if (functionCalls.length > 0) {
             // Add the model's response to conversation (with function calls)
-            const modelParts: any[] = [];
-            if (iterText) modelParts.push({ text: iterText });
-            for (const fc of functionCalls) {
-              modelParts.push({ functionCall: { name: fc.name, args: fc.args } });
+            // CRITICAL: Echo back ALL raw parts from the model response.
+            // Gemini API requires thoughtSignature on functionCall parts to be
+            // preserved exactly. We use the raw parts captured during parsing.
+            const modelParts: any[] = [
+              ...rawFunctionCallParts, // functionCall parts WITH thoughtSignature
+            ];
+            // Add text parts with thoughtSignature if any
+            if (thoughtParts.length > 0) {
+              modelParts.unshift(...thoughtParts);
+            } else if (iterText) {
+              modelParts.unshift({ text: iterText });
             }
-            conversationMessages.push({ role: "assistant", content: modelParts });
+            conversationMessages.push({ role: "model", content: modelParts });
 
             // Execute each tool and add results
             const toolResultParts: any[] = [];
@@ -770,6 +804,8 @@ export class AntigravityProvider implements LLMProvider {
               });
             }
             conversationMessages.push({ role: "user", content: toolResultParts });
+
+            console.log(`[provider] Tool results sent, starting iteration ${iteration + 2}/${maxIterations}. Conversation: ${conversationMessages.length} messages`);
 
             finalText += iterText;
             iterationComplete = true;
