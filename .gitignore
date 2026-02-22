@@ -10,3 +10,5 @@ state.json
 .foreman/approvals.json
 src/_test*.ts
 src/_debug*.ts
+.foreman/
+thoughts/
