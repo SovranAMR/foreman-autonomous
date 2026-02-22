@@ -52,15 +52,15 @@ async function run() {
       // First: lazy response (no STEP fields)
       `I created the gradient div and it looks great. Build passes.`,
 
-      // Retry: proper format
-      `STEP1_READ: Read HeroSection.tsx
-STEP2_CONTEXT: Empty component
-STEP3_IMPACT: No side effects
-STEP4_DECIDE: Add gradient div
-STEP5_PREDICT: Gradient visible
-STEP6_EXECUTE: Added div
-STEP7_VERIFY: Build passes
-STEP8_REPORT: Gradient added successfully
+      // Retry: proper format with realistic tactical reasoning
+      `STEP1_READ: Read HeroSection.tsx: 45 lines, main container with Tailwind, no gradient present
+STEP2_CONTEXT: Component renders title and CTA button, uses motion.div wrapper
+STEP3_IMPACT: Adding gradient div behind content won't affect text visibility (z-index layering)
+STEP4_DECIDE: Line 8: insert absolute div with radial-gradient from gold-500 to transparent
+STEP5_PREDICT: Warm gold gradient visible behind hero text, blending with dark bg
+STEP6_EXECUTE: Added div with className="absolute inset-0 -z-10" and bg-gradient-radial
+STEP7_VERIFY: Build passes ✔, visual check shows gradient rendering correctly behind text
+STEP8_REPORT: Gradient added successfully, positioned behind content layer
 CONFIDENCE: 0.9`,
     );
 

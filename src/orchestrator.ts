@@ -247,7 +247,7 @@ export class Orchestrator {
 
     const decomposeResult = await this.engine.stepWithPhase(
       visionChain.id,
-      `Based on this vision, break the project into 5-8 implementable blocks. Each block should be independent enough to work on separately.\n\nVision:\n${visionOutput}`,
+      `Based on this VISION DOCUMENT, break the project into 5-8 implementable blocks.\n\nRules:\n- Each block must serve the vision's EMOTION TARGET\n- Each block must respect the FORBIDDEN list\n- Order blocks by dependency AND by visual importance (focal point first)\n- Each block needs clear acceptance criteria derived from the vision\n\nVISION DOCUMENT:\n${visionOutput}`,
       "strategist",
       "decompose",
       [visionResult.thought.id],
@@ -450,7 +450,7 @@ export class Orchestrator {
 
       const atomizeResult = await this.engine.stepWithPhase(
         visionChain.id,
-        `Break this block into 3-6 atomic tasks. Each atom must be independently executable and verifiable.\n\nBlock: ${block}\n\nResearch findings:\n${findings.slice(0, 500)}`,
+        `Break this block into 3-6 atomic tasks. Each atom must be independently executable and verifiable.\n\nRules:\n- Each atom must be specific enough that a Worker can execute it WITHOUT guessing\n- Include file paths, component names, or specific targets when possible\n- Order atoms by dependency (what must exist before the next step)\n- Each atom description should include acceptance criteria\n\nBlock: ${block}\n\nResearch findings:\n${findings.slice(0, 800)}\n\nVision constraints (atoms must respect):\n${visionOutput.slice(0, 400)}`,
         "strategist",
         "atomize",
         [researchResult.thought.id],
@@ -542,10 +542,12 @@ export class Orchestrator {
           // Build context for tool-enabled LLM call
           const atomContext = [
             `ATOM: ${atom}`,
-            `VISION: ${visionOutput.slice(0, 500)}`,
             `BLOCK: ${block}`,
-            findings ? `RESEARCH: ${findings}` : "",
-          ].filter(Boolean).join("\n\n");
+            `VISION DOCUMENT:\n${visionOutput}`,
+            findings ? `RESEARCH FINDINGS:\n${findings.slice(0, 800)}` : "",
+            atomCrossCtx || "",
+            memoryContext ? `MEMORY:\n${memoryContext.slice(0, 500)}` : "",
+          ].filter(Boolean).join("\n\n---\n\n");
 
           const toolLlmResult = await this.engine.callLLMWithTools(
             getWorkerPromptForToolMode(),
@@ -805,9 +807,10 @@ export class Orchestrator {
           }
         }
 
-        // ── REFLECT every 5 atoms ──
+        // ── REFLECT every 5 atoms — Visioner as Art Director ──
         if (atomCount > 0 && atomCount % 5 === 0) {
           this.emit({ type: "phase_start", phase: "reflect", detail: `Reflection after ${atomCount} atoms` });
+          this.engine.streaming.phaseStart("reflect", `Vision drift check after ${atomCount} atoms`);
 
           if (this.engine.state.canTransition("reflecting")) {
             this.engine.state.transition("reflecting", `Reflection after ${atomCount} atoms`);
@@ -822,20 +825,47 @@ export class Orchestrator {
             }
           } catch { /* non-git project */ }
 
+          // Build atom completion summary for the reflector
+          const completedAtomSummary = atoms
+            .slice(0, Math.min(j + 1, atoms.length))
+            .map((a, idx) => `Atom ${idx + 1}: ${a.slice(0, 60)}`)
+            .join("\n");
+
           const reflectResult = await this.engine.stepWithPhase(
             visionChain.id,
-            `We've completed ${atomCount} atoms so far. Review the work done and check:\n1. Is it still aligned with the original vision?\n2. Any quality issues or drift?\n3. Should we adjust the plan?\n\nOriginal vision:\n${visionOutput.slice(0, 500)}${diffContext}`,
+            `VISION-AWARE REFLECTION CHECK after ${atomCount} atoms.\n\n` +
+            `== ORIGINAL VISION DOCUMENT ==\n${visionOutput}\n\n` +
+            `== COMPLETED WORK ==\n${completedAtomSummary}\n\n` +
+            `== CURRENT BLOCK ==\nBlock ${i + 1}: ${block}\n\n` +
+            `Check EACH vision element against actual work:\n` +
+            `1. Does any completed atom violate the vision's FORBIDDEN list?\n` +
+            `2. Is the FOCAL POINT being diluted?\n` +
+            `3. Is the MOTION BUDGET exceeded?\n` +
+            `4. Is the EMOTION TARGET being served?\n` +
+            `5. Any scope creep or quality drift?\n` +
+            `${diffContext}`,
             "visioner",
             "reflect",
             [visionResult.thought.id],
           );
           totalThoughts++;
 
+          // If reflection confidence is low → potential block signal
+          if (reflectResult.thought.confidence < 0.4) {
+            this.emit({
+              type: "block_detected",
+              thought: reflectResult.thought,
+              reason: `Vision drift detected: ${reflectResult.thought.output.slice(0, 200)}`,
+            });
+            this.engine.streaming.error(`⚠️ Vision drift: ${reflectResult.thought.output.slice(0, 100)}`);
+          }
+
           this.emit({
             type: "reflection",
             summary: reflectResult.thought.output.slice(0, 200),
             atomCount,
           });
+          this.engine.streaming.phaseEnd("reflect", reflectResult.thought.output.slice(0, 80));
         }
       }
 

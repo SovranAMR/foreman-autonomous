@@ -96,10 +96,59 @@ export function validateProtocolSteps(protocol: WorkerProtocol): ValidationResul
   ];
 
   const errors: string[] = [];
+
+  // TRIVIAL content patterns — these indicate the worker didn't actually think
+  const trivialPatterns = [
+    /^n\/?a$/i,
+    /^none$/i,
+    /^todo$/i,
+    /^will do$/i,
+    /^standard/i,
+    /^as expected$/i,
+    /^no (?:side )?effects?$/i,
+    /^it (?:should |will )?work/i,
+    /^read the file/i,
+  ];
+
+  // Minimum content length per step (tactical reasoning requires substance)
+  const minLengths: Record<string, number> = {
+    step1_read: 20,     // Must describe what was found
+    step2_context: 15,  // Must describe surroundings
+    step3_impact: 10,   // Can be short if genuinely no impact
+    step4_decide: 20,   // Must specify file + approach
+    step5_predict: 15,  // Must describe expected outcome
+    step6_execute: 20,  // Must describe what was done
+    step7_verify: 10,   // Can be short if build passed
+    step8_report: 10,   // Summary
+  };
+
   for (const step of steps) {
     const value = protocol[step];
     if (!value || value.trim().length === 0) {
       errors.push(`WorkerProtocol.${step} is required and cannot be empty.`);
+      continue;
+    }
+
+    const trimmed = value.trim();
+
+    // Check for trivial content
+    if (trivialPatterns.some(p => p.test(trimmed))) {
+      errors.push(`WorkerProtocol.${step} contains trivial content ("${trimmed.slice(0, 30)}"). Worker must provide genuine tactical reasoning.`);
+    }
+
+    // Check minimum length
+    const minLen = minLengths[step] ?? 10;
+    if (trimmed.length < minLen) {
+      errors.push(`WorkerProtocol.${step} is too short (${trimmed.length} chars, min ${minLen}). Tactical reasoning requires substance.`);
+    }
+  }
+
+  // Cross-step consistency checks
+  if (protocol.step5_predict && protocol.step7_verify) {
+    // If predict says "should work" and verify says "works" — too vague, but allow if verify has build output
+    const verifyHasEvidence = /pass|fail|error|success|exit|ok|✔|✖|\d+ test/i.test(protocol.step7_verify);
+    if (!verifyHasEvidence && protocol.step7_verify.trim().length < 30) {
+      errors.push("WorkerProtocol.step7_verify should include concrete evidence (build output, test results, visual check).");
     }
   }
 

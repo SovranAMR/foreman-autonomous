@@ -222,14 +222,14 @@ test("validateThoughtCompletion: worker without protocol → fail", () => {
 
 test("validateThoughtCompletion: valid worker with protocol → pass", () => {
   const protocol: WorkerProtocol = {
-    step1_read: "Read file",
-    step2_context: "Understood context",
-    step3_impact: "No side effects",
-    step4_decide: "Will add X at line Y",
-    step5_predict: "Expected result Z",
-    step6_execute: "Added code",
-    step7_verify: "Build passed",
-    step8_report: "Done, no issues",
+    step1_read: "Read HeroSection.tsx: 350 lines, SVG path at line 180, GSAP timeline at line 75",
+    step2_context: "SVG inside motion.div z-index:-10, GSAP timeline has 3 tweens, path 'smileArc'",
+    step3_impact: "Adding strokeDasharray won't affect fill (none). No other animations target this path.",
+    step4_decide: "Line 182: add strokeDasharray='500' strokeDashoffset='500'. Line 80: GSAP tween at 0.3",
+    step5_predict: "Smile arc draws left-to-right over 1.8s, starting 0.3s after bloom",
+    step6_execute: "Added strokeDasharray and strokeDashoffset to SVG path, GSAP tween added to timeline",
+    step7_verify: "Build passed ✔, 12 tests pass, visual check shows arc drawing correctly",
+    step8_report: "SVG draw-on animation working. No unexpected side effects found.",
   };
   const t: Thought = {
     id: "t_test", chainId: "c", layer: "worker", input: "x",
