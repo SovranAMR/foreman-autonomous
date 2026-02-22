@@ -1,0 +1,15 @@
+{
+  "id": "38d0b3c7-df6e-4c2f-916c-5efacd6dd531",
+  "slug": "vast-dusk",
+  "status": "active",
+  "createdAt": 1771780827228,
+  "updatedAt": 1771780827228,
+  "context": {
+    "task": "Count the number of .ts files in src/ and create a one-line summary in /tmp/forge-test-output.txt",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}

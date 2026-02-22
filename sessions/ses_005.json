@@ -1,0 +1,20 @@
+{
+  "id": "ses_005",
+  "projectId": "foreman",
+  "startedAt": "2026-02-22T17:20:27.227Z",
+  "completedTaskIds": [],
+  "thoughtIds": [
+    "t_005",
+    "t_006",
+    "t_007",
+    "t_008"
+  ],
+  "memoryIds": [
+    "mem_001",
+    "mem_002",
+    "mem_003",
+    "mem_004"
+  ],
+  "totalTokens": 14759,
+  "status": "active"
+}

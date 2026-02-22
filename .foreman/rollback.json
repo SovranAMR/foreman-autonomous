@@ -1,0 +1,62 @@
+{
+  "points": [
+    {
+      "id": "rb_1771780693106_cghf",
+      "type": "pipeline",
+      "commitHash": "a63f0bd7fa65ca911e6aeae8a18863daa6dc474e",
+      "description": "Pipeline start: List all .ts files in the src/ directory and count them",
+      "timestamp": 1771780693106,
+      "filesChanged": [
+        "FOREMAN_VS_OPENCLAW_ANALYSIS.md",
+        "src/messaging-gateway.ts",
+        "src/tools.ts"
+      ]
+    },
+    {
+      "id": "rb_1771780776812_bnbx",
+      "type": "pipeline",
+      "commitHash": "a63f0bd7fa65ca911e6aeae8a18863daa6dc474e",
+      "description": "Pipeline start: Count the number of .ts files in src/ and create a one-line ",
+      "timestamp": 1771780776812,
+      "filesChanged": [
+        "FOREMAN_VS_OPENCLAW_ANALYSIS.md",
+        "cache/cch_38fe87fc3eca159a.json",
+        "cache/cch_9c31677c448fd46c.json",
+        "src/messaging-gateway.ts",
+        "src/tools.ts"
+      ]
+    },
+    {
+      "id": "rb_1771780827226_8xyp",
+      "type": "pipeline",
+      "commitHash": "a63f0bd7fa65ca911e6aeae8a18863daa6dc474e",
+      "description": "Pipeline start: Count the number of .ts files in src/ and create a one-line ",
+      "timestamp": 1771780827226,
+      "filesChanged": [
+        "FOREMAN_VS_OPENCLAW_ANALYSIS.md",
+        "cache/cch_38fe87fc3eca159a.json",
+        "cache/cch_9c31677c448fd46c.json",
+        "src/antigravity-provider.ts",
+        "src/messaging-gateway.ts",
+        "src/model-fallback.ts",
+        "src/tools.ts"
+      ]
+    },
+    {
+      "id": "rb_1771780874155_w1d9",
+      "type": "block",
+      "commitHash": "a63f0bd7fa65ca911e6aeae8a18863daa6dc474e",
+      "description": "Block 1: Create a zero-dependency Node.js script entry poin",
+      "timestamp": 1771780874155,
+      "blockIndex": 0,
+      "filesChanged": [
+        "FOREMAN_VS_OPENCLAW_ANALYSIS.md",
+        "src/messaging-gateway.ts",
+        "src/tools.ts"
+      ]
+    }
+  ],
+  "history": {
+    "rollbacks": []
+  }
+}

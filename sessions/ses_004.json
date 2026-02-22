@@ -1,0 +1,12 @@
+{
+  "id": "ses_004",
+  "projectId": "foreman",
+  "startedAt": "2026-02-22T17:19:36.813Z",
+  "completedTaskIds": [],
+  "thoughtIds": [],
+  "memoryIds": [],
+  "totalTokens": 0,
+  "status": "completed",
+  "endedAt": "2026-02-22T17:19:39.096Z",
+  "summary": "Session ended via shutdown — 0 tokens used"
+}

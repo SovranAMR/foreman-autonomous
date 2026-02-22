@@ -1,0 +1,45 @@
+{
+  "sessionStart": 1771780827214,
+  "entries": [
+    {
+      "id": "c_1771780850205_9z",
+      "model": "gemini-3.1-pro-high",
+      "phase": "visioner",
+      "inputTokens": 1490,
+      "outputTokens": 669,
+      "cacheTokens": 0,
+      "cost": 0.013760000000000001,
+      "timestamp": 1771780850205
+    },
+    {
+      "id": "c_1771780874144_f8",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 2602,
+      "outputTokens": 471,
+      "cacheTokens": 0,
+      "cost": 0.01357,
+      "timestamp": 1771780874144
+    },
+    {
+      "id": "c_1771780896736_mz",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 3662,
+      "outputTokens": 542,
+      "cacheTokens": 0,
+      "cost": 0.017285,
+      "timestamp": 1771780896736
+    },
+    {
+      "id": "c_1771780910571_4t",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 5093,
+      "outputTokens": 230,
+      "cacheTokens": 0,
+      "cost": 0.016182500000000002,
+      "timestamp": 1771780910571
+    }
+  ]
+}

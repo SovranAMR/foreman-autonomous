@@ -1,0 +1,15 @@
+{
+  "id": "mem_001",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] For a file-counting utility, the highest form of design is the Unix Philosophy: \"Do one thing and do it well. Write programs to handle text streams, because that is a universal interface.\" The project...",
+  "source": {
+    "type": "thought",
+    "ref": "t_005"
+  },
+  "importance": 0.76,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-22T17:20:50.206Z",
+  "expired": false
+}

@@ -1,0 +1,26 @@
+{
+  "id": "task_001",
+  "projectId": "foreman",
+  "title": "Count the number of .ts files in src/ and create a one-line summary in /tmp/forg",
+  "description": "For a file-counting utility, the highest form of design is the Unix Philosophy: \"Do one thing and do it well. Write programs to handle text streams, because that is a universal interface.\" The project",
+  "type": "feature",
+  "priority": "high",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [
+    "chain_005"
+  ],
+  "subtaskIds": [
+    "task_002",
+    "task_003",
+    "task_004",
+    "task_005",
+    "task_006",
+    "task_007"
+  ],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T17:21:14.146Z"
+}

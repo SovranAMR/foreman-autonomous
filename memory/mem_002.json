@@ -1,0 +1,16 @@
+{
+  "id": "mem_002",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Create a zero-dependency Node.js script entry point to serve as the executable context. [Acceptance Criteria: A `.js` file is created, uses a standard Node shebang, runs in strict mode, and require...",
+  "source": {
+    "type": "thought",
+    "ref": "t_006"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 2,
+  "createdAt": "2026-02-22T17:21:14.146Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T17:21:36.738Z"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "mem_003",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] - **Standard Portable Shebang**: The industry best practice for the entry point is `#!/usr/bin/env node`. This safely locates the Node.js executable across different POSIX environments, whereas `#!/us...",
+  "source": {
+    "type": "thought",
+    "ref": "t_007"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-22T17:21:36.737Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T17:21:36.738Z"
+}

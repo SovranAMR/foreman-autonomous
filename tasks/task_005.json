@@ -1,0 +1,17 @@
+{
+  "id": "task_005",
+  "projectId": "foreman",
+  "title": "Block 4: Construct the precise, one-line summary string according to ",
+  "description": "Construct the precise, one-line summary string according to the \"Absolute Density\" philosophy. [Acceptance Criteria: The string contains strictly the raw integer and a minimal suffix (e.g., \"124 .ts files\") with absolutely zero conversational text, zero padding, and no multi-line formatting.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T17:21:14.147Z"
+}

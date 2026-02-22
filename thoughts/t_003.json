@@ -1,0 +1,14 @@
+{
+  "id": "t_003",
+  "chainId": "chain_003",
+  "layer": "visioner",
+  "input": "Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: List all .ts files in the src/ directory and count them\n\nProject Context:\nProject: foreman v0.1.0\nDescription: AI agent orchestrator — atomic thought chains with vision, research, and tactical reasoning\nLanguage: typescript\nBuild: npm (npm)\nRuntime: node\nFiles: 124 (src: src/)\nDeps: 15 prod, 2 dev\nHealth: 50/100\nIssues: No test framework detected; No linter detected; No CI/CD detected; No entry point detected\n\nINDUSTRY RESEARCH (real examples found):\n- Recommended Folder Structure for Node(TS) 2025 - DEV Community [undefined]: undefined\n- Directory structure for TypeScript projects - Stack Overflow [undefined]: undefined\n- Best Practices for Structuring a React TypeScript Project | by Thiraphat Phutson | Medium [undefined]: undefined\n- Effective React TypeScript Project Structure: Best Practices for Scalability and Maintainability | by Tusharupadhyay | Medium [undefined]: undefined\n- TypeScript: The Good Parts | Object Computing, Inc. [undefined]: undefined",
+  "contextRefs": [],
+  "reasoning": "",
+  "output": "",
+  "confidence": 0,
+  "needsResearch": false,
+  "needsVerification": false,
+  "status": "thinking",
+  "createdAt": "2026-02-22T17:18:14.487Z"
+}

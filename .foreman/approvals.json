@@ -1,0 +1,44 @@
+{
+  "allowlist": [
+    [
+      "git * --show-current",
+      {
+        "pattern": "git * --show-current",
+        "allowCount": 7,
+        "lastUsedAt": "2026-02-22T17:21:50.578Z",
+        "lastSuccess": true,
+        "source": "learned"
+      }
+    ],
+    [
+      "git * --porcelain=v1",
+      {
+        "pattern": "git * --porcelain=v1",
+        "allowCount": 7,
+        "lastUsedAt": "2026-02-22T17:21:50.582Z",
+        "lastSuccess": true,
+        "source": "learned"
+      }
+    ],
+    [
+      "git * --left-right --count * *",
+      {
+        "pattern": "git * --left-right --count * *",
+        "allowCount": 7,
+        "lastUsedAt": "2026-02-22T17:21:50.586Z",
+        "lastSuccess": true,
+        "source": "learned"
+      }
+    ],
+    [
+      "git * * -m *",
+      {
+        "pattern": "git * * -m *",
+        "allowCount": 3,
+        "lastUsedAt": "2026-02-22T17:20:27.252Z",
+        "lastSuccess": true,
+        "source": "learned"
+      }
+    ]
+  ]
+}

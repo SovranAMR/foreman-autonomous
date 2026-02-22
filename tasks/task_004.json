@@ -1,0 +1,17 @@
+{
+  "id": "task_004",
+  "projectId": "foreman",
+  "title": "Block 3: Process the array of file paths to filter and count only fil",
+  "description": "Process the array of file paths to filter and count only files ending specifically in `.ts`. [Acceptance Criteria: Evaluates the file list, correctly ignores directories and non-TypeScript extensions, and produces a single, accurate integer count.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T17:21:14.147Z"
+}
