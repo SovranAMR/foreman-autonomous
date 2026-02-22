@@ -930,11 +930,11 @@ function createToolDispatcher(
 
         // ─── IDENTITY & MEMORY TOOLS ────────────────────────
         case "memory_read":
-          return executeMemoryRead(engine, call.args);
+          return await executeMemoryRead(engine, call.args);
         case "memory_write":
-          return executeMemoryWrite(engine, call.args);
+          return await executeMemoryWrite(engine, call.args);
         case "memory_search":
-          return executeMemorySearch(engine, call.args);
+          return await executeMemorySearch(engine, call.args);
 
         // ─── SUB-AGENT TOOLS ────────────────────────────────
         case "spawn_subagent":
@@ -942,7 +942,7 @@ function createToolDispatcher(
 
         // ─── DIFF TOOLS ─────────────────────────────────────
         case "diff_preview":
-          return executeDiffPreview(engine, call.args);
+          return await executeDiffPreview(engine, call.args);
 
         case "forge_pipeline":
           return await executeForge(projectRoot, call.args);
@@ -2016,12 +2016,12 @@ async function executeBrowserPdf(engine: any, args: Record<string, unknown>): Pr
 
 // ─── MEMORY TOOL EXECUTORS ──────────────────────────────────
 
-function executeMemoryRead(engine: any, args: Record<string, unknown>): ToolResult {
+async function executeMemoryRead(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
   const key = args.key as string;
   if (!key) return { name: "memory_read", content: "Error: key is required", isError: true };
 
   try {
-    const { IdentityEngine } = require("./identity-engine.js");
+    const { IdentityEngine } = await import("./identity-engine.js");
     const identity = new IdentityEngine(engine.projectRoot ?? process.cwd());
     const value = identity.getMemory(key);
     return {
@@ -2034,13 +2034,13 @@ function executeMemoryRead(engine: any, args: Record<string, unknown>): ToolResu
   }
 }
 
-function executeMemoryWrite(engine: any, args: Record<string, unknown>): ToolResult {
+async function executeMemoryWrite(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
   const key = args.key as string;
   const value = args.value as string;
   if (!key || !value) return { name: "memory_write", content: "Error: key and value are required", isError: true };
 
   try {
-    const { IdentityEngine } = require("./identity-engine.js");
+    const { IdentityEngine } = await import("./identity-engine.js");
     const identity = new IdentityEngine(engine.projectRoot ?? process.cwd());
     identity.updateMemory(key, value, args.section as string);
     return { name: "memory_write", content: `Saved: ${key} = ${value}`, isError: false };
@@ -2049,12 +2049,12 @@ function executeMemoryWrite(engine: any, args: Record<string, unknown>): ToolRes
   }
 }
 
-function executeMemorySearch(engine: any, args: Record<string, unknown>): ToolResult {
+async function executeMemorySearch(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
   const query = args.query as string;
   if (!query) return { name: "memory_search", content: "Error: query is required", isError: true };
 
   try {
-    const { IdentityEngine } = require("./identity-engine.js");
+    const { IdentityEngine } = await import("./identity-engine.js");
     const identity = new IdentityEngine(engine.projectRoot ?? process.cwd());
     const results = identity.searchMemory(query);
     if (results.length === 0) return { name: "memory_search", content: "No matching memory entries found", isError: false };
@@ -2091,16 +2091,17 @@ async function executeSpawnSubagent(engine: any, args: Record<string, unknown>):
 
 // ─── DIFF TOOL EXECUTOR ─────────────────────────────────────
 
-function executeDiffPreview(engine: any, args: Record<string, unknown>): ToolResult {
+async function executeDiffPreview(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
   const path = args.path as string;
   const newContent = args.new_content as string;
   if (!path || !newContent) return { name: "diff_preview", content: "Error: path and new_content are required", isError: true };
 
   try {
-    const { generateDiff, formatColoredDiff } = require("./diff-engine.js");
-    const fs = require("node:fs");
+    const { generateDiff, formatColoredDiff } = await import("./diff-engine.js");
+    const fs = await import("node:fs");
     const root = engine.projectRoot ?? process.cwd();
-    const fullPath = require("node:path").resolve(root, path);
+    const { resolve } = await import("node:path");
+    const fullPath = resolve(root, path);
 
     let oldContent = "";
     try { oldContent = fs.readFileSync(fullPath, "utf-8"); } catch { /* new file */ }
@@ -2139,10 +2140,11 @@ async function executeForge(
     // Dynamic import to avoid circular dependency
     const { Engine } = await import("./engine.js");
     const { Orchestrator } = await import("./orchestrator.js");
+    const { basename } = await import("node:path");
 
     const engine = new Engine({
       projectRoot,
-      projectName: require("node:path").basename(projectRoot),
+      projectName: basename(projectRoot),
     });
 
     const orchestrator = new Orchestrator(engine);

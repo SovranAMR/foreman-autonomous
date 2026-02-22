@@ -179,7 +179,7 @@ export class MessagingGateway {
 
     try {
       // Handle slash commands
-      const cmdResult = this.handleCommand(message);
+      const cmdResult = await this.handleCommand(message);
       if (cmdResult) return cmdResult;
 
       // Get or create conversation
@@ -218,7 +218,7 @@ export class MessagingGateway {
 
   // ─── SLASH COMMANDS ───────────────────────────────────────
 
-  private handleCommand(message: InboundMessage): OutboundReply | null {
+  private async handleCommand(message: InboundMessage): Promise<OutboundReply | null> {
     const text = message.text.trim();
 
     if (text === "/status" || text === "/durum") {
@@ -282,8 +282,8 @@ export class MessagingGateway {
         text === "/rollback" || text === "/geri" || text === "/identity" || text === "/kimlik" ||
         text === "/agents" || text === "/ajanlar" || text === "/sessions" || text === "/oturumlar") {
       try {
-        const { ForgeGatewayBridge } = require("./forge-gateway.js") as typeof import("./forge-gateway.js");
-        const { Engine } = require("./engine.js") as typeof import("./engine.js");
+        const { ForgeGatewayBridge } = await import("./forge-gateway.js");
+        const { Engine } = await import("./engine.js");
 
         const engine = new Engine({
           projectRoot: this.config.projectRoot,
@@ -325,7 +325,7 @@ export class MessagingGateway {
     const modelId = models[0]?.id ?? "claude-sonnet";
 
     // Build system prompt
-    const systemPrompt = this.buildSystemPrompt();
+    const systemPrompt = await this.buildSystemPrompt();
 
     // ─── COMPACTION — compress long conversations ───────────
     let conversationMessages = conversation.messages;
@@ -447,11 +447,11 @@ export class MessagingGateway {
 
   // ─── SYSTEM PROMPT ────────────────────────────────────────
 
-  private buildSystemPrompt(): string {
+  private async buildSystemPrompt(): Promise<string> {
     // Load identity context if available
     let identityInjection = "";
     try {
-      const { IdentityEngine } = require("./identity-engine.js") as typeof import("./identity-engine.js");
+      const { IdentityEngine } = await import("./identity-engine.js");
       const identity = new IdentityEngine(this.config.projectRoot);
       identityInjection = identity.buildContextInjection();
     } catch { /* identity files may not exist */ }
