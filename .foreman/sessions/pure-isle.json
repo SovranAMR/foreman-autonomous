@@ -1,0 +1,15 @@
+{
+  "id": "4e20e199-8ddd-416a-b508-faee89e8707c",
+  "slug": "pure-isle",
+  "status": "active",
+  "createdAt": 1771782617718,
+  "updatedAt": 1771782617718,
+  "context": {
+    "task": "Proje dizinini detaylıca analiz et ve 'foreman' projesi için ŞOV YAPAN, muazzam kalitede bir README.md dosyası oluştur. \n\nGereksinimler:\n1. Proje dosyalarını (package.json, kaynak kodları vb.) okuyarak projenin tam olarak ne olduğunu, mimarisini ve özelliklerini derinlemesine anla.\n2. README dosyası hem teknik uzmanların (mimari, kurulum, kullanım) hem de teknik olmayan kişilerin (vizyon, temel faydalar) anlayabileceği bir yapıda, muazzam bir dille yazılmalı. Dili Türkçe olmalı.\n3. İçerisinde kesinlikle şık ve detaylı bir 'örs döven demirci' (blacksmith striking an anvil) ASCII art'ı ve projeye uygun diğer estetik ASCII süslemeleri bulunmalı.\n4. Tasarımı vizyoner, profesyonel ve estetik olmalı. \"Şov yap\" komutunun hakkını verecek şekilde markdown yeteneklerini (tablolar, alıntılar, kod blokları, emojiler) en üst düzeyde kullan.\n5. Hazırladığın içeriği README.md dosyasına kaydet.",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}
