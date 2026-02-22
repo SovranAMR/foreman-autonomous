@@ -3,8 +3,18 @@
   "projectId": "foreman",
   "startedAt": "2026-02-22T23:25:15.611Z",
   "completedTaskIds": [],
-  "thoughtIds": [],
-  "memoryIds": [],
-  "totalTokens": 0,
+  "thoughtIds": [
+    "t_055",
+    "t_056",
+    "t_057",
+    "t_058"
+  ],
+  "memoryIds": [
+    "mem_027",
+    "mem_028",
+    "mem_029",
+    "mem_030"
+  ],
+  "totalTokens": 20926,
   "status": "active"
 }

@@ -1,0 +1,16 @@
+{
+  "id": "mem_029",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] To embed strict \"Constitutional\" design constraints into `state.ts` and `FractalNode` without risking sub-agent hallucinations, the architecture must leverage both Compile-Time (TypeScript unions) and...",
+  "source": {
+    "type": "thought",
+    "ref": "t_057"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-22T23:29:45.352Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T23:29:45.354Z"
+}

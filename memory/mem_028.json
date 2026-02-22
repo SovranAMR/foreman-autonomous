@@ -1,0 +1,15 @@
+{
+  "id": "mem_028",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Extend `state.ts` and `FractalNode` interfaces to embed strict \"Constitutional\" design tokens (3-color palette limit, global light source vector, modular typography scale). [Acceptance Criteria: St...",
+  "source": {
+    "type": "thought",
+    "ref": "t_056"
+  },
+  "importance": 0.76,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-22T23:29:22.310Z",
+  "expired": false
+}
