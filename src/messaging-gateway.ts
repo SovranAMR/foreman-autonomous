@@ -34,6 +34,13 @@ import { EditEngine } from "./edit-engine.js";
 import { GitEngine } from "./git-engine.js";
 import { LinkIntelligence } from "./link-intelligence.js";
 import type { ToolCall, ToolResult } from "./tools.js";
+import {
+  shouldCompact,
+  compactWithLlm,
+  compactLocal,
+  type ConversationMessage,
+  type SummarizeFunction,
+} from "./compaction-engine.js";
 
 // ─── CONVERSATION STATE ──────────────────────────────────────
 
@@ -279,9 +286,68 @@ export class MessagingGateway {
     // Build system prompt
     const systemPrompt = this.buildSystemPrompt();
 
+    // ─── COMPACTION — compress long conversations ───────────
+    let conversationMessages = conversation.messages;
+
+    const compactionMessages: ConversationMessage[] = conversationMessages.map(m => ({
+      role: m.role as "user" | "assistant" | "system",
+      content: m.content,
+    }));
+
+    if (shouldCompact(compactionMessages, { maxTokens: 80_000 })) {
+      try {
+        // Build summarize function using the provider
+        const summarize: SummarizeFunction = async (sysPrompt, userPrompt, model) => {
+          const summaryModel = model ?? modelId;
+          const result = await this.provider!.streamChatWithTools(
+            [
+              { role: "system", content: sysPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            summaryModel,
+            () => {},
+            () => {},
+            () => {},
+            1024,
+            1,
+            this.toolExecutor!,
+          );
+          return result.text;
+        };
+
+        const compacted = await compactWithLlm(compactionMessages, summarize, {
+          maxTokens: 80_000,
+          recentKeepCount: 10,
+          summaryModel: modelId,
+        });
+
+        if (compacted.usedLlm) {
+          console.log(
+            `[gateway] Compacted: ${compacted.summarizedCount} messages → summary (${compacted.estimatedTokens} tokens)`,
+          );
+        }
+
+        // Replace conversation messages with compacted version
+        conversation.messages = compacted.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+        }));
+        conversationMessages = conversation.messages;
+      } catch (err) {
+        console.warn(`[gateway] Compaction failed, using local fallback:`, err);
+        const local = compactLocal(compactionMessages, { maxTokens: 80_000, recentKeepCount: 10 });
+        conversation.messages = local.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+        }));
+        conversationMessages = conversation.messages;
+      }
+    }
+    // ─────────────────────────────────────────────────────────
+
     const messages = [
       { role: "system", content: systemPrompt },
-      ...conversation.messages,
+      ...conversationMessages,
     ];
 
     let responseText = "";

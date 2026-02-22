@@ -48,6 +48,11 @@ import { LinkIntelligence } from "./link-intelligence.js";
 import { EditEngine } from "./edit-engine.js";
 import { ApprovalEngine } from "./approval-engine.js";
 import { checkChainHealth } from "./chain-repair.js";
+import { CronEngine } from "./cron-engine.js";
+import { EmbeddingEngine } from "./embedding-engine.js";
+import { MultiSessionManager } from "./multi-session.js";
+import { MediaEngine } from "./media-engine.js";
+import { MessageActionsEngine } from "./message-actions.js";
 import { buildIntelligentContext, extractCrossChainContext } from "./context-intelligence.js";
 import { buildCompactContext, chunkThoughtsByTokens, computeAdaptiveChunkRatio, estimateTokens } from "./context-compression.js";
 import { generateMemoryMd, parseMemoryMd, generateCategoryFiles } from "./memory-md-bridge.js";
@@ -102,6 +107,11 @@ export class Engine {
   readonly approvalEngine: ApprovalEngine;
   readonly git: GitEngine;
   readonly linkIntelligence: LinkIntelligence;
+  readonly cronEngine: CronEngine;
+  readonly embeddingEngine: EmbeddingEngine;
+  readonly sessionManager: MultiSessionManager;
+  readonly mediaEngine: MediaEngine;
+  readonly messageActions: MessageActionsEngine;
 
   private config: EngineConfig;
   private maxFormatRetries: number;
@@ -140,6 +150,11 @@ export class Engine {
     this.approvalEngine = new ApprovalEngine(config.projectRoot);
     this.git = new GitEngine(new ExecutionEngine(config.projectRoot));
     this.linkIntelligence = new LinkIntelligence();
+    this.cronEngine = new CronEngine(config.projectRoot);
+    this.embeddingEngine = new EmbeddingEngine(config.projectRoot);
+    this.sessionManager = new MultiSessionManager(config.projectRoot);
+    this.mediaEngine = new MediaEngine(config.projectRoot);
+    this.messageActions = new MessageActionsEngine();
 
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Connect ProcessRegistry to the GitEngine's ExecutionEngine
@@ -1045,6 +1060,9 @@ export class Engine {
 
     // Clear all caches
     this.linkIntelligence.clearCache();
+    this.cronEngine.stop();
+    this.embeddingEngine.persist();
+    this.sessionManager.stop();
     this.cache.clear();
 
     // Consolidate memory

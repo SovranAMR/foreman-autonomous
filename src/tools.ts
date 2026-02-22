@@ -564,13 +564,108 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: [],
     },
   },
+  // ─── NEW: Media, Cron, Session, Embedding tools ──────────
+  {
+    name: "analyze_media",
+    description: "Analyze a media file — detect MIME type, size, category (image/audio/video/document/code).",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Path to the file to analyze" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "download_file",
+    description: "Download a file from a URL to the project's media directory.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "URL to download" },
+        filename: { type: "string", description: "Optional filename to save as" },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "cron_list",
+    description: "List all scheduled cron jobs.",
+    parameters: {
+      type: "object",
+      properties: {
+        include_disabled: { type: "boolean", description: "Include disabled jobs (default false)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "cron_add",
+    description: "Add a new scheduled job. Schedule types: 'at' (one-shot ISO timestamp), 'every' (interval in ms), 'cron' (cron expression).",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Job name" },
+        schedule_kind: { type: "string", description: "Schedule type: at, every, or cron" },
+        schedule_value: { type: "string", description: "ISO timestamp (at), milliseconds (every), or cron expression (cron)" },
+        command: { type: "string", description: "Shell command to execute" },
+      },
+      required: ["name", "schedule_kind", "schedule_value", "command"],
+    },
+  },
+  {
+    name: "cron_remove",
+    description: "Remove a scheduled cron job by ID.",
+    parameters: {
+      type: "object",
+      properties: {
+        job_id: { type: "string", description: "Job ID to remove" },
+      },
+      required: ["job_id"],
+    },
+  },
+  {
+    name: "session_list",
+    description: "List all sessions (main + sub-agents). Optional filter by status.",
+    parameters: {
+      type: "object",
+      properties: {
+        status: { type: "string", description: "Filter by status: idle, running, completed, failed, terminated" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "session_spawn",
+    description: "Spawn a sub-agent session for a background task.",
+    parameters: {
+      type: "object",
+      properties: {
+        task: { type: "string", description: "Task description for the sub-agent" },
+        label: { type: "string", description: "Session label" },
+      },
+      required: ["task"],
+    },
+  },
+  {
+    name: "semantic_search",
+    description: "Search indexed documents using semantic similarity (requires embedding provider).",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query" },
+        top_k: { type: "number", description: "Number of results (default 5)" },
+      },
+      required: ["query"],
+    },
+  },
 ];
 
 /**
  * Creates a tool executor bound to a project root via ExecutionEngine.
  * All file operations go through the engine's security checks.
  */
-export function createToolExecutor(projectRoot: string): (call: ToolCall) => ToolResult {
+export function createToolExecutor(projectRoot: string): (call: ToolCall) => Promise<ToolResult> {
   const engine = new ExecutionEngine(projectRoot);
   const editEngine = new EditEngine();
   const gitEngine = new GitEngine(engine);
@@ -589,7 +684,7 @@ export function createEngineToolExecutor(
   editEngine: EditEngine,
   gitEngine: GitEngine,
   linkIntel: LinkIntelligence,
-): (call: ToolCall) => ToolResult {
+): (call: ToolCall) => Promise<ToolResult> {
   return createToolDispatcher(projectRoot, execEngine, editEngine, gitEngine, linkIntel);
 }
 
@@ -599,8 +694,8 @@ function createToolDispatcher(
   editEngine: EditEngine,
   gitEngine: GitEngine,
   linkIntel: LinkIntelligence,
-): (call: ToolCall) => ToolResult {
-  return (call: ToolCall): ToolResult => {
+): (call: ToolCall) => Promise<ToolResult> {
+  return async (call: ToolCall): Promise<ToolResult> => {
     try {
       switch (call.name) {
         case "bash":
@@ -663,6 +758,22 @@ function createToolDispatcher(
           return executeBatchOps(engine, call.args);
         case "git_log":
           return executeGitLog(gitEngine, call.args);
+        case "analyze_media":
+          return executeAnalyzeMedia(engine, call.args);
+        case "download_file":
+          return await executeDownloadFile(engine, call.args);
+        case "cron_list":
+          return executeCronList(engine, call.args);
+        case "cron_add":
+          return executeCronAdd(engine, call.args);
+        case "cron_remove":
+          return executeCronRemove(engine, call.args);
+        case "session_list":
+          return executeSessionList(engine, call.args);
+        case "session_spawn":
+          return executeSessionSpawn(engine, call.args);
+        case "semantic_search":
+          return await executeSemanticSearch(engine, call.args);
         default:
           return { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
       }
@@ -1455,6 +1566,186 @@ function executeGitLog(gitEngine: GitEngine, args: Record<string, unknown>): Too
     return { name: "git_log", content: `Git log error: ${result.stderr}`, isError: true };
   }
   return { name: "git_log", content: result.stdout.slice(0, 3000), isError: false };
+}
+
+// ─── NEW ENGINE TOOL EXECUTORS ───────────────────────────────
+
+function executeAnalyzeMedia(engine: any, args: Record<string, unknown>): ToolResult {
+  const path = args.path as string;
+  if (!path) return { name: "analyze_media", content: "Error: path required", isError: true };
+
+  if (!engine.mediaEngine) {
+    return { name: "analyze_media", content: "Media engine not available (standalone executor)", isError: true };
+  }
+
+  const result = engine.mediaEngine.analyze(path);
+  if (!result) return { name: "analyze_media", content: `File not found: ${path}`, isError: true };
+
+  return {
+    name: "analyze_media",
+    content: [
+      `File: ${result.filename}`,
+      `MIME: ${result.mimeType}`,
+      `Category: ${result.category}`,
+      `Size: ${result.size} bytes`,
+      `Hash: ${result.hash}`,
+    ].join("\n"),
+    isError: false,
+  };
+}
+
+async function executeDownloadFile(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
+  const url = args.url as string;
+  if (!url) return { name: "download_file", content: "Error: url required", isError: true };
+
+  if (!engine.mediaEngine) {
+    return { name: "download_file", content: "Media engine not available", isError: true };
+  }
+
+  const result = await engine.mediaEngine.download(url, args.filename as string | undefined);
+  if (!result.success) {
+    return { name: "download_file", content: `Download failed: ${result.error}`, isError: true };
+  }
+
+  return {
+    name: "download_file",
+    content: `Downloaded: ${result.filename}\nPath: ${result.path}\nSize: ${result.size} bytes\nMIME: ${result.mimeType}`,
+    isError: false,
+  };
+}
+
+function executeCronList(engine: any, args: Record<string, unknown>): ToolResult {
+  if (!engine.cronEngine) return { name: "cron_list", content: "Cron engine not available", isError: true };
+
+  const includeDisabled = (args.include_disabled as boolean) ?? false;
+  const jobs = engine.cronEngine.listJobs(includeDisabled);
+
+  if (jobs.length === 0) {
+    return { name: "cron_list", content: "No scheduled jobs.", isError: false };
+  }
+
+  const lines = jobs.map(j => {
+    const nextRun = j.nextRunAt ? new Date(j.nextRunAt).toISOString() : "—";
+    const status = j.enabled ? "✔" : "✖";
+    return `${status} ${j.id} | ${j.name} | Next: ${nextRun} | Runs: ${j.runCount}`;
+  });
+
+  return { name: "cron_list", content: lines.join("\n"), isError: false };
+}
+
+function executeCronAdd(engine: any, args: Record<string, unknown>): ToolResult {
+  if (!engine.cronEngine) return { name: "cron_add", content: "Cron engine not available", isError: true };
+  const name = args.name as string;
+  const kind = args.schedule_kind as string;
+  const value = args.schedule_value as string;
+  const command = args.command as string;
+
+  if (!name || !kind || !value || !command) {
+    return { name: "cron_add", content: "Error: name, schedule_kind, schedule_value, command required", isError: true };
+  }
+
+  let schedule: import("./cron-engine.js").CronSchedule;
+  if (kind === "at") {
+    schedule = { kind: "at", at: value };
+  } else if (kind === "every") {
+    schedule = { kind: "every", everyMs: parseInt(value, 10) };
+  } else if (kind === "cron") {
+    schedule = { kind: "cron", expr: value };
+  } else {
+    return { name: "cron_add", content: `Unknown schedule kind: ${kind}`, isError: true };
+  }
+
+  const job = engine.cronEngine.addJob({
+    name,
+    schedule,
+    payload: { kind: "command", command },
+  });
+
+  return {
+    name: "cron_add",
+    content: `Job created: ${job.id}\nName: ${job.name}\nNext run: ${job.nextRunAt ? new Date(job.nextRunAt).toISOString() : "—"}`,
+    isError: false,
+  };
+}
+
+function executeCronRemove(engine: any, args: Record<string, unknown>): ToolResult {
+  if (!engine.cronEngine) return { name: "cron_remove", content: "Cron engine not available", isError: true };
+  const jobId = args.job_id as string;
+  if (!jobId) return { name: "cron_remove", content: "Error: job_id required", isError: true };
+
+  const removed = engine.cronEngine.removeJob(jobId);
+  return {
+    name: "cron_remove",
+    content: removed ? `Job removed: ${jobId}` : `Job not found: ${jobId}`,
+    isError: !removed,
+  };
+}
+
+function executeSessionList(engine: any, args: Record<string, unknown>): ToolResult {
+  if (!engine.sessionManager) return { name: "session_list", content: "Session manager not available", isError: true };
+  const status = args.status as string | undefined;
+  const sessions = engine.sessionManager.listSessions(
+    status ? { status: status as any } : undefined,
+  );
+
+  if (sessions.length === 0) {
+    return { name: "session_list", content: "No sessions.", isError: false };
+  }
+
+  const lines = sessions.map(s => {
+    const age = Math.round((Date.now() - s.createdAt) / 60_000);
+    return `${s.status === "running" ? "🔥" : s.status === "completed" ? "✔" : "⏸"} ${s.id} | ${s.label} | ${s.status} | ${s.messageCount} msgs | ${age}min`;
+  });
+
+  return { name: "session_list", content: lines.join("\n"), isError: false };
+}
+
+function executeSessionSpawn(engine: any, args: Record<string, unknown>): ToolResult {
+  if (!engine.sessionManager) return { name: "session_spawn", content: "Session manager not available", isError: true };
+  const task = args.task as string;
+  if (!task) return { name: "session_spawn", content: "Error: task required", isError: true };
+
+  const label = (args.label as string) ?? `sub-${Date.now()}`;
+
+  // Create a new session (not a sub-agent — no parent in tool context)
+  const session = engine.sessionManager.createSession({ label, task });
+  session.status = "running";
+  session.persist();
+
+  return {
+    name: "session_spawn",
+    content: `Session spawned: ${session.id}\nLabel: ${label}\nTask: ${task}`,
+    isError: false,
+  };
+}
+
+async function executeSemanticSearch(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
+  const query = args.query as string;
+  if (!query) return { name: "semantic_search", content: "Error: query required", isError: true };
+
+  const topK = (args.top_k as number) ?? 5;
+
+  if (!engine.embeddingEngine.hasProvider()) {
+    return {
+      name: "semantic_search",
+      content: "No embedding provider configured. Use local TF-IDF search via 'recall' instead.",
+      isError: true,
+    };
+  }
+
+  try {
+    const results = await engine.embeddingEngine.search(query, topK);
+    if (results.length === 0) {
+      return { name: "semantic_search", content: "No matching documents found.", isError: false };
+    }
+
+    const lines = results.map(r =>
+      `[${(r.score * 100).toFixed(0)}%] ${r.id}: ${r.text.slice(0, 200)}`,
+    );
+    return { name: "semantic_search", content: lines.join("\n\n"), isError: false };
+  } catch (err) {
+    return { name: "semantic_search", content: `Search error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
 }
 
 // ─── GEMINI FUNCTION DECLARATIONS FORMAT ─────────────────────
