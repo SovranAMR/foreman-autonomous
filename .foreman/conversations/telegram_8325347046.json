@@ -1,0 +1,26 @@
+{
+  "chatKey": "telegram:8325347046",
+  "chatId": "8325347046",
+  "channel": "telegram",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Naber"
+    },
+    {
+      "role": "assistant",
+      "content": "İyidir, teşekkürler! Ben Foreman, yapay zeka kodlama asistanınız. \n\nŞu anda `foreman` projesi üzerinde çalışmaya hazırım. Bugün ne inşa ediyoruz veya hangi sorunu çözüyoruz? Dosyaları okuyabilir, kod yazabilir, komut çalıştırabilir veya büyük yapısal değişiklikler yapabilirim. Size nasıl yardımcı olabilirim?"
+    },
+    {
+      "role": "user",
+      "content": "Bir önceki mesajı hatırlıyor musun"
+    },
+    {
+      "role": "assistant",
+      "content": "Evet, hatırlıyorum. Bir önceki mesajınız **\"Naber\"** idi, ben de size iyi olduğumu söyleyip kendimi tanıttım. \n\nŞu anda `foreman` projesinin dizinindeyiz. Projeyle ilgili yapmak istediğiniz bir şey var mı? Kodlara bakmamı, bir özellik eklememi veya bir hata düzeltmemi ister misiniz?"
+    }
+  ],
+  "lastActivity": 1771793980071,
+  "totalTokens": 63199,
+  "senderName": "Ali İlçel"
+}
