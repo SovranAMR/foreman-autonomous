@@ -1,0 +1,15 @@
+{
+  "id": "d4383541-3619-4ca0-9bc0-5addf3a4778f",
+  "slug": "iron-orbit",
+  "status": "active",
+  "createdAt": 1771781285989,
+  "updatedAt": 1771781285989,
+  "context": {
+    "task": "Count the number of .ts files in src/ and create a one-line summary in /tmp/forge-test-output.txt",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}

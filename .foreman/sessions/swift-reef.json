@@ -1,0 +1,15 @@
+{
+  "id": "a6bc202b-20e0-49e7-bc8d-6746a65cdd41",
+  "slug": "swift-reef",
+  "status": "active",
+  "createdAt": 1771781007857,
+  "updatedAt": 1771781007857,
+  "context": {
+    "task": "Count the number of .ts files in src/ and create a one-line summary in /tmp/forge-test-output.txt",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}

@@ -1,0 +1,16 @@
+{
+  "id": "mem_010",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] txt`.\n\nOUTPUT: \n- **EMOTION TARGET**: Silent certainty. The profound, immediate trust a user feels when a utility executes perfectly in less than 50 milliseconds without begging for attention.\n- **FOC...",
+  "source": {
+    "type": "thought",
+    "ref": "t_018"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-22T17:29:05.236Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T17:29:05.240Z"
+}

@@ -2147,6 +2147,40 @@ async function executeForge(
       projectName: basename(projectRoot),
     });
 
+    // ── PROVIDER REGISTRATION ──────────────────────────────
+    // Forge needs LLM access for all 4 layers (visioner/strategist/researcher/worker).
+    // The Engine starts with an empty ProviderRegistry — we must register providers.
+    const { loadCredentials: loadAntigravCreds, AntigravityProvider: AGProvider } = await import("./antigravity-provider.js");
+    const antigravCreds = loadAntigravCreds();
+    if (antigravCreds) {
+      engine.providers.register(new AGProvider(antigravCreds));
+      console.log("[forge] Antigravity provider registered for forge pipeline");
+    } else {
+      // Fallback: try API key providers
+      try {
+        const { getApiKey } = await import("./config.js");
+        const anthropicKey = getApiKey("anthropic");
+        if (anthropicKey) {
+          const { AnthropicProvider } = await import("./anthropic-provider.js");
+          engine.providers.register(new AnthropicProvider(anthropicKey));
+        }
+        const openaiKey = getApiKey("openai");
+        if (openaiKey) {
+          const { OpenAIProvider } = await import("./openai-provider.js");
+          engine.providers.register(new OpenAIProvider(openaiKey));
+        }
+      } catch { /* config module may not exist */ }
+
+      if (engine.providers.size === 0) {
+        return {
+          name: "forge_pipeline",
+          content: "Error: No LLM provider available for forge pipeline. Run 'foreman login' or 'foreman setup' first.",
+          isError: true,
+        };
+      }
+    }
+    // ────────────────────────────────────────────────────────
+
     const orchestrator = new Orchestrator(engine);
 
     // Collect events for summary

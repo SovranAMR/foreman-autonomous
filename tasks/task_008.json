@@ -1,0 +1,26 @@
+{
+  "id": "task_008",
+  "projectId": "foreman",
+  "title": "Count the number of .ts files in src/ and create a one-line summary in /tmp/forg",
+  "description": "must be purely functional, parseable data.\n\nOUTPUT: \n**EMOTION TARGET**: Silent Reliability. The user must feel absolute",
+  "type": "feature",
+  "priority": "high",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [
+    "chain_010"
+  ],
+  "subtaskIds": [
+    "task_009",
+    "task_010",
+    "task_011",
+    "task_012",
+    "task_013",
+    "task_014"
+  ],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T17:28:56.660Z"
+}

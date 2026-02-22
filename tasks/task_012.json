@@ -1,0 +1,17 @@
+{
+  "id": "task_012",
+  "projectId": "foreman",
+  "title": "Block 4: Generate and format the parseable one-line summary string ba",
+  "description": "Generate and format the parseable one-line summary string based on the calculated file count. [Acceptance Criteria: A functional string builder prepares a clean summary line (e.g., \"Total .ts files: X\") without emitting any console logs.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T17:28:56.660Z"
+}
