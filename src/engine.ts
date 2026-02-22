@@ -60,6 +60,11 @@ import { RollbackEngine } from "./rollback-engine.js";
 import { CostTracker } from "./cost-tracker.js";
 import { HooksEngine } from "./hooks-engine.js";
 import { detectProject, type ProjectInfo } from "./project-detector.js";
+import { IdentityEngine } from "./identity-engine.js";
+import { BrowserEngine } from "./browser-engine.js";
+import { SubAgentEngine } from "./subagent-engine.js";
+import { SessionLifecycle } from "./session-lifecycle.js";
+import { ForgeGatewayBridge } from "./forge-gateway.js";
 import { buildIntelligentContext, extractCrossChainContext } from "./context-intelligence.js";
 import { buildCompactContext, chunkThoughtsByTokens, computeAdaptiveChunkRatio, estimateTokens } from "./context-compression.js";
 import { generateMemoryMd, parseMemoryMd, generateCategoryFiles } from "./memory-md-bridge.js";
@@ -130,6 +135,11 @@ export class Engine {
   readonly costTracker: CostTracker;
   readonly hooks: HooksEngine;
   readonly projectInfo: ProjectInfo;
+  readonly identity: IdentityEngine;
+  readonly browser: BrowserEngine;
+  readonly subAgents: SubAgentEngine;
+  readonly sessionLifecycle: SessionLifecycle;
+  readonly forgeBridge: ForgeGatewayBridge;
 
   readonly config: EngineConfig;
   private maxFormatRetries: number;
@@ -182,6 +192,13 @@ export class Engine {
     this.costTracker = new CostTracker(config.projectRoot);
     this.hooks = new HooksEngine();
     this.projectInfo = detectProject(config.projectRoot);
+
+    // Core engines
+    this.identity = new IdentityEngine(config.projectRoot);
+    this.browser = new BrowserEngine(config.projectRoot);
+    this.subAgents = new SubAgentEngine({ maxConcurrent: 3 });
+    this.sessionLifecycle = new SessionLifecycle(config.projectRoot);
+    this.forgeBridge = new ForgeGatewayBridge(this);
 
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
     // Connect ProcessRegistry to the GitEngine's ExecutionEngine
@@ -1184,6 +1201,10 @@ export class Engine {
     this.embeddingEngine.persist();
     this.sessionManager.stop();
     this.cache.clear();
+
+    // Shutdown new engines
+    this.interactive.close();
+    this.sessionLifecycle.shutdown();
 
     // Consolidate memory
     this.memory.consolidate();

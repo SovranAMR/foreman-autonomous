@@ -270,6 +270,44 @@ export class MessagingGateway {
       };
     }
 
+    // ─── FORGE COMMANDS ─────────────────────────────────────
+    // Forward to ForgeGatewayBridge for /forge, /cancel, /cost, etc.
+    if (text.startsWith("/forge") || text === "/cancel" || text === "/iptal" ||
+        text === "/cost" || text === "/maliyet" || text === "/project" || text === "/proje" ||
+        text === "/rollback" || text === "/geri" || text === "/identity" || text === "/kimlik" ||
+        text === "/agents" || text === "/ajanlar" || text === "/sessions" || text === "/oturumlar") {
+      try {
+        const { ForgeGatewayBridge } = require("./forge-gateway.js") as typeof import("./forge-gateway.js");
+        const { Engine } = require("./engine.js") as typeof import("./engine.js");
+
+        // Create a minimal engine for forge bridge
+        const engine = new Engine({
+          projectRoot: this.config.projectRoot,
+          projectName: this.config.projectName,
+        });
+
+        const bridge = new ForgeGatewayBridge(engine);
+        const chatKey = `${message.channel}:${message.chatId}`;
+
+        // Create sender adapter
+        const channel = this.channels.get(message.channel);
+        const sender = {
+          send: async (text: string) => {
+            await channel?.send(message.chatId, text);
+          },
+          editLast: async (text: string) => {
+            await channel?.send(message.chatId, text);
+          },
+        };
+
+        const result = bridge.handleCommand(text, chatKey, sender);
+        if (result === null) return null; // Command handled async
+        return { text: result };
+      } catch (err) {
+        return { text: `❌ Forge command error: ${err instanceof Error ? err.message : String(err)}` };
+      }
+    }
+
     return null;
   }
 
@@ -400,7 +438,15 @@ export class MessagingGateway {
   // ─── SYSTEM PROMPT ────────────────────────────────────────
 
   private buildSystemPrompt(): string {
-    return [
+    // Load identity context if available
+    let identityInjection = "";
+    try {
+      const { IdentityEngine } = require("./identity-engine.js") as typeof import("./identity-engine.js");
+      const identity = new IdentityEngine(this.config.projectRoot);
+      identityInjection = identity.buildContextInjection();
+    } catch { /* identity files may not exist */ }
+
+    const base = [
       "You are Foreman — an AI coding assistant and task orchestrator.",
       "You are communicating through a messaging channel (Telegram/WhatsApp).",
       "",
@@ -412,17 +458,32 @@ export class MessagingGateway {
       "- Web search and URL fetching",
       "- Security scanning",
       "- Build and test verification",
+      "- Browser control (screenshot, navigate, extract content)",
+      "- Sub-agent spawning (divide complex tasks)",
+      "- /forge — trigger full 4-layer pipeline",
+      "",
+      "## Forge Commands",
+      "- /forge <task> — Run the full Visioner→Strategist→Researcher→Worker pipeline",
+      "- /cancel — Cancel active forge run",
+      "- /cost — Show cost report",
+      "- /project — Show project info",
+      "- /rollback — Undo last operation",
+      "- /identity — Show agent identity",
+      "- /agents — Show sub-agent status",
+      "- /sessions — Show session status",
       "",
       "## Rules",
       "- Be concise — messaging has character limits",
       "- Use code blocks for code snippets",
       "- Report results, not process steps",
-      "- If a task is complex, break it down",
+      "- If a task is complex, suggest using /forge",
       "- Always verify before committing",
       "",
       `## Project: ${this.config.projectName}`,
       `## Working Directory: ${this.config.projectRoot}`,
     ].join("\n");
+
+    return identityInjection ? `${base}\n\n${identityInjection}` : base;
   }
 
   // ─── HELPERS ──────────────────────────────────────────────
