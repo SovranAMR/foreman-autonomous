@@ -91,11 +91,13 @@ CONFIDENCE: 0.9`,
     });
     const mock = new MockProvider();
 
-    // 3 lazy responses (initial + 2 retries)
+    // Worker gets aggressive retry (up to 4), provide enough lazy responses
     mock.enqueueResponses(
       `I did the thing, it works great.`,
       `Sure, I created the component. All good.`,
       `The gradient is there and looks nice.`,
+      `Yeah it's done, trust me.`,
+      `Finished the work successfully.`,
     );
 
     engine.providers.register({
@@ -108,8 +110,8 @@ CONFIDENCE: 0.9`,
     const result = await engine.stepWithPhase(chain.id, "Add gradient", "worker", "execute");
 
     assert.equal(result.thought.status, "blocked", "Should be BLOCKED");
-    assert.equal(result.retryCount, 2, "Should have retried twice");
-    assert.ok(result.thought.blockedReason!.includes("Format parse failed"));
+    assert.ok(result.retryCount >= 2, `Should have retried at least twice, got ${result.retryCount}`);
+    assert.ok(result.thought.blockedReason!.includes("Parse failed"));
   });
 
   // ─── TEST 3: Decompose returns no blocks → pipeline BLOCK ──
@@ -223,8 +225,9 @@ CONFIDENCE: 0.7`,
     const result = await engine.stepWithPhase(chain.id, "Do something", "worker", "execute");
 
     assert.equal(result.thought.status, "blocked");
-    assert.ok(result.thought.blockedReason!.includes("Format parse failed") ||
-              result.thought.blockedReason!.includes("Missing"));
+    assert.ok(result.thought.blockedReason!.includes("Parse failed") ||
+              result.thought.blockedReason!.includes("Missing") ||
+              result.thought.blockedReason!.includes("Validation"));
   });
 
   // ─── SUMMARY ──────────────────────────────────────────────

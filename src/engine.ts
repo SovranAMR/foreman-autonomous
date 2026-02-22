@@ -31,8 +31,9 @@ import { MemoryManager } from "./memory-manager.js";
 import { SessionManager } from "./session-manager.js";
 import { CacheManager } from "./cache-manager.js";
 import { runWithFallback } from "./model-fallback.js";
-import { guardContextWindow, resolveContextWindow, evaluateContextWindow } from "./context-guard.js";
-import { BlockedError, NoProviderError, formatErrorMessage, loadJsonFile, saveJsonFile, safeJsonParse, extractErrorCode, extractStatusCode } from "./errors.js";
+import { AGGRESSIVE_RETRY_CONFIG } from "./retry.js";
+import { guardContextWindow, resolveContextWindow, evaluateContextWindow, CONTEXT_WINDOW_HARD_MIN, CONTEXT_WINDOW_WARN_BELOW } from "./context-guard.js";
+import { BlockedError, NoProviderError, formatErrorMessage, loadJsonFile, saveJsonFile, safeJsonParse, extractErrorCode, extractStatusCode, ParseFailedError, ValidationError } from "./errors.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
 // ─── ENGINE SUBSYSTEMS ───────────────────────────────────────
@@ -228,6 +229,13 @@ export class Engine {
       throw new BlockedError("pre-call", layer, guard.warning ?? "Context window exceeded");
     }
 
+    // Warn if remaining tokens are critically low
+    if (guard.remainingTokens !== undefined) {
+      if (guard.remainingTokens < CONTEXT_WINDOW_HARD_MIN) {
+        throw new BlockedError("pre-call", layer, `Only ${guard.remainingTokens} tokens remaining (hard minimum: ${CONTEXT_WINDOW_HARD_MIN})`);
+      }
+    }
+
     // If mock provider exists → call directly, don't enter fallback chain
     const mockProvider = this.providers.getProviderForModel("mock-model");
     if (mockProvider) {
@@ -365,7 +373,10 @@ export class Engine {
       userPromptTokens: estimateTokens(buildUserPrompt(input, contextText)),
       contextTokens: estimateTokens(contextText),
     });
-    if (!contextEval.isSafe && allChainThoughts.length > 0) {
+    // Compact if unsafe OR if remaining tokens below warning threshold
+    const needsCompaction = !contextEval.isSafe ||
+      (contextEval.remainingTokens < CONTEXT_WINDOW_WARN_BELOW && allChainThoughts.length > 3);
+    if (needsCompaction && allChainThoughts.length > 0) {
       const chunkRatio = computeAdaptiveChunkRatio(allChainThoughts.length, contextWindowTokens);
       const compactResult = buildCompactContext({
         thoughts: allChainThoughts,
@@ -411,7 +422,11 @@ export class Engine {
     let parseResult = parseForPhase(phase, rawText);
 
     // 4. If parse fails → retry
-    while (!parseResult.ok && retryCount < this.maxFormatRetries) {
+    // Worker layer gets aggressive retry if no explicit override was set
+    const maxRetries = (layer === "worker" && this.config.maxFormatRetries === undefined)
+      ? Math.max(this.maxFormatRetries, AGGRESSIVE_RETRY_CONFIG.maxAttempts - 1)
+      : this.maxFormatRetries;
+    while (!parseResult.ok && retryCount < maxRetries) {
       retryCount++;
       const retryPrompt = buildRetryPrompt(
         (parseResult as { ok: false; error: ParseError }).error,
@@ -478,10 +493,10 @@ export class Engine {
 
     // 6. Validation — if parse failed or validator rejects → blocked
     if (!formatValid) {
+      const missing = (parseResult as any).error?.missing ?? [];
+      const parseError = new ParseFailedError(phase, missing, rawText.slice(0, 200));
       updateData.status = "blocked";
-      updateData.blockedReason = `Format parse failed after ${retryCount} retries. Missing: ${
-        (parseResult as any).error?.missing?.join(", ") ?? "unknown"
-      }`;
+      updateData.blockedReason = parseError.message;
     } else {
       updateData.status = "done";
     }
@@ -492,9 +507,10 @@ export class Engine {
     if (updated.status === "done" && updated.layer === "worker") {
       const validation = validateThoughtCompletion(updated);
       if (!validation.valid) {
+        const valError = new ValidationError(thought.id, validation.errors);
         this.thoughts.update(thought.id, {
           status: "blocked",
-          blockedReason: `Validation failed: ${validation.errors.join("; ")}`,
+          blockedReason: valError.message,
         });
       }
     }

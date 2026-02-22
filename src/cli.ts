@@ -48,7 +48,7 @@ import {
   reflectionLine, completionBox, statusBox,
   forgeDivider, thoughtSpark, forgeProgress,
   doctorHeader, doctorItem, doctorFooter,
-  printIdleForge,
+  printIdleForge, FORGE_SPINNER,
 } from "./theme.js";
 import {
   animateDwarf, animateSparkRain, animateFire,
@@ -164,6 +164,10 @@ program
   .description("System health check")
   .action(() => {
     printLogo();
+    // Show forge spinner first frame as visual indicator
+    if (process.stdout.isTTY && FORGE_SPINNER.frames.length > 0) {
+      process.stdout.write(`  ${FORGE_SPINNER.frames[0]}\r`);
+    }
     doctorHeader();
 
     let allOk = true;
