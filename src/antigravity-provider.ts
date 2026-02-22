@@ -825,7 +825,63 @@ export class AntigravityProvider implements LLMProvider {
       }
     }
 
-    // Max iterations reached
+    // Max iterations reached — if we have accumulated text, return it
+    // If not, make one final call WITHOUT tools to force a text response
+    if (!finalText.trim()) {
+      console.log(`[provider] Max iterations (${maxIterations}) reached with no final text. Forcing text-only response...`);
+      try {
+        conversationMessages.push({
+          role: "user",
+          content: "You've used all available tool calls. Please provide your final answer now based on what you've gathered so far. Do NOT call any more tools.",
+        });
+        const forcedBody = this.buildRequestBody(conversationMessages, model, maxTokens);
+        // Remove tools to prevent further function calls
+        if (forcedBody.request) {
+          delete forcedBody.request.tools;
+        }
+
+        const endpoints = [DAILY_ENDPOINT, PROD_ENDPOINT];
+        for (const endpoint of endpoints) {
+          try {
+            const response = await fetch(`${endpoint}${GENERATE_PATH}`, {
+              method: "POST",
+              headers: getHeaders(this.credentials.accessToken),
+              body: JSON.stringify(forcedBody),
+            });
+            if (!response.ok) continue;
+            const body = await response.text();
+            for (const line of body.split("\n")) {
+              if (!line.startsWith("data: ")) continue;
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr || jsonStr === "[DONE]") continue;
+              try {
+                const data: SSEData = JSON.parse(jsonStr);
+                const root = data.response ?? data;
+                if (root.candidates) {
+                  for (const candidate of root.candidates) {
+                    if (candidate.content?.parts) {
+                      for (const part of candidate.content.parts) {
+                        if (part.text && !part.thought) {
+                          finalText += part.text;
+                          onToken(part.text);
+                        }
+                      }
+                    }
+                  }
+                }
+                if (root.usageMetadata) {
+                  totalInputTokens += root.usageMetadata.promptTokenCount ?? 0;
+                  totalOutputTokens += root.usageMetadata.candidatesTokenCount ?? 0;
+                }
+              } catch { /* skip */ }
+            }
+            if (finalText.trim()) break;
+          } catch { continue; }
+        }
+      } catch (err) {
+        console.error(`[provider] Forced text response failed:`, err);
+      }
+    }
     return { text: finalText, inputTokens: totalInputTokens, outputTokens: totalOutputTokens };
   }
 }

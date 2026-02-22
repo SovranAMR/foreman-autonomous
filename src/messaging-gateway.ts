@@ -412,9 +412,9 @@ export class MessagingGateway {
           console.log(`[gateway] Result: ${result.name} → ${result.isError ? "❌" : "✔"} ${preview}`);
         },
         // maxTokens
-        4096,
-        // maxIterations
-        15,
+        32768,
+        // maxIterations — complex tasks need many tool calls
+        50,
         // toolExecutor
         this.toolExecutor,
       );
