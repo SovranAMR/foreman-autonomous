@@ -1,0 +1,16 @@
+{
+  "id": "mem_044",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Create the file `src/forge/state.ts` (ensure the `src/forge` directory exists first). In this file, define and export a string literal union type `TaxonomyTier` containing exactly `'MACRO' | 'MESO'...",
+  "source": {
+    "type": "thought",
+    "ref": "t_078"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-22T23:41:59.250Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T23:42:00.241Z"
+}

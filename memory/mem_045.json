@@ -1,0 +1,15 @@
+{
+  "id": "mem_045",
+  "projectId": "global",
+  "category": "lesson",
+  "content": "[worker] I created the `src/forge` directory and the `src/forge/state.ts` file. I exported `TaxonomyTier` and the `FractalNode` interface as instructed. The foundational type definition that mathematically pre...",
+  "source": {
+    "type": "thought",
+    "ref": "t_079"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-22T23:42:13.723Z",
+  "expired": false
+}
