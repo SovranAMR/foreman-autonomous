@@ -22,7 +22,7 @@ import { createInterface, type Interface as ReadlineInterface } from "node:readl
 
 // ─── TYPES ───────────────────────────────────────────────────
 
-export type ConfirmAction = "approve" | "skip" | "abort" | "abort_block" | "timeout";
+export type ConfirmAction = "approve" | "skip" | "abort" | "abort_block" | "modify" | "timeout";
 
 export interface ConfirmRequest {
   type: "write_file" | "edit_file" | "run_command" | "delete_file" | "dangerous";
@@ -137,6 +137,13 @@ export class InteractiveConfirm {
 
   constructor(config?: Partial<InteractiveConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  /**
+   * Check if interactive mode is available (TTY attached).
+   */
+  isEnabled(): boolean {
+    return this.config.enabled;
   }
 
   /**

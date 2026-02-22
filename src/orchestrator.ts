@@ -267,10 +267,52 @@ export class Orchestrator {
       return this.buildResult(false, totalThoughts, visionChain.id, "vision");
     }
 
-    const visionOutput = visionResult.thought.output;
+    let visionOutput = visionResult.thought.output;
     this.engine.chains.updateSummary(visionChain.id, visionOutput.slice(0, 500));
     this.emit({ type: "phase_end", phase: "vision", detail: visionOutput.slice(0, 100) });
     this.engine.streaming.phaseEnd("vision", visionOutput.slice(0, 100));
+
+    // ─── HUMAN_APPROVAL — Vision checkpoint ─────────────────
+    // Before spending tokens on decompose+execute, ask the human:
+    // "This is the vision. Approve? Or should I revise?"
+    // Only in interactive mode (TTY available). Bots skip this.
+    if (this.engine.interactive.isEnabled()) {
+      this.engine.streaming.phaseStart("approval", "Waiting for vision approval...");
+      const approvalResult = await this.engine.interactive.confirm({
+        operation: "vision_approval",
+        description: `Vision Document for "${task.slice(0, 60)}":\n\n${visionOutput.slice(0, 800)}`,
+        risk: "medium",
+        details: {
+          emotionTarget: visionOutput.match(/EMOTION TARGET[:\s]*(.*?)(?:\n|$)/i)?.[1]?.trim() ?? "?",
+          focalPoint: visionOutput.match(/FOCAL POINT[:\s]*(.*?)(?:\n|$)/i)?.[1]?.trim() ?? "?",
+          forbidden: visionOutput.match(/FORBIDDEN[^:]*:([\s\S]*?)(?:\n##|\n\*\*|$)/i)?.[1]?.trim().slice(0, 100) ?? "?",
+        },
+      });
+
+      if (approvalResult.action === "abort" || approvalResult.action === "skip") {
+        this.engine.streaming.error("Vision rejected by user. Pipeline stopped.");
+        return this.buildResult(false, totalThoughts, visionChain.id, "vision_rejected");
+      }
+
+      if (approvalResult.action === "modify" && approvalResult.reason) {
+        // User wants to revise — re-run vision with their feedback
+        this.engine.streaming.phaseStart("vision_revise", `Revising: ${approvalResult.reason.slice(0, 50)}`);
+        const revisedVision = await this.engine.stepWithPhase(
+          visionChain.id,
+          `The user reviewed your vision and wants changes:\n\n"${approvalResult.reason}"\n\nRevise the vision document. Keep what was good, fix what they flagged.\n\nOriginal vision:\n${visionOutput}`,
+          "visioner",
+          "vision",
+        );
+        totalThoughts++;
+        if (revisedVision.thought.status === "done") {
+          visionOutput = revisedVision.thought.output;
+          this.engine.chains.updateSummary(visionChain.id, visionOutput.slice(0, 500));
+          this.engine.streaming.phaseEnd("vision_revise", visionOutput.slice(0, 80));
+        }
+      }
+
+      this.engine.streaming.phaseEnd("approval", `Vision ${approvalResult.action}`);
+    }
 
     // ─── CHECKPOINT: Vision complete ───
     this.resume.createCheckpoint(task, visionChain.id);
@@ -518,6 +560,8 @@ export class Orchestrator {
       }
 
       // ── 3c. EXECUTE EACH ATOM ──
+      let blockPassedAtoms = 0;
+      let blockFailedAtoms = 0;
       for (let j = 0; j < atoms.length; j++) {
         const atom = atoms[j];
 
@@ -526,6 +570,7 @@ export class Orchestrator {
         // On 3rd failure: skip atom, move to next
         let atomPassed = false;
         let lastRejectionFeedback = "";
+        let passedAttempt = 0;
 
         for (let attempt = 0; attempt < this.MAX_ATOM_RETRIES; attempt++) {
           if (attempt > 0) {
@@ -963,6 +1008,8 @@ export class Orchestrator {
 
         // ─── ATOM PASSED ALL GATES ────────────────────────────
         atomPassed = true;
+        blockPassedAtoms++;
+        passedAttempt = attempt;
         break; // break retry loop — atom succeeded
         } // end retry loop
 
@@ -973,8 +1020,26 @@ export class Orchestrator {
             message: `Atom ${j + 1} failed after ${this.MAX_ATOM_RETRIES} attempts: ${lastRejectionFeedback.slice(0, 100)}`,
           });
           this.engine.streaming.error(`❌ Atom ${j + 1} failed after ${this.MAX_ATOM_RETRIES} retries — skipping`);
+          blockFailedAtoms++;
           continue; // skip to next atom in outer loop
         }
+
+        // ─── ATOM QUALITY SCORE ──────────────────────────────
+        // Track quality metrics for each passed atom
+        const atomQuality = {
+          confidence: execResult.thought.confidence,
+          attempts: passedAttempt + 1,
+          toolCalls: toolCallCount,
+          tokenCost: execResult.thought.tokenCost ?? 0,
+          hasVerification: Boolean(execResult.thought.workerProtocol?.step7_verify?.match(/pass|✔|success|\d+ test/i)),
+          firstAttemptPass: passedAttempt === 0,
+        };
+        this.emit({
+          type: "verification",
+          phase: "atom_quality",
+          passed: atomQuality.confidence >= 0.7,
+          detail: `Atom ${j + 1}: conf=${(atomQuality.confidence * 100).toFixed(0)}% attempts=${atomQuality.attempts} tools=${atomQuality.toolCalls} verified=${atomQuality.hasVerification}`,
+        });
 
         // ─── CHECKPOINT: Atom complete ───
         this.resume.completeAtom(i, j, 1, execResult.thought.tokenCost ?? 0);
@@ -1083,8 +1148,8 @@ export class Orchestrator {
             this.engine.state.transition("reflecting", `Reflection after ${atomCount} atoms`);
           }
 
-          // ─── VISUAL VIBE CHECK: Screenshot → Vision LLM ────
-          // Take screenshot of running dev server and ask Visioner if it matches the vision
+          // ─── VISUAL VIBE CHECK: Screenshot → Vision LLM (with actual image) ────
+          // Take screenshot of running dev server and send the ACTUAL image to Vision model
           let vibeCheckContext = "";
           try {
             const servers = await detectDevServers();
@@ -1093,20 +1158,26 @@ export class Orchestrator {
               const screenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
               this.engine.streaming.toolCall("vibe_check", `Screenshot: ${screenshot.width}x${screenshot.height}`);
 
-              // Ask vision model to evaluate the screenshot against the vision document
+              // Send REAL screenshot to vision model (not just text description)
               try {
-                const vibeResult = await this.engine.callLLM(
-                  `You are a visual art director. Compare the screenshot description with the vision document below.
-Rate alignment on a scale of 0.0-1.0. Identify specific violations or drift.
-Be BRUTAL — "looks okay" is not acceptable. Either it matches the vision or it doesn't.`,
-                  `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT INFO:\n` +
-                  `Size: ${screenshot.width}x${screenshot.height}\n` +
-                  `URL: ${healthyServer.url}\n\n` +
-                  `Based on the screenshot capture, does the current UI match the vision's:\n` +
-                  `1. EMOTION TARGET?\n2. FOCAL POINT?\n3. COLOR PHILOSOPHY?\n4. SPACE PHILOSOPHY?\n5. FORBIDDEN LIST violations?`,
-                  "visioner",
-                );
-                vibeCheckContext = `\n\nVISUAL VIBE CHECK:\n${vibeResult.text.slice(0, 500)}`;
+                const vibeResult = screenshot.base64
+                  ? await this.engine.callLLMWithImage(
+                      `You are a visual art director performing a VIBE CHECK. You are looking at an actual screenshot.
+Rate alignment with the vision document on 0.0-1.0. Be BRUTAL.
+Check: EMOTION TARGET, FOCAL POINT, COLOR PHILOSOPHY, SPACE PHILOSOPHY, FORBIDDEN violations.
+If anything feels wrong — even slightly — say it. "Looks okay" is NOT acceptable.`,
+                      `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT: ${screenshot.width}x${screenshot.height} from ${healthyServer.url}\n\nAnalyze this screenshot against the vision. What matches? What violates? Rate 0.0-1.0.`,
+                      screenshot.base64,
+                      "image/png",
+                      "visioner",
+                    )
+                  : await this.engine.callLLM(
+                      `You are a visual art director. Rate alignment with the vision document. Be BRUTAL.`,
+                      `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT INFO: ${screenshot.width}x${screenshot.height} from ${healthyServer.url}\n\nNo image available — rate based on code changes only.`,
+                      "visioner",
+                    );
+                totalThoughts++;
+                vibeCheckContext = `\n\nVISUAL VIBE CHECK (real screenshot analyzed):\n${vibeResult.text.slice(0, 500)}`;
                 this.emit({
                   type: "verification",
                   phase: "vibe_check",
@@ -1187,6 +1258,29 @@ Be BRUTAL — "looks okay" is not acceptable. Either it matches the vision or it
         }
       }
 
+      // ─── BLOCK HEALTH CHECK — re-decompose if too many atoms failed ───
+      const blockSuccessRate = atoms.length > 0 ? blockPassedAtoms / atoms.length : 1;
+      if (blockSuccessRate < 0.5 && atoms.length > 1) {
+        this.engine.streaming.error(`🔄 Block ${i + 1} has ${blockFailedAtoms}/${atoms.length} failed atoms (${(blockSuccessRate * 100).toFixed(0)}% success). Flagging for strategic review.`);
+        this.emit({
+          type: "verification",
+          phase: "block_health",
+          passed: false,
+          detail: `Block ${i + 1}: ${blockPassedAtoms}/${atoms.length} atoms passed (${(blockSuccessRate * 100).toFixed(0)}%)`,
+        });
+
+        // Save failure context so next pipeline run (or strategist) can learn
+        try {
+          this.engine.memory.add({
+            content: `BLOCK FAILURE (Block ${i + 1}): "${block.slice(0, 60)}" — ${blockFailedAtoms}/${atoms.length} atoms failed. Issues: ${lastRejectionFeedback?.slice(0, 200) ?? "unknown"}. Consider re-decomposing with smaller, more specific atoms.`,
+            type: "block_failure",
+            tags: ["foreman", "pipeline", "block_failure", `block_${i + 1}`],
+            source: "orchestrator",
+            projectId: this.engine.state.snapshot().projectName,
+          });
+        } catch { /* memory best-effort */ }
+      }
+
       // ─── STREAMING: Block end ───
       this.engine.streaming.blockEnd(i);
 
@@ -1198,15 +1292,23 @@ Be BRUTAL — "looks okay" is not acceptable. Either it matches the vision or it
           const screenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
           this.engine.streaming.toolCall("vibe_check", `Block ${i + 1} screenshot: ${screenshot.width}x${screenshot.height}`);
 
-          // Ask Vision model: does this match the vision?
+          // Send REAL screenshot to vision model for block-level vibe check
           try {
-            const vibeResult = await this.engine.callLLM(
-              `You are a visual QA specialist. Look at the screenshot info and compare with the vision document.
-Answer: Does the current UI match the vision's emotion target, focal point, and color philosophy?
-Be specific. Rate 0.0-1.0. If below 0.6, say FAIL with specific reasons.`,
-              `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT: ${screenshot.width}x${screenshot.height} from ${healthyServer.url}\nBlock just completed: ${block}`,
-              "visioner",
-            );
+            const vibeResult = screenshot.base64
+              ? await this.engine.callLLMWithImage(
+                  `You are a visual QA specialist. You are looking at a REAL screenshot of the project.
+Compare with the vision document. Rate 0.0-1.0. If below 0.6, say FAIL with specific reasons.
+Check: emotion target, focal point, color philosophy, space, forbidden list.`,
+                  `VISION DOCUMENT:\n${visionOutput}\n\nBlock just completed: ${block}\nURL: ${healthyServer.url}`,
+                  screenshot.base64,
+                  "image/png",
+                  "visioner",
+                )
+              : await this.engine.callLLM(
+                  `You are a visual QA specialist. Rate alignment. Be specific.`,
+                  `VISION DOCUMENT:\n${visionOutput}\n\nBlock: ${block}\nScreenshot: ${screenshot.width}x${screenshot.height}`,
+                  "visioner",
+                );
             totalThoughts++;
 
             const vibePass = !vibeResult.text.toLowerCase().includes("fail");

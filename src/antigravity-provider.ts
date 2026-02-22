@@ -297,10 +297,26 @@ export class AntigravityProvider implements LLMProvider {
     const nonSystemMsgs = messages.filter(m => m.role !== "system");
 
     // Contents
-    const contents = nonSystemMsgs.map(m => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
+    const contents = nonSystemMsgs.map(m => {
+      const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+        { text: m.content },
+      ];
+      // Attach images as inline data (Gemini vision API format)
+      if (m.images && m.images.length > 0) {
+        for (const img of m.images) {
+          parts.push({
+            inlineData: {
+              mimeType: img.mimeType,
+              data: img.base64,
+            },
+          });
+        }
+      }
+      return {
+        role: m.role === "assistant" ? "model" : "user",
+        parts,
+      };
+    });
 
     // System instruction
     const systemParts: Array<{ text: string }> = [];

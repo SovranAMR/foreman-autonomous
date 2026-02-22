@@ -22,7 +22,7 @@ import { ChainManager } from "./chain-manager.js";
 import { RateLimiter } from "./rate-limiter.js";
 import type { RateLimitConfig } from "./types.js";
 import { validateThoughtCompletion } from "./validators.js";
-import type { LLMProvider, GenerateResult } from "./provider.js";
+import type { LLMProvider, LLMMessage, GenerateResult } from "./provider.js";
 import type { ToolCall, ToolResult } from "./tools.js";
 import { ProviderRegistry } from "./provider.js";
 import { getSystemPrompt, buildContextText, buildUserPrompt } from "./prompts.js";
@@ -351,6 +351,59 @@ export class Engine {
       result.tokenUsage.input,
       result.tokenUsage.output,
     );
+
+    return result;
+  }
+
+  /**
+   * Call LLM with image attachment (for vision/vibe check).
+   * Uses the same pipeline as callLLM but injects base64 image into the message.
+   */
+  async callLLMWithImage(
+    systemPrompt: string,
+    userPrompt: string,
+    imageBase64: string,
+    imageMimeType: "image/png" | "image/jpeg" | "image/webp",
+    layer: Layer,
+  ): Promise<GenerateResult> {
+    await this.rateLimiter.acquire();
+
+    const model = this.rateLimiter.currentModel()
+      ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel;
+
+    // Use the provider directly with image-augmented message
+    const messages: LLMMessage[] = [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content: userPrompt,
+        images: [{ mimeType: imageMimeType, base64: imageBase64 }],
+      },
+    ];
+
+    // Try mock provider first (for tests)
+    const mockProvider = this.providers.getProviderForModel("mock-model");
+    if (mockProvider) {
+      const result = await mockProvider.generate(messages, { model: "mock-model", maxTokens: 4000, temperature: 0.7 });
+      this.rateLimiter.onSuccess();
+      this.rateLimiter.recordTokens(result.tokenUsage.total);
+      this.state.addTokens(result.tokenUsage.total);
+      return result;
+    }
+
+    const result = await runWithFallback({
+      registry: this.providers,
+      layer,
+      run: async (provider, selectedModel) => {
+        return provider.generate(messages, { model: selectedModel, maxTokens: 4000, temperature: 0.7 });
+      },
+      onRetry: () => {},
+      onFallback: () => {},
+    });
+
+    this.rateLimiter.onSuccess();
+    this.rateLimiter.recordTokens(result.tokenUsage.total);
+    this.state.addTokens(result.tokenUsage.total);
 
     return result;
   }

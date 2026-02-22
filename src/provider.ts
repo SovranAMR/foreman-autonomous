@@ -8,9 +8,16 @@
 
 // ─── TYPES ───────────────────────────────────────────────────
 
+export interface LLMImagePart {
+  mimeType: "image/png" | "image/jpeg" | "image/webp";
+  base64: string;
+}
+
 export interface LLMMessage {
   role: "system" | "user" | "assistant";
   content: string;
+  /** Optional image attachments for vision models */
+  images?: LLMImagePart[];
 }
 
 export interface GenerateOptions {
