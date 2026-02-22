@@ -1,0 +1,15 @@
+{
+  "id": "ca44a301-ff6d-48eb-a26e-1eb627869b39",
+  "slug": "gray-reef",
+  "status": "active",
+  "createdAt": 1771784654367,
+  "updatedAt": 1771784654367,
+  "context": {
+    "task": "Test the Forge pipeline by creating a file named 'forge-test.txt' in the project root with the content 'Forge pipeline is operational.'",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}
