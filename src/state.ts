@@ -101,7 +101,27 @@ export class StateManager {
     try {
       const raw = readFileSync(filePath, "utf-8");
       const data = JSON.parse(raw) as ForemanState;
-      return new StateManager(data, autoPersist);
+      const sm = new StateManager(data, autoPersist);
+
+      // AUTO-HEAL: If active chain is missing on disk, gracefully downgrade state to prevent engine lock
+      if (data.activeChainId) {
+        const chainPath = join(projectRoot, "chains", `${data.activeChainId}.json`);
+        if (!existsSync(chainPath)) {
+          sm.state.activeChainId = undefined;
+          sm.state.activeThoughtId = undefined;
+          
+          if (sm.state.currentState === "executing" || sm.state.currentState === "verifying") {
+             // Downgrade to an idle state so it doesn't try to resume a ghost chain
+             sm.state.currentState = "idle";
+          }
+          
+          if (autoPersist) {
+            sm.save();
+          }
+        }
+      }
+
+      return sm;
     } catch (err) {
       throw new CorruptedStateError(filePath, err);
     }
