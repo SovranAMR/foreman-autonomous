@@ -23,6 +23,7 @@ import { RateLimiter } from "./rate-limiter.js";
 import type { RateLimitConfig } from "./types.js";
 import { validateThoughtCompletion } from "./validators.js";
 import type { LLMProvider, GenerateResult } from "./provider.js";
+import type { ToolCall, ToolResult } from "./tools.js";
 import { ProviderRegistry } from "./provider.js";
 import { getSystemPrompt, buildContextText, buildUserPrompt } from "./prompts.js";
 import type { ParsePhase, ParseError } from "./parser.js";
@@ -1039,6 +1040,91 @@ export class Engine {
    */
   getApprovalAllowlist() {
     return this.approvalEngine.getAllowlist();
+  }
+
+  // ─── TOOL-ENABLED LLM CALL ──────────────────────────────────
+
+  /**
+   * Call LLM with tool access — the worker can actually execute code,
+   * read files, run commands, etc. during its thinking process.
+   *
+   * This is the key difference from callLLM(): the model gets tools
+   * and can call them in a loop until it's satisfied with the result.
+   */
+  async callLLMWithTools(
+    systemPrompt: string,
+    userPrompt: string,
+    layer: Layer,
+    toolExecutor: (call: ToolCall) => Promise<ToolResult>,
+    options?: {
+      maxTokens?: number;
+      maxIterations?: number;
+      onToolCall?: (call: ToolCall) => void;
+      onToolResult?: (result: ToolResult) => void;
+      onToken?: (token: string) => void;
+    },
+  ): Promise<GenerateResult> {
+    await this.rateLimiter.acquire();
+
+    const model = this.rateLimiter.currentModel()
+      ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel;
+
+    // Find Antigravity provider (the one with streamChatWithTools)
+    const provider = this.providers.getProviderForModel(model);
+    if (!provider) {
+      throw new Error(`No provider found for model: ${model}`);
+    }
+
+    // Check if provider supports tool calling
+    const antigravProvider = (provider as any);
+    if (typeof antigravProvider.streamChatWithTools !== "function") {
+      // Fallback: call without tools and extract operations post-hoc
+      return this.callLLM(systemPrompt, userPrompt, layer);
+    }
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ];
+
+    const maxTokens = options?.maxTokens ?? 4096;
+    const maxIterations = options?.maxIterations ?? 15;
+    let responseText = "";
+
+    const result = await antigravProvider.streamChatWithTools(
+      messages,
+      model,
+      (token: string) => {
+        responseText += token;
+        options?.onToken?.(token);
+      },
+      (call: ToolCall) => {
+        options?.onToolCall?.(call);
+      },
+      (result: ToolResult) => {
+        options?.onToolResult?.(result);
+      },
+      maxTokens,
+      maxIterations,
+      async (call: ToolCall) => {
+        return await toolExecutor(call);
+      },
+    );
+
+    const totalTokens = result.inputTokens + result.outputTokens;
+    this.rateLimiter.onSuccess();
+    this.rateLimiter.recordTokens(totalTokens);
+    this.state.addTokens(totalTokens);
+
+    return {
+      text: responseText || result.text,
+      model,
+      tokenUsage: {
+        input: result.inputTokens,
+        output: result.outputTokens,
+        total: totalTokens,
+      },
+    };
   }
 
   /**

@@ -20,6 +20,8 @@ import { parseBuildOutput, parseTestOutput, analyzeOutput, detectRegressions, ch
 import { extractCrossChainContext } from "./context-intelligence.js";
 import { extractOperations, executeOperations, needsExecution, buildExecutionFeedback } from "./worker-executor.js";
 import { PipelineResumeEngine } from "./pipeline-resume.js";
+import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
+import type { ToolCall, ToolResult } from "./tools.js";
 import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
 import { getActiveThoughts } from "./chain-repair.js";
@@ -456,19 +458,93 @@ export class Orchestrator {
           });
         }
 
-        const execResult = await this.engine.stepWithPhase(
-          visionChain.id,
-          atom,
-          "worker",
-          "execute",
-          [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
-        );
+        // ── WORKER EXECUTION — two modes: ──
+        // Mode A: Tool-enabled (LLM calls tools in real-time) — preferred
+        // Mode B: Fallback (LLM plans, Worker Executor extracts & runs post-hoc)
+
+        let execResult: StepResult;
+        let toolCallCount = 0;
+        const toolResults: Array<{ name: string; success: boolean }> = [];
+
+        try {
+          // Mode A: Try tool-enabled execution
+          const toolExecutor = createEngineToolExecutor(
+            this.engine.config.projectRoot,
+            this.engine.exec,
+            this.engine.editEngine,
+            this.engine.git,
+            this.engine.linkIntelligence,
+          );
+
+          // Build context for tool-enabled LLM call
+          const atomContext = [
+            `ATOM: ${atom}`,
+            `VISION: ${visionOutput.slice(0, 500)}`,
+            `BLOCK: ${block}`,
+            findings ? `RESEARCH: ${findings}` : "",
+          ].filter(Boolean).join("\n\n");
+
+          const toolLlmResult = await this.engine.callLLMWithTools(
+            getWorkerPromptForToolMode(),
+            atomContext,
+            "worker",
+            async (call: ToolCall) => {
+              toolCallCount++;
+              this.emit({
+                type: "phase_start",
+                phase: "tool_call",
+                detail: `${call.name}(${JSON.stringify(call.args).slice(0, 60)})`,
+              });
+              const result = await toolExecutor(call);
+              toolResults.push({ name: call.name, success: !result.isError });
+              this.emit({
+                type: "phase_end",
+                phase: "tool_call",
+                detail: `${call.name} → ${result.isError ? "✖" : "✔"}`,
+              });
+              return result;
+            },
+            {
+              maxIterations: 15,
+              onToken: () => {},
+              onToolCall: (call) => {
+                console.log(`  [tool] ${call.name}(${JSON.stringify(call.args).slice(0, 60)})`);
+              },
+              onToolResult: (result) => {
+                const preview = result.content.slice(0, 80);
+                console.log(`  [tool] → ${result.isError ? "✖" : "✔"} ${preview}`);
+              },
+            },
+          );
+
+          // Create a thought from the tool-enabled result
+          execResult = await this.engine.stepWithPhase(
+            visionChain.id,
+            `${atom}\n\n[Tool execution completed: ${toolCallCount} tool calls, ${toolResults.filter(r => r.success).length} succeeded]\n\nLLM response:\n${toolLlmResult.text}`,
+            "worker",
+            "execute",
+            [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
+          );
+        } catch (toolError) {
+          // Mode B: Fallback — standard stepWithPhase + post-hoc extraction
+          console.log(`  [forge] Tool mode unavailable, using extraction mode: ${toolError instanceof Error ? toolError.message.slice(0, 80) : "unknown"}`);
+
+          execResult = await this.engine.stepWithPhase(
+            visionChain.id,
+            atom,
+            "worker",
+            "execute",
+            [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
+          );
+        }
+
         totalThoughts++;
         atomCount++;
         this.emit({ type: "thought_complete", thought: execResult.thought });
 
-        // ── REAL EXECUTION — extract and run operations from worker protocol ──
-        if (execResult.thought.workerProtocol && execResult.thought.status === "done") {
+        // ── POST-HOC EXECUTION (Mode B fallback) ──
+        // Only if no tools were called in Mode A (toolCallCount === 0)
+        if (toolCallCount === 0 && execResult.thought.workerProtocol && execResult.thought.status === "done") {
           const protocol = execResult.thought.workerProtocol;
 
           if (needsExecution(protocol)) {
@@ -983,4 +1059,45 @@ export class Orchestrator {
 
     return blocks.length > 0 ? blocks : [text.trim()];
   }
+}
+
+// ─── TOOL-MODE WORKER PROMPT ─────────────────────────────────
+
+function getWorkerPromptForToolMode(): string {
+  return `You are the WORKER of Foreman — a 4-layer AI coding agent orchestrator.
+
+You have access to real tools. Use them to complete the task:
+
+## Available Tools
+- bash: Run shell commands (npm, git, etc.)
+- read_file: Read file contents
+- write_file: Write/create files
+- edit_file: Edit existing files (find & replace)
+- search_files: Search for patterns in files
+- grep: Search file contents
+- list_dir: List directory contents
+- git_status/git_commit/git_diff/git_log: Git operations
+- verify_build/verify_tests: Run build and tests
+- web_search/web_fetch: Search the web
+
+## Your Protocol
+1. READ: Use read_file to understand what exists
+2. PLAN: Decide what to change (think step by step)
+3. EXECUTE: Use write_file/edit_file/bash to make changes
+4. VERIFY: Use verify_build/verify_tests to confirm it works
+5. REPORT: Summarize what you did
+
+## Rules
+- ONE atomic task at a time
+- ALWAYS read before writing
+- ALWAYS verify after changing
+- If something fails, try to fix it
+- Report honestly — include failures
+- Do NOT hallucinate file contents — use read_file
+
+After completing all tool calls, provide your final response with:
+STEP6_EXECUTE: [what you did]
+STEP7_VERIFY: [verification results]
+STEP8_REPORT: [summary]
+CONFIDENCE: [0.0-1.0]`;
 }
