@@ -535,7 +535,18 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {
         operations: {
           type: "array",
-          description: "Array of {type, path, content?, oldText?, newText?, startLine?, endLine?}",
+          description: "Array of file operations",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string", description: "Operation type: read, write, edit, delete" },
+              path: { type: "string", description: "File path" },
+              content: { type: "string", description: "Content for write operations" },
+              oldText: { type: "string", description: "Text to find for edit operations" },
+              newText: { type: "string", description: "Replacement text for edit operations" },
+            },
+            required: ["type", "path"],
+          },
         },
       },
       required: ["operations"],
