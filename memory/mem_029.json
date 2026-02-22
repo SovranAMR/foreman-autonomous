@@ -9,8 +9,15 @@
   },
   "importance": 0.8,
   "tags": [],
+<<<<<<< Updated upstream
   "useCount": 2,
   "createdAt": "2026-02-22T23:29:45.352Z",
   "expired": false,
   "lastUsedAt": "2026-02-22T23:30:18.277Z"
+=======
+  "useCount": 4,
+  "createdAt": "2026-02-22T23:29:45.352Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T23:36:07.760Z"
+>>>>>>> Stashed changes
 }
