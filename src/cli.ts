@@ -12,6 +12,7 @@
  *   foreman task done <id>  — mark task as done
  *   foreman board           — kanban board view
  *   foreman doctor          — system health check
+ *   foreman serve           — start messaging gateway (Telegram/WhatsApp)
  *
  * Developer Commands (debug/inspect — hidden from end users):
  *   foreman internals thoughts    — list thoughts
@@ -1691,6 +1692,79 @@ program
       console.log(`  ${brand.dim(result.error ?? "Unknown error")}`);
     }
     console.log("");
+  });
+
+// ─── SERVE (Messaging Gateway) ───────────────────────────────
+
+program
+  .command("serve")
+  .description("Start the messaging gateway (Telegram, WhatsApp)")
+  .option("-d, --dir <path>", "Project directory")
+  .option("--telegram <token>", "Telegram bot token")
+  .option("--whatsapp", "Enable WhatsApp channel")
+  .option("--whatsapp-session <dir>", "WhatsApp session directory")
+  .option("--allow <ids...>", "Allowed sender IDs")
+  .action(async (opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const { MessagingGateway } = await import("./messaging-gateway.js");
+    const { ChannelConfig, TelegramChannelConfig, WhatsAppChannelConfig } = await import("./channel.js");
+
+    printLogo();
+    console.log(brand.gold("\n  ◆ Foreman Messaging Gateway\n"));
+
+    const channels: any[] = [];
+    const allowedSenders: string[] = opts.allow ?? [];
+
+    // Telegram
+    const tgToken = opts.telegram ?? process.env.FOREMAN_TELEGRAM_TOKEN;
+    if (tgToken) {
+      channels.push({
+        type: "telegram",
+        enabled: true,
+        botToken: tgToken,
+        allowedSenders,
+      });
+      console.log(`  ${brand.green("✔")} Telegram channel configured`);
+    }
+
+    // WhatsApp
+    if (opts.whatsapp || process.env.FOREMAN_WHATSAPP === "true") {
+      channels.push({
+        type: "whatsapp",
+        enabled: true,
+        sessionDir: opts.whatsappSession ?? join(homedir(), ".foreman"),
+        allowedSenders,
+      });
+      console.log(`  ${brand.green("✔")} WhatsApp channel configured`);
+    }
+
+    if (channels.length === 0) {
+      console.log(`  ${brand.red("✖")} No channels configured.`);
+      console.log(`  ${brand.dim("  Use --telegram <token> or --whatsapp")}`);
+      console.log(`  ${brand.dim("  Or set FOREMAN_TELEGRAM_TOKEN / FOREMAN_WHATSAPP=true")}`);
+      process.exit(1);
+    }
+
+    const gateway = new MessagingGateway({
+      projectRoot,
+      projectName: "foreman",
+      channels,
+      maxConcurrent: 5,
+      messageTimeoutMs: 120_000,
+    });
+
+    // Graceful shutdown
+    const shutdown = async () => {
+      console.log("\n  Shutting down...");
+      await gateway.stop();
+      process.exit(0);
+    };
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+
+    await gateway.start();
+
+    console.log(brand.gold("\n  🔥 Gateway running. Press Ctrl+C to stop.\n"));
   });
 
 // ─── PARSE ────────────────────────────────────────────────────
