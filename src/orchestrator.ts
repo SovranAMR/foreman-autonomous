@@ -219,9 +219,43 @@ export class Orchestrator {
       });
     }
 
+    // ─── 1a. PRE-VISION RESEARCH — Researcher feeds Visioner ─
+    // Visioner + Researcher work TOGETHER: research industry first, then create vision
+    let preVisionResearch = "";
+    try {
+      this.engine.streaming.toolCall("pre_vision_research", `Researching: ${task.slice(0, 50)}`);
+
+      // Web search for industry references, benchmarks, best practices
+      const searchResults = await webSearch(`best ${task} design examples award winning 2024 2025`, 5);
+      if (searchResults.length > 0) {
+        const enriched = searchResults.map(r => {
+          const classification = this.engine.linkIntelligence.classify(r.url ?? "");
+          return `- ${r.title} [${classification.type}]: ${r.snippet}`;
+        });
+        preVisionResearch += `\n\nINDUSTRY RESEARCH (real examples found):\n${enriched.join("\n")}`;
+      }
+
+      // Search for competitor/reference sites
+      const refResults = await webSearch(`${task} site:awwwards.com OR site:dribbble.com OR site:behance.net`, 3);
+      if (refResults.length > 0) {
+        preVisionResearch += `\n\nREFERENCE BENCHMARKS:\n${refResults.map(r => `- ${r.title}: ${r.snippet}`).join("\n")}`;
+      }
+
+      // Semantic search over project codebase for existing patterns
+      try {
+        const embResults = await this.engine.embeddingEngine.search(task, 3);
+        if (embResults.length > 0) {
+          preVisionResearch += `\n\nEXISTING CODEBASE PATTERNS:\n${embResults.map(r => `- [${(r.score * 100).toFixed(0)}%] ${r.content.slice(0, 100)}`).join("\n")}`;
+        }
+      } catch { /* embedding best-effort */ }
+
+    } catch {
+      // Pre-vision research is best-effort
+    }
+
     const visionResult = await this.engine.stepWithPhase(
       visionChain.id,
-      `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}${identityContext ? `\n\n${identityContext}` : ""}`,
+      `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}${identityContext ? `\n\n${identityContext}` : ""}${preVisionResearch}`,
       "visioner",
       "vision",
     );
@@ -363,7 +397,7 @@ export class Orchestrator {
         // ─── EMBEDDING: Semantic search over project codebase ───
         let embeddingContext: string[] = [];
         try {
-          const embResults = this.engine.embeddingEngine.search(block, 3);
+          const embResults = await this.engine.embeddingEngine.search(block, 3);
           if (embResults.length > 0) {
             embeddingContext = embResults.map(r =>
               `[${(r.score * 100).toFixed(0)}% match] ${r.content.slice(0, 120)}`
@@ -487,6 +521,23 @@ export class Orchestrator {
       for (let j = 0; j < atoms.length; j++) {
         const atom = atoms[j];
 
+        // ─── RETRY LOOP — Atom execution with feedback-driven retries ───
+        // On BLOCK/REJECT: rollback → inject failure feedback → retry (max 3)
+        // On 3rd failure: skip atom, move to next
+        let atomPassed = false;
+        let lastRejectionFeedback = "";
+
+        for (let attempt = 0; attempt < this.MAX_ATOM_RETRIES; attempt++) {
+          if (attempt > 0) {
+            this.engine.streaming.toolCall("atom_retry", `Attempt ${attempt + 1}/${this.MAX_ATOM_RETRIES}: ${atom.slice(0, 40)}`);
+            this.emit({
+              type: "format_retry",
+              phase: "atom_retry",
+              attempt,
+              missing: [lastRejectionFeedback.slice(0, 100)],
+            });
+          }
+
         // ─── SESSION BUDGET CHECK ───────────────────────────
         // Don't start an atom if total session tokens exceeded
         const sessionTokens = this.engine.state.snapshot().totalTokens;
@@ -589,8 +640,44 @@ export class Orchestrator {
             ? `COMPLETED ATOMS:\n${completedAtomLines.join("\n")}`
             : "";
 
+          // ─── PRE-EXECUTION FILE ANALYSIS ───────────────────
+          // Extract file paths from atom description and pre-read them
+          // Worker gets REAL file contents — no hallucination possible
+          let preReadContext = "";
+          try {
+            const fileMatches = atom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g);
+            if (fileMatches && fileMatches.length > 0) {
+              const uniqueFiles = [...new Set(fileMatches)].slice(0, 3); // max 3 files
+              const fileParts: string[] = [];
+              for (const filePath of uniqueFiles) {
+                try {
+                  const fullPath = `${this.engine.config.projectRoot}/${filePath}`;
+                  const { readFileSync } = await import("node:fs");
+                  const content = readFileSync(fullPath, "utf-8");
+                  const lines = content.split("\n");
+                  const preview = lines.length > 50
+                    ? `${lines.slice(0, 50).join("\n")}\n... (${lines.length} total lines)`
+                    : content;
+                  fileParts.push(`[FILE: ${filePath}] (${lines.length} lines)\n${preview}`);
+                } catch { /* file not found — OK, Worker will create it */ }
+              }
+              if (fileParts.length > 0) {
+                preReadContext = `PRE-READ FILES (real contents — do NOT hallucinate):\n${fileParts.join("\n\n")}`;
+              }
+            }
+          } catch { /* pre-read best-effort */ }
+
+          // ─── REJECTION FEEDBACK INJECTION ─────────────────
+          // On retry, inject the EXACT reason why the previous attempt failed
+          // Worker sees: "Your previous attempt was REJECTED because: ..."
+          const retryContext = lastRejectionFeedback && attempt > 0
+            ? `⚠️ PREVIOUS ATTEMPT REJECTED (attempt ${attempt}/${this.MAX_ATOM_RETRIES}):\n${lastRejectionFeedback}\n\nFix the issues above. Do NOT repeat the same mistakes.`
+            : "";
+
           const atomContext = [
             `YOUR TASK (Atom ${j + 1}/${atoms.length}): ${atom}`,
+            retryContext,
+            preReadContext,
             `BLOCK: ${block}`,
             prevAtomContext,
             `VISION DOCUMENT (pinned — respect ALL constraints):\n${visionOutput}`,
@@ -747,8 +834,9 @@ export class Orchestrator {
             // Rollback is best-effort — may fail on non-git projects
           }
 
-          // Atom BLOCK non-fatal — move to next atom
-          continue;
+          // Atom BLOCK — retry with feedback (not skip)
+          lastRejectionFeedback = `WORKER BLOCKED: ${execResult.thought.blockedReason ?? "8-step protocol incomplete"}`;
+          break; // break retry attempt, will retry with feedback
         }
 
         if (execResult.retryCount > 0) {
@@ -815,9 +903,10 @@ export class Orchestrator {
             });
             this.engine.streaming.error(`🔴 Quick review rejected atom ${j + 1}: ${quickResult.violations[0]?.slice(0, 80)}`);
 
-            // Rollback and skip (treated like BLOCK)
+            // Rollback and retry with feedback
             try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
-            continue;
+            lastRejectionFeedback = quickResult.rejectionFeedback ?? quickResult.violations.join("; ");
+            break; // break retry attempt
           }
 
           // Phase 2: Full LLM review (different model — breaks bias)
@@ -858,17 +947,33 @@ export class Orchestrator {
               // Rollback code
               try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
 
-              // Save rejection feedback for potential retry
+              // Save rejection feedback for retry
               this.engine.identity.updateMemory(
                 `review_reject_${Date.now()}`,
                 `Atom "${atom.slice(0, 40)}" rejected: ${reviewResult.violations.join(", ").slice(0, 100)}`,
                 "Review History",
               );
-              continue;
+              lastRejectionFeedback = reviewResult.rejectionFeedback ?? reviewResult.violations.join("; ");
+              break; // break retry attempt — will retry with feedback
             }
           } catch {
             // Reviewer gate is best-effort — if LLM call fails, continue
           }
+        }
+
+        // ─── ATOM PASSED ALL GATES ────────────────────────────
+        atomPassed = true;
+        break; // break retry loop — atom succeeded
+        } // end retry loop
+
+        // ─── RETRY EXHAUSTED CHECK ──────────────────────────
+        if (!atomPassed) {
+          this.emit({
+            type: "error",
+            message: `Atom ${j + 1} failed after ${this.MAX_ATOM_RETRIES} attempts: ${lastRejectionFeedback.slice(0, 100)}`,
+          });
+          this.engine.streaming.error(`❌ Atom ${j + 1} failed after ${this.MAX_ATOM_RETRIES} retries — skipping`);
+          continue; // skip to next atom in outer loop
         }
 
         // ─── CHECKPOINT: Atom complete ───
@@ -947,6 +1052,27 @@ export class Orchestrator {
             });
           }
         }
+
+        // ── PHYSICAL BUILD CHECK — actually run build after atom ──
+        // Don't trust Worker's self-reported step7_verify — verify independently
+        try {
+          const buildCheck = this.engine.git.executor.runShell("npm run build --if-present 2>&1", 30_000);
+          if (buildCheck.success) {
+            const buildParsed = parseBuildOutput(buildCheck.stdout + "\n" + buildCheck.stderr);
+            if (buildParsed.errors.length > 0) {
+              this.emit({
+                type: "verification",
+                phase: "atom_build",
+                passed: false,
+                detail: `Build BROKEN after atom ${j + 1}: ${buildParsed.errors[0]?.message?.slice(0, 80)}`,
+              });
+              this.engine.streaming.error(`🔨 Build broken after atom ${j + 1}`);
+              // Don't rollback — Worker might fix it in next atom
+              // But flag it in memory for awareness
+              lastRejectionFeedback = `Build broken: ${buildParsed.errors.map(e => e.message).join("; ").slice(0, 200)}`;
+            }
+          }
+        } catch { /* build check best-effort */ }
 
         // ── REFLECT every 5 atoms — Visioner as Art Director ──
         if (atomCount > 0 && atomCount % 5 === 0) {
@@ -1093,7 +1219,18 @@ Be specific. Rate 0.0-1.0. If below 0.6, say FAIL with specific reasons.`,
 
             if (!vibePass) {
               this.engine.streaming.error(`🎨 Vibe check FAILED for block ${i + 1}: ${vibeResult.text.slice(0, 80)}`);
-              // Don't rollback entire block — just warn. Strategist may adjust next block.
+
+              // ─── STRATEGIC CORRECTION — feed failure into next block ───
+              // Save vibe check failure as memory so next block's research picks it up
+              try {
+                this.engine.memory.add({
+                  content: `VIBE CHECK FAILURE (Block ${i + 1}): ${vibeResult.text.slice(0, 300)}. Next block must compensate for: ${vibeResult.text.slice(0, 100)}`,
+                  type: "vibe_failure",
+                  tags: ["foreman", "pipeline", "vibe_check", `block_${i + 1}`],
+                  source: "orchestrator",
+                  projectId: this.engine.state.snapshot().projectName,
+                });
+              } catch { /* memory best-effort */ }
             }
           } catch { /* vibe check LLM best-effort */ }
         }
