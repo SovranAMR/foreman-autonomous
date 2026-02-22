@@ -65,7 +65,7 @@ interface ReplState {
   totalTokens: number;
   rl: ReadlineInterface | null;
   running: boolean;
-  toolExecutor: (call: ToolCall) => ToolResult;
+  toolExecutor: (call: ToolCall) => ToolResult | Promise<ToolResult>;
 }
 
 
