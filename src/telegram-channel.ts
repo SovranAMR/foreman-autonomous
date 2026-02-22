@@ -6,10 +6,12 @@
  *
  * Features:
  * - Long polling (no webhook needed)
- * - Markdown formatting
- * - Message splitting for long responses
- * - Typing indicator during processing
+ * - Markdown formatting with fallback to plain text
+ * - Message splitting for long responses (Telegram 4096 char limit)
+ * - Periodic typing indicator during processing
  * - Group chat support (mention-triggered)
+ * - Startup timestamp filtering (no drop_pending_updates — never lose messages)
+ * - PID-based single instance guard
  */
 
 import { Bot, Context } from "grammy";
@@ -30,6 +32,8 @@ export class TelegramChannel implements Channel {
   private onMessage: MessageHandler;
   private connected = false;
   private botUsername = "";
+  /** Unix timestamp (seconds) when start() was called — messages older than this are stale */
+  private startedAtUnix = 0;
 
   constructor(config: TelegramChannelConfig, onMessage: MessageHandler) {
     this.config = config;
@@ -38,15 +42,19 @@ export class TelegramChannel implements Channel {
   }
 
   async start(): Promise<void> {
+    // Record startup time BEFORE any async work
+    this.startedAtUnix = Math.floor(Date.now() / 1000);
+
     // Get bot info
     const me = await this.bot.api.getMe();
     this.botUsername = me.username ?? "";
     console.log(`[telegram] Bot: @${this.botUsername} (${me.first_name})`);
 
-    // Force-close any existing polling connection
-    // deleteWebhook with drop_pending_updates clears stale state
+    // Clear webhook (in case a previous deployment used webhooks)
+    // Do NOT use drop_pending_updates — we want to receive messages
+    // sent while the bot was down. Stale messages are filtered by timestamp.
     try {
-      await this.bot.api.deleteWebhook({ drop_pending_updates: true });
+      await this.bot.api.deleteWebhook();
     } catch { /* best-effort */ }
 
     // Register message handler
@@ -58,15 +66,14 @@ export class TelegramChannel implements Channel {
     this.bot.catch((err) => {
       const msg = err.message ?? String(err);
       if (msg.includes("409")) {
-        console.error(`[telegram] 409 Conflict — wait for old connection to expire (~30s)`);
+        console.error(`[telegram] 409 Conflict — another instance still polling. Wait ~30s for it to expire.`);
       } else {
         console.error(`[telegram] Bot error:`, msg);
       }
     });
 
-    // Start long polling — drop pending updates to avoid stale messages
+    // Start long polling
     this.bot.start({
-      drop_pending_updates: true,
       onStart: () => {
         this.connected = true;
         console.log(`[telegram] Polling started for @${this.botUsername}`);
@@ -92,28 +99,30 @@ export class TelegramChannel implements Channel {
     // Split long messages (Telegram limit: 4096 chars)
     const chunks = this.splitMessage(reply.text, 4000);
 
-    for (const chunk of chunks) {
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      // Only reply to the original message on the FIRST chunk
+      const replyParams = i === 0 && reply.replyToId
+        ? { message_id: Number(reply.replyToId) }
+        : undefined;
+
       try {
         await this.bot.api.sendMessage(chatId, chunk, {
           parse_mode: parseMode,
-          reply_parameters: reply.replyToId
-            ? { message_id: Number(reply.replyToId) }
-            : undefined,
+          reply_parameters: replyParams,
         });
       } catch (err) {
         // Retry without parse mode if markdown fails
         if (parseMode) {
           try {
             await this.bot.api.sendMessage(chatId, chunk, {
-              reply_parameters: reply.replyToId
-                ? { message_id: Number(reply.replyToId) }
-                : undefined,
+              reply_parameters: replyParams,
             });
           } catch (retryErr) {
-            console.error(`[telegram] Send failed:`, retryErr);
+            console.error(`[telegram] Send failed (chunk ${i + 1}/${chunks.length}):`, retryErr);
           }
         } else {
-          console.error(`[telegram] Send failed:`, err);
+          console.error(`[telegram] Send failed (chunk ${i + 1}/${chunks.length}):`, err);
         }
       }
     }
@@ -128,6 +137,17 @@ export class TelegramChannel implements Channel {
   private async handleIncoming(ctx: Context): Promise<void> {
     const msg = ctx.message;
     if (!msg?.text || !msg.from) return;
+
+    // ── Stale message filter ──
+    // Skip messages sent BEFORE the bot started.
+    // This replaces drop_pending_updates — we never lose messages,
+    // but we don't process ones that were queued while bot was offline
+    // if they're older than 60 seconds before startup.
+    const messageAge = this.startedAtUnix - msg.date;
+    if (messageAge > 60) {
+      console.log(`[telegram] Skipping stale message (${messageAge}s old): "${msg.text.slice(0, 40)}..."`);
+      return;
+    }
 
     // In groups, only respond when mentioned or replied to
     if (msg.chat.type !== "private") {
@@ -155,24 +175,46 @@ export class TelegramChannel implements Channel {
       replyToId: msg.reply_to_message ? String(msg.reply_to_message.message_id) : undefined,
     };
 
-    // Show typing indicator
+    console.log(`[telegram] Message from ${inbound.senderName}: "${text.slice(0, 60)}${text.length > 60 ? "..." : ""}"`);
+
+    // ── Periodic typing indicator ──
+    // Telegram typing indicator expires after ~5 seconds.
+    // Send it immediately and repeat every 4 seconds until processing completes.
+    const chatId = msg.chat.id;
+    let typingActive = true;
+    const sendTyping = async () => {
+      while (typingActive) {
+        try {
+          await ctx.api.sendChatAction(chatId, "typing");
+        } catch { /* best-effort */ }
+        await new Promise(resolve => setTimeout(resolve, 4000));
+      }
+    };
+    const typingPromise = sendTyping();
+
     try {
-      await ctx.api.sendChatAction(msg.chat.id, "typing");
-    } catch { /* typing indicator is best-effort */ }
+      // Process message
+      const reply = await this.onMessage(inbound);
 
-    // Process message
-    const reply = await this.onMessage(inbound);
-
-    if (reply) {
-      await this.send(String(msg.chat.id), {
-        ...reply,
-        replyToId: String(msg.message_id),
-      });
+      if (reply) {
+        await this.send(String(chatId), {
+          ...reply,
+          replyToId: String(msg.message_id),
+        });
+      }
+    } finally {
+      // Stop typing indicator
+      typingActive = false;
+      await typingPromise.catch(() => {});
     }
   }
 
+  // ─── MESSAGE SPLITTING ────────────────────────────────────
+
   /**
    * Split a long message into chunks at natural boundaries.
+   * Telegram has a hard 4096 char limit per message.
+   * We split at paragraph boundaries, then line boundaries, then force-cut.
    */
   private splitMessage(text: string, maxLength: number): string[] {
     if (text.length <= maxLength) return [text];
@@ -186,18 +228,25 @@ export class TelegramChannel implements Channel {
         break;
       }
 
-      // Find best split point
+      // Find best split point — prefer natural boundaries
       let splitAt = maxLength;
 
-      // Try to split at double newline (paragraph)
+      // Priority 1: Double newline (paragraph break)
       const doubleNl = remaining.lastIndexOf("\n\n", maxLength);
       if (doubleNl > maxLength * 0.3) {
         splitAt = doubleNl + 2;
       } else {
-        // Try single newline
+        // Priority 2: Single newline
         const singleNl = remaining.lastIndexOf("\n", maxLength);
         if (singleNl > maxLength * 0.3) {
           splitAt = singleNl + 1;
+        } else {
+          // Priority 3: Space
+          const space = remaining.lastIndexOf(" ", maxLength);
+          if (space > maxLength * 0.3) {
+            splitAt = space + 1;
+          }
+          // Else: force-cut at maxLength
         }
       }
 

@@ -422,9 +422,14 @@ export class MessagingGateway {
 
       conversation.totalTokens += result.inputTokens + result.outputTokens;
 
-      // Split long responses for Telegram/WhatsApp limits
+      // Use accumulated text from onToken, fallback to result.text
       const text = responseText.trim() || result.text.trim();
-      if (!text) return null;
+      if (!text) {
+        console.warn(`[gateway] LLM returned empty response after ${result.inputTokens + result.outputTokens} tokens`);
+        return { text: "⚠️ I processed your request but couldn't generate a response. Try again." };
+      }
+
+      console.log(`[gateway] Response ready: ${text.length} chars, ${result.inputTokens}+${result.outputTokens} tokens`);
 
       return {
         text,
