@@ -61,7 +61,7 @@ export class MessagingGateway {
   private conversations: Map<string, ConversationState> = new Map();
   private engine: Engine;
   private provider: AntigravityProvider | null = null;
-  private toolExecutor: ((call: ToolCall) => ToolResult) | null = null;
+  private toolExecutor: ((call: ToolCall) => Promise<ToolResult>) | null = null;
   private processing: Set<string> = new Set(); // active chat IDs
   private running = false;
 
@@ -248,15 +248,20 @@ export class MessagingGateway {
     if (text === "/help" || text === "/yardim") {
       return {
         text: [
-          "🔥 **Foreman Commands**",
+          "🔥 **Foreman**",
           "",
+          "Just talk to me naturally. I'll decide what to do.",
+          "",
+          "Simple tasks → I handle directly (read, edit, run commands)",
+          "Complex tasks → I launch the Forge pipeline automatically",
+          "",
+          "**Utility Commands:**",
           "/status — System status",
           "/clear — Clear conversation",
           "/tools — List available tools",
-          "/help — This help",
-          "",
-          "Just send any message to start working!",
-          "Foreman will use tools automatically.",
+          "/cost — Token cost report",
+          "/cancel — Cancel active forge run",
+          "/rollback — Undo last operation",
         ].join("\n"),
         parseMode: "markdown",
       };
@@ -270,9 +275,10 @@ export class MessagingGateway {
       };
     }
 
-    // ─── FORGE COMMANDS ─────────────────────────────────────
-    // Forward to ForgeGatewayBridge for /forge, /cancel, /cost, etc.
-    if (text.startsWith("/forge") || text === "/cancel" || text === "/iptal" ||
+    // ─── FORGE UTILITY COMMANDS ─────────────────────────────
+    // /cancel, /cost, /rollback etc. still handled via ForgeGatewayBridge
+    // /forge is no longer a command — LLM decides when to use forge_pipeline tool
+    if (text === "/cancel" || text === "/iptal" ||
         text === "/cost" || text === "/maliyet" || text === "/project" || text === "/proje" ||
         text === "/rollback" || text === "/geri" || text === "/identity" || text === "/kimlik" ||
         text === "/agents" || text === "/ajanlar" || text === "/sessions" || text === "/oturumlar") {
@@ -280,7 +286,6 @@ export class MessagingGateway {
         const { ForgeGatewayBridge } = require("./forge-gateway.js") as typeof import("./forge-gateway.js");
         const { Engine } = require("./engine.js") as typeof import("./engine.js");
 
-        // Create a minimal engine for forge bridge
         const engine = new Engine({
           projectRoot: this.config.projectRoot,
           projectName: this.config.projectName,
@@ -289,7 +294,6 @@ export class MessagingGateway {
         const bridge = new ForgeGatewayBridge(engine);
         const chatKey = `${message.channel}:${message.chatId}`;
 
-        // Create sender adapter
         const channel = this.channels.get(message.channel);
         const sender = {
           send: async (text: string) => {
@@ -301,10 +305,10 @@ export class MessagingGateway {
         };
 
         const result = bridge.handleCommand(text, chatKey, sender);
-        if (result === null) return null; // Command handled async
+        if (result === null) return null;
         return { text: result };
       } catch (err) {
-        return { text: `❌ Forge command error: ${err instanceof Error ? err.message : String(err)}` };
+        return { text: `❌ Command error: ${err instanceof Error ? err.message : String(err)}` };
       }
     }
 
@@ -447,37 +451,54 @@ export class MessagingGateway {
     } catch { /* identity files may not exist */ }
 
     const base = [
-      "You are Foreman — an AI coding assistant and task orchestrator.",
-      "You are communicating through a messaging channel (Telegram/WhatsApp).",
+      "You are Foreman — an AI coding agent and task orchestrator.",
+      "You communicate through messaging but you are a FULL coding agent, not a chatbot.",
+      "You can read, write, edit code, run commands, and build entire features autonomously.",
       "",
-      "## Capabilities",
-      "- Read, write, edit files in the project",
-      "- Run shell commands (bash)",
-      "- Search files and grep code",
-      "- Git operations (status, commit, diff, log)",
-      "- Web search and URL fetching",
-      "- Security scanning",
-      "- Build and test verification",
-      "- Browser control (screenshot, navigate, extract content)",
-      "- Sub-agent spawning (divide complex tasks)",
-      "- /forge — trigger full 4-layer pipeline",
+      "## How You Work",
+      "You have two modes of operation and YOU decide which to use:",
       "",
-      "## Forge Commands",
-      "- /forge <task> — Run the full Visioner→Strategist→Researcher→Worker pipeline",
-      "- /cancel — Cancel active forge run",
-      "- /cost — Show cost report",
-      "- /project — Show project info",
-      "- /rollback — Undo last operation",
-      "- /identity — Show agent identity",
-      "- /agents — Show sub-agent status",
-      "- /sessions — Show session status",
+      "### Direct Mode (simple tasks)",
+      "For quick fixes, reading files, running commands, answering questions, small edits —",
+      "use your tools directly (bash, read_file, write_file, edit_file, etc.).",
+      "",
+      "### Forge Pipeline (complex tasks)",
+      "For multi-file features, refactors, new components, UI work, or anything that needs",
+      "planning and multi-step execution — call the `forge_pipeline` tool.",
+      "The pipeline handles: vision → strategy → research → execution → verification → visual QA.",
+      "",
+      "## Decision Guide",
+      "Use forge_pipeline when:",
+      "- The task touches 3+ files",
+      "- Building something new from scratch",
+      "- Major refactors or redesigns",
+      "- UI/design work that needs visual verification",
+      "- The user says 'build', 'create', 'implement', 'redesign', 'refactor' for something non-trivial",
+      "",
+      "Use direct tools when:",
+      "- Reading a file or checking something",
+      "- Running a quick command",
+      "- Fixing a typo or small bug in 1-2 files",
+      "- Answering a question about the codebase",
+      "- Git status, diff, log",
+      "",
+      "## Capabilities (Tools)",
+      "- bash — Run shell commands",
+      "- read_file, write_file, edit_file — File operations",
+      "- list_files, search_files, grep_search — File discovery",
+      "- git_status, git_commit, git_diff, git_log — Version control",
+      "- web_search, web_fetch — Internet research",
+      "- browser_screenshot, browser_navigate — Browser control",
+      "- forge_pipeline — Full 4-layer coding pipeline for complex tasks",
+      "- ... and more (47 tools total)",
       "",
       "## Rules",
       "- Be concise — messaging has character limits",
       "- Use code blocks for code snippets",
-      "- Report results, not process steps",
-      "- If a task is complex, suggest using /forge",
-      "- Always verify before committing",
+      "- Take action first, explain after",
+      "- Don't ask for permission on safe operations (read, search, git status)",
+      "- Ask before destructive operations (delete, force push, overwrite)",
+      "- Always verify your work (run build/tests after changes)",
       "",
       `## Project: ${this.config.projectName}`,
       `## Working Directory: ${this.config.projectRoot}`,

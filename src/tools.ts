@@ -768,6 +768,40 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["path", "new_content"],
     },
   },
+  {
+    name: "forge_pipeline",
+    description: `Run the full Forge pipeline (Visioner → Strategist → Researcher → Worker) for complex tasks. 
+Use this when the task requires:
+- Multi-file changes across a project
+- Building new features or components from scratch
+- Major refactors that touch many files
+- UI/design work that needs vision and review
+- Tasks that need planning, research, and multi-step execution
+- Anything that goes beyond simple file edits or quick fixes
+
+Do NOT use for:
+- Simple file reads or quick edits
+- Running a single command
+- Answering questions
+- Small bug fixes in one file
+
+The pipeline will: analyze the task → create a vision document → decompose into blocks → research → execute each atom with verification → visual QA → rollback on failure.
+Returns a summary of what was done.`,
+    parameters: {
+      type: "object",
+      properties: {
+        task: {
+          type: "string",
+          description: "Detailed description of what to build/fix/refactor. Be specific about requirements, files, and expected behavior.",
+        },
+        project_root: {
+          type: "string",
+          description: "Project root directory. Defaults to current working directory if not specified.",
+        },
+      },
+      required: ["task"],
+    },
+  },
 ];
 
 /**
@@ -910,6 +944,9 @@ function createToolDispatcher(
         case "diff_preview":
           return executeDiffPreview(engine, call.args);
 
+        case "forge_pipeline":
+          return await executeForge(projectRoot, call.args);
+
         default:
           return { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
       }
@@ -924,7 +961,7 @@ function createToolDispatcher(
  * Legacy executor — uses cwd as project root.
  * Prefer createToolExecutor(projectRoot) for explicit root.
  */
-export function executeTool(call: ToolCall): ToolResult {
+export function executeTool(call: ToolCall): Promise<ToolResult> {
   return createToolExecutor(process.cwd())(call);
 }
 
@@ -2078,5 +2115,83 @@ function executeDiffPreview(engine: any, args: Record<string, unknown>): ToolRes
     };
   } catch (err) {
     return { name: "diff_preview", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+// ─── FORGE PIPELINE TOOL ─────────────────────────────────────
+
+async function executeForge(
+  defaultProjectRoot: string,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  try {
+    const task = args.task as string;
+    if (!task || task.trim().length < 5) {
+      return {
+        name: "forge_pipeline",
+        content: "Error: Task description is too short. Provide a detailed description of what to build/fix.",
+        isError: true,
+      };
+    }
+
+    const projectRoot = (args.project_root as string) || defaultProjectRoot;
+
+    // Dynamic import to avoid circular dependency
+    const { Engine } = await import("./engine.js");
+    const { Orchestrator } = await import("./orchestrator.js");
+
+    const engine = new Engine({
+      projectRoot,
+      projectName: require("node:path").basename(projectRoot),
+    });
+
+    const orchestrator = new Orchestrator(engine);
+
+    // Collect events for summary
+    const events: string[] = [];
+    orchestrator.on((event) => {
+      switch (event.type) {
+        case "phase_start":
+          events.push(`▶ ${event.phase}: ${event.detail}`);
+          break;
+        case "phase_end":
+          events.push(`✔ ${event.phase}: ${event.detail}`);
+          break;
+        case "block_detected":
+          events.push(`⛔ BLOCK: ${event.reason}`);
+          break;
+        case "reflection":
+          events.push(`🔍 Reflection (${event.atomCount} atoms): ${event.summary.slice(0, 100)}`);
+          break;
+      }
+    });
+
+    const result = await orchestrator.run(task);
+
+    // Build summary
+    const summary = [
+      result.success ? "✅ Pipeline completed successfully" : "❌ Pipeline failed",
+      `Thoughts: ${result.totalThoughts}`,
+      `Tokens: ${result.totalTokens.toLocaleString()}`,
+      result.blockedAt ? `Blocked at: ${result.blockedAt}` : "",
+      "",
+      "--- Events ---",
+      ...events.slice(-20), // Last 20 events
+    ].filter(Boolean).join("\n");
+
+    // Cleanup
+    await engine.shutdown();
+
+    return {
+      name: "forge_pipeline",
+      content: summary,
+      isError: !result.success,
+    };
+  } catch (err) {
+    return {
+      name: "forge_pipeline",
+      content: `Forge pipeline error: ${err instanceof Error ? err.message : String(err)}`,
+      isError: true,
+    };
   }
 }

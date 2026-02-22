@@ -148,7 +148,7 @@ describe("MessagingGateway", () => {
 
     const reply = await gw.handleMessage(makeMessage({ text: "/help" }));
     assert.ok(reply);
-    assert.ok(reply.text.includes("Foreman Commands"));
+    assert.ok(reply.text.includes("Foreman"));
   });
 
   it("handles /tools command", async () => {
@@ -198,7 +198,7 @@ describe("MessagingGateway", () => {
 
     const yardim = await gw.handleMessage(makeMessage({ text: "/yardim" }));
     assert.ok(yardim);
-    assert.ok(yardim.text.includes("Foreman Commands"));
+    assert.ok(yardim.text.includes("Foreman"));
   });
 
   it("blocks unauthorized senders", async () => {
