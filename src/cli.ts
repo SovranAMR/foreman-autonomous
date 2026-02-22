@@ -1737,7 +1737,40 @@ program
 
     await gateway.start();
 
-    console.log(brand.gold("\n  🔥 Gateway running. Press Ctrl+C to stop.\n"));
+    // Show live status
+    const channelCount = gateway.getActiveChannels();
+    console.log(brand.gold(`\n  🔥 Gateway running — ${channelCount} channel(s) active`));
+    console.log(`  ${brand.dim(`Conversations: ${gateway.getConversationCount()} | Running: ${gateway.isRunning()}`)}`);
+
+    // Periodic status ticker
+    const statusInterval = setInterval(() => {
+      if (!gateway.isRunning()) {
+        clearInterval(statusInterval);
+        return;
+      }
+      const convs = gateway.getConversationCount();
+      if (convs > 0) {
+        console.log(`  ${brand.dim(`[heartbeat] ${convs} active conversation(s)`)}`);
+      }
+    }, 300_000); // every 5 min
+    statusInterval.unref();
+
+    console.log(`  ${brand.dim("Press Ctrl+C to stop.\n")}`);
+
+    // Check channel health periodically
+    const healthInterval = setInterval(() => {
+      if (!gateway.isRunning()) {
+        clearInterval(healthInterval);
+        return;
+      }
+      for (const type of ["telegram", "whatsapp"] as const) {
+        const ch = gateway.getChannel(type);
+        if (ch && !ch.isConnected()) {
+          console.log(`  ${brand.red("⚠")} ${type} channel disconnected!`);
+        }
+      }
+    }, 60_000);
+    healthInterval.unref();
   });
 
 // ─── PARSE ────────────────────────────────────────────────────

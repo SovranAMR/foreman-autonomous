@@ -313,8 +313,13 @@ export class Orchestrator {
       try {
         const searchResults = await webSearch(block.slice(0, 80), 3);
         if (searchResults.length > 0) {
-          webContext = "\n\nWeb research findings:\n" +
-            searchResults.map(r => `- ${r.title}: ${r.snippet}`).join("\n");
+          // Classify URLs via LinkIntelligence for richer context
+          const enriched = searchResults.map(r => {
+            const classification = this.engine.linkIntelligence.classify(r.url ?? "");
+            const typeLabel = classification.type !== "unknown" ? ` [${classification.type}]` : "";
+            return `- ${r.title}${typeLabel}: ${r.snippet}`;
+          });
+          webContext = "\n\nWeb research findings:\n" + enriched.join("\n");
         }
       } catch {
         // Web search is best-effort
@@ -658,6 +663,41 @@ export class Orchestrator {
 
     // ─── MEMORY SYNC — write memory to MEMORY.md ────────────
     this.engine.syncMemory();
+
+    // ─── PROCESS REGISTRY — log spawned process lifecycle ───
+    try {
+      const running = this.engine.processRegistry.listRunning();
+      const finished = this.engine.processRegistry.listFinished();
+      if (running.length > 0 || finished.length > 0) {
+        this.emit({
+          type: "phase_end",
+          phase: "process_registry",
+          detail: `Processes: ${running.length} running, ${finished.length} finished`,
+        });
+      }
+      // Kill any orphaned processes from this pipeline
+      if (running.length > 0) {
+        this.engine.processRegistry.killAll();
+      }
+    } catch { /* best-effort */ }
+
+    // ─── COMMAND QUEUE — drain pending commands ─────────────
+    try {
+      await this.engine.commandQueue.drainAll();
+    } catch { /* best-effort */ }
+
+    // ─── APPROVAL ENGINE — log pipeline approval stats ──────
+    try {
+      const allowlist = this.engine.approvalEngine.getAllowlist();
+      const approvalStats = this.engine.approvalEngine.stats();
+      if (approvalStats.allowed > 0 || approvalStats.denied > 0) {
+        this.emit({
+          type: "phase_end",
+          phase: "approvals",
+          detail: `Commands: ${approvalStats.allowed} approved, ${approvalStats.denied} denied, ${allowlist.length} patterns learned`,
+        });
+      }
+    } catch { /* best-effort */ }
 
     // ─── SECURITY SCAN — catch accidental secret leaks ──────
     try {
