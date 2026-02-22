@@ -25,7 +25,11 @@ import {
   refreshChatModels,
 } from "./antigravity-provider.js";
 import type { ToolCall, ToolResult } from "./tools.js";
-import { createToolExecutor } from "./tools.js";
+import { createToolExecutor, createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
+import { ExecutionEngine } from "./execution-engine.js";
+import { EditEngine } from "./edit-engine.js";
+import { GitEngine } from "./git-engine.js";
+import { LinkIntelligence } from "./link-intelligence.js";
 import { runOnboarding } from "./onboarding.js";
 import {
   brand, icon, grad, SPARK_LINES,
@@ -328,7 +332,7 @@ async function handleSlashCommand(
 
     case "tools":
       console.log("");
-      console.log(`    ${brand.gold("◆ Available Tools")}`);
+      console.log(`    ${brand.gold(`◆ Available Tools (${TOOL_DEFINITIONS.length})`)}`);
       console.log(`    ${brand.dim("─".repeat(44))}`);
       console.log(`    ${brand.cyan("bash")}            ${brand.dim("Run shell commands")}`);
       console.log(`    ${brand.cyan("read_file")}       ${brand.dim("Read file contents")}`);
@@ -512,8 +516,12 @@ export async function startRepl(): Promise<void> {
   // Build system prompt
   const systemPrompt = buildSystemPrompt(project.name, project.info, project.fileTree);
 
-  // Build tool executor — bound to project root for security
-  const toolExecutor = createToolExecutor(cwd);
+  // Build tool executor — engine-connected for full subsystem integration
+  const execEngine = new ExecutionEngine(cwd);
+  const editEngine = new EditEngine();
+  const gitEngine = new GitEngine(execEngine);
+  const linkIntel = new LinkIntelligence();
+  const toolExecutor = createEngineToolExecutor(cwd, execEngine, editEngine, gitEngine, linkIntel);
 
   // State
   const state: ReplState = {

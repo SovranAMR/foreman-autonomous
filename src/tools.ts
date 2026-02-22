@@ -38,7 +38,7 @@ import { batchWrite } from "./batch-file-engine.js";
 import { GitEngine } from "./git-engine.js";
 import { parseBuildOutput, parseTestOutput } from "./verification-engine.js";
 import { scanProject } from "./security-scanner.js";
-import { searchFiles } from "./research-engine.js";
+import { searchFiles, stripHtml } from "./research-engine.js";
 import { quickSearch, clearSearchCache, searchCacheStats } from "./web-search-engine.js";
 import { webFetch, clearFetchCache, fetchCacheStats } from "./web-fetch-engine.js";
 import { LinkIntelligence, classifyUrl } from "./link-intelligence.js";
@@ -1074,7 +1074,9 @@ function executeWebFetchTool(args: Record<string, unknown>): ToolResult {
       if (data.ok) {
         let content = "";
         if (data.title) content += `Title: ${data.title}\n\n`;
-        content += data.content ?? "(empty)";
+        // Strip any remaining HTML tags from content
+        const cleaned = stripHtml(data.content ?? "(empty)");
+        content += cleaned;
         return { name: "web_fetch", content: truncateMiddle(content), isError: false };
       }
       return { name: "web_fetch", content: `Fetch failed: ${data.error ?? `HTTP ${data.statusCode}`}`, isError: true };

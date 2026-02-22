@@ -35,7 +35,9 @@ import { AnthropicProvider } from "./anthropic-provider.js";
 import { OpenAIProvider } from "./openai-provider.js";
 import { GeminiProvider } from "./gemini-provider.js";
 import { loginAntigravity } from "./antigravity-oauth.js";
-import { AntigravityProvider, loadCredentials, saveCredentials } from "./antigravity-provider.js";
+import { AntigravityProvider, loadCredentials, saveCredentials, getChatModels } from "./antigravity-provider.js";
+import { getCachedModels } from "./model-discovery.js";
+import { DEFAULT_LAYER_MODELS } from "./model-fallback.js";
 import { hasAnyProvider, runOnboarding } from "./onboarding.js";
 import { Orchestrator } from "./orchestrator.js";
 import { execSync } from "node:child_process";
@@ -66,6 +68,7 @@ import { checkChainHealth } from "./chain-repair.js";
 import { repairTranscript } from "./transcript-repair.js";
 import { GitEngine } from "./git-engine.js";
 import { ExecutionEngine } from "./execution-engine.js";
+import { safeJsonParseOr } from "./errors.js";
 
 const program = new Command();
 
@@ -194,6 +197,25 @@ program
         : `${antigravCreds.email ?? "?"} (expires ${new Date(antigravCreds.expiresAt).toLocaleTimeString()})`);
     } else {
       doctorItem(false, `Antigravity OAuth`, "run foreman login to authenticate");
+    }
+
+    // Available models
+    const chatModels = getChatModels();
+    doctorItem(chatModels.length > 0, `Chat models`, `${chatModels.length} available`);
+
+    const cachedModels = getCachedModels();
+    if (cachedModels) {
+      doctorItem(true, `Discovered models`, `${cachedModels.length} cached`);
+    }
+
+    // Layer model defaults
+    const layerModels = Object.entries(DEFAULT_LAYER_MODELS);
+    if (layerModels.length > 0) {
+      console.log("");
+      console.log(`  ${brand.dim("Layer models:")}`);
+      for (const [layer, candidates] of layerModels) {
+        console.log(`    ${brand.bold(layer)}: ${candidates.map(c => c.model).join(" → ")}`);
+      }
     }
 
     // Config
@@ -1079,7 +1101,7 @@ intCmd
       console.log(`  ${icon.pending} No approval history yet.`);
       return;
     }
-    const data = JSON.parse(readFileSync(auditPath, "utf-8"));
+    const data = safeJsonParseOr(readFileSync(auditPath, "utf-8"), { history: [] });
     const history = (data.history ?? []).slice(-Number(opts.limit));
     console.log(brand.gold(`\n  ◆ Approval History (${history.length} entries)\n`));
     for (const h of history) {
