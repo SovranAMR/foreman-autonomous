@@ -16,5 +16,7 @@
     "mem_004"
   ],
   "totalTokens": 14759,
-  "status": "active"
+  "status": "completed",
+  "endedAt": "2026-02-22T17:22:49.947Z",
+  "summary": "Session ended via shutdown — 27041 tokens used"
 }

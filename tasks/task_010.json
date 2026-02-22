@@ -1,0 +1,17 @@
+{
+  "id": "task_010",
+  "projectId": "foreman",
+  "title": "Block 2: Build a synchronous, recursive directory traversal utility f",
+  "description": "Build a synchronous, recursive directory traversal utility function using Node's built-in `fs` and `path` modules. [Acceptance Criteria: A pure function exists that accurately returns a flat array of all file paths within any given directory without relying on external packages.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T17:28:56.660Z"
+}

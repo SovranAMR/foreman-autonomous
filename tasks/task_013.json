@@ -1,0 +1,17 @@
+{
+  "id": "task_013",
+  "projectId": "foreman",
+  "title": "Block 5: Write the formatted output string to `/tmp/forge-test-output",
+  "description": "Write the formatted output string to `/tmp/forge-test-output.txt` using a synchronous file system write. [Acceptance Criteria: The file at `/tmp/forge-test-output.txt` is created or overwritten containing the exact one-line summary, persisting the data reliably.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T17:28:56.660Z"
+}

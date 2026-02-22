@@ -1,0 +1,15 @@
+{
+  "id": "f0fff2ef-7435-4626-963a-be42e1966494",
+  "slug": "wild-wave",
+  "status": "active",
+  "createdAt": 1771781108311,
+  "updatedAt": 1771781108311,
+  "context": {
+    "task": "Count the number of .ts files in src/ and create a one-line summary in /tmp/forge-test-output.txt",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}

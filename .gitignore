@@ -3,3 +3,10 @@ dist
 .env
 *.log
 state.json
+.foreman/sessions/
+.foreman/cost-history.json
+.foreman/pipeline-checkpoint.json
+.foreman/rollback.json
+.foreman/approvals.json
+src/_test*.ts
+src/_debug*.ts

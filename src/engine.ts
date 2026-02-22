@@ -355,6 +355,7 @@ export class Engine {
       registry: this.providers,
       layer,
       run: async (provider, selectedModel) => {
+        console.log(`[engine] callLLM: layer=${layer}, model=${selectedModel}, provider=${provider.name}`);
         const result = await provider.generate(
           [
             { role: "system", content: systemPrompt },

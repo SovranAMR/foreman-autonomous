@@ -64,24 +64,26 @@ export interface FallbackConfig {
  */
 export const DEFAULT_LAYER_MODELS: Record<Layer, ModelCandidate[]> = {
   visioner: [
-    { provider: "anthropic", model: "claude-opus" },
+    { provider: "google-antigravity", model: "gemini-3.1-pro-high" },
     { provider: "google-antigravity", model: "claude-opus" },
-    { provider: "openai", model: "gpt-4o" },
+    { provider: "anthropic", model: "claude-opus" },
     { provider: "google-antigravity", model: "gemini-2.5-pro" },
-    { provider: "google", model: "gemini-ultra" },
+    { provider: "openai", model: "gpt-4o" },
     { provider: "anthropic", model: "claude-sonnet" },
   ],
   strategist: [
-    { provider: "anthropic", model: "claude-opus" },
+    { provider: "google-antigravity", model: "gemini-3.1-pro-high" },
     { provider: "google-antigravity", model: "claude-opus" },
+    { provider: "anthropic", model: "claude-opus" },
     { provider: "anthropic", model: "claude-sonnet" },
     { provider: "google-antigravity", model: "claude-sonnet" },
     { provider: "google-antigravity", model: "gemini-2.5-pro" },
     { provider: "openai", model: "gpt-4o" },
   ],
   researcher: [
-    { provider: "openai", model: "gpt-4o" },
+    { provider: "google-antigravity", model: "gemini-3.1-pro-high" },
     { provider: "google-antigravity", model: "gemini-2.5-flash" },
+    { provider: "openai", model: "gpt-4o" },
     { provider: "google", model: "gemini-pro" },
     { provider: "anthropic", model: "claude-sonnet" },
     { provider: "google-antigravity", model: "claude-sonnet" },
@@ -89,8 +91,9 @@ export const DEFAULT_LAYER_MODELS: Record<Layer, ModelCandidate[]> = {
     { provider: "google", model: "gemini-flash" },
   ],
   worker: [
-    { provider: "anthropic", model: "claude-sonnet" },
+    { provider: "google-antigravity", model: "gemini-3.1-pro-high" },
     { provider: "google-antigravity", model: "claude-sonnet" },
+    { provider: "anthropic", model: "claude-sonnet" },
     { provider: "openai", model: "gpt-4o" },
     { provider: "google-antigravity", model: "gemini-2.5-flash" },
     { provider: "google", model: "gemini-pro" },

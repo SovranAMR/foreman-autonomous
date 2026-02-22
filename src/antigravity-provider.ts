@@ -254,14 +254,20 @@ export const DEFAULT_CHAT_MODEL = "claude-sonnet-4-6";
 export class AntigravityProvider implements LLMProvider {
   readonly name = "google-antigravity";
   readonly supportedModels = [
+    "gemini-3.1-pro-high",
+    "gemini-3.1-pro-low",
+    "gemini-3-flash",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-pro",
     "gemini-flash",
     "claude-sonnet",
+    "claude-sonnet-4-6",
     "claude-opus",
+    "claude-opus-4-6-thinking",
     "claude-haiku",
+    "gpt-oss-120b-medium",
   ] as const;
 
   private credentials: AntigravityCredentials;
@@ -292,58 +298,20 @@ export class AntigravityProvider implements LLMProvider {
 
     const model = resolveModel(options.model);
 
-    // Separate system message
-    const systemMsg = messages.find(m => m.role === "system");
-    const nonSystemMsgs = messages.filter(m => m.role !== "system");
-
-    // Contents
-    const contents = nonSystemMsgs.map(m => {
-      const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-        { text: m.content },
-      ];
-      // Attach images as inline data (Gemini vision API format)
+    // Build request using shared method (includes thinkingConfig for Gemini models)
+    const messages_: Array<{ role: string; content: string | any[] }> = messages.map(m => {
+      // Handle images — convert to Gemini inlineData format
       if (m.images && m.images.length > 0) {
+        const parts: any[] = [{ text: m.content }];
         for (const img of m.images) {
-          parts.push({
-            inlineData: {
-              mimeType: img.mimeType,
-              data: img.base64,
-            },
-          });
+          parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
         }
+        return { role: m.role, content: parts };
       }
-      return {
-        role: m.role === "assistant" ? "model" : "user",
-        parts,
-      };
+      return { role: m.role, content: m.content };
     });
 
-    // System instruction
-    const systemParts: Array<{ text: string }> = [];
-    if (systemMsg) {
-      systemParts.push({ text: systemMsg.content });
-    }
-
-    // Request body — same format as OpenClaw/pi-ai
-    const requestBody = {
-      project: this.credentials.projectId,
-      model,
-      request: {
-        contents,
-        ...(systemParts.length > 0 ? {
-          systemInstruction: {
-            role: "user",
-            parts: systemParts,
-          },
-        } : {}),
-        generationConfig: {
-          maxOutputTokens: options.maxTokens ?? 4000,
-        },
-      },
-      requestType: "agent",
-      userAgent: "antigravity",
-      requestId: `agent-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-    };
+    const requestBody = this.buildRequestBody(messages_, model, options.maxTokens ?? 4000);
 
     // Try both endpoints — daily (sandbox) first, prod fallback
     const endpoints = [DAILY_ENDPOINT, PROD_ENDPOINT];
