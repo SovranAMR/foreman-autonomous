@@ -1,0 +1,15 @@
+{
+  "id": "mem_024",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. In `src/state.ts`, define the `NodePhase` enum (containing 'BEGIN_DOWNWARD', 'COMPLETE_UPWARD', 'SYNTHESIZED') and the `FractalNode` interface. [Acceptance Criteria: `FractalNode` explicitly includ...",
+  "source": {
+    "type": "thought",
+    "ref": "t_051"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-22T23:27:11.878Z",
+  "expired": false
+}

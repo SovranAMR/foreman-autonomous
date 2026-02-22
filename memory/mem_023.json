@@ -1,0 +1,16 @@
+{
+  "id": "mem_023",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] 1. **React Fiber Architecture Translation**: To mimic React Fiber's deep-tree synthesis, the `state.ts` structure must define nodes that separate the \"Begin Phase\" (downward micro-task execution) from...",
+  "source": {
+    "type": "thought",
+    "ref": "t_050"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-22T23:26:48.062Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T23:26:48.063Z"
+}

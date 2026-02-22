@@ -1,0 +1,17 @@
+{
+  "id": "task_017",
+  "projectId": "foreman",
+  "title": "Block 2: Build the Synthesizer (`MasterReviewer`) convergence layer a",
+  "description": "Build the Synthesizer (`MasterReviewer`) convergence layer as the absolute focal point of the application pipeline. [Acceptance Criteria: A terminal evaluation layer is created that merges perfectly isolated child node outputs into a single cohesive result, strictly enforcing the rule that no process may finalize without passing through this synthesis.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T23:26:23.381Z"
+}

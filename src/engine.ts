@@ -1224,7 +1224,7 @@ export class Engine {
     ];
 
     const maxTokens = options?.maxTokens ?? 4096;
-    const maxIterations = options?.maxIterations ?? 15;
+    const maxIterations = options?.maxIterations ?? 100;
     let responseText = "";
 
     const result = await antigravProvider.streamChatWithTools(

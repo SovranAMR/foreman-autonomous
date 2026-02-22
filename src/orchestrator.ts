@@ -835,7 +835,7 @@ export class Orchestrator {
               return result;
             },
             {
-              maxIterations: 15,
+              maxIterations: 100,
               onToken: () => {},
               onToolCall: (call) => {
                 console.log(`  [tool] ${call.name}(${JSON.stringify(call.args).slice(0, 60)})`);
@@ -1483,7 +1483,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                   reContext,
                   "worker",
                   async (call: ToolCall) => toolExecutor(call),
-                  { maxIterations: 15, onToken: () => {}, onToolCall: () => {}, onToolResult: () => {} },
+                  { maxIterations: 100, onToken: () => {}, onToolCall: () => {}, onToolResult: () => {} },
                 );
                 totalThoughts++;
                 atomCount++;

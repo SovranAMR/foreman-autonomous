@@ -622,7 +622,7 @@ export class AntigravityProvider implements LLMProvider {
     onToolCall: (call: ToolCall) => void,
     onToolResult: (result: ToolResult) => void,
     maxTokens = 32768,
-    maxIterations = 25,
+    maxIterations = 100,
     toolExecutor?: (call: ToolCall) => ToolResult | Promise<ToolResult>,
   ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
     await this.ensureValidToken();

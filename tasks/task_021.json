@@ -1,0 +1,17 @@
+{
+  "id": "task_021",
+  "projectId": "foreman",
+  "title": "Block 6: Implement the symphonic typographic and color logging system",
+  "description": "Implement the symphonic typographic and color logging system for the CLI interface. [Acceptance Criteria: Terminal logs utilize Void Black backgrounds, Electric Cyan for downward execution tracks, heavily indented monospaced fonts for micro-task depth, and Absolute White exclusively for the final MasterReviewer output.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T23:26:23.381Z"
+}

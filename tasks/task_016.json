@@ -1,0 +1,17 @@
+{
+  "id": "task_016",
+  "projectId": "foreman",
+  "title": "Block 1: Implement the deep-tree hierarchical state structure in `sta",
+  "description": "Implement the deep-tree hierarchical state structure in `state.ts` to act as the foundational architecture. [Acceptance Criteria: State interfaces define unlimited parent-child nested nodes with rigid context boundaries, completely eliminating and rejecting 1-dimensional array task lists.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T23:26:23.381Z"
+}

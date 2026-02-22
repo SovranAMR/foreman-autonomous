@@ -426,7 +426,7 @@ export class MessagingGateway {
         // maxTokens
         32768,
         // maxIterations — complex tasks need many tool calls
-        50,
+        100,
         // toolExecutor
         this.toolExecutor,
       );
