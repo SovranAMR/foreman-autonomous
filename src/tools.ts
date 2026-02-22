@@ -482,6 +482,50 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["content"],
     },
   },
+  {
+    name: "delete_file",
+    description:
+      "Delete a file. Use with caution.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Path to the file to delete.",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "search_in_files",
+    description:
+      "Search for a pattern across project files. Returns matching lines with file paths and line numbers.",
+    parameters: {
+      type: "object",
+      properties: {
+        pattern: {
+          type: "string",
+          description: "Text pattern to search for.",
+        },
+        extensions: {
+          type: "string",
+          description: "Comma-separated file extensions to search (e.g. 'ts,js'). Default: all files.",
+        },
+      },
+      required: ["pattern"],
+    },
+  },
+  {
+    name: "kill_processes",
+    description:
+      "Kill all active background processes.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
 ];
 
 /**
@@ -556,7 +600,7 @@ function createToolDispatcher(
         case "parse_markdown":
           return executeParseMarkdown(call.args);
         case "list_processes":
-          return executeListProcesses();
+          return executeListProcesses(engine);
         case "approval_audit":
           return executeApprovalAudit(projectRoot, call.args);
         case "git_diff":
@@ -571,6 +615,12 @@ function createToolDispatcher(
           return executeCacheStats();
         case "extract_code":
           return executeExtractCode(call.args);
+        case "delete_file":
+          return executeDeleteFile(engine, call.args);
+        case "search_in_files":
+          return executeSearchInFiles(engine, call.args);
+        case "kill_processes":
+          return executeKillProcesses(engine);
         default:
           return { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
       }
@@ -1147,19 +1197,14 @@ function executeParseMarkdown(args: Record<string, unknown>): ToolResult {
 
 // ─── NEW TOOL IMPLEMENTATIONS (list_processes, approval_audit, git_diff) ─────
 
-function executeListProcesses(): ToolResult {
-  // ProcessRegistry is a singleton-like — but tools.ts doesn't have access to
-  // Engine's instance. Return info about current PID's child processes instead.
+function executeListProcesses(engine: ExecutionEngine): ToolResult {
   try {
-    const result = spawnSync("ps", ["--ppid", String(process.pid), "-o", "pid,stat,time,comm", "--no-headers"], {
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-    const output = (result.stdout || "").trim();
-    if (!output) {
-      return { name: "list_processes", content: "No active child processes.", isError: false };
+    const processes = engine.listProcesses();
+    if (processes.length === 0) {
+      return { name: "list_processes", content: "No active processes.", isError: false };
     }
-    return { name: "list_processes", content: `Active processes:\n${output}`, isError: false };
+    const lines = processes.map(p => `  PID ${p.pid ?? "?"} — ${p.id}`);
+    return { name: "list_processes", content: `Active processes:\n${lines.join("\n")}`, isError: false };
   } catch {
     return { name: "list_processes", content: "Process listing unavailable.", isError: true };
   }
@@ -1294,6 +1339,42 @@ function executeExtractCode(args: Record<string, unknown>): ToolResult {
     content: inlineCode.join("\n"),
     isError: false,
   };
+}
+
+function executeDeleteFile(engine: ExecutionEngine, args: Record<string, unknown>): ToolResult {
+  const filePath = args.path as string;
+  if (!filePath) return { name: "delete_file", content: "Error: path is required", isError: true };
+
+  const result = engine.deleteFile(filePath);
+  if (!result.success) {
+    return { name: "delete_file", content: result.error ?? "Delete failed", isError: true };
+  }
+  return { name: "delete_file", content: `Deleted: ${filePath}`, isError: false };
+}
+
+function executeSearchInFiles(engine: ExecutionEngine, args: Record<string, unknown>): ToolResult {
+  const pattern = args.pattern as string;
+  if (!pattern) return { name: "search_in_files", content: "Error: pattern is required", isError: true };
+
+  const extensions = (args.extensions as string)?.split(",").map(s => s.trim()) ?? [];
+  const results = engine.searchInFiles(pattern, extensions.length > 0 ? extensions : undefined);
+
+  if (!results.success || !results.matches || results.matches.length === 0) {
+    return { name: "search_in_files", content: "No matches found.", isError: false };
+  }
+
+  const lines = results.matches.slice(0, 50).map((m: any) =>
+    `${m.file}:${m.line}: ${m.content?.trim() ?? ""}`
+  );
+  if (results.matches.length > 50) {
+    lines.push(`... and ${results.matches.length - 50} more matches`);
+  }
+  return { name: "search_in_files", content: lines.join("\n"), isError: false };
+}
+
+function executeKillProcesses(engine: ExecutionEngine): ToolResult {
+  engine.killAllProcesses();
+  return { name: "kill_processes", content: "All background processes killed.", isError: false };
 }
 
 // ─── GEMINI FUNCTION DECLARATIONS FORMAT ─────────────────────

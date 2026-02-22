@@ -16,7 +16,7 @@ import { Engine } from "./engine.js";
 import type { StepResult } from "./engine.js";
 import type { Layer, Thought, Chain } from "./types.js";
 import type { DecomposeParseResult, AtomizeParseResult } from "./parser.js";
-import { parseBuildOutput, parseTestOutput, analyzeOutput, detectRegressions, checkServerHealth } from "./verification-engine.js";
+import { parseBuildOutput, parseTestOutput, analyzeOutput, detectRegressions, checkServerHealth, detectDevServers } from "./verification-engine.js";
 import { extractCrossChainContext } from "./context-intelligence.js";
 import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
@@ -619,19 +619,19 @@ export class Orchestrator {
         previousTestResult = testParsed;
       }
 
-      // Dev server health check — if project has a dev server
+      // Dev server health check — scan common ports
       try {
-        const health = await checkServerHealth("http://localhost:3000", 3000);
-        if (health.reachable) {
+        const servers = await detectDevServers();
+        for (const server of servers) {
           this.emit({
             type: "verification",
             phase: "server_health",
-            passed: health.healthy,
-            detail: `Dev server: ${health.statusCode} (${health.responseTimeMs}ms)`,
+            passed: server.healthy,
+            detail: `Dev server ${server.url}: ${server.statusCode} (${server.responseTimeMs}ms)`,
           });
         }
       } catch {
-        // No dev server running — skip
+        // No dev servers running — skip
       }
     } catch {
       // Final verification is best-effort

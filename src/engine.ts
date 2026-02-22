@@ -837,6 +837,20 @@ export class Engine {
   }
 
   /**
+   * List processes by layer.
+   */
+  listProcessesByLayer(layer: Layer) {
+    return this.processRegistry.listByLayer(layer);
+  }
+
+  /**
+   * List processes by thought ID.
+   */
+  listProcessesByThought(thoughtId: string) {
+    return this.processRegistry.listByThought(thoughtId);
+  }
+
+  /**
    * List processes by chain — useful for pipeline status.
    */
   listProcessesByChain(chainId: string) {
@@ -923,6 +937,13 @@ export class Engine {
     const foremanStash = stashes.find(s => s.message.includes("foreman-pipeline-guard"));
     if (!foremanStash) return { success: true }; // Nothing to restore
     return this.git.stashPop(foremanStash.index);
+  }
+
+  /**
+   * Switch to a specific branch (raw, no stash guard).
+   */
+  switchBranch(branch: string): { success: boolean; error?: string } {
+    return this.git.switchBranch(branch);
   }
 
   // ─── COMMAND QUEUE ──────────────────────────────────────────

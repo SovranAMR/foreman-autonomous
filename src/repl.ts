@@ -355,6 +355,9 @@ async function handleSlashCommand(
       console.log(`    ${brand.cyan("classify_url")}   ${brand.dim("Classify URL type (github/npm/docs)")}`);
       console.log(`    ${brand.cyan("cache_stats")}    ${brand.dim("Web search/fetch cache statistics")}`);
       console.log(`    ${brand.cyan("extract_code")}   ${brand.dim("Extract inline code from text")}`);
+      console.log(`    ${brand.cyan("delete_file")}    ${brand.dim("Delete a file")}`);
+      console.log(`    ${brand.cyan("search_in_files")}${brand.dim(" Search pattern across files")}`);
+      console.log(`    ${brand.cyan("kill_processes")} ${brand.dim("Kill all background processes")}`);
       console.log("");
       console.log(`    ${brand.dim("Foreman uses these automatically based on your requests.")}`);
       console.log("");
