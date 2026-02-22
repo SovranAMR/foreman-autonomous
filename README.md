@@ -1,119 +1,183 @@
-# Foreman
+<div align="center">
 
-> AI agent orchestrator — atomic thought chains with vision, research, and tactical reasoning.
+<pre>
+                  .-'-.                    
+                 /     \                   
+               _/       \_                 
+              / |       | \                
+             /  |  __   |  \               
+            /   | (  )  |   \              
+           /    |  ||   |    \             
+          /     |  ||   |     \            
+         /______|__||___|______\           
+                   ||               * .  * 
+                   ||     _______  .  * .  
+                   ||    [=======]   *  .  
+                   ||    |       | .  *  . 
+                   ||    |_______|   *  .  
+                   ||    |       |         
+               ____||____|_______|____     
+              [_______________________]    
+              |                       |    
+              |                       |    
+              |_______________________|    
 
-Foreman is a full-stack, fully autonomous coding agent and orchestration engine. It doesn't just autocomplete code; it builds entire features, refactors architecture, researches context, executes terminal commands, verifies tests, takes UI screenshots, and communicates with you via CLI, REPL, Telegram, or WhatsApp.
+      F  O  R  E  M  A  N   |   T  H  E   F  O  R  G  E
+</pre>
 
-Unlike chatbots that spit out code blocks for you to copy-paste, Foreman operates directly in your project directory. You give it a high-level task, and it creates a vision, decomposes it into tactical blocks, reads the codebase, atomizes the execution steps, runs them, verifies the result, and commits the code.
+### AI Agent Orchestrator — Atomic Thought Chains with Vision, Research, and Tactical Reasoning
 
-## 1. Core Capabilities
+[![Pipeline: 4-Layer Forge](https://img.shields.io/badge/Pipeline-4--Layer_Forge-FF5722?style=for-the-badge&logo=apachespark)](https://github.com/sovranamr/foreman)
+[![Engines: Active](https://img.shields.io/badge/Engines-Active-4CAF50?style=for-the-badge&logo=engineyard)](https://github.com/sovranamr/foreman)
+[![Intelligence: Context-Aware](https://img.shields.io/badge/Intelligence-Context--Aware-2196F3?style=for-the-badge&logo=openai)](https://github.com/sovranamr/foreman)
+[![Integrations: Telegram & WhatsApp](https://img.shields.io/badge/Integrations-Telegram_%7C_WhatsApp-25D366?style=for-the-badge&logo=whatsapp)](https://github.com/sovranamr/foreman)
 
-* **End-to-End Orchestration**: Tell it to `"Refactor the authentication flow"` or `"Build a kanban board UI"`. It breaks the task down, runs bash commands, edits files directly, and verifies its own work.
-* **Self-Healing & Rollback**: If an atomic code change breaks the build or fails tests, the `VerificationEngine` and `ReviewerGate` detect it. Foreman attempts to fix the issue autonomously. If it fails, the `RollbackEngine` reverts the specific git commit and restores the project to a clean state.
-* **Visual QA**: When changing CSS or UI layouts, Foreman uses its `BrowserEngine` (headless Chrome) to take "before" and "after" screenshots. It compares them using `pixelmatch` (an SSIM-grade perceptual diffing library) to verify visual impact and detect layout drift.
-* **Parallel Sub-Agents**: Complex tasks can spawn concurrent Sub-Agents (`SubAgentEngine`) to handle side-tasks, research, or isolated component development in parallel.
-* **Multi-Channel Presence**: Run it in your terminal via the CLI, interact through an interactive REPL, or deploy the `MessagingGateway` to control your agent remotely via Telegram or WhatsApp.
+> *"Do not simply write code. Forge it. Strike the iron while it's hot, temper it with research, and shape it with strategy."*
 
-## 2. Architecture: The Forge Pipeline
+</div>
 
-Foreman processes complex tasks through the **Forge Pipeline**, a 4-layer cognitive architecture designed to manage context and prevent hallucinations.
+---
 
-*Total Codebase: ~46,600 LOC across 121 TypeScript files.*
+## 📖 For Everyone: What is Foreman?
 
-### The Layers
-1. **Visioner**: High-level semantic understanding. Takes user input and writes a detailed Vision Document. Receives the largest context window budget (40%).
-2. **Strategist**: Tactical planner. Decomposes the vision into ordered, actionable Blocks.
-3. **Researcher**: Context gatherer. Analyzes the codebase, reads docs, searches the web, and pulls vector embeddings for the current block.
-4. **Worker**: Execution engine. Translates a block into precise "Atoms", issues tool calls (writes, edits, bash commands), verifies tests, and commits the code.
+Imagine having a **Senior Staff Engineer** living directly inside your Telegram, WhatsApp, or Terminal. 
 
-### The Subsystems (44 Engines & Managers)
-Foreman is built around a highly modular engine architecture containing 44 major subsystems. Core engines include:
-* **CognitiveLoadBalancer**: A multi-provider load balancer. When one LLM provider hits a rate limit (HTTP 429), it instantly routes to the next (e.g., Anthropic API $\rightarrow$ Google Gemini $\rightarrow$ OpenAI) with zero sleep and zero downtime.
-* **ExecutionEngine & GitEngine**: Manages git safety, atomic commits, branch strategies, and safe shell execution.
-* **ApprovalEngine & ReviewerGate**: Evaluates the quality, risk score, and safety of generated commands/code before committing.
-* **BrowserEngine & MediaEngine**: Drives headless browsing, DOM extraction, PDF generation, and perceptual diffing.
-* **CronEngine & TaskScheduler**: Handles background job scheduling and asynchronous processes.
-* **MemoryManager & EmbeddingEngine**: Manages long-term memory bridging to markdown for persistent context retention using TF-IDF and semantic embeddings.
-* **ContextIntelligence & LinkIntelligence**: Dynamically scores and prunes context, ensuring maximum relevance within the token budget.
+Foreman is not just a chatbot that answers questions. It is a **fully autonomous coding agent** that can:
+- **Read and write files** on your machine.
+- **Run terminal commands** to build, test, and deploy software.
+- **Browse the web** to read documentation or search for solutions.
+- **Plan and execute** entirely new features from scratch.
 
-### The Toolbelt (48 Native Tools)
-Foreman dynamically loads tools based on the current layer's needs. The active system contains exactly **48 tools**, including:
-* *File Ops*: `read_file`, `write_file`, `edit_file`, `edit_range`, `edit_undo`, `batch_write`, `batch_ops`, `delete_file`
-* *Discovery*: `search_files`, `search_in_files`, `grep`, `list_dir`, `extract_code`, `parse_markdown`
-* *System*: `bash`, `list_processes`, `kill_processes`, `cron_add`, `cron_list`, `cron_remove`
-* *Version Control*: `git_status`, `git_commit`, `git_diff`, `git_log`, `diff_preview`
-* *Verification*: `verify_build`, `verify_tests`, `security_scan`, `approval_audit`
-* *Web & Browser*: `web_search`, `web_fetch`, `analyze_link`, `classify_url`, `browser_navigate`, `browser_screenshot`, `browser_extract`, `browser_pdf`, `download_file`, `analyze_media`
-* *Agentic*: `forge_pipeline`, `spawn_subagent`, `session_spawn`, `session_list`
-* *Memory*: `memory_read`, `memory_write`, `memory_search`, `semantic_search`, `cache_stats`
+If you ask it to *"Build a weather app,"* Foreman will design the UI, figure out the API, write the frontend, setup the backend, run tests to ensure it works, and fix any errors it encounters—all while sending you progress updates via text messages. 
 
-## 3. Installation & Usage
+It thinks, it researches, it builds, and it verifies. 
 
-**Prerequisites:** Node.js $\ge$ 20.0, `tsx`
+---
 
-1. Clone the repository and install dependencies.
-2. Setup environment variables (or use Antigravity OAuth for managed API keys).
+## ⚙️ For Developers: The Technical Reality
+
+Foreman is a **multi-agent orchestrated execution environment**. It bridges the gap between Large Language Models (LLMs) and local machine state through a heavily constrained, securely isolated Execution Engine. 
+
+Built on a zero-dependency local ethos (with robust API integrations), Foreman utilizes a revolutionary architectural pattern known as the **Forge Pipeline**. Instead of relying on a single zero-shot LLM pass, complex tasks are routed through a 4-layer cognitive pipeline. 
+
+### 🧠 The Cognitive Router
+Every incoming request (from CLI, Telegram, or WhatsApp) hits the `Cognitive Router`. This engine determines the cognitive load of the prompt. 
+- **Direct Mode:** For simple tasks (`"What does this file do?"` or `"Run git status"`), the request is passed directly to the Worker layer for immediate execution.
+- **Forge Mode:** For complex tasks (`"Refactor the authentication module"`, `"Build a new dashboard"`), the router triggers the full **Forge Pipeline**.
+
+---
+
+## ⚒️ The Forge Pipeline (4-Layer Orchestration)
+
+When a complex task is triggered, Foreman spins up a micro-team of specialized sub-agents. They operate in a strict sequence, passing context downward.
+
+```mermaid
+graph TD
+    User((User)) -->|Telegram/WhatsApp/CLI| Gateway[Messaging Gateway]
+    Gateway --> Router[Cognitive Router]
+    Router -->|Direct Command| Executor[Worker Engine]
+    Router -->|Complex Task| Forge[Forge Pipeline]
+    
+    subgraph The Forge
+        V[Visioner] -->|Scope & Acceptance| S[Strategist]
+        S -->|Task Decomposition| R[Researcher]
+        R -->|Context & Docs| W[Worker]
+    end
+    
+    Forge --> Executor
+    
+    subgraph Engines
+        Executor <--> File[File/Batch Engine]
+        Executor <--> Git[Git Engine]
+        Executor <--> Web[Browser/Web Fetch]
+        Executor <--> Term[Shell/Async Process]
+    end
+```
+
+### 1️⃣ The Visioner (`src/vision-pipeline.ts`)
+**The Architect.** Analyzes the raw user prompt and defines the *True North*. It outputs a strict set of Acceptance Criteria and a Vision Document. It does not write code; it defines what "done" looks like.
+
+### 2️⃣ The Strategist (`src/thought-manager.ts`)
+**The Project Manager.** Takes the Vision Document and breaks it down into atomic, highly tactical steps. It sequences dependencies (e.g., *"We must initialize the package.json before writing the entry point"*).
+
+### 3️⃣ The Researcher (`src/research-engine.ts`)
+**The Scout.** Takes the strategy and executes localized and web searches. It reads existing project files, greps the codebase, pulls the latest API docs via web fetch, and builds a massive Context Payload. 
+
+### 4️⃣ The Worker (`src/worker-executor.ts`)
+**The Blacksmith.** Takes the explicit instructions and the researched context and begins striking the anvil. It has full access to the Execution Engine. It writes code, runs `npm install`, runs tests, and reads the output. If a test fails, the Worker enters a self-healing loop until the Acceptance Criteria (defined by the Visioner) are met.
+
+---
+
+## 🛠️ The Engines
+
+Foreman is powered by a suite of specialized, highly-tested typescript engines.
+
+| Engine | Capability | Description |
+| :--- | :--- | :--- |
+| **Execution Engine** | `src/execution-engine.ts` | The core sandbox. Safely executes bash commands with SIGKILL timeouts, line-range file reading, and middle-cut truncation to protect LLM context limits. |
+| **Git Engine** | `src/git-engine.ts` | Deep Git integration. Analyzes diffs, checks statuses, manages commits, and handles automatic rollbacks if the pipeline fails. |
+| **Security Scanner**| `src/security-scanner.ts` | Enforces safety. Prevents destructive commands (`rm -rf /`, fork bombs) and blocks SSRF attempts in web fetching. |
+| **Context Intel** | `src/context-intelligence.ts`| Semantic analysis and Markdown intelligence. Parses complex documentation and extracts only the code fences or tables needed by the Worker. |
+| **Messaging Gateway**| `src/messaging-gateway.ts`| Connects the orchestrator directly to `@whiskeysockets/baileys` (WhatsApp) and `grammy` (Telegram) for real-time remote control. |
+
+---
+
+## 🚀 Capabilities
+
+- **Multi-Session Sub-agents:** Foreman can spawn isolated sub-agents to handle parallel background tasks (`src/subagent-engine.ts`).
+- **Interactive Approval:** Automatically pauses and asks the human for permission via Telegram before executing highly destructive commands.
+- **Visual QA:** Capable of spinning up an internal browser (`src/browser-engine.ts`), taking screenshots, and visually validating UI work using image comparison tools like `pixelmatch`.
+- **Memory Persistence:** Uses persistent memory bridges (`src/memory-md-bridge.ts`) to remember your coding preferences, API keys, and architectural decisions across sessions.
+
+---
+
+## 💻 Getting Started
+
+### Installation
+Clone the repository and install dependencies:
 
 ```bash
+git clone https://github.com/sovranamr/foreman.git
+cd foreman
 npm install
-
-# Set up your API keys (Anthropic, OpenAI, Google)
-npx tsx src/cli.ts setup
-
-# OR login with Antigravity OAuth
-npx tsx src/cli.ts login
 ```
 
-### CLI Options
+### Running Foreman
 
-**Initialize a project:**
+Start the interactive CLI Repl:
 ```bash
-npx tsx src/cli.ts init my-project
+npm run build
+./bin/foreman
 ```
 
-**Run a task directly through the Forge:**
+Start the Messaging Gateway (Telegram/WhatsApp):
 ```bash
-npx tsx src/cli.ts run "Replace local state with Redux Toolkit across the dashboard"
+./bin/foreman --gateway
 ```
 
-**Interactive REPL:**
+### Usage Examples
+
+**In CLI:**
 ```bash
-npx tsx src/cli.ts
-# Drops you into the interactive prompt where you can chat, read files, or run tools directly.
+> Foreman, grep the src directory for 'TODO' and fix the ones in orchestrator.ts
+> Run the tests, and if they fail, keep fixing the engine until they pass.
 ```
 
-**Developer / Internal Commands:**
-```bash
-npx tsx src/cli.ts status           # Show current project status
-npx tsx src/cli.ts board            # Kanban board view of tasks
-npx tsx src/cli.ts scan             # Security scan for leaked secrets and permissions
-npx tsx src/cli.ts cache            # Inspect cache statistics
-npx tsx src/cli.ts sessions         # List active sessions
+**In Telegram (`/forge` command):**
+```text
+/forge Build a dark-mode toggle component in React. Read the existing Tailwind config to ensure colors match our current theme. Write the tests and verify them in the browser.
 ```
 
-### Remote Control (Telegram / WhatsApp)
-You can deploy Foreman to a server and control it from your phone using the `MessagingGateway`:
-```bash
-npx tsx src/cli.ts serve
-```
-In Telegram/WhatsApp, you can type `/forge Build a new landing page` to kick off the full pipeline. The bot will reply with real-time updates as thoughts and commits flow, acting as your remote developer.
+---
 
-## 4. Testing & Reliability
+## 🛡️ Security & Constraints
 
-Foreman is rigorously tested to ensure atomic safety and proper rollback mechanics.
-* **Framework**: Native Node.js test runner (`node:test` & `node:assert`) executed via `tsx --test`.
-* **Scale**: 38 test files containing ~850 individual tests.
-* **Coverage**: Includes end-to-end simulations using `MockProvider` to run the entire pipeline without incurring LLM costs. Tests simulate HTTP 429 errors to verify the `CognitiveLoadBalancer`'s failover, and simulate failing builds to verify the `RollbackEngine`.
+Foreman has root-level access to the directory it is started in. **With great power comes great responsibility.**
+- **Dangerous Commands Blocked:** `src/enforce.ts` strictly prohibits harmful bash commands.
+- **Rollback Engine:** Failed Forge pipelines automatically revert Git trees to their previous state to prevent broken commits.
+- **Cost Tracking:** The `CostTracker` monitors token usage and halts the pipeline if anomalous spending is detected.
 
-Run the test suite using:
-```bash
-npm test
-```
-
-## 5. Technical Highlights
-
-* **Zero-Downtime Routing**: The `CognitiveLoadBalancer` ensures that API rate limits don't break multi-minute thought chains. It dynamically falls back across providers for the same model to guarantee highway-speed execution.
-* **Perceptual Diffing**: `pixelmatch` integration allows the Worker layer to detect unintended CSS bleeding, layout shifts, or rendering errors that traditional testing misses.
-* **Precise AST-Aware Edits**: The `edit_range` and `edit_file` tools prevent full-file rewrites. This saves massive amounts of tokens, drastically reduces context-window hallucinations, and keeps git diffs clean.
-* **Self-Healing Transcripts**: LLMs occasionally output malformed JSON or invalid tool calls. `TranscriptRepair` and `ChainRepair` engines automatically fix formatting, recover broken JSON, and prune orphan thoughts.
-* **Security Scanner**: Built-in AST-based secret detection prevents the Worker from accidentally committing hardcoded API keys or sensitive data during autonomous execution.
+---
+<div align="center">
+  <p><i>Forged with ⚙️ by the Open Source Community.</i></p>
+</div>
