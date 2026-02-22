@@ -426,7 +426,7 @@ export class Orchestrator {
 
       const researchResult = await this.engine.stepWithPhase(
         visionChain.id,
-        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nContext (vision):\n${visionOutput.slice(0, 500)}${memoryContext}${webContext}${crossChainCtx}`,
+        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nVISION DOCUMENT (pinned — respect all constraints):\n${visionOutput}${memoryContext}${webContext}${crossChainCtx}`,
         "researcher",
         "research",
         [visionResult.thought.id, decomposeResult.thought.id],
@@ -450,7 +450,7 @@ export class Orchestrator {
 
       const atomizeResult = await this.engine.stepWithPhase(
         visionChain.id,
-        `Break this block into 3-6 atomic tasks. Each atom must be independently executable and verifiable.\n\nRules:\n- Each atom must be specific enough that a Worker can execute it WITHOUT guessing\n- Include file paths, component names, or specific targets when possible\n- Order atoms by dependency (what must exist before the next step)\n- Each atom description should include acceptance criteria\n\nBlock: ${block}\n\nResearch findings:\n${findings.slice(0, 800)}\n\nVision constraints (atoms must respect):\n${visionOutput.slice(0, 400)}`,
+        `Break this block into 3-6 atomic tasks. Each atom must be independently executable and verifiable.\n\nRules:\n- Each atom must be specific enough that a Worker can execute it WITHOUT guessing\n- Include file paths, component names, or specific targets when possible\n- Order atoms by dependency (what must exist before the next step)\n- Each atom description should include acceptance criteria\n\nBlock: ${block}\n\nResearch findings:\n${findings.slice(0, 800)}\n\nVISION DOCUMENT (pinned — atoms must respect ALL constraints):\n${visionOutput}`,
         "strategist",
         "atomize",
         [researchResult.thought.id],
@@ -515,6 +515,25 @@ export class Orchestrator {
         this.emit({ type: "phase_start", phase: "execute", detail: `Atom ${j + 1}/${atoms.length}: ${atom.slice(0, 50)}` });
         this.engine.streaming.atomStart(j, atoms.length, atom.slice(0, 50));
 
+        // ─── PRE-ATOM GIT CHECKPOINT ────────────────────────
+        // Deterministic rollback point BEFORE worker touches code
+        // If worker BLOCKs → git reset --hard to this exact point
+        try {
+          const gitStatus = this.engine.git.executor.gitStatus();
+          if (!gitStatus.clean) {
+            this.engine.git.commitThought({
+              message: `[pre-atom] Block ${i + 1}, Atom ${j + 1}: ${atom.slice(0, 40)}`,
+              chainId: visionChain.id,
+              thoughtId: "pre-atom",
+              layer: "worker",
+              atomIndex: j,
+            });
+          }
+          this.engine.rollback.createPoint("atom", `Pre-atom ${j + 1}: ${atom.slice(0, 40)}`, {
+            atomIndex: j, blockIndex: i, preExecution: true,
+          });
+        } catch { /* git checkpoint best-effort */ }
+
         if (this.engine.state.canTransition("executing")) {
           this.engine.state.transition("executing", `Executing atom ${j + 1}`, {
             chainId: visionChain.id,
@@ -540,10 +559,21 @@ export class Orchestrator {
           );
 
           // Build context for tool-enabled LLM call
+          // Build compressed summaries of completed atoms (Context Pruning)
+          // Completed atoms → single line each. Vision document → NEVER truncated.
+          const completedAtomLines: string[] = [];
+          for (let k = 0; k < j; k++) {
+            completedAtomLines.push(`[✅ Atom ${k + 1}] ${atoms[k].slice(0, 60)}`);
+          }
+          const prevAtomContext = completedAtomLines.length > 0
+            ? `COMPLETED ATOMS:\n${completedAtomLines.join("\n")}`
+            : "";
+
           const atomContext = [
-            `ATOM: ${atom}`,
+            `YOUR TASK (Atom ${j + 1}/${atoms.length}): ${atom}`,
             `BLOCK: ${block}`,
-            `VISION DOCUMENT:\n${visionOutput}`,
+            prevAtomContext,
+            `VISION DOCUMENT (pinned — respect ALL constraints):\n${visionOutput}`,
             findings ? `RESEARCH FINDINGS:\n${findings.slice(0, 800)}` : "",
             atomCrossCtx || "",
             memoryContext ? `MEMORY:\n${memoryContext.slice(0, 500)}` : "",
@@ -679,6 +709,24 @@ export class Orchestrator {
             thought: execResult.thought,
             reason: execResult.thought.blockedReason ?? "Worker protocol incomplete",
           });
+
+          // ─── ZAMAN MAKİNESİ: Git reset on BLOCK ─────────────
+          // Worker wrote broken code → rollback to last clean state
+          // Don't let LLM try to "fix" its own mess — that causes hallucination spirals
+          try {
+            const rollbackResult = this.engine.rollback.rollbackLastAtom();
+            if (rollbackResult) {
+              this.emit({
+                type: "phase_end",
+                phase: "rollback",
+                detail: `Rolled back atom ${j + 1}: ${rollbackResult.message}`,
+              });
+              this.engine.streaming.error(`⏪ Atom ${j + 1} rolled back: ${execResult.thought.blockedReason?.slice(0, 60)}`);
+            }
+          } catch {
+            // Rollback is best-effort — may fail on non-git projects
+          }
+
           // Atom BLOCK non-fatal — move to next atom
           continue;
         }
@@ -816,6 +864,44 @@ export class Orchestrator {
             this.engine.state.transition("reflecting", `Reflection after ${atomCount} atoms`);
           }
 
+          // ─── VISUAL VIBE CHECK: Screenshot → Vision LLM ────
+          // Take screenshot of running dev server and ask Visioner if it matches the vision
+          let vibeCheckContext = "";
+          try {
+            const servers = await detectDevServers();
+            const healthyServer = servers.find(s => s.healthy);
+            if (healthyServer && this.engine.browser.checkAvailability()) {
+              const screenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
+              this.engine.streaming.toolCall("vibe_check", `Screenshot: ${screenshot.width}x${screenshot.height}`);
+
+              // Ask vision model to evaluate the screenshot against the vision document
+              try {
+                const vibeResult = await this.engine.callLLM(
+                  `You are a visual art director. Compare the screenshot description with the vision document below.
+Rate alignment on a scale of 0.0-1.0. Identify specific violations or drift.
+Be BRUTAL — "looks okay" is not acceptable. Either it matches the vision or it doesn't.`,
+                  `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT INFO:\n` +
+                  `Size: ${screenshot.width}x${screenshot.height}\n` +
+                  `URL: ${healthyServer.url}\n\n` +
+                  `Based on the screenshot capture, does the current UI match the vision's:\n` +
+                  `1. EMOTION TARGET?\n2. FOCAL POINT?\n3. COLOR PHILOSOPHY?\n4. SPACE PHILOSOPHY?\n5. FORBIDDEN LIST violations?`,
+                  "visioner",
+                );
+                vibeCheckContext = `\n\nVISUAL VIBE CHECK:\n${vibeResult.text.slice(0, 500)}`;
+                this.emit({
+                  type: "verification",
+                  phase: "vibe_check",
+                  passed: !vibeResult.text.toLowerCase().includes("violat"),
+                  detail: vibeResult.text.slice(0, 120),
+                });
+              } catch {
+                // Vibe check LLM call is best-effort
+              }
+            }
+          } catch {
+            // No dev server or no browser — skip vibe check
+          }
+
           // Get actual git diff for context-aware reflection
           let diffContext = "";
           try {
@@ -843,7 +929,7 @@ export class Orchestrator {
             `3. Is the MOTION BUDGET exceeded?\n` +
             `4. Is the EMOTION TARGET being served?\n` +
             `5. Any scope creep or quality drift?\n` +
-            `${diffContext}`,
+            `${diffContext}${vibeCheckContext}`,
             "visioner",
             "reflect",
             [visionResult.thought.id],
@@ -858,6 +944,19 @@ export class Orchestrator {
               reason: `Vision drift detected: ${reflectResult.thought.output.slice(0, 200)}`,
             });
             this.engine.streaming.error(`⚠️ Vision drift: ${reflectResult.thought.output.slice(0, 100)}`);
+
+            // ─── VISION VIOLATION → Rollback last block ─────
+            // If the Visioner says we drifted, roll back to block start
+            try {
+              const rollbackResult = this.engine.rollback.rollbackBlock(i);
+              if (rollbackResult) {
+                this.emit({
+                  type: "phase_end",
+                  phase: "rollback",
+                  detail: `Vision violation → rolled back block ${i + 1}: ${rollbackResult.message}`,
+                });
+              }
+            } catch { /* rollback best-effort */ }
           }
 
           this.emit({
