@@ -1,119 +1,138 @@
-# Foreman
+<div align="center">
 
-> AI agent orchestrator — atomic thought chains with vision, research, and tactical reasoning.
+<pre>
+         *   .  *      *   .  *  
+   .  *   \ | /   .  *   \ | /
+ *    .-"""-+-"""-.  *  .-"""-+-"""-.
+  .  /             \   /             \
+ *  /_______________\ /_______________\
+   |                 |                 |
+   |     FOREMAN     |    THE FORGE    |
+___|_________________|_________________|___
+ \                                       /
+  \     AI AGENT ORCHESTRATION LAYER    / 
+   \___________________________________/  
+    |                                 |   
+    |    "Düşünmeden Kod Yazan,       |
+    |     Çekiç Darbesini Iskalayan   |
+    |     Demirciye Benzer."          |
+    |_________________________________|   
+</pre>
 
-Foreman is a full-stack, fully autonomous coding agent and orchestration engine. It doesn't just autocomplete code; it builds entire features, refactors architecture, researches context, executes terminal commands, verifies tests, takes UI screenshots, and communicates with you via CLI, REPL, Telegram, or WhatsApp.
+# ⚒️ FOREMAN 
+**The Disciplined AI Orchestrator**
 
-Unlike chatbots that spit out code blocks for you to copy-paste, Foreman operates directly in your project directory. You give it a high-level task, and it creates a vision, decomposes it into tactical blocks, reads the codebase, atomizes the execution steps, runs them, verifies the result, and commits the code.
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](#)
+[![AI Driven](https://img.shields.io/badge/AI%20Driven-Black?style=for-the-badge&logo=openai&logoColor=white)](#)
+[![Multi-Model](https://img.shields.io/badge/Multi--Model-Anthropic%20%7C%20Google%20%7C%20OpenAI-blueviolet?style=for-the-badge)](#)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](#)
 
-## 1. Core Capabilities
+*“Her büyük eser, örsün üzerinde sabırla şekillenen binlerce küçük ve isabetli darbenin sonucudur.”*
 
-* **End-to-End Orchestration**: Tell it to `"Refactor the authentication flow"` or `"Build a kanban board UI"`. It breaks the task down, runs bash commands, edits files directly, and verifies its own work.
-* **Self-Healing & Rollback**: If an atomic code change breaks the build or fails tests, the `VerificationEngine` and `ReviewerGate` detect it. Foreman attempts to fix the issue autonomously. If it fails, the `RollbackEngine` reverts the specific git commit and restores the project to a clean state.
-* **Visual QA**: When changing CSS or UI layouts, Foreman uses its `BrowserEngine` (headless Chrome) to take "before" and "after" screenshots. It compares them using `pixelmatch` (an SSIM-grade perceptual diffing library) to verify visual impact and detect layout drift.
-* **Parallel Sub-Agents**: Complex tasks can spawn concurrent Sub-Agents (`SubAgentEngine`) to handle side-tasks, research, or isolated component development in parallel.
-* **Multi-Channel Presence**: Run it in your terminal via the CLI, interact through an interactive REPL, or deploy the `MessagingGateway` to control your agent remotely via Telegram or WhatsApp.
+</div>
 
-## 2. Architecture: The Forge Pipeline
+---
 
-Foreman processes complex tasks through the **Forge Pipeline**, a 4-layer cognitive architecture designed to manage context and prevent hallucinations.
+## 🔥 Vizyon: Neden Buradayız? (Teknik Olmayanlar İçin)
 
-*Total Codebase: ~46,600 LOC across 121 TypeScript files.*
+Günümüzün Yapay Zeka (AI) asistanları çok hızlı ama aynı zamanda **inanılmaz derecede disiplinsizler**. Bir iş verdiğinizde, araştırmadan, planlamadan ve yan etkilerini düşünmeden hemen kod yazmaya başlıyorlar. Sonuç? Kırık sistemler, gereksiz değişiklikler ve bağlamını (context) unutmuş yapay zekalar.
 
-### The Layers
-1. **Visioner**: High-level semantic understanding. Takes user input and writes a detailed Vision Document. Receives the largest context window budget (40%).
-2. **Strategist**: Tactical planner. Decomposes the vision into ordered, actionable Blocks.
-3. **Researcher**: Context gatherer. Analyzes the codebase, reads docs, searches the web, and pulls vector embeddings for the current block.
-4. **Worker**: Execution engine. Translates a block into precise "Atoms", issues tool calls (writes, edits, bash commands), verifies tests, and commits the code.
+**Foreman işte bu kaosa son vermek için tasarlandı.**
 
-### The Subsystems (44 Engines & Managers)
-Foreman is built around a highly modular engine architecture containing 44 major subsystems. Core engines include:
-* **CognitiveLoadBalancer**: A multi-provider load balancer. When one LLM provider hits a rate limit (HTTP 429), it instantly routes to the next (e.g., Anthropic API $\rightarrow$ Google Gemini $\rightarrow$ OpenAI) with zero sleep and zero downtime.
-* **ExecutionEngine & GitEngine**: Manages git safety, atomic commits, branch strategies, and safe shell execution.
-* **ApprovalEngine & ReviewerGate**: Evaluates the quality, risk score, and safety of generated commands/code before committing.
-* **BrowserEngine & MediaEngine**: Drives headless browsing, DOM extraction, PDF generation, and perceptual diffing.
-* **CronEngine & TaskScheduler**: Handles background job scheduling and asynchronous processes.
-* **MemoryManager & EmbeddingEngine**: Manages long-term memory bridging to markdown for persistent context retention using TF-IDF and semantic embeddings.
-* **ContextIntelligence & LinkIntelligence**: Dynamically scores and prunes context, ensuring maximum relevance within the token budget.
+Foreman'ı bir **Usta Demirci (Blacksmith)** olarak düşünün:
+- Önce **Vizyon**'u anlar (Bu kılıç kimin için yapılıyor?).
+- Sonra **Strateji** kurar (Hangi metali kullanmalıyım, ne kadar ısıtmalıyım?).
+- Ardından **Araştırma** yapar (Bu çeliği işlemek için en iyi teknik nedir?).
+- Ve en sonunda **İşçi** olarak çekiç darbelerini (kod) büyük bir hassasiyetle vurur.
 
-### The Toolbelt (48 Native Tools)
-Foreman dynamically loads tools based on the current layer's needs. The active system contains exactly **48 tools**, including:
-* *File Ops*: `read_file`, `write_file`, `edit_file`, `edit_range`, `edit_undo`, `batch_write`, `batch_ops`, `delete_file`
-* *Discovery*: `search_files`, `search_in_files`, `grep`, `list_dir`, `extract_code`, `parse_markdown`
-* *System*: `bash`, `list_processes`, `kill_processes`, `cron_add`, `cron_list`, `cron_remove`
-* *Version Control*: `git_status`, `git_commit`, `git_diff`, `git_log`, `diff_preview`
-* *Verification*: `verify_build`, `verify_tests`, `security_scan`, `approval_audit`
-* *Web & Browser*: `web_search`, `web_fetch`, `analyze_link`, `classify_url`, `browser_navigate`, `browser_screenshot`, `browser_extract`, `browser_pdf`, `download_file`, `analyze_media`
-* *Agentic*: `forge_pipeline`, `spawn_subagent`, `session_spawn`, `session_list`
-* *Memory*: `memory_read`, `memory_write`, `memory_search`, `semantic_search`, `cache_stats`
+Foreman ile yapay zeka sadece bir "kod yazıcı" olmaktan çıkar; **düşünen, araştıran, doğrulayan ve kendini düzelten** tam donanımlı bir dijital ustaya dönüşür.
 
-## 3. Installation & Usage
+---
 
-**Prerequisites:** Node.js $\ge$ 20.0, `tsx`
+## ⚙️ Mimarinin Kalbi: Mühendisler İçin Derinlemesine Bakış
 
-1. Clone the repository and install dependencies.
-2. Setup environment variables (or use Antigravity OAuth for managed API keys).
+Foreman, mevcut otonom AI asistanlarının (Devin, Claude Code, Cursor) en büyük zayıflığı olan "Düşünmeden Hareket Etme" (Zero-shot execution) problemini **4 Katmanlı Düşünce Mimarisi (4-Layer Cognitive Architecture)** ile çözer.
+
+Sistemin en küçük yapıtaşı **Atomik Düşünce (Atomic Thought)** birimidir. Foreman hiçbir işlemi bir bütün olarak LLM'e yığmaz. Her görev, birbirine zincirlenmiş, doğrulanabilir düşünce bloklarına ayrılır.
+
+### 🧠 4 Katmanlı Kognitif Mimari
+
+| Katman | Sorduğu Soru | Görevi | Rolü |
+| :--- | :--- | :--- | :--- |
+| 👑 **Vizyoner** | *"Bu NEDEN var?"* | Projenin ruhunu, estetiğini ve nihai hedefini belirler. Sistemin yönünü çizer. | `google-antigravity/gemini-2.5-pro` (Öneri) |
+| ♟️ **Stratejist** | *"Bu NASIL organize edilir?"* | Vizyonu parçalara ayırır. Planlar, önceliklendirir ve adımları belirler. | `anthropic/claude-3-7-sonnet` (Öneri) |
+| 🔬 **Araştırmacı** | *"Başkaları NE yaptı?"* | Koda dokunmadan önce ortamı inceler. Dosyaları okur, best-practice'leri araştırır. | `openai/gpt-4o` (Öneri) |
+| 🔨 **İşçi (Worker)** | *"BURADA ne yapmalıyım?"* | Taktiksel muhakeme ile kodu yazar, komutları çalıştırır ve test eder. | *Task spesifik modeller* |
+
+> 💡 **Farkımız:** *Diğer sistemler size bir işi tek seferde (one-shot) yapmaya çalışır. Foreman ise her adımdan sonra `Doğrulama (Verification)` motorunu çalıştırır. Eğer işçi hata yaparsa, sistem geri alınır (rollback) ve stratejist yeni bir plan yapar.*
+
+---
+
+## 🛠️ Foreman'ın Çekiç Çantası (Yetenekler)
+
+Foreman sadece bir prompt zinciri değildir. Gerçek dünyada çalışan tam donanımlı bir **Orkestratör Motorudur (Execution Engine)**.
+
+- **Çoklu Arayüz (Omni-Channel):** Sadece CLI üzerinden değil; **WhatsApp** (Baileys) ve **Telegram** (Grammy) üzerinden de Foreman'a görev verebilir, kod yazdırabilirsiniz.
+- **Kognitif Yönlendirme (Cognitive Router):** Görevin zorluğuna göre hangi LLM'in (Claude, GPT, Gemini) kullanılacağına otomatik karar verir. Bütçenizi ve zamanınızı korur.
+- **Bellek ve Hafıza Yönetimi:** Uzun seanslarda context kaybı yaşamaz. Önemli kararları kalıcı hafızaya yazar.
+- **Atomik Dosya Operasyonları (Batch File Engine):** 10 dosyayı aynı anda değiştirirken biri bile hata verirse, tüm işlemleri güvenle geri alır (ACID benzeri güvenlik).
+- **Security Scanner & Verification Engine:** Kod yazıldıktan sonra anında güvenlik ve test doğrulaması yapar.
+
+---
+
+## 🚀 Kurulum ve Şov Zamanı
+
+Kendi dijital demircinizi örsün başına geçirmek için:
 
 ```bash
+# 1. Repoyu Klonlayın
+git clone https://github.com/your-username/foreman.git
+cd foreman
+
+# 2. Bağımlılıkları Kurun
 npm install
 
-# Set up your API keys (Anthropic, OpenAI, Google)
-npx tsx src/cli.ts setup
+# 3. Ortam Değişkenlerini Ayarlayın
+cp .env.example .env
+# .env içine OPENAI_API_KEY, ANTHROPIC_API_KEY ve GEMINI_API_KEY ekleyin.
 
-# OR login with Antigravity OAuth
-npx tsx src/cli.ts login
+# 4. Sistemin Kalbini Ateşleyin
+npm run build
 ```
 
-### CLI Options
+### Örnek Kullanım
 
-**Initialize a project:**
 ```bash
-npx tsx src/cli.ts init my-project
+# Foreman'a vizyoner bir görev verin
+foreman task "Sisteme Rate Limiter ekle ama bunu Redis ile yap ve mimarisi enterprise seviyede olsun."
+
+# Veya sadece mevcut projeyi analiz etmesini isteyin
+foreman analyze
 ```
 
-**Run a task directly through the Forge:**
-```bash
-npx tsx src/cli.ts run "Replace local state with Redux Toolkit across the dashboard"
-```
+*Not: Görevi verdiğinizde Foreman hemen kod yazmaz. Önce size bir plan (Vision & Strategy) sunar. Siz onayladığınızda çekiç örse inmeye başlar.*
 
-**Interactive REPL:**
-```bash
-npx tsx src/cli.ts
-# Drops you into the interactive prompt where you can chat, read files, or run tools directly.
-```
+---
 
-**Developer / Internal Commands:**
-```bash
-npx tsx src/cli.ts status           # Show current project status
-npx tsx src/cli.ts board            # Kanban board view of tasks
-npx tsx src/cli.ts scan             # Security scan for leaked secrets and permissions
-npx tsx src/cli.ts cache            # Inspect cache statistics
-npx tsx src/cli.ts sessions         # List active sessions
-```
+## 🏗️ Mimari Tasarım (Arka Plan)
 
-### Remote Control (Telegram / WhatsApp)
-You can deploy Foreman to a server and control it from your phone using the `MessagingGateway`:
-```bash
-npx tsx src/cli.ts serve
-```
-In Telegram/WhatsApp, you can type `/forge Build a new landing page` to kick off the full pipeline. The bot will reply with real-time updates as thoughts and commits flow, acting as your remote developer.
+Foreman'ın alt yapısı TypeScript ile tamamen modüler olarak inşa edilmiştir:
+- `src/engine.ts`: Sistemin kalbi, görevleri işleme motoru.
+- `src/orchestrator.ts`: Katmanlar arası (Vizyoner -> İşçi) geçişleri yöneten orkestra şefi.
+- `src/git-engine.ts` & `src/batch-file-engine.ts`: Disk ve Versiyon kontrolü sağlayan güvenli operasyon yöneticileri.
 
-## 4. Testing & Reliability
+Tüm yapı `AGENTS.md` ve `ARCHITECTURE.md` dökümanlarında açıklanmıştır.
 
-Foreman is rigorously tested to ensure atomic safety and proper rollback mechanics.
-* **Framework**: Native Node.js test runner (`node:test` & `node:assert`) executed via `tsx --test`.
-* **Scale**: 38 test files containing ~850 individual tests.
-* **Coverage**: Includes end-to-end simulations using `MockProvider` to run the entire pipeline without incurring LLM costs. Tests simulate HTTP 429 errors to verify the `CognitiveLoadBalancer`'s failover, and simulate failing builds to verify the `RollbackEngine`.
+---
 
-Run the test suite using:
-```bash
-npm test
-```
+## 🤝 Ustalara Çağrı (Katkıda Bulunma)
 
-## 5. Technical Highlights
+Foreman henüz genç bir demirci. Daha güçlü çekiçler, daha dayanıklı örsler inşa etmek için usta yazılımcılara ihtiyacımız var. 
+Projeyi fork'layın, PR gönderin veya issue açın. 
 
-* **Zero-Downtime Routing**: The `CognitiveLoadBalancer` ensures that API rate limits don't break multi-minute thought chains. It dynamically falls back across providers for the same model to guarantee highway-speed execution.
-* **Perceptual Diffing**: `pixelmatch` integration allows the Worker layer to detect unintended CSS bleeding, layout shifts, or rendering errors that traditional testing misses.
-* **Precise AST-Aware Edits**: The `edit_range` and `edit_file` tools prevent full-file rewrites. This saves massive amounts of tokens, drastically reduces context-window hallucinations, and keeps git diffs clean.
-* **Self-Healing Transcripts**: LLMs occasionally output malformed JSON or invalid tool calls. `TranscriptRepair` and `ChainRepair` engines automatically fix formatting, recover broken JSON, and prune orphan thoughts.
-* **Security Scanner**: Built-in AST-based secret detection prevents the Worker from accidentally committing hardcoded API keys or sensitive data during autonomous execution.
+**Unutmayın:** *Geleceği sadece kod yazanlar değil, nasıl yazıldığını tasarlayanlar şekillendirecek.*
+
+<br/>
+<div align="center">
+  <sub>Built with 🔥 by a passionate AI & Engineering team.</sub>
+</div>
