@@ -18,6 +18,8 @@ import type { Layer, Thought, Chain } from "./types.js";
 import type { DecomposeParseResult, AtomizeParseResult } from "./parser.js";
 import { parseBuildOutput, parseTestOutput, analyzeOutput, detectRegressions, checkServerHealth, detectDevServers } from "./verification-engine.js";
 import { extractCrossChainContext } from "./context-intelligence.js";
+import { extractOperations, executeOperations, needsExecution, buildExecutionFeedback } from "./worker-executor.js";
+import { PipelineResumeEngine } from "./pipeline-resume.js";
 import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
 import { getActiveThoughts } from "./chain-repair.js";
@@ -42,10 +44,12 @@ export type EventListener = (event: OrchestratorEvent) => void;
 
 export class Orchestrator {
   private engine: Engine;
+  readonly resume: PipelineResumeEngine;
   private listeners: EventListener[] = [];
 
   constructor(engine: Engine) {
     this.engine = engine;
+    this.resume = new PipelineResumeEngine(engine.config.projectRoot);
   }
 
   on(listener: EventListener): void {
@@ -185,6 +189,10 @@ export class Orchestrator {
     this.engine.chains.updateSummary(visionChain.id, visionOutput.slice(0, 500));
     this.emit({ type: "phase_end", phase: "vision", detail: visionOutput.slice(0, 100) });
 
+    // ─── CHECKPOINT: Vision complete ───
+    this.resume.createCheckpoint(task, visionChain.id);
+    this.resume.updatePhase("decompose", { visionOutput });
+
     // ─── 2. DECOMPOSE ───────────────────────────────────────
 
     this.emit({ type: "phase_start", phase: "decompose", detail: "Breaking vision into blocks" });
@@ -223,6 +231,9 @@ export class Orchestrator {
     }
 
     this.emit({ type: "phase_end", phase: "decompose", detail: `${blocks.length} blocks` });
+
+    // ─── CHECKPOINT: Decompose complete ───
+    this.resume.updatePhase("research", { blocks });
 
     // ─── TASK MANAGEMENT — register blocks as subtasks ──────
     const parentTask = this.engine.tasks.create({
@@ -456,6 +467,65 @@ export class Orchestrator {
         atomCount++;
         this.emit({ type: "thought_complete", thought: execResult.thought });
 
+        // ── REAL EXECUTION — extract and run operations from worker protocol ──
+        if (execResult.thought.workerProtocol && execResult.thought.status === "done") {
+          const protocol = execResult.thought.workerProtocol;
+
+          if (needsExecution(protocol)) {
+            const ops = extractOperations(protocol);
+
+            if (ops.length > 0) {
+              this.emit({
+                type: "phase_start",
+                phase: "real_execute",
+                detail: `${ops.length} operations from atom ${j + 1}`,
+              });
+
+              try {
+                const execSummary = await executeOperations(
+                  ops,
+                  this.engine.exec,
+                  this.engine.editEngine,
+                  this.engine.config.projectRoot,
+                );
+
+                this.emit({
+                  type: "phase_end",
+                  phase: "real_execute",
+                  detail: `${execSummary.succeeded}/${execSummary.totalOps} succeeded`,
+                });
+
+                // Feed execution results back into thought for verification
+                if (execSummary.output) {
+                  const feedback = buildExecutionFeedback(execSummary);
+                  // Append execution results to thought output
+                  this.engine.thoughts.update(execResult.thought.id, {
+                    output: (execResult.thought.output ?? "") + "\n\n" + feedback,
+                  });
+                }
+
+                // Git checkpoint after successful execution
+                if (execSummary.succeeded > 0) {
+                  try {
+                    this.engine.git.commitThought({
+                      thoughtId: execResult.thought.id,
+                      chainId: visionChain.id,
+                      layer: "worker",
+                      atomIndex: j,
+                      message: `Atom ${j + 1}: ${atom.slice(0, 50)}`,
+                    });
+                  } catch { /* git checkpoint best-effort */ }
+                }
+              } catch (execErr) {
+                this.emit({
+                  type: "error",
+                  message: `Execution failed for atom ${j + 1}: ${execErr instanceof Error ? execErr.message : String(execErr)}`,
+                });
+              }
+            }
+          }
+        }
+
         // Worker BLOCK — 8-step incomplete or confidence too low
         if (execResult.thought.status === "blocked") {
           this.emit({
@@ -513,6 +583,9 @@ export class Orchestrator {
         }
 
         this.emit({ type: "phase_end", phase: "execute", detail: `Done: ${atom.slice(0, 40)}` });
+
+        // ─── CHECKPOINT: Atom complete ───
+        this.resume.completeAtom(i, j, 1, execResult.thought.tokenCost ?? 0);
 
         // ── VERIFY: Parse worker's step7_verify for actionable results ──
         if (execResult.thought.workerProtocol?.step7_verify) {
@@ -875,6 +948,10 @@ export class Orchestrator {
       totalThoughts,
       totalTokens,
     });
+
+    // ─── CHECKPOINT: Pipeline complete — clear ───
+    this.resume.updatePhase(success ? "complete" : "failed");
+    if (success) this.resume.clearCheckpoint();
 
     // Fire scheduler events for pipeline lifecycle
     try {

@@ -106,6 +106,11 @@ export class Engine {
   readonly editEngine: EditEngine;
   readonly approvalEngine: ApprovalEngine;
   readonly git: GitEngine;
+
+  /** Direct access to ExecutionEngine for tool dispatching */
+  get exec(): ExecutionEngine {
+    return this.git.executor;
+  }
   readonly linkIntelligence: LinkIntelligence;
   readonly cronEngine: CronEngine;
   readonly embeddingEngine: EmbeddingEngine;
@@ -113,7 +118,7 @@ export class Engine {
   readonly mediaEngine: MediaEngine;
   readonly messageActions: MessageActionsEngine;
 
-  private config: EngineConfig;
+  readonly config: EngineConfig;
   private maxFormatRetries: number;
 
   /** Layer-based confidence thresholds */
