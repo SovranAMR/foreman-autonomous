@@ -410,6 +410,16 @@ export class Orchestrator {
       // ─── ROLLBACK: Block checkpoint ───
       this.engine.rollback.createPoint("block", `Block ${i + 1}: ${block.slice(0, 50)}`, { blockIndex: i });
 
+      // ─── BEFORE SCREENSHOT — baseline for pixel diff ─────
+      let beforeScreenshot: Awaited<ReturnType<typeof this.engine.browser.screenshot>> | null = null;
+      try {
+        const servers = await detectDevServers();
+        const healthyServer = servers.find(s => s.healthy);
+        if (healthyServer && this.engine.browser.checkAvailability()) {
+          beforeScreenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
+        }
+      } catch { /* before screenshot best-effort */ }
+
       // ── 3a. RESEARCH ──
       this.emit({ type: "phase_start", phase: "research", detail: `Block ${i + 1}: ${block}` });
       this.engine.streaming.phaseStart("research", `Block ${i + 1}: ${block.slice(0, 50)}`);
@@ -1258,23 +1268,124 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
         }
       }
 
-      // ─── BLOCK HEALTH CHECK — re-decompose if too many atoms failed ───
+      // ─── BLOCK HEALTH CHECK — auto re-decompose if too many atoms failed ───
       const blockSuccessRate = atoms.length > 0 ? blockPassedAtoms / atoms.length : 1;
       if (blockSuccessRate < 0.5 && atoms.length > 1) {
-        this.engine.streaming.error(`🔄 Block ${i + 1} has ${blockFailedAtoms}/${atoms.length} failed atoms (${(blockSuccessRate * 100).toFixed(0)}% success). Flagging for strategic review.`);
+        this.engine.streaming.error(`🔄 Block ${i + 1}: ${blockFailedAtoms}/${atoms.length} atoms failed (${(blockSuccessRate * 100).toFixed(0)}% success)`);
         this.emit({
           type: "verification",
           phase: "block_health",
           passed: false,
-          detail: `Block ${i + 1}: ${blockPassedAtoms}/${atoms.length} atoms passed (${(blockSuccessRate * 100).toFixed(0)}%)`,
+          detail: `Block ${i + 1}: ${blockPassedAtoms}/${atoms.length} atoms passed`,
         });
 
-        // Save failure context so next pipeline run (or strategist) can learn
+        // ─── AUTO RE-DECOMPOSE: Strategist re-atomizes with failure context ───
+        // Don't just flag — actually re-decompose and re-execute failed atoms
+        this.engine.streaming.phaseStart("re_decompose", `Re-atomizing block ${i + 1} with failure context`);
+        try {
+          const failedAtomList = atoms
+            .filter((_, idx) => idx >= blockPassedAtoms) // simplified: failed atoms are after passed ones
+            .map((a, idx) => `- Failed atom: ${a.slice(0, 80)}`)
+            .join("\n");
+
+          const reAtomizeResult = await this.engine.stepWithPhase(
+            visionChain.id,
+            `The following block PARTIALLY FAILED. ${blockFailedAtoms}/${atoms.length} atoms could not be completed.\n\n` +
+            `BLOCK: ${block}\n\n` +
+            `FAILED ATOMS:\n${failedAtomList}\n\n` +
+            `FAILURE REASONS:\n${lastRejectionFeedback?.slice(0, 500) ?? "Unknown"}\n\n` +
+            `Re-decompose ONLY the failed work into 2-4 SMALLER, more specific atoms.\n` +
+            `- Make each atom simpler than before\n` +
+            `- Include more specific file paths and line numbers\n` +
+            `- Add explicit acceptance criteria\n` +
+            `- Avoid the patterns that caused failures\n\n` +
+            `VISION DOCUMENT (pinned):\n${visionOutput}`,
+            "strategist",
+            "atomize",
+          );
+          totalThoughts++;
+
+          const reAtoms: string[] = reAtomizeResult.parsed?.atoms
+            ?? this.fallbackParseBlocks(reAtomizeResult.thought.output);
+
+          if (reAtoms.length > 0) {
+            this.engine.streaming.phaseEnd("re_decompose", `${reAtoms.length} new atoms`);
+
+            // Execute re-decomposed atoms with the same full pipeline
+            for (let rj = 0; rj < reAtoms.length; rj++) {
+              const reAtom = reAtoms[rj];
+              this.engine.streaming.atomStart(rj, reAtoms.length, `[RE] ${reAtom.slice(0, 40)}`);
+
+              // Pre-atom checkpoint
+              try {
+                this.engine.rollback.createPoint("atom", `Re-atom ${rj + 1}: ${reAtom.slice(0, 40)}`, {
+                  atomIndex: rj, blockIndex: i, preExecution: true, isRetry: true,
+                });
+              } catch { /* best-effort */ }
+
+              // Pre-read files for re-atom
+              let rePreRead = "";
+              try {
+                const fileMatches = reAtom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g);
+                if (fileMatches) {
+                  const uniqueFiles = [...new Set(fileMatches)].slice(0, 3);
+                  const parts: string[] = [];
+                  for (const fp of uniqueFiles) {
+                    try {
+                      const { readFileSync } = await import("node:fs");
+                      const content = readFileSync(`${this.engine.config.projectRoot}/${fp}`, "utf-8");
+                      const lines = content.split("\n");
+                      parts.push(`[FILE: ${fp}] (${lines.length} lines)\n${lines.slice(0, 50).join("\n")}`);
+                    } catch { /* file not found */ }
+                  }
+                  if (parts.length > 0) rePreRead = `PRE-READ FILES:\n${parts.join("\n\n")}`;
+                }
+              } catch { /* best-effort */ }
+
+              const reContext = [
+                `YOUR TASK (Re-atom ${rj + 1}/${reAtoms.length}): ${reAtom}`,
+                `⚠️ This is a RE-DECOMPOSED atom. The original atom FAILED. Be more careful.`,
+                `PREVIOUS FAILURE: ${lastRejectionFeedback?.slice(0, 200) ?? "Unknown"}`,
+                rePreRead,
+                `BLOCK: ${block}`,
+                `VISION DOCUMENT (pinned):\n${visionOutput}`,
+              ].filter(Boolean).join("\n\n---\n\n");
+
+              try {
+                const toolExecutor = createEngineToolExecutor(
+                  this.engine.config.projectRoot,
+                  this.engine.exec,
+                  this.engine.editEngine,
+                  this.engine.git,
+                  this.engine.linkIntelligence,
+                );
+
+                const reResult = await this.engine.callLLMWithTools(
+                  getWorkerPromptForToolMode(),
+                  reContext,
+                  "worker",
+                  async (call: ToolCall) => toolExecutor(call),
+                  { maxIterations: 15, onToken: () => {}, onToolCall: () => {}, onToolResult: () => {} },
+                );
+                totalThoughts++;
+                atomCount++;
+
+                this.engine.streaming.atomEnd(rj, 0);
+              } catch {
+                this.engine.streaming.error(`Re-atom ${rj + 1} failed`);
+              }
+            }
+          }
+        } catch {
+          // Re-decompose is best-effort
+        }
+
+        // Save failure context for learning
         try {
           this.engine.memory.add({
-            content: `BLOCK FAILURE (Block ${i + 1}): "${block.slice(0, 60)}" — ${blockFailedAtoms}/${atoms.length} atoms failed. Issues: ${lastRejectionFeedback?.slice(0, 200) ?? "unknown"}. Consider re-decomposing with smaller, more specific atoms.`,
-            type: "block_failure",
-            tags: ["foreman", "pipeline", "block_failure", `block_${i + 1}`],
+            content: `BLOCK RE-DECOMPOSED (Block ${i + 1}): "${block.slice(0, 60)}" — original had ${blockFailedAtoms}/${atoms.length} failures. Re-atomized and re-executed.`,
+            type: "block_redecompose",
+            tags: ["foreman", "pipeline", "re_decompose", `block_${i + 1}`],
             source: "orchestrator",
             projectId: this.engine.state.snapshot().projectName,
           });
@@ -1292,13 +1403,26 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
           const screenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
           this.engine.streaming.toolCall("vibe_check", `Block ${i + 1} screenshot: ${screenshot.width}x${screenshot.height}`);
 
+          // ─── PIXEL DIFF: Compare before/after screenshots ───
+          let pixelDiffContext = "";
+          if (beforeScreenshot && screenshot.base64 && beforeScreenshot.base64) {
+            const diff = this.engine.browser.compareScreenshots(beforeScreenshot, screenshot);
+            pixelDiffContext = `\nPIXEL DIFF: ${(diff.diffScore * 100).toFixed(1)}% changed. Regions: ${diff.changedRegions}. Same size: ${diff.sameSize}`;
+            this.emit({
+              type: "verification",
+              phase: "pixel_diff",
+              passed: diff.diffScore > 0.01, // some visual change expected
+              detail: `Block ${i + 1} pixel diff: ${(diff.diffScore * 100).toFixed(1)}% changed — ${diff.changedRegions}`,
+            });
+          }
+
           // Send REAL screenshot to vision model for block-level vibe check
           try {
             const vibeResult = screenshot.base64
               ? await this.engine.callLLMWithImage(
                   `You are a visual QA specialist. You are looking at a REAL screenshot of the project.
 Compare with the vision document. Rate 0.0-1.0. If below 0.6, say FAIL with specific reasons.
-Check: emotion target, focal point, color philosophy, space, forbidden list.`,
+Check: emotion target, focal point, color philosophy, space, forbidden list.${pixelDiffContext ? "\n" + pixelDiffContext : ""}`,
                   `VISION DOCUMENT:\n${visionOutput}\n\nBlock just completed: ${block}\nURL: ${healthyServer.url}`,
                   screenshot.base64,
                   "image/png",

@@ -451,4 +451,51 @@ export class BrowserEngine {
       return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
+
+  /**
+   * Compare two screenshots pixel-by-pixel.
+   * Returns a diff score (0.0 = identical, 1.0 = completely different).
+   * Uses raw buffer comparison — no external dependencies.
+   */
+  compareScreenshots(before: ScreenshotResult, after: ScreenshotResult): {
+    diffScore: number;
+    sameSize: boolean;
+    changedRegions: string;
+  } {
+    // Size comparison
+    const sameSize = before.width === after.width && before.height === after.height;
+
+    // Decode base64 to compare raw bytes
+    const beforeBuf = Buffer.from(before.base64, "base64");
+    const afterBuf = Buffer.from(after.base64, "base64");
+
+    // Simple byte-level diff (PNG compressed, so not pixel-perfect but gives meaningful signal)
+    const minLen = Math.min(beforeBuf.length, afterBuf.length);
+    let diffBytes = 0;
+    for (let i = 0; i < minLen; i++) {
+      if (beforeBuf[i] !== afterBuf[i]) diffBytes++;
+    }
+    // Account for size difference
+    diffBytes += Math.abs(beforeBuf.length - afterBuf.length);
+
+    const totalBytes = Math.max(beforeBuf.length, afterBuf.length);
+    const diffScore = totalBytes > 0 ? diffBytes / totalBytes : 0;
+
+    // Rough region analysis based on diff distribution
+    const quarterLen = Math.floor(minLen / 4);
+    const regionDiffs = [0, 0, 0, 0]; // top, upper-mid, lower-mid, bottom
+    for (let i = 0; i < minLen; i++) {
+      if (beforeBuf[i] !== afterBuf[i]) {
+        regionDiffs[Math.min(3, Math.floor(i / quarterLen))]++;
+      }
+    }
+    const regionLabels = ["top", "upper-middle", "lower-middle", "bottom"];
+    const changedRegions = regionDiffs
+      .map((d, idx) => ({ label: regionLabels[idx], pct: quarterLen > 0 ? (d / quarterLen * 100).toFixed(1) : "0" }))
+      .filter(r => parseFloat(r.pct) > 5)
+      .map(r => `${r.label}: ${r.pct}%`)
+      .join(", ") || "minimal changes";
+
+    return { diffScore, sameSize, changedRegions };
+  }
 }

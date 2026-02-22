@@ -275,9 +275,11 @@ export class Engine {
   ): Promise<GenerateResult> {
     await this.rateLimiter.acquire();
 
+    // Per-layer model selection: layer config is PRIMARY, override trumps all
+    // Rate limiter's global model is LAST resort (backward compat)
     const model = overrideModel
-      ?? this.rateLimiter.currentModel()
-      ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel;
+      ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel
+      ?? this.rateLimiter.currentModel();
 
     // Context window guard — does the prompt fit?
     const guard = guardContextWindow({
