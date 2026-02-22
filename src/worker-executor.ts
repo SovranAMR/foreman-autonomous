@@ -20,6 +20,11 @@ import type { GitEngine } from "./git-engine.js";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { HooksEngine } from "./hooks-engine.js";
+import type { InteractiveConfirm } from "./interactive-confirm.js";
+import { assessRisk as assessCommandRisk } from "./interactive-confirm.js";
+import type { StreamingPipeline } from "./streaming-pipeline.js";
+
 // ─── TYPES ───────────────────────────────────────────────────
 
 export interface ExtractedOperation {
@@ -175,17 +180,57 @@ export async function executeOperations(
   execEngine: ExecutionEngine,
   editEngine: EditEngine,
   projectRoot: string,
+  options?: {
+    hooks?: HooksEngine;
+    interactive?: InteractiveConfirm;
+    streaming?: StreamingPipeline;
+  },
 ): Promise<WorkerExecutionSummary> {
   const results: ExecutionResult[] = [];
 
   for (const op of ops) {
     try {
+      // ─── HOOKS: before_tool ───
+      if (options?.hooks) {
+        const hookResult = await options.hooks.run("before_tool", {
+          tool: op.type,
+          path: op.path,
+          command: op.command,
+        });
+        if (hookResult.block) {
+          results.push({ operation: op, success: false, error: `Blocked by hook: ${hookResult.blockReason}` });
+          continue;
+        }
+      }
+
+      // ─── STREAMING: tool call event ───
+      if (options?.streaming) {
+        const desc = op.type === "run_command"
+          ? `${op.command?.slice(0, 60)}`
+          : `${op.type} ${op.path ?? ""}`;
+        options.streaming.toolCall(op.type, desc);
+      }
+
       switch (op.type) {
         case "write_file": {
           if (!op.path || op.content === undefined) {
             results.push({ operation: op, success: false, error: "Missing path or content" });
             break;
           }
+
+          // ─── HOOKS: before_file ───
+          if (options?.hooks) {
+            const hookResult = await options.hooks.run("before_file", {
+              action: "write",
+              path: op.path,
+              size: op.content.length,
+            });
+            if (hookResult.block) {
+              results.push({ operation: op, success: false, error: `Write blocked by hook: ${hookResult.blockReason}` });
+              break;
+            }
+          }
+
           const fullPath = op.path.startsWith("/") ? op.path : `${projectRoot}/${op.path}`;
 
           // Track diff for reporting
@@ -232,6 +277,24 @@ export async function executeOperations(
             results.push({ operation: op, success: false, error: "No command" });
             break;
           }
+
+          // ─── INTERACTIVE: Risk check for dangerous commands ───
+          if (options?.interactive) {
+            const riskLevel = assessCommandRisk({
+              type: "run_command",
+              description: `Worker command: ${op.command.slice(0, 80)}`,
+              target: op.command,
+            });
+            if (riskLevel === "critical" || riskLevel === "high") {
+              results.push({
+                operation: op,
+                success: false,
+                error: `Blocked: ${riskLevel} risk command. Pattern matched dangerous operation.`,
+              });
+              break;
+            }
+          }
+
           const cmdResult = execEngine.runShell(op.command, { timeout: 60_000 });
           results.push({
             operation: op,
@@ -247,6 +310,19 @@ export async function executeOperations(
             results.push({ operation: op, success: false, error: "No path" });
             break;
           }
+
+          // ─── HOOKS: before_file ───
+          if (options?.hooks) {
+            const hookResult = await options.hooks.run("before_file", {
+              action: "delete",
+              path: op.path,
+            });
+            if (hookResult.block) {
+              results.push({ operation: op, success: false, error: `Delete blocked by hook: ${hookResult.blockReason}` });
+              break;
+            }
+          }
+
           const delResult = execEngine.deleteFile(op.path);
           results.push({
             operation: op,

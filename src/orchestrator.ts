@@ -138,6 +138,17 @@ export class Orchestrator {
       projectId: this.engine.state.snapshot().projectName,
     });
 
+    // ─── SESSION LIFECYCLE — create named forge session ─────
+    const forgeSession = this.engine.sessionLifecycle.create({
+      task,
+      phase: "vision",
+    });
+    this.engine.streaming.phaseStart("session", `Session: ${forgeSession.slug}`);
+
+    // ─── IDENTITY — learn from memory ───────────────────────
+    // Load identity context once for the pipeline
+    this.engine.identity.reload();
+
     // ─── MEMORY CLEANUP ─────────────────────────────────────
     // Clean up expired/cold memories at the start of each run
     this.engine.memory.cleanup();
@@ -176,6 +187,13 @@ export class Orchestrator {
 
     this.emit({ type: "phase_start", phase: "vision", detail: task });
     this.engine.streaming.phaseStart("vision", task);
+
+    // ─── HOOKS: before_phase (vision) ───────────────────────
+    const visionHook = await this.engine.hooks.run("before_phase", { phase: "vision", task });
+    if (visionHook.block) {
+      this.engine.streaming.error(`Vision phase blocked: ${visionHook.blockReason}`);
+      return this.buildResult(false, 0, "", "vision_hook");
+    }
 
     // Inject project context + identity into vision
     const projectContext = `\n\nProject Context:\n${formatProjectContext(this.engine.projectInfo)}`;
@@ -334,6 +352,17 @@ export class Orchestrator {
         // Semantic recall via similarity
         const recalled = this.engine.recall(block, 3);
 
+        // ─── EMBEDDING: Semantic search over project codebase ───
+        let embeddingContext: string[] = [];
+        try {
+          const embResults = this.engine.embeddingEngine.search(block, 3);
+          if (embResults.length > 0) {
+            embeddingContext = embResults.map(r =>
+              `[${(r.score * 100).toFixed(0)}% match] ${r.content.slice(0, 120)}`
+            );
+          }
+        } catch { /* embedding search is best-effort */ }
+
         const memParts: string[] = [];
         if (hotMemories.length > 0) {
           memParts.push(`Recent context:\n${hotMemories.slice(0, 3).map(m => `- ${m.content.slice(0, 100)}`).join("\n")}`);
@@ -343,6 +372,9 @@ export class Orchestrator {
         }
         if (recalled.length > 0) {
           memParts.push(`Memory recall:\n${recalled.map(r => `- [${(r.score * 100).toFixed(0)}%] ${r.content.slice(0, 100)}`).join("\n")}`);
+        }
+        if (embeddingContext.length > 0) {
+          memParts.push(`Semantic matches:\n${embeddingContext.map(e => `- ${e}`).join("\n")}`);
         }
         if (memParts.length > 0) {
           memoryContext = "\n\nFrom memory:\n" + memParts.join("\n");
@@ -594,6 +626,11 @@ export class Orchestrator {
                   this.engine.exec,
                   this.engine.editEngine,
                   this.engine.config.projectRoot,
+                  {
+                    hooks: this.engine.hooks,
+                    interactive: this.engine.interactive,
+                    streaming: this.engine.streaming,
+                  },
                 );
 
                 this.emit({
@@ -963,6 +1000,22 @@ export class Orchestrator {
             passed: server.healthy,
             detail: `Dev server ${server.url}: ${server.statusCode} (${server.responseTimeMs}ms)`,
           });
+
+          // ─── BROWSER: Visual verification of running servers ───
+          if (server.healthy && this.engine.browser.checkAvailability()) {
+            try {
+              const screenshot = await this.engine.browser.screenshot(server.url, { fullPage: false });
+              this.emit({
+                type: "verification",
+                phase: "visual_check",
+                passed: true,
+                detail: `Screenshot captured: ${screenshot.width}x${screenshot.height} (${Math.round(screenshot.sizeBytes / 1024)}KB)`,
+              });
+              this.engine.streaming.toolCall("browser_screenshot", `Visual check: ${server.url}`);
+            } catch {
+              // Screenshot is best-effort — Playwright may not be installed
+            }
+          }
         }
       } catch {
         // No dev servers running — skip
@@ -1025,6 +1078,23 @@ export class Orchestrator {
       `${task.slice(0, 80)} — ${totalThoughts} thoughts, ${atomCount} atoms`,
     );
 
+    // ─── SESSION LIFECYCLE — transition to complete ─────────
+    try {
+      this.engine.sessionLifecycle.transition(forgeSession.id, "idle");
+      this.engine.sessionLifecycle.setMemory(forgeSession.id, "totalThoughts", String(totalThoughts));
+      this.engine.sessionLifecycle.setMemory(forgeSession.id, "totalAtoms", String(atomCount));
+      this.engine.sessionLifecycle.setMemory(forgeSession.id, "task", task.slice(0, 200));
+    } catch { /* best-effort */ }
+
+    // ─── IDENTITY MEMORY — save pipeline result ─────────────
+    try {
+      this.engine.identity.updateMemory(
+        `pipeline_${Date.now()}`,
+        `${task.slice(0, 80)} — ${totalThoughts} thoughts, ${atomCount} atoms, ${success ? "success" : "failed"}`,
+        "Pipeline History",
+      );
+    } catch { /* best-effort */ }
+
     // Register completed task in session for future context
     this.engine.sessions.addCompletedTask(session.id, parentTask?.id ?? "unknown");
 
@@ -1073,6 +1143,16 @@ export class Orchestrator {
 
     // ─── STREAMING — announce pipeline end ──────────────────
     const costReport = this.engine.costTracker.formatReport();
+
+    // ─── STREAMING: Cost summary ────────────────────────────
+    if (costReport) {
+      this.emit({
+        type: "phase_end",
+        phase: "cost_summary",
+        detail: costReport.split("\n").slice(0, 3).join(" | "),
+      });
+    }
+
     this.engine.streaming.pipelineEnd(success, success ? "All blocks complete" : blockedAt ?? "Failed");
 
     // ─── HOOKS — after_pipeline ─────────────────────────────
@@ -1118,19 +1198,63 @@ export class Orchestrator {
 function getWorkerPromptForToolMode(): string {
   return `You are the WORKER of Foreman — a 4-layer AI coding agent orchestrator.
 
-You have access to real tools. Use them to complete the task:
+You have access to 47 real tools. Use them to complete the task.
 
-## Available Tools
-- bash: Run shell commands (npm, git, etc.)
-- read_file: Read file contents
+## File Operations
+- read_file: Read file contents (ALWAYS read before editing)
 - write_file: Write/create files
 - edit_file: Edit existing files (find & replace)
-- search_files: Search for patterns in files
-- grep: Search file contents
+- edit_range: Edit specific line range in a file
+- edit_undo: Undo last edit to a file
+- batch_write: Write multiple files atomically
+- batch_ops: Execute multiple operations in sequence
+- delete_file: Delete a file
+- search_files: Search for patterns across files
+- search_in_files: Search file contents with regex
+- grep: Search file contents (grep-style)
 - list_dir: List directory contents
-- git_status/git_commit/git_diff/git_log: Git operations
-- verify_build/verify_tests: Run build and tests
-- web_search/web_fetch: Search the web
+- diff_preview: Preview unified diff before writing a file
+
+## Shell & Process
+- bash: Run shell commands (npm, git, etc.)
+- list_processes: List running background processes
+- kill_processes: Kill running processes
+- spawn_subagent: Spawn a sub-agent for parallel work
+
+## Git Operations
+- git_status: Get git working tree status
+- git_commit: Commit staged changes
+- git_diff: Show uncommitted changes
+- git_log: Show commit history
+
+## Build & Verify
+- verify_build: Run build and parse errors
+- verify_tests: Run tests and parse results
+
+## Web & Research
+- web_search: Search the web (Brave Search API)
+- web_fetch: Fetch and extract content from a URL
+- analyze_link: Classify and analyze a URL
+- classify_url: Classify URL type (docs, repo, etc.)
+
+## Browser Automation
+- browser_navigate: Navigate to URL, get page info
+- browser_screenshot: Take screenshot of a web page
+- browser_extract: Extract text, links, headings from page
+- browser_pdf: Generate PDF from web page
+
+## Memory & Identity
+- memory_read: Read from persistent memory
+- memory_write: Write to persistent memory
+- memory_search: Search persistent memory entries
+
+## Analysis & Intelligence
+- parse_markdown: Parse markdown into structured data
+- cache_stats: Get cache hit/miss statistics
+- extract_code: Extract code blocks from text
+- semantic_search: Search with TF-IDF similarity
+- security_scan: Scan project for security issues
+- approval_audit: View command approval history
 
 ## Your Protocol
 1. READ: Use read_file to understand what exists
@@ -1141,11 +1265,13 @@ You have access to real tools. Use them to complete the task:
 
 ## Rules
 - ONE atomic task at a time
-- ALWAYS read before writing
+- ALWAYS read before writing — do NOT hallucinate file contents
 - ALWAYS verify after changing
-- If something fails, try to fix it
+- Use diff_preview before large file writes
+- If something fails, try to fix it (up to 3 attempts)
 - Report honestly — include failures
-- Do NOT hallucinate file contents — use read_file
+- Use browser_screenshot to visually verify UI changes
+- Use memory_write to save important discoveries for future reference
 
 After completing all tool calls, provide your final response with:
 STEP6_EXECUTE: [what you did]
