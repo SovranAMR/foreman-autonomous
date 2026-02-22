@@ -1,0 +1,16 @@
+{
+  "id": "mem_047",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Implement the Redux-normalized fractal state architecture (`byId` and `allIds`) for the orchestrator pipeline. [Acceptance Criteria: State correctly defines and exports the `TaxonomyTier` ('MACRO' ...",
+  "source": {
+    "type": "thought",
+    "ref": "t_082"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 3,
+  "createdAt": "2026-02-22T23:44:33.659Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T23:45:22.059Z"
+}

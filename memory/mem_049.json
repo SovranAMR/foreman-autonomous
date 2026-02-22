@@ -1,0 +1,16 @@
+{
+  "id": "mem_049",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Create or update the file `src/forge/state.ts`. Define and export the type `TaxonomyTier = 'MACRO' | 'MESO' | 'MICRO'`. Define and export the `FractalNode` interface containing exactly: `id: string...",
+  "source": {
+    "type": "thought",
+    "ref": "t_084"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-22T23:45:20.629Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T23:45:22.059Z"
+}

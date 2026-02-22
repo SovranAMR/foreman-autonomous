@@ -1,0 +1,15 @@
+{
+  "id": "mem_050",
+  "projectId": "global",
+  "category": "lesson",
+  "content": "[worker] Executed perfectly. The pure relational schema types have been laid down in `src/forge/state.ts`. The codebase is strictly prohibiting nested state internally by enforcing string pointers (`parentId`,...",
+  "source": {
+    "type": "thought",
+    "ref": "t_085"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-22T23:45:49.807Z",
+  "expired": false
+}
