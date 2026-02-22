@@ -105,28 +105,6 @@
         "thoughts/t_007.json",
         "thoughts/t_008.json"
       ]
-    },
-    {
-      "id": "rb_1771784811192_83rj",
-      "type": "atom",
-      "commitHash": "abf9d17537c514a766fcccca31b17aed828acd0a",
-      "description": "Pre-atom 2: Execute an inline Node.js command via th",
-      "timestamp": 1771784811192,
-      "atomIndex": 1,
-      "blockIndex": 0,
-      "filesChanged": [
-        ".foreman/approvals.json",
-        ".foreman/rollback.json",
-        ".foreman/sessions/gray-reef.json",
-        ".foreman/sessions/session_6979d4d9.json",
-        "cache/cch_e884bec4647e98ea.json",
-        "thoughts/t_026.json",
-        "thoughts/t_027.json",
-        "thoughts/t_028.json",
-        "thoughts/t_029.json",
-        "thoughts/t_030.json",
-        "thoughts/t_031.json"
-      ]
     }
   ],
   "history": {
@@ -137,13 +115,6 @@
         "timestamp": 1771780953074,
         "success": true,
         "filesReverted": 11
-      },
-      {
-        "id": "rh_1771784811136",
-        "pointId": "rb_1771780910613_24we",
-        "timestamp": 1771784811136,
-        "success": true,
-        "filesReverted": 96
       }
     ]
   }
