@@ -48,9 +48,9 @@ export const DEFAULT_RATE_LIMIT_CONFIG: InternalConfig = {
     rotateOn429: true,
   },
   budget: {
-    perThought: 8000,
-    perChain: 40000,
-    perSession: 500000,
+    perThought: 128000,
+    perChain: 512000,
+    perSession: 2000000,
   },
 };
 
