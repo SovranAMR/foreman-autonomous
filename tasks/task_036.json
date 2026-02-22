@@ -1,0 +1,26 @@
+{
+  "id": "task_036",
+  "projectId": "foreman",
+  "title": "Self-Improvement Task: Upgrade the Forge pipeline architecture to support 'Hyper",
+  "description": "- **EMOTION TARGET**: Surgical Omniscience. The developer must feel they are watching a microscopic robotic surgical tool perform a flawless, hyper-coordinated operation. Cold, precise, utterly transp",
+  "type": "feature",
+  "priority": "high",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [
+    "chain_019"
+  ],
+  "subtaskIds": [
+    "task_037",
+    "task_038",
+    "task_039",
+    "task_040",
+    "task_041",
+    "task_042"
+  ],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T23:47:42.920Z"
+}

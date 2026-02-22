@@ -1,0 +1,15 @@
+{
+  "id": "mem_054",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. In `src/forge/state.ts`, define the internal state container `const state = { byId: {} as Record<string, FractalNode>, allIds: [] as string[] };` and export a runtime validation function `validateF...",
+  "source": {
+    "type": "thought",
+    "ref": "t_090"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-22T23:48:24.761Z",
+  "expired": false
+}

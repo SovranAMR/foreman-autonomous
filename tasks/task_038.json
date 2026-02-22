@@ -1,0 +1,17 @@
+{
+  "id": "task_038",
+  "projectId": "foreman",
+  "title": "Block 2: Build the 'Surgical Omniscience' CLI UI Renderer to enforce ",
+  "description": "Build the 'Surgical Omniscience' CLI UI Renderer to enforce the strict typographic, spatial, and color philosophies. [Acceptance Criteria: Module exposes rendering functions that output MACRO nodes in bold/caps, MESO nodes in title case, MICRO nodes in Pure White with a stepped `[ ... ]` spinner, strips conversational logs, and enforces a double-newline (60% negative space) on all tier transitions.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T23:47:42.920Z"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "task_039",
+  "projectId": "foreman",
+  "title": "Block 3: Upgrade the Strategist Prompt and Parser to generate relatio",
+  "description": "Upgrade the Strategist Prompt and Parser to generate relational deep-tree decompositions instead of flat arrays. [Acceptance Criteria: Strategist output is parsed into a flat array of `FractalNode` objects with valid `TaxonomyTier` identifiers (MACRO, MESO, MICRO) and valid `parentId` pointers, which are directly injected into the normalized state.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T23:47:42.920Z"
+}
