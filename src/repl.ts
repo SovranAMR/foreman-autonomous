@@ -330,6 +330,31 @@ async function handleSlashCommand(
       return "continue";
     }
 
+    case "simple": {
+      // Direct chat without tools — uses streamChat
+      if (!arg) {
+        console.log(`    ${brand.dim("Usage: /simple <message>")}`);
+        return "continue";
+      }
+      const spinner = startForgeSpinner();
+      try {
+        let first = true;
+        await state.provider.streamChat(
+          [...state.messages, { role: "user", content: arg }],
+          state.model,
+          (token: string) => {
+            if (first) { spinner.stop(); process.stdout.write(`\n    ${brand.gold("💬")} `); first = false; }
+            process.stdout.write(token);
+          },
+        );
+        console.log("\n");
+      } catch (err) {
+        spinner.stop();
+        console.log(`\n    ${brand.red("✖")} ${err}`);
+      }
+      return "continue";
+    }
+
     case "model":
       if (arg) {
         const match = CHAT_MODELS.find(m => m.id === arg || m.label.toLowerCase() === arg.toLowerCase());
@@ -377,6 +402,7 @@ async function handleSlashCommand(
       console.log(`    ${brand.cyan("/branches")}       ${brand.dim("List git branches")}`);
       console.log(`    ${brand.cyan("/recall <query>")} ${brand.dim("Search memory")}`);
       console.log(`    ${brand.cyan("/processes")}      ${brand.dim("List running processes")}`);
+      console.log(`    ${brand.cyan("/simple <msg>")}   ${brand.dim("Direct chat (no tools)")}`);
       console.log(`    ${brand.cyan("/clear")}          ${brand.dim("Clear conversation history")}`);
       console.log(`    ${brand.cyan("/help")}           ${brand.dim("Show this help")}`);
       console.log(`    ${brand.cyan("/exit")}           ${brand.dim("Exit (or Ctrl+C)")}`);
