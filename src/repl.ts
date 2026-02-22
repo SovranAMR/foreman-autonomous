@@ -250,6 +250,8 @@ async function animateModelSwitch(oldModel: string, newModel: string) {
 async function handleSlashCommand(
   input: string,
   state: ReplState,
+  cwd: string,
+  gitEngine: GitEngine,
 ): Promise<"continue" | "exit"> {
   const parts = input.slice(1).split(/\s+/);
   const cmd = parts[0].toLowerCase();
@@ -277,6 +279,56 @@ async function handleSlashCommand(
       console.log(`    ${icon.done} ${brand.green("Conversation cleared — fresh metal on the anvil.")}`);
       console.log("");
       return "continue";
+
+    case "branches": {
+      try {
+        const info = gitEngine.getBranches();
+        console.log(brand.gold(`\n    ◆ Git Branches\n`));
+        console.log(`    Current: ${brand.bold(info.current)}`);
+        for (const b of info.all) {
+          const marker = b === info.current ? brand.green(" ◄") : "";
+          console.log(`    • ${b}${marker}`);
+        }
+        const taskBranches = gitEngine.listTaskBranches();
+        if (taskBranches.length > 0) {
+          console.log(`\n    Task branches: ${taskBranches.join(", ")}`);
+        }
+      } catch {
+        console.log(`    ${brand.dim("Not a git repository.")}`);
+      }
+      console.log("");
+      return "continue";
+    }
+
+    case "recall": {
+      if (!arg) {
+        console.log(`    ${brand.dim("Usage: /recall <query>")}`);
+        return "continue";
+      }
+      const mm = new (await import("./memory-manager.js")).MemoryManager(cwd);
+      const results = mm.recall(arg, 5);
+      console.log(brand.gold(`\n    ◆ Memory Recall: "${arg}" (${results.length} results)\n`));
+      for (const r of results) {
+        console.log(`    [${(r.score * 100).toFixed(0)}%] ${r.content.slice(0, 80)}`);
+      }
+      console.log("");
+      return "continue";
+    }
+
+    case "processes": {
+      const pr = new (await import("./process-registry.js")).ProcessRegistry();
+      const stats = {
+        running: pr.listRunning().length,
+        finished: pr.listFinished().length,
+        total: pr.listRunning().length + pr.listFinished().length,
+      };
+      console.log(brand.gold(`\n    ◆ Processes: ${stats.running} running, ${stats.finished} finished\n`));
+      for (const p of pr.listRunning()) {
+        console.log(`    ${icon.pending} ${brand.bold(p.id.slice(0, 8))} ${brand.dim(p.command?.slice(0, 50) ?? "?")}`);
+      }
+      console.log("");
+      return "continue";
+    }
 
     case "model":
       if (arg) {
@@ -322,6 +374,9 @@ async function handleSlashCommand(
       console.log(`    ${brand.cyan("/models")}         ${brand.dim("List available models")}`);
       console.log(`    ${brand.cyan("/tools")}          ${brand.dim("List available tools")}`);
       console.log(`    ${brand.cyan("/status")}         ${brand.dim("Show session status")}`);
+      console.log(`    ${brand.cyan("/branches")}       ${brand.dim("List git branches")}`);
+      console.log(`    ${brand.cyan("/recall <query>")} ${brand.dim("Search memory")}`);
+      console.log(`    ${brand.cyan("/processes")}      ${brand.dim("List running processes")}`);
       console.log(`    ${brand.cyan("/clear")}          ${brand.dim("Clear conversation history")}`);
       console.log(`    ${brand.cyan("/help")}           ${brand.dim("Show this help")}`);
       console.log(`    ${brand.cyan("/exit")}           ${brand.dim("Exit (or Ctrl+C)")}`);
@@ -586,7 +641,7 @@ export async function startRepl(): Promise<void> {
 
       // Slash commands
       if (input.startsWith("/")) {
-        const result = await handleSlashCommand(input, state);
+        const result = await handleSlashCommand(input, state, cwd, gitEngine);
         if (result === "exit") {
           state.running = false;
           rl.close();

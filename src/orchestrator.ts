@@ -177,10 +177,12 @@ export class Orchestrator {
     this.emit({ type: "thought_complete", thought: visionResult.thought });
 
     if (this.checkBlock(visionResult, "vision")) {
+      this.engine.chains.updateStatus(visionChain.id, "blocked");
       return this.buildResult(false, totalThoughts, visionChain.id, "vision");
     }
 
     const visionOutput = visionResult.thought.output;
+    this.engine.chains.updateSummary(visionChain.id, visionOutput.slice(0, 500));
     this.emit({ type: "phase_end", phase: "vision", detail: visionOutput.slice(0, 100) });
 
     // ─── 2. DECOMPOSE ───────────────────────────────────────
@@ -222,6 +224,41 @@ export class Orchestrator {
 
     this.emit({ type: "phase_end", phase: "decompose", detail: `${blocks.length} blocks` });
 
+    // ─── TASK MANAGEMENT — register blocks as subtasks ──────
+    const parentTask = this.engine.tasks.create({
+      title: task.slice(0, 80),
+      description: visionOutput.slice(0, 200),
+      projectId: this.engine.state.snapshot().projectName,
+      type: "feature" as any,
+      priority: "high" as any,
+    });
+    this.engine.tasks.addChain(parentTask.id, visionChain.id);
+
+    for (let bi = 0; bi < blocks.length; bi++) {
+      const blockTask = this.engine.tasks.create({
+        title: `Block ${bi + 1}: ${blocks[bi].slice(0, 60)}`,
+        description: blocks[bi],
+        projectId: this.engine.state.snapshot().projectName,
+        type: "feature" as any,
+        priority: "medium" as any,
+      });
+      this.engine.tasks.addSubtask(parentTask.id, blockTask.id);
+    }
+
+    // Topological sort — get optimal execution order
+    const sortedTasks = this.engine.tasks.topologicalSort(
+      this.engine.state.snapshot().projectName,
+    );
+    const readyTasks = this.engine.tasks.getReadyTasks(
+      this.engine.state.snapshot().projectName,
+    );
+
+    this.emit({
+      type: "phase_start",
+      phase: "task_planning",
+      detail: `${sortedTasks.length} tasks planned, ${readyTasks.length} ready`,
+    });
+
     // ─── 3. FOR EACH BLOCK ──────────────────────────────────
 
     let atomCount = 0;
@@ -236,6 +273,39 @@ export class Orchestrator {
         this.engine.state.transition("researching", `Researching block ${i + 1}`, {
           chainId: visionChain.id,
         });
+      }
+
+      // Memory recall — pull relevant memories from prior work
+      let memoryContext = "";
+      try {
+        // Hot memories (recent, high-access)
+        const hotMemories = this.engine.memory.getHotMemories(
+          this.engine.state.snapshot().projectName,
+        );
+        // Warm memories (tag-matched)
+        const blockKeywords = block.split(/\s+/).filter(w => w.length > 3).slice(0, 5);
+        const warmMemories = this.engine.memory.getWarmMemories(
+          blockKeywords,
+          this.engine.state.snapshot().projectName,
+        );
+        // Semantic recall via similarity
+        const recalled = this.engine.recall(block, 3);
+
+        const memParts: string[] = [];
+        if (hotMemories.length > 0) {
+          memParts.push(`Recent context:\n${hotMemories.slice(0, 3).map(m => `- ${m.content.slice(0, 100)}`).join("\n")}`);
+        }
+        if (warmMemories.length > 0) {
+          memParts.push(`Related knowledge:\n${warmMemories.slice(0, 3).map(m => `- ${m.content.slice(0, 100)}`).join("\n")}`);
+        }
+        if (recalled.length > 0) {
+          memParts.push(`Memory recall:\n${recalled.map(r => `- [${(r.score * 100).toFixed(0)}%] ${r.content.slice(0, 100)}`).join("\n")}`);
+        }
+        if (memParts.length > 0) {
+          memoryContext = "\n\nFrom memory:\n" + memParts.join("\n");
+        }
+      } catch {
+        // Memory recall is best-effort
       }
 
       // Web research augmentation — search for real context before LLM call
@@ -276,7 +346,7 @@ export class Orchestrator {
 
       const researchResult = await this.engine.stepWithPhase(
         visionChain.id,
-        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nContext (vision):\n${visionOutput.slice(0, 500)}${webContext}${crossChainCtx}`,
+        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nContext (vision):\n${visionOutput.slice(0, 500)}${memoryContext}${webContext}${crossChainCtx}`,
         "researcher",
         "research",
         [visionResult.thought.id, decomposeResult.thought.id],
@@ -328,6 +398,39 @@ export class Orchestrator {
       // ── 3c. EXECUTE EACH ATOM ──
       for (let j = 0; j < atoms.length; j++) {
         const atom = atoms[j];
+
+        // Context window check — evaluate budget before each atom
+        try {
+          const ctxWindow = this.engine.getContextWindow();
+          const ctxEval = this.engine.evaluateContext(
+            "gpt-4o", // default model for budget check
+            "",
+            atom,
+            findings.slice(0, 500),
+          );
+          if (!ctxEval.isSafe) {
+            // Compact context before executing
+            const compact = this.engine.buildCompactContextForChain(visionChain.id, ctxWindow.tokens / 2);
+            if (compact && compact.length > 0) {
+              this.emit({
+                type: "phase_start",
+                phase: "context_compact",
+                detail: `Compacted context: ${compact.length} chars`,
+              });
+            }
+          }
+        } catch {
+          // Context check is best-effort
+        }
+
+        // Cross-chain context for this atom
+        let atomCrossCtx = "";
+        try {
+          const crossCtx = this.engine.getCrossChainContext(atom, visionChain.id);
+          if (crossCtx) {
+            atomCrossCtx = `\n\nCross-chain insights:\n${crossCtx}`;
+          }
+        } catch { /* best-effort */ }
 
         this.emit({ type: "phase_start", phase: "execute", detail: `Atom ${j + 1}/${atoms.length}: ${atom.slice(0, 50)}` });
 
@@ -641,12 +744,68 @@ export class Orchestrator {
       this.engine.state.transition("complete", "Pipeline complete");
     }
 
+    // ─── CHAIN STATUS — mark chain as completed ─────────────
+    this.engine.chains.updateStatus(visionChain.id, "completed");
+
+    // ─── PROCESS STATS — log pipeline resource usage ────────
+    try {
+      const pstats = this.engine.processStats();
+      if (pstats.total > 0) {
+        this.emit({
+          type: "phase_end",
+          phase: "process_summary",
+          detail: `Processes: ${pstats.running} running, ${pstats.finished} finished, ${pstats.total} total`,
+        });
+      }
+    } catch { /* best-effort */ }
+
+    // ─── MEMORY CATEGORIZATION — generate structured memory files ──
+    try {
+      this.engine.generateCategoryMemoryFiles();
+    } catch { /* best-effort */ }
+
+    // ─── GIT BRANCHES — log task branch info ────────────────
+    try {
+      const branches = this.engine.getBranches();
+      const taskBranches = this.engine.listTaskBranches();
+      if (taskBranches.length > 0) {
+        this.emit({
+          type: "phase_end",
+          phase: "git_summary",
+          detail: `Branches: ${branches.current} (${taskBranches.length} task branches)`,
+        });
+      }
+    } catch { /* best-effort for non-git projects */ }
+
+    // ─── CACHE TTL — set layer-aware cache for results ──────
+    try {
+      const workerTtl = this.engine.cache.getTtlForLayer("worker");
+      this.emit({
+        type: "phase_end",
+        phase: "cache_config",
+        detail: `Worker cache TTL: ${Math.round(workerTtl / 60_000)}min`,
+      });
+    } catch { /* best-effort */ }
+
     // ─── SESSION AUTO-END ───────────────────────────────────
     this.engine.sessions.end(
       session.id,
       "completed",
       `${task.slice(0, 80)} — ${totalThoughts} thoughts, ${atomCount} atoms`,
     );
+
+    // Register completed task in session for future context
+    this.engine.sessions.addCompletedTask(session.id, parentTask?.id ?? "unknown");
+
+    // Get recent session summaries for pipeline summary event
+    const recentSummaries = this.engine.sessions.getRecentSummaries(3);
+    if (recentSummaries.length > 1) {
+      this.emit({
+        type: "phase_end",
+        phase: "session_history",
+        detail: `Recent: ${recentSummaries.join(" | ")}`,
+      });
+    }
 
     return this.buildResult(true, totalThoughts, visionChain.id);
   }

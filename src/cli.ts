@@ -1116,6 +1116,363 @@ intCmd
     console.log("");
   });
 
+// ── PROCESSES ──
+
+intCmd
+  .command("processes")
+  .description("List running and finished processes")
+  .option("-d, --dir <path>", "Project directory")
+  .option("--running", "Show only running")
+  .option("--finished", "Show only finished")
+  .option("--chain <id>", "Filter by chain")
+  .option("--layer <layer>", "Filter by layer")
+  .option("--thought <id>", "Filter by thought")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    if (opts.running) {
+      const procs = engine.listRunningProcesses();
+      console.log(brand.gold(`\n  ◆ Running Processes (${procs.length})\n`));
+      for (const p of procs) {
+        console.log(`  ${icon.pending} ${brand.bold(p.id.slice(0, 8))} ${brand.dim(p.command?.slice(0, 50) ?? "?")}`);
+      }
+    } else if (opts.finished) {
+      const procs = engine.listFinishedProcesses();
+      console.log(brand.gold(`\n  ◆ Finished Processes (${procs.length})\n`));
+      for (const p of procs) {
+        const si = p.exitCode === 0 ? brand.green("✔") : brand.red("✖");
+        console.log(`  ${si} ${brand.bold(p.id.slice(0, 8))} exit:${p.exitCode} ${brand.dim(p.command?.slice(0, 50) ?? "?")}`);
+      }
+    } else if (opts.chain) {
+      const procs = engine.listProcessesByChain(opts.chain);
+      console.log(brand.gold(`\n  ◆ Chain ${opts.chain} Processes (${procs.length})\n`));
+      for (const p of procs) {
+        console.log(`  • ${brand.bold(p.id.slice(0, 8))} ${brand.dim(p.command?.slice(0, 50) ?? "?")}`);
+      }
+    } else if (opts.layer) {
+      const procs = engine.listProcessesByLayer(opts.layer);
+      console.log(brand.gold(`\n  ◆ Layer ${opts.layer} Processes (${procs.length})\n`));
+      for (const p of procs) {
+        console.log(`  • ${brand.bold(p.id.slice(0, 8))} ${brand.dim(p.command?.slice(0, 50) ?? "?")}`);
+      }
+    } else if (opts.thought) {
+      const procs = engine.listProcessesByThought(opts.thought);
+      console.log(brand.gold(`\n  ◆ Thought ${opts.thought} Processes (${procs.length})\n`));
+      for (const p of procs) {
+        console.log(`  • ${brand.bold(p.id.slice(0, 8))} ${brand.dim(p.command?.slice(0, 50) ?? "?")}`);
+      }
+    } else {
+      const stats = engine.processStats();
+      console.log(brand.gold(`\n  ◆ Process Stats\n`));
+      console.log(`  Running:  ${stats.running}`);
+      console.log(`  Finished: ${stats.finished}`);
+      console.log(`  Total:    ${stats.total}`);
+    }
+    console.log("");
+    engine.shutdown();
+  });
+
+// ── PROCESS INSPECT ──
+
+intCmd
+  .command("process <id>")
+  .description("Inspect or poll a specific process")
+  .option("-d, --dir <path>", "Project directory")
+  .option("--poll", "Wait for process to finish")
+  .action((id: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    if (opts.poll) {
+      const result = engine.pollProcess(id);
+      if (result) {
+        console.log(brand.gold(`\n  ◆ Process ${id}\n`));
+        console.log(`  Status: ${result.exitCode === 0 ? "success" : "failed"}`);
+        console.log(`  Exit:   ${result.exitCode}`);
+        if (result.stdout) console.log(`  Stdout: ${result.stdout.slice(0, 200)}`);
+      } else {
+        console.log(`  ${icon.pending} Process ${id} not found or still running.`);
+      }
+    } else {
+      const proc = engine.getProcess(id);
+      if (proc) {
+        console.log(brand.gold(`\n  ◆ Process ${id}\n`));
+        console.log(`  Command:  ${proc.command ?? "?"}`);
+        console.log(`  Status:   ${proc.exitCode !== undefined ? `exit ${proc.exitCode}` : "running"}`);
+      } else {
+        console.log(`  ${icon.pending} Process ${id} not found.`);
+      }
+    }
+    console.log("");
+    engine.shutdown();
+  });
+
+// ── KILL PROCESSES ──
+
+intCmd
+  .command("kill-processes")
+  .description("Kill processes by layer or thought")
+  .option("-d, --dir <path>", "Project directory")
+  .option("--layer <layer>", "Kill by layer")
+  .option("--thought <id>", "Kill by thought")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    if (opts.layer) {
+      engine.killProcessesByLayer(opts.layer);
+      console.log(`  ${brand.green("✔")} Killed processes for layer: ${opts.layer}`);
+    } else if (opts.thought) {
+      engine.killProcessesByThought(opts.thought);
+      console.log(`  ${brand.green("✔")} Killed processes for thought: ${opts.thought}`);
+    } else {
+      console.log(`  ${icon.block} Specify --layer or --thought`);
+    }
+    engine.shutdown();
+  });
+
+// ── GIT BRANCHES ──
+
+intCmd
+  .command("branches")
+  .description("List branches and task branches")
+  .option("-d, --dir <path>", "Project directory")
+  .option("--task", "Show only task branches")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    if (opts.task) {
+      const branches = engine.listTaskBranches();
+      console.log(brand.gold(`\n  ◆ Task Branches (${branches.length})\n`));
+      for (const b of branches) {
+        console.log(`  • ${brand.bold(b)}`);
+      }
+    } else {
+      const info = engine.getBranches();
+      console.log(brand.gold(`\n  ◆ Git Branches\n`));
+      console.log(`  Current: ${brand.bold(info.current)}`);
+      for (const b of info.all) {
+        const marker = b === info.current ? brand.green(" ◄") : "";
+        console.log(`  • ${b}${marker}`);
+      }
+    }
+    console.log("");
+    engine.shutdown();
+  });
+
+// ── GIT HISTORY ──
+
+intCmd
+  .command("git-history <chainId>")
+  .description("Show git history for a chain")
+  .option("-d, --dir <path>", "Project directory")
+  .action((chainId: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    const history = engine.getChainHistory(chainId);
+    console.log(brand.gold(`\n  ◆ Chain ${chainId} Git History\n`));
+    for (const entry of history) {
+      console.log(`  ${brand.dim(entry.hash?.slice(0, 7) ?? "?")} ${entry.message?.slice(0, 60) ?? "?"}`);
+    }
+    console.log("");
+    engine.shutdown();
+  });
+
+// ── SWITCH BRANCH ──
+
+intCmd
+  .command("switch-branch <branch>")
+  .description("Switch git branch")
+  .option("-d, --dir <path>", "Project directory")
+  .action((branch: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    const result = engine.switchBranch(branch);
+    if (result.success) {
+      console.log(`  ${brand.green("✔")} Switched to: ${branch}`);
+    } else {
+      console.log(`  ${brand.red("✖")} Failed: ${result.error ?? "unknown"}`);
+    }
+    engine.shutdown();
+  });
+
+// ── MEMORY COMMANDS ──
+
+intCmd
+  .command("recall <query>")
+  .description("Search memories by semantic similarity")
+  .option("-d, --dir <path>", "Project directory")
+  .option("-n, --limit <count>", "Max results", "5")
+  .action((query: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    const results = engine.recall(query, Number(opts.limit));
+    console.log(brand.gold(`\n  ◆ Memory Recall: "${query}" (${results.length} results)\n`));
+    for (const r of results) {
+      console.log(`  [${(r.score * 100).toFixed(0)}%] ${r.content.slice(0, 80)}`);
+    }
+    console.log("");
+    engine.shutdown();
+  });
+
+intCmd
+  .command("memory-export")
+  .description("Generate structured memory document")
+  .option("-d, --dir <path>", "Project directory")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    const doc = engine.generateMemoryDocument();
+    console.log(doc);
+    engine.shutdown();
+  });
+
+intCmd
+  .command("memory-import <file>")
+  .description("Parse and import a memory document")
+  .option("-d, --dir <path>", "Project directory")
+  .action((file: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    if (!existsSync(file)) {
+      console.log(`  ${brand.red("✖")} File not found: ${file}`);
+      return;
+    }
+    const content = readFileSync(file, "utf-8");
+    const entries = engine.parseMemoryDocument(content);
+    console.log(brand.gold(`\n  ◆ Parsed ${entries.length} memory entries\n`));
+    for (const e of entries) {
+      console.log(`  • [${e.category}] ${e.content.slice(0, 60)} ${brand.dim(`tags: ${e.tags.join(", ")}`)}`);
+    }
+    console.log("");
+    engine.shutdown();
+  });
+
+intCmd
+  .command("memory-categorize")
+  .description("Generate category-based memory files")
+  .option("-d, --dir <path>", "Project directory")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    engine.generateCategoryMemoryFiles();
+    console.log(`  ${brand.green("✔")} Category memory files generated.`);
+    engine.shutdown();
+  });
+
+// ── CONFIG COMMANDS ──
+
+intCmd
+  .command("queue-concurrency <lane> <max>")
+  .description("Set command queue concurrency for a lane")
+  .option("-d, --dir <path>", "Project directory")
+  .action((lane: string, max: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    engine.setQueueConcurrency(lane, Number(max));
+    console.log(`  ${brand.green("✔")} Queue lane "${lane}" concurrency set to ${max}`);
+    engine.shutdown();
+  });
+
+intCmd
+  .command("scheduler <id> <enabled>")
+  .description("Enable/disable a scheduler task")
+  .option("-d, --dir <path>", "Project directory")
+  .action((id: string, enabled: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    engine.setScheduleEnabled(id, enabled === "true" || enabled === "on");
+    console.log(`  ${brand.green("✔")} Scheduler "${id}" → ${enabled}`);
+    engine.shutdown();
+  });
+
+intCmd
+  .command("allowlist")
+  .description("Show approval engine allowlist")
+  .option("-d, --dir <path>", "Project directory")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    const list = engine.getApprovalAllowlist();
+    console.log(brand.gold(`\n  ◆ Approval Allowlist (${list.length} patterns)\n`));
+    for (const pattern of list) {
+      console.log(`  ${brand.green("✔")} ${pattern}`);
+    }
+    console.log("");
+    engine.shutdown();
+  });
+
+// ── QUICK EDIT ──
+
+intCmd
+  .command("edit <file>")
+  .description("Quick file edit via Engine")
+  .requiredOption("--old <text>", "Text to find")
+  .requiredOption("--new <text>", "Replacement text")
+  .option("-d, --dir <path>", "Project directory")
+  .action((file: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    const result = engine.quickEdit(join(projectRoot, file), opts.old, opts.new);
+    if (result.success) {
+      console.log(`  ${brand.green("✔")} Edited: ${file}`);
+    } else {
+      console.log(`  ${brand.red("✖")} Edit failed: ${result.error ?? "unknown"}`);
+    }
+    engine.shutdown();
+  });
+
+// ── DELAYED TASK ──
+
+intCmd
+  .command("delay <id> <ms>")
+  .description("Add a delayed task to the scheduler")
+  .option("-d, --dir <path>", "Project directory")
+  .action((id: string, ms: string, opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    engine.addDelayedTask(id, Number(ms), () => {
+      console.log(`  ${brand.green("✔")} Delayed task "${id}" fired.`);
+    });
+    console.log(`  ${icon.pending} Delayed task "${id}" scheduled for ${ms}ms.`);
+    // Note: process will exit before timer fires in CLI mode — useful for testing API
+    engine.shutdown();
+  });
+
+// ── RATE LIMIT RESET ──
+
+intCmd
+  .command("reset-budget")
+  .description("Reset rate limiter chain budget")
+  .option("-d, --dir <path>", "Project directory")
+  .option("--model", "Also reset model fallback")
+  .action((opts: any) => {
+    const projectRoot = resolve(opts.dir ?? process.cwd());
+    const engine = new Engine({ projectRoot, projectName: "cli" });
+
+    engine.resetChainBudget();
+    if (opts.model) {
+      engine.resetModel();
+      console.log(`  ${brand.green("✔")} Chain budget + model fallback reset.`);
+    } else {
+      console.log(`  ${brand.green("✔")} Chain budget reset.`);
+    }
+    engine.shutdown();
+  });
+
 // ─── PROJECTS ─────────────────────────────────────────────────
 
 const projectCmd = program

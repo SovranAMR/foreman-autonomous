@@ -29,6 +29,7 @@ import type { ParsePhase, ParseError } from "./parser.js";
 import { parseForPhase, buildRetryPrompt } from "./parser.js";
 import { MemoryManager } from "./memory-manager.js";
 import { SessionManager } from "./session-manager.js";
+import { TaskManager } from "./task-manager.js";
 import { CacheManager } from "./cache-manager.js";
 import { runWithFallback } from "./model-fallback.js";
 import { AGGRESSIVE_RETRY_CONFIG } from "./retry.js";
@@ -91,6 +92,7 @@ export class Engine {
   readonly memory: MemoryManager;
   readonly sessions: SessionManager;
   readonly cache: CacheManager;
+  readonly tasks: TaskManager;
 
   // ─── SUBSYSTEMS ─────────────────────────────────────────────
   readonly processRegistry: ProcessRegistry;
@@ -128,6 +130,7 @@ export class Engine {
     this.memory = new MemoryManager(config.projectRoot);
     this.sessions = new SessionManager(config.projectRoot);
     this.cache = new CacheManager(config.projectRoot);
+    this.tasks = new TaskManager(config.projectRoot);
 
     // ─── SUBSYSTEM INITIALIZATION ───────────────────────────
     this.processRegistry = new ProcessRegistry();
@@ -889,6 +892,20 @@ export class Engine {
   }
 
   // ─── GIT LIFECYCLE ──────────────────────────────────────────
+
+  /**
+   * Reset chain token budget — call when starting a new chain.
+   */
+  resetChainBudget(): void {
+    this.rateLimiter.resetChainBudget();
+  }
+
+  /**
+   * Reset model to primary — clear fallback state after rate limit recovery.
+   */
+  resetModel(): void {
+    this.rateLimiter.resetModel();
+  }
 
   /**
    * Complete task branch lifecycle — switch back to main, optionally delete task branch.

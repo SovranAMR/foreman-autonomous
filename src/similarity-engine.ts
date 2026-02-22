@@ -375,7 +375,21 @@ export class SimilarityEngine {
   }
 
   /**
+   * Batch index — add multiple documents and reindex once.
+   * Uses TfIdfVectorizer.addDocuments for efficient batch TF-IDF computation.
+   */
+  indexBatch(entries: Array<{ id: string; text: string }>): void {
+    // Batch add to vectorizer for IDF accuracy
+    this.vectorizer.addDocuments(entries.map(e => e.text));
+    for (const entry of entries) {
+      const vector = this.vectorizer.vectorize(entry.text);
+      this.documents.set(entry.id, { text: entry.text, vector });
+    }
+  }
+
+  /**
    * Find the single most similar document.
+   * Convenience wrapper over search(query, 1).
    */
   findMostSimilar(query: string): SimilarityResult | null {
     const results = this.search(query, 1, 0);

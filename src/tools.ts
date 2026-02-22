@@ -526,6 +526,33 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: [],
     },
   },
+  {
+    name: "batch_ops",
+    description:
+      "Execute multiple file operations atomically (read/write/edit/delete). Uses ExecutionEngine.executeOperations for unified security.",
+    parameters: {
+      type: "object",
+      properties: {
+        operations: {
+          type: "array",
+          description: "Array of {type, path, content?, oldText?, newText?, startLine?, endLine?}",
+        },
+      },
+      required: ["operations"],
+    },
+  },
+  {
+    name: "git_log",
+    description:
+      "Show recent git commit history.",
+    parameters: {
+      type: "object",
+      properties: {
+        count: { type: "number", description: "Number of commits (default 10)" },
+      },
+      required: [],
+    },
+  },
 ];
 
 /**
@@ -621,6 +648,10 @@ function createToolDispatcher(
           return executeSearchInFiles(engine, call.args);
         case "kill_processes":
           return executeKillProcesses(engine);
+        case "batch_ops":
+          return executeBatchOps(engine, call.args);
+        case "git_log":
+          return executeGitLog(gitEngine, call.args);
         default:
           return { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
       }
@@ -1377,6 +1408,42 @@ function executeSearchInFiles(engine: ExecutionEngine, args: Record<string, unkn
 function executeKillProcesses(engine: ExecutionEngine): ToolResult {
   engine.killAllProcesses();
   return { name: "kill_processes", content: "All background processes killed.", isError: false };
+}
+
+function executeBatchOps(engine: ExecutionEngine, args: Record<string, unknown>): ToolResult {
+  const ops = args.operations as Array<{
+    type: string;
+    path: string;
+    content?: string;
+    oldText?: string;
+    newText?: string;
+    startLine?: number;
+    endLine?: number;
+  }>;
+  if (!Array.isArray(ops) || ops.length === 0) {
+    return { name: "batch_ops", content: "Error: operations array required", isError: true };
+  }
+
+  const results = engine.executeOperations(ops as any);
+  const summary = results.map(r =>
+    r.success ? `✔ ${r.path}` : `✖ ${r.path}: ${r.error ?? "unknown"}`
+  ).join("\n");
+
+  const hasErrors = results.some(r => !r.success);
+  return {
+    name: "batch_ops",
+    content: `Batch operations: ${results.filter(r => r.success).length}/${results.length} succeeded\n${summary}`,
+    isError: hasErrors,
+  };
+}
+
+function executeGitLog(gitEngine: GitEngine, args: Record<string, unknown>): ToolResult {
+  const count = (args.count as number) ?? 10;
+  const result = gitEngine.executor.gitLog(count);
+  if (!result.success) {
+    return { name: "git_log", content: `Git log error: ${result.stderr}`, isError: true };
+  }
+  return { name: "git_log", content: result.stdout.slice(0, 3000), isError: false };
 }
 
 // ─── GEMINI FUNCTION DECLARATIONS FORMAT ─────────────────────

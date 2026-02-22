@@ -332,11 +332,13 @@ export class MemoryManager {
    */
   private buildSimilarityEngine(entries: MemoryEntry[]): SimilarityEngine {
     const engine = new SimilarityEngine();
-    for (const entry of entries) {
-      const searchText = `${entry.content} ${entry.tags.join(" ")}`;
-      engine.index(entry.id, searchText);
-    }
-    engine.reindex();
+    // Use batch indexing for efficiency (single IDF pass)
+    engine.indexBatch(
+      entries.map(entry => ({
+        id: entry.id,
+        text: `${entry.content} ${entry.tags.join(" ")}`,
+      })),
+    );
     return engine;
   }
 
