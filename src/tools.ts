@@ -659,6 +659,115 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: ["query"],
     },
   },
+  // ─── BROWSER TOOLS ───────────────────────────────────────
+  {
+    name: "browser_navigate",
+    description: "Navigate to a URL and get page info (title, status code). Use to check if a website/dev server is working.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "URL to navigate to" },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "browser_screenshot",
+    description: "Take a screenshot of a web page. Returns base64 image. Use to visually verify a website or UI.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "URL to screenshot" },
+        full_page: { type: "boolean", description: "Capture full page (default false)" },
+        selector: { type: "string", description: "CSS selector to screenshot specific element" },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "browser_extract",
+    description: "Extract content from a web page — text, links, headings, images, forms. Use for scraping or analysis.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "URL to extract content from" },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "browser_pdf",
+    description: "Generate a PDF from a web page. Use for documentation or reports.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "URL to convert to PDF" },
+        output_path: { type: "string", description: "Output file path (optional)" },
+      },
+      required: ["url"],
+    },
+  },
+  // ─── IDENTITY & MEMORY TOOLS ─────────────────────────────
+  {
+    name: "memory_read",
+    description: "Read a value from persistent memory. Memory survives across sessions.",
+    parameters: {
+      type: "object",
+      properties: {
+        key: { type: "string", description: "Memory key to read" },
+      },
+      required: ["key"],
+    },
+  },
+  {
+    name: "memory_write",
+    description: "Write a value to persistent memory. Use to remember important information across sessions.",
+    parameters: {
+      type: "object",
+      properties: {
+        key: { type: "string", description: "Memory key" },
+        value: { type: "string", description: "Value to store" },
+        section: { type: "string", description: "Memory section (optional)" },
+      },
+      required: ["key", "value"],
+    },
+  },
+  {
+    name: "memory_search",
+    description: "Search persistent memory for matching entries.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "spawn_subagent",
+    description: "Spawn a sub-agent to handle a task in parallel. Use for complex tasks that can be divided.",
+    parameters: {
+      type: "object",
+      properties: {
+        task: { type: "string", description: "Task for the sub-agent" },
+        role: { type: "string", description: "Role (frontend, backend, testing, research)" },
+        label: { type: "string", description: "Human-readable label" },
+      },
+      required: ["task"],
+    },
+  },
+  {
+    name: "diff_preview",
+    description: "Show a unified diff of what will change in a file before writing. Use before write_file to review changes.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "File path" },
+        new_content: { type: "string", description: "Proposed new content" },
+      },
+      required: ["path", "new_content"],
+    },
+  },
 ];
 
 /**
@@ -774,6 +883,33 @@ function createToolDispatcher(
           return executeSessionSpawn(engine, call.args);
         case "semantic_search":
           return await executeSemanticSearch(engine, call.args);
+
+        // ─── BROWSER TOOLS ──────────────────────────────────
+        case "browser_navigate":
+          return await executeBrowserNavigate(engine, call.args);
+        case "browser_screenshot":
+          return await executeBrowserScreenshot(engine, call.args);
+        case "browser_extract":
+          return await executeBrowserExtract(engine, call.args);
+        case "browser_pdf":
+          return await executeBrowserPdf(engine, call.args);
+
+        // ─── IDENTITY & MEMORY TOOLS ────────────────────────
+        case "memory_read":
+          return executeMemoryRead(engine, call.args);
+        case "memory_write":
+          return executeMemoryWrite(engine, call.args);
+        case "memory_search":
+          return executeMemorySearch(engine, call.args);
+
+        // ─── SUB-AGENT TOOLS ────────────────────────────────
+        case "spawn_subagent":
+          return await executeSpawnSubagent(engine, call.args);
+
+        // ─── DIFF TOOLS ─────────────────────────────────────
+        case "diff_preview":
+          return executeDiffPreview(engine, call.args);
+
         default:
           return { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
       }
@@ -1759,4 +1895,188 @@ export function toGeminiFunctionDeclarations(): ToolDefinition[] {
     description: t.description,
     parameters: t.parameters,
   }));
+}
+
+// ─── BROWSER TOOL EXECUTORS ─────────────────────────────────
+
+async function executeBrowserNavigate(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
+  const url = args.url as string;
+  if (!url) return { name: "browser_navigate", content: "Error: url is required", isError: true };
+
+  try {
+    const { BrowserEngine } = await import("./browser-engine.js");
+    const browser = new BrowserEngine(engine.projectRoot ?? process.cwd());
+    const result = await browser.navigate(url);
+    return {
+      name: "browser_navigate",
+      content: JSON.stringify(result, null, 2),
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "browser_navigate", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+async function executeBrowserScreenshot(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
+  const url = args.url as string;
+  if (!url) return { name: "browser_screenshot", content: "Error: url is required", isError: true };
+
+  try {
+    const { BrowserEngine } = await import("./browser-engine.js");
+    const browser = new BrowserEngine(engine.projectRoot ?? process.cwd());
+    const result = await browser.screenshot(url, {
+      fullPage: args.full_page as boolean,
+      selector: args.selector as string,
+    });
+    return {
+      name: "browser_screenshot",
+      content: `Screenshot saved: ${result.path} (${result.width}x${result.height}, ${Math.round(result.sizeBytes / 1024)}KB)\nBase64 length: ${result.base64.length}`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "browser_screenshot", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+async function executeBrowserExtract(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
+  const url = args.url as string;
+  if (!url) return { name: "browser_extract", content: "Error: url is required", isError: true };
+
+  try {
+    const { BrowserEngine } = await import("./browser-engine.js");
+    const browser = new BrowserEngine(engine.projectRoot ?? process.cwd());
+    const content = await browser.extractContent(url);
+    const summary = [
+      `Title: ${content.title}`,
+      `URL: ${content.url}`,
+      `Headings: ${content.headings.map(h => `${"#".repeat(h.level)} ${h.text}`).join(", ")}`,
+      `Links: ${content.links.length}`,
+      `Images: ${content.images.length}`,
+      `Forms: ${content.forms.length}`,
+      ``,
+      `Text (first 2000 chars):`,
+      content.text.slice(0, 2000),
+    ].join("\n");
+    return { name: "browser_extract", content: summary, isError: false };
+  } catch (err) {
+    return { name: "browser_extract", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+async function executeBrowserPdf(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
+  const url = args.url as string;
+  if (!url) return { name: "browser_pdf", content: "Error: url is required", isError: true };
+
+  try {
+    const { BrowserEngine } = await import("./browser-engine.js");
+    const browser = new BrowserEngine(engine.projectRoot ?? process.cwd());
+    const pdfPath = await browser.pdf(url, args.output_path as string);
+    return { name: "browser_pdf", content: `PDF generated: ${pdfPath}`, isError: false };
+  } catch (err) {
+    return { name: "browser_pdf", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+// ─── MEMORY TOOL EXECUTORS ──────────────────────────────────
+
+function executeMemoryRead(engine: any, args: Record<string, unknown>): ToolResult {
+  const key = args.key as string;
+  if (!key) return { name: "memory_read", content: "Error: key is required", isError: true };
+
+  try {
+    const { IdentityEngine } = require("./identity-engine.js");
+    const identity = new IdentityEngine(engine.projectRoot ?? process.cwd());
+    const value = identity.getMemory(key);
+    return {
+      name: "memory_read",
+      content: value ? `${key}: ${value}` : `Key "${key}" not found in memory`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "memory_read", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+function executeMemoryWrite(engine: any, args: Record<string, unknown>): ToolResult {
+  const key = args.key as string;
+  const value = args.value as string;
+  if (!key || !value) return { name: "memory_write", content: "Error: key and value are required", isError: true };
+
+  try {
+    const { IdentityEngine } = require("./identity-engine.js");
+    const identity = new IdentityEngine(engine.projectRoot ?? process.cwd());
+    identity.updateMemory(key, value, args.section as string);
+    return { name: "memory_write", content: `Saved: ${key} = ${value}`, isError: false };
+  } catch (err) {
+    return { name: "memory_write", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+function executeMemorySearch(engine: any, args: Record<string, unknown>): ToolResult {
+  const query = args.query as string;
+  if (!query) return { name: "memory_search", content: "Error: query is required", isError: true };
+
+  try {
+    const { IdentityEngine } = require("./identity-engine.js");
+    const identity = new IdentityEngine(engine.projectRoot ?? process.cwd());
+    const results = identity.searchMemory(query);
+    if (results.length === 0) return { name: "memory_search", content: "No matching memory entries found", isError: false };
+    const formatted = results.map(r => `- **${r.key}:** ${r.value}${r.section ? ` [${r.section}]` : ""}`).join("\n");
+    return { name: "memory_search", content: `Found ${results.length} entries:\n${formatted}`, isError: false };
+  } catch (err) {
+    return { name: "memory_search", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+// ─── SUB-AGENT TOOL EXECUTOR ────────────────────────────────
+
+async function executeSpawnSubagent(engine: any, args: Record<string, unknown>): Promise<ToolResult> {
+  const task = args.task as string;
+  if (!task) return { name: "spawn_subagent", content: "Error: task is required", isError: true };
+
+  try {
+    const { SubAgentEngine } = await import("./subagent-engine.js");
+    const subAgents = engine.subAgents ?? new SubAgentEngine();
+    const agent = await subAgents.spawn({
+      task,
+      role: args.role as string,
+      label: args.label as string,
+    });
+    return {
+      name: "spawn_subagent",
+      content: `Sub-agent spawned: ${agent.label} (${agent.id})\nTask: ${task.slice(0, 100)}\nStatus: ${agent.status}`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "spawn_subagent", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+// ─── DIFF TOOL EXECUTOR ─────────────────────────────────────
+
+function executeDiffPreview(engine: any, args: Record<string, unknown>): ToolResult {
+  const path = args.path as string;
+  const newContent = args.new_content as string;
+  if (!path || !newContent) return { name: "diff_preview", content: "Error: path and new_content are required", isError: true };
+
+  try {
+    const { generateDiff, formatColoredDiff } = require("./diff-engine.js");
+    const fs = require("node:fs");
+    const root = engine.projectRoot ?? process.cwd();
+    const fullPath = require("node:path").resolve(root, path);
+
+    let oldContent = "";
+    try { oldContent = fs.readFileSync(fullPath, "utf-8"); } catch { /* new file */ }
+
+    const diff = generateDiff(path, oldContent, newContent, root);
+    const plain = diff.unified || `New file: ${path} (${newContent.split("\n").length} lines)`;
+
+    return {
+      name: "diff_preview",
+      content: `+${diff.linesAdded} -${diff.linesRemoved} lines\n\n${plain}`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "diff_preview", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
 }

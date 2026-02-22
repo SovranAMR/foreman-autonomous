@@ -177,8 +177,9 @@ export class Orchestrator {
     this.emit({ type: "phase_start", phase: "vision", detail: task });
     this.engine.streaming.phaseStart("vision", task);
 
-    // Inject project context into vision
+    // Inject project context + identity into vision
     const projectContext = `\n\nProject Context:\n${formatProjectContext(this.engine.projectInfo)}`;
+    const identityContext = this.engine.identity?.buildContextInjection() ?? "";
 
     const visionChain = this.engine.chains.create({
       name: `Vision: ${task.slice(0, 40)}`,
@@ -194,7 +195,7 @@ export class Orchestrator {
 
     const visionResult = await this.engine.stepWithPhase(
       visionChain.id,
-      `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}`,
+      `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}${identityContext ? `\n\n${identityContext}` : ""}`,
       "visioner",
       "vision",
     );
@@ -218,6 +219,7 @@ export class Orchestrator {
     // ─── 2. DECOMPOSE ───────────────────────────────────────
 
     this.emit({ type: "phase_start", phase: "decompose", detail: "Breaking vision into blocks" });
+    this.engine.streaming.phaseStart("decompose", "Breaking vision into blocks");
 
     if (this.engine.state.canTransition("decomposing")) {
       this.engine.state.transition("decomposing", "Vision complete, decomposing", {
@@ -253,6 +255,7 @@ export class Orchestrator {
     }
 
     this.emit({ type: "phase_end", phase: "decompose", detail: `${blocks.length} blocks` });
+    this.engine.streaming.phaseEnd("decompose", `${blocks.length} blocks`);
 
     // ─── CHECKPOINT: Decompose complete ───
     this.resume.updatePhase("research", { blocks });
@@ -299,8 +302,15 @@ export class Orchestrator {
     for (let i = 0; i < blocks.length; i++) {
       const block = blocks[i];
 
+      // ─── STREAMING: Block start ───
+      this.engine.streaming.blockStart(i, blocks.length, block.slice(0, 60));
+
+      // ─── ROLLBACK: Block checkpoint ───
+      this.engine.rollback.createPoint("block", `Block ${i + 1}: ${block.slice(0, 50)}`, { blockIndex: i });
+
       // ── 3a. RESEARCH ──
       this.emit({ type: "phase_start", phase: "research", detail: `Block ${i + 1}: ${block}` });
+      this.engine.streaming.phaseStart("research", `Block ${i + 1}: ${block.slice(0, 50)}`);
 
       if (this.engine.state.canTransition("researching")) {
         this.engine.state.transition("researching", `Researching block ${i + 1}`, {
@@ -471,6 +481,7 @@ export class Orchestrator {
         } catch { /* best-effort */ }
 
         this.emit({ type: "phase_start", phase: "execute", detail: `Atom ${j + 1}/${atoms.length}: ${atom.slice(0, 50)}` });
+        this.engine.streaming.atomStart(j, atoms.length, atom.slice(0, 50));
 
         if (this.engine.state.canTransition("executing")) {
           this.engine.state.transition("executing", `Executing atom ${j + 1}`, {
@@ -683,6 +694,14 @@ export class Orchestrator {
         // ─── CHECKPOINT: Atom complete ───
         this.resume.completeAtom(i, j, 1, execResult.thought.tokenCost ?? 0);
 
+        // ─── STREAMING: Atom end ───
+        this.engine.streaming.atomEnd(j, execResult.thought.tokenCost ?? 0);
+
+        // ─── ROLLBACK: Atom checkpoint ───
+        this.engine.rollback.createPoint("atom", `Atom ${j + 1}: ${atom.slice(0, 50)}`, {
+          atomIndex: j, blockIndex: i,
+        });
+
         // ── VERIFY: Parse worker's step7_verify for actionable results ──
         if (execResult.thought.workerProtocol?.step7_verify) {
           const verifyText = execResult.thought.workerProtocol.step7_verify;
@@ -782,6 +801,9 @@ export class Orchestrator {
           });
         }
       }
+
+      // ─── STREAMING: Block end ───
+      this.engine.streaming.blockEnd(i);
 
       // ── GIT CHECKPOINT — save progress after each block with thought metadata ──
       try {

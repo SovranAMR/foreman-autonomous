@@ -17,6 +17,8 @@ import type { WorkerProtocol } from "./types.js";
 import type { ExecutionEngine } from "./execution-engine.js";
 import type { EditEngine } from "./edit-engine.js";
 import type { GitEngine } from "./git-engine.js";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 // ─── TYPES ───────────────────────────────────────────────────
 
@@ -185,11 +187,26 @@ export async function executeOperations(
             break;
           }
           const fullPath = op.path.startsWith("/") ? op.path : `${projectRoot}/${op.path}`;
+
+          // Track diff for reporting
+          let diffInfo = "";
+          try {
+            const resolvedPath = resolve(projectRoot, op.path);
+            if (existsSync(resolvedPath)) {
+              const old = readFileSync(resolvedPath, "utf-8");
+              const oldLines = old.split("\n").length;
+              const newLines = op.content.split("\n").length;
+              diffInfo = ` (${oldLines}→${newLines} lines)`;
+            } else {
+              diffInfo = ` (new file, ${op.content.split("\n").length} lines)`;
+            }
+          } catch { /* ignore */ }
+
           const writeResult = execEngine.writeFile(fullPath, op.content);
           results.push({
             operation: op,
             success: writeResult.success,
-            output: writeResult.success ? `Wrote ${op.path}` : undefined,
+            output: writeResult.success ? `Wrote ${op.path}${diffInfo}` : undefined,
             error: writeResult.error,
           });
           break;
