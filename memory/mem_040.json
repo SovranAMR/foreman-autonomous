@@ -1,0 +1,15 @@
+{
+  "id": "mem_040",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. In `src/forge/state.ts`, define and export a string literal union type `TaxonomyTier = 'MACRO' | 'MESO' | 'MICRO' | 'NANO'`. [Acceptance Criteria: The type is correctly exported and strictly limits...",
+  "source": {
+    "type": "thought",
+    "ref": "t_073"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-22T23:38:42.577Z",
+  "expired": false
+}

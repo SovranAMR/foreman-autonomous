@@ -1,0 +1,17 @@
+{
+  "id": "task_035",
+  "projectId": "foreman",
+  "title": "Block 6: Integrate the terminal logging UI to reflect the \"Surgical O",
+  "description": "Integrate the terminal logging UI to reflect the \"Surgical Omniscience\" emotion through the exact application of the Void Black, Electric Cyan, and Neon Gold color philosophy. [Acceptance Criteria: Console outputs pulse with the prescribed execution rhythm, logging Strategist branching in Cyan, worker isolation against Void Black, and final MasterReviewer synthesis in Gold.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T23:38:00.018Z"
+}

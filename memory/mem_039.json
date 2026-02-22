@@ -1,0 +1,16 @@
+{
+  "id": "mem_039",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] 1. **Optimal Flat Structure (Adjacency List):** To satisfy the LLM's memory limitations with deep JSON, the industry standard for UI state management (similar to Redux normalized state or relational d...",
+  "source": {
+    "type": "thought",
+    "ref": "t_072"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-22T23:38:22.844Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-22T23:38:22.845Z"
+}

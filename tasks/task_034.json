@@ -1,0 +1,17 @@
+{
+  "id": "task_034",
+  "projectId": "foreman",
+  "title": "Block 5: Refactor the execution engine to enforce a strict \"fan-out, ",
+  "description": "Refactor the execution engine to enforce a strict \"fan-out, parallel freeze, fan-in\" orchestration rhythm. [Acceptance Criteria: Orchestrator batches micro-agents into synchronized execution waves (no chaotic async racing) that fully resolve before routing upward to the Synthesizer.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-22T23:38:00.018Z"
+}
