@@ -1,0 +1,17 @@
+{
+  "id": "task_047",
+  "projectId": "foreman",
+  "title": "Block 4: Append the third architectural pillar under the H2 heading `",
+  "description": "Append the third architectural pillar under the H2 heading `## RESILIENCE`, detailing the system's fault-tolerance and recovery protocols. [Acceptance Criteria: H2 is ALL CAPS; text explicitly details Auto-Heal, Checkpoint Clearing, and Provider Fallback mechanics; clearly references the `Gemini-3.1-pro-high` model using monospace formatting; maintains the heavy, grounded, 3-sentence-max pacing.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:01:56.604Z"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "task_043",
+  "projectId": "foreman",
+  "title": "Analyze the Foreman codebase. Create a breathtaking, highly detailed README.md i",
+  "description": "- **EMOTION TARGET**: Industrial Reverence. The reader should feel like they've stepped into a massive, futuristic foundry. It must evoke awe, reliability, and immense, tightly-controlled power. Not \"",
+  "type": "feature",
+  "priority": "high",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [
+    "chain_020"
+  ],
+  "subtaskIds": [
+    "task_044",
+    "task_045",
+    "task_046",
+    "task_047",
+    "task_048"
+  ],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:01:56.603Z"
+}

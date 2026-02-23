@@ -1,0 +1,16 @@
+{
+  "id": "mem_057",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] 1. **Centering ASCII Art in Markdown**: Standard Markdown (` ``` ` code blocks) does not natively support center alignment. To achieve the mandated \"absolute top center\" focal point, there are two app...",
+  "source": {
+    "type": "thought",
+    "ref": "t_094"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-23T00:02:23.634Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:02:23.636Z"
+}

@@ -1,0 +1,15 @@
+{
+  "key": "4cc309aa04ba88f0",
+  "model": "gemini-3.1-pro-high",
+  "layer": "worker",
+  "response": "",
+  "tokenUsage": {
+    "input": 7292,
+    "output": 0,
+    "total": 7292
+  },
+  "createdAt": "2026-02-22T23:48:33.582Z",
+  "lastAccessedAt": "2026-02-22T23:48:33.582Z",
+  "hitCount": 0,
+  "ttlMs": 1800000
+}

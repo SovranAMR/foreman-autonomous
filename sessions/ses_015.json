@@ -7,14 +7,22 @@
     "t_087",
     "t_088",
     "t_089",
-    "t_090"
+    "t_090",
+    "t_092",
+    "t_093",
+    "t_094",
+    "t_095"
   ],
   "memoryIds": [
     "mem_051",
     "mem_052",
     "mem_053",
-    "mem_054"
+    "mem_054",
+    "mem_055",
+    "mem_056",
+    "mem_057",
+    "mem_058"
   ],
-  "totalTokens": 22225,
+  "totalTokens": 43213,
   "status": "active"
 }

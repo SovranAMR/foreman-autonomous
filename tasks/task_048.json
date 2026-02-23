@@ -1,0 +1,17 @@
+{
+  "id": "task_048",
+  "projectId": "foreman",
+  "title": "Block 5: Perform a global structural and spatial formatting pass acro",
+  "description": "Perform a global structural and spatial formatting pass across the entire `README.md` to enforce the \"Blast Shield\" whitespace rules. [Acceptance Criteria: Horizontal rules (`---`) are explicitly injected as blast shields between all major concepts; visually confirms ~30% structural whitespace; absolutely no paragraphs exceed 4 sentences; zero \"magical\" or friendly terminology exists in the final file.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:01:56.604Z"
+}

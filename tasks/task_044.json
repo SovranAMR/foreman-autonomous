@@ -1,0 +1,17 @@
+{
+  "id": "task_044",
+  "projectId": "foreman",
+  "title": "Block 1: Initialize `README.md` by writing the master header, featuri",
+  "description": "Initialize `README.md` by writing the master header, featuring a top-center Blacksmith ASCII art as the focal point, strictly one H1 title, and a philosophical blockquote defining Foreman. [Acceptance Criteria: File is overwritten/created; ASCII art is at the very top line; contains exactly one H1; blockquote defines the system as an Autonomous AI Coding Agent & Orchestrator; strictly authoritative tone with zero friendly greetings.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:01:56.604Z"
+}

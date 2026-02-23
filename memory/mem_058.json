@@ -1,0 +1,15 @@
+{
+  "id": "mem_058",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Overwrite `README.md` and insert the Focal Point: a highly detailed Blacksmith ASCII art (featuring a hammer, anvil, and sparks) placed inside a ` ```text ` block at the absolute top of the file. U...",
+  "source": {
+    "type": "thought",
+    "ref": "t_095"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T00:02:41.937Z",
+  "expired": false
+}

@@ -1,0 +1,17 @@
+{
+  "id": "task_045",
+  "projectId": "foreman",
+  "title": "Block 2: Append the first architectural pillar section under the H2 h",
+  "description": "Append the first architectural pillar section under the H2 heading `## THE FORGE`, detailing Foreman's core system mechanics. [Acceptance Criteria: H2 heading is ALL CAPS; paragraphs strictly do not exceed 3 sentences; features are explicitly framed as \"Architectural Capabilities\" rather than generic lists; monospace formatting is aggressively used for technical nouns.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:01:56.604Z"
+}

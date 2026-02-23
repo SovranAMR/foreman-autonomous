@@ -1,0 +1,15 @@
+{
+  "id": "chain_020",
+  "name": "Vision: Analyze the Foreman codebase. Create a b",
+  "goal": "Define the vision for: Analyze the Foreman codebase. Create a breathtaking, highly detailed README.md in English. It must be a masterpiece of documentation.\nRequirements:\n1. Include stunning ASCII art of a blacksmith forging on an anvil at the very top.\n2. Explain Foreman as an Autonomous AI Coding Agent & Orchestrator.\n3. Highlight the new 'Hyper-Fractal Decomposition' and 'Micro-Agent Orchestration' capabilities (dividing tasks down to the atomic/pixel level and assigning specialized sub-agents).\n4. Detail the resilience mechanisms: Auto-Heal, Checkpoint Clearing, and Provider Fallback (Gemini-3.1-pro-high).\n5. Balance deep technical architecture with an inspiring, accessible tone. Make it a true showpiece that demonstrates what the ultimate AI coder looks like. Overwrite the existing README.md.",
+  "layer": "visioner",
+  "thoughts": [
+    "t_092",
+    "t_093",
+    "t_094",
+    "t_095"
+  ],
+  "status": "active",
+  "contextSummary": "- **EMOTION TARGET**: Industrial Reverence. The reader should feel like they've stepped into a massive, futuristic foundry. It must evoke awe, reliability, and immense, tightly-controlled power. Not \"friendly\" — authoritative.\n- **FOCAL POINT**: The Blacksmith ASCII Art. Placed at the absolute top center. The eye must hit the sparks of the anvil before reading a single word. Everything else flows down from this strike.\n- **COLOR PHILOSOPHY**: (Applied via Markdown rendering, Emojis, and Badges)\n",
+  "createdAt": "2026-02-23T00:01:11.451Z"
+}

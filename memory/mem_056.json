@@ -1,0 +1,16 @@
+{
+  "id": "mem_056",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Initialize `README.md` by writing the master header, featuring a top-center Blacksmith ASCII art as the focal point, strictly one H1 title, and a philosophical blockquote defining Foreman. [Accepta...",
+  "source": {
+    "type": "thought",
+    "ref": "t_093"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 2,
+  "createdAt": "2026-02-23T00:01:56.603Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:02:23.636Z"
+}
