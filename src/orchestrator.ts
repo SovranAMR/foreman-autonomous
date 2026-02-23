@@ -656,6 +656,7 @@ export class Orchestrator {
         let execResult: StepResult | undefined;
         let passedAttempt = 0;
         let toolCallCount = 0;
+        const atomStartTime = Date.now();
         const toolResults: Array<{ name: string; success: boolean }> = [];
 
         for (let attempt = 0; attempt < this.MAX_ATOM_RETRIES; attempt++) {
@@ -1140,11 +1141,13 @@ export class Orchestrator {
 
         // ─── ATOM QUALITY SCORE ──────────────────────────────
         // Track quality metrics for each passed atom
+        const atomDurationMs = Date.now() - atomStartTime;
         const atomQuality = {
           confidence: execResult?.thought.confidence,
           attempts: passedAttempt + 1,
           toolCalls: toolCallCount,
           tokenCost: execResult?.thought.tokenCost ?? 0,
+          durationMs: atomDurationMs,
           hasVerification: Boolean(execResult?.thought.workerProtocol?.step7_verify?.match(/pass|✔|success|\d+ test/i)),
           firstAttemptPass: passedAttempt === 0,
         };
@@ -1152,7 +1155,7 @@ export class Orchestrator {
           type: "verification",
           phase: "atom_quality",
           passed: (atomQuality.confidence ?? 0) >= 0.7,
-          detail: `Atom ${j + 1}: conf=${((atomQuality.confidence ?? 0) * 100).toFixed(0)}% attempts=${atomQuality.attempts} tools=${atomQuality.toolCalls} verified=${atomQuality.hasVerification}`,
+          detail: `Atom ${j + 1}: conf=${((atomQuality.confidence ?? 0) * 100).toFixed(0)}% attempts=${atomQuality.attempts} tools=${atomQuality.toolCalls} ${(atomDurationMs / 1000).toFixed(1)}s verified=${atomQuality.hasVerification}`,
         });
 
         // ─── CHECKPOINT: Atom complete ───
