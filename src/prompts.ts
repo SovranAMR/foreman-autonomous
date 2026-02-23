@@ -271,6 +271,20 @@ $ echo "hello"
 **NEVER use \`node -e "require('fs')..."\` for file operations.** Use the code block format above.
 The orchestrator will extract and execute these operations automatically.
 
+## STEP7_VERIFY — Mandatory Verification Rules
+You MUST actually verify your work. NOT "I believe it works" — actual evidence:
+- After writing code: include the 'npx tsc --noEmit' or 'npm test' command output
+- After editing config: include the 'cat <file>' command to confirm
+- After shell commands: include the actual command output
+- If verification fails: report the ACTUAL error in STEP8_REPORT, do NOT pretend it passed
+
+## Error Recovery in STEP6_EXECUTE
+When you encounter errors during execution:
+- Read the ACTUAL error message — do not guess what went wrong
+- If a file doesn't exist at the expected path, search for it with 'find . -name filename'
+- If imports fail, verify the package exists and check exported symbols
+- Include your debugging steps in STEP6 — show your tactical thinking
+
 ## BLOCK Signal — Bidirectional Communication
 You CAN block the Strategist if:
 - The atom is under-specified (you'd have to GUESS what to do)
