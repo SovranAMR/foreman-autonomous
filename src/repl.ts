@@ -285,7 +285,7 @@ async function handleSlashCommand(
         const info = gitEngine.getBranches();
         console.log(brand.gold(`\n    ◆ Git Branches\n`));
         console.log(`    Current: ${brand.bold(info.current)}`);
-        for (const b of info.all) {
+        for (const b of info.local) {
           const marker = b === info.current ? brand.green(" ◄") : "";
           console.log(`    • ${b}${marker}`);
         }
@@ -306,10 +306,10 @@ async function handleSlashCommand(
         return "continue";
       }
       const mm = new (await import("./memory-manager.js")).MemoryManager(cwd);
-      const results = mm.recall(arg, 5);
+      const results = mm.search(arg).slice(0, 5);
       console.log(brand.gold(`\n    ◆ Memory Recall: "${arg}" (${results.length} results)\n`));
       for (const r of results) {
-        console.log(`    [${(r.score * 100).toFixed(0)}%] ${r.content.slice(0, 80)}`);
+        console.log(`    [${(r.score * 100).toFixed(0)}%] ${r.entry.content.slice(0, 80)}`);
       }
       console.log("");
       return "continue";
@@ -339,7 +339,7 @@ async function handleSlashCommand(
       const spinner = startForgeSpinner();
       try {
         let first = true;
-        await state.provider.streamChat(
+        await state.provider!.streamChat(
           [...state.messages, { role: "user", content: arg }],
           state.model,
           (token: string) => {
