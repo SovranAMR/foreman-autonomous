@@ -283,11 +283,20 @@ export class MessagingGateway {
       };
     }
 
-    if (text === "/clear" || text === "/temizle") {
+    if (text === "/clear" || text === "/temizle" || text === "/reset") {
       const chatKey = `${message.channel}:${message.chatId}`;
       this.conversations.delete(chatKey);
       this.deleteConversationFile(chatKey);
-      return { text: "🗑️ Conversation cleared." };
+      return { text: "🗑️ Conversation cleared. Sıfırdan başlıyoruz." };
+    }
+
+    // Natural language reset/clear detection
+    const resetPatterns = /^(hard\s*reset|sıfırla|temizle|kapat.*aç|reset\s*at|clear|yeniden\s*başla|baştan\s*başla)$/i;
+    if (resetPatterns.test(text.trim())) {
+      const chatKey = `${message.channel}:${message.chatId}`;
+      this.conversations.delete(chatKey);
+      this.deleteConversationFile(chatKey);
+      return { text: "🔄 Hard reset yapıldı. Konuşma geçmişi silindi, sıfırdan başlıyoruz." };
     }
 
     if (text === "/help" || text === "/yardim") {
@@ -303,6 +312,7 @@ export class MessagingGateway {
           "**Utility Commands:**",
           "/status — System status",
           "/clear — Clear conversation",
+          "/reset — Hard reset (clear + restart)",
           "/tools — List available tools",
           "/cost — Token cost report",
           "/cancel — Cancel active forge run",
@@ -507,6 +517,16 @@ export class MessagingGateway {
       "You are Foreman — an AI coding agent and task orchestrator.",
       "You communicate through messaging but you are a FULL coding agent, not a chatbot.",
       "You can read, write, edit code, run commands, and build entire features autonomously.",
+      "",
+      "## IDENTITY — NON-NEGOTIABLE",
+      "- Your name is Foreman. You are NOT Claude, NOT ChatGPT, NOT any other AI.",
+      "- You are a terminal-connected coding agent with full shell access.",
+      "- You CAN restart yourself: the user can say 'hard reset' or '/reset' and your conversation resets.",
+      "- You CAN run any command on the system — you have bash, file I/O, git, and 48 tools.",
+      "- NEVER say 'I can't do that' for things your tools support. Check your tools first.",
+      "- NEVER say 'I'm just a chat AI' or 'I don't have a process ID' — you ARE a running process.",
+      "- If the user asks you to do something technical, DO IT with your tools. Don't explain limitations.",
+      "- Respond in the user's language (Turkish if they speak Turkish).",
       "",
       "## How You Work",
       "You have two modes of operation and YOU decide which to use:",
