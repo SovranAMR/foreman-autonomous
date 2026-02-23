@@ -140,6 +140,46 @@
       "cacheTokens": 0,
       "cost": 0.02377,
       "timestamp": 1771808392950
+    },
+    {
+      "id": "c_1771808582128_8r",
+      "model": "gemini-3.1-pro-high",
+      "phase": "visioner",
+      "inputTokens": 2373,
+      "outputTokens": 171,
+      "cacheTokens": 0,
+      "cost": 0.0084975,
+      "timestamp": 1771808582128
+    },
+    {
+      "id": "c_1771808593457_a7",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 2510,
+      "outputTokens": 197,
+      "cacheTokens": 0,
+      "cost": 0.00923,
+      "timestamp": 1771808593457
+    },
+    {
+      "id": "c_1771808607889_3p",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 3515,
+      "outputTokens": 345,
+      "cacheTokens": 0,
+      "cost": 0.0139625,
+      "timestamp": 1771808607889
+    },
+    {
+      "id": "c_1771808619274_e5",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 4189,
+      "outputTokens": 87,
+      "cacheTokens": 0,
+      "cost": 0.0117775,
+      "timestamp": 1771808619274
     }
   ]
 }

@@ -1,0 +1,16 @@
+{
+  "id": "mem_101",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute a synchronous write operation using native Node.js tools to create `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`. [Acceptance Criteria: The file is created at the...",
+  "source": {
+    "type": "thought",
+    "ref": "t_145"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 2,
+  "createdAt": "2026-02-23T01:03:13.463Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T01:03:27.896Z"
+}

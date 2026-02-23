@@ -1,0 +1,17 @@
+{
+  "id": "task_062",
+  "projectId": "foreman",
+  "title": "Block 1: Execute a synchronous write operation using native Node.js t",
+  "description": "Execute a synchronous write operation using native Node.js tools to create `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`. [Acceptance Criteria: The file is created at the target path with the precise string, avoiding any extraneous formatting or newlines.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T01:03:13.464Z"
+}

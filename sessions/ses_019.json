@@ -8,15 +8,21 @@
     "t_140",
     "t_141",
     "t_142",
-    "t_143"
+    "t_143",
+    "t_144",
+    "t_145",
+    "t_146",
+    "t_147"
   ],
   "memoryIds": [
     "mem_097",
     "mem_098",
     "mem_099",
     "mem_095",
-    "mem_100"
+    "mem_100",
+    "mem_101",
+    "mem_102"
   ],
-  "totalTokens": 19835,
+  "totalTokens": 33222,
   "status": "active"
 }
