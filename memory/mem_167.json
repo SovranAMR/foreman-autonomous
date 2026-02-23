@@ -1,0 +1,16 @@
+{
+  "id": "mem_167",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] **GOAL**: Create a file named in the project root containing exactly the string.",
+  "source": {
+    "type": "manual",
+    "ref": "MEMORY.md"
+  },
+  "importance": 0.9,
+  "tags": [],
+  "useCount": 4,
+  "createdAt": "2026-02-23T11:08:26.714Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T11:25:02.111Z"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "mem_181",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] To successfully initialize `README.md` with the \"Blacksmith/Forge\" ASCII art and comply with all constraints, execution must strictly avoid terminal-based string manipulation. Project memory explicitl...",
+  "source": {
+    "type": "thought",
+    "ref": "t_256"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-23T11:25:02.108Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T11:25:02.112Z"
+}

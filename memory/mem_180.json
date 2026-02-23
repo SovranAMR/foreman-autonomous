@@ -1,0 +1,15 @@
+{
+  "id": "mem_180",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Initialize `README.md` (overwriting any existing state) with",
+  "source": {
+    "type": "thought",
+    "ref": "t_255"
+  },
+  "importance": 0.5599999999999999,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T11:21:59.965Z",
+  "expired": false
+}

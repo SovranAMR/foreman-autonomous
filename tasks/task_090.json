@@ -1,0 +1,21 @@
+{
+  "id": "task_090",
+  "projectId": "foreman",
+  "title": "Analyze the Foreman project and create an absolutely spectacular, show-stopping ",
+  "description": "**EMOTION TARGET**: Industrial awe, relentless precision, and unstoppable automated power. The reader should feel they have just discovered military-grade or heavy-industrial orchestration software.\n*",
+  "type": "feature",
+  "priority": "high",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [
+    "chain_042"
+  ],
+  "subtaskIds": [
+    "task_091"
+  ],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T11:21:59.966Z"
+}

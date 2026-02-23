@@ -1,0 +1,15 @@
+{
+  "id": "chain_042",
+  "name": "Vision: Analyze the Foreman project and create a",
+  "goal": "Define the vision for: Analyze the Foreman project and create an absolutely spectacular, show-stopping README.md in English. Foreman is an autonomous AI coding agent and task orchestrator featuring a powerful 4-layer Forge pipeline (Visioner, Strategist, Researcher, Worker), direct tool use, sub-agent spawning, and persistent memory.\n\nREQUIREMENTS FOR THE README:\n1. ASCII ART: Must include stunning, high-quality ASCII art of a blacksmith striking an anvil (representing the \"Forge\") at the top. Use other ASCII decorations (gears, hammers, borders) throughout the document to make it visually striking.\n2. DUAL AUDIENCE: \n   - Non-Technical: Explain what Foreman does using clear metaphors (e.g., a master builder orchestrating a highly efficient factory, taking high-level visions and turning them into reality).\n   - Technical: Provide deep, realistic technical details (architecture, the 4-layer pipeline, execution engine, sub-agent orchestration, Git checkpointing, memory persistence, sandbox security).\n3. TONE: Epic, highly professional, awe-inspiring, and a bit of a \"show-off\". It should read like the documentation for a cutting-edge piece of industrial software.\n4. ACTION: Write the final masterpiece to `README.md` in the project root (overwrite if it exists). Make sure it is perfectly formatted Markdown.\n\nGo all out. Make this the best README this project has ever seen.",
+  "layer": "visioner",
+  "thoughts": [
+    "t_254",
+    "t_255",
+    "t_256",
+    "t_257"
+  ],
+  "status": "active",
+  "contextSummary": "**EMOTION TARGET**: Industrial awe, relentless precision, and unstoppable automated power. The reader should feel they have just discovered military-grade or heavy-industrial orchestration software.\n**FOCAL POINT**: A massive, stunning, high-contrast ASCII art piece at the very top depicting a Blacksmith striking an anvil, immediately establishing the \"Forge\" metaphor before a single word is read.\n**COLOR PHILOSOPHY**: Implied brutalism via Markdown. Monochrome structural dominance. Use heavy bl",
+  "createdAt": "2026-02-23T11:19:33.357Z"
+}

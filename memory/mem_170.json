@@ -1,0 +1,16 @@
+{
+  "id": "mem_170",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] 1. **Disregard Web Research**: The web search results referencing \"Minecraft Forge\" and \"Jira Forge\" are false positives based on keyword matching and are completely irrelevant to this task.",
+  "source": {
+    "type": "manual",
+    "ref": "MEMORY.md"
+  },
+  "importance": 0.9,
+  "tags": [],
+  "useCount": 4,
+  "createdAt": "2026-02-23T11:08:26.715Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T11:25:02.111Z"
+}
