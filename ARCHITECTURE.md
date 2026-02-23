@@ -82,7 +82,7 @@ interface LayerConfig {
 const LAYER_CONFIGS: Record<Layer, LayerConfig> = {
   visioner: {
     layer: "visioner",
-    model: "claude-opus",
+    model: "gemini-3.1-pro-high",
     maxThoughtsPerChain: 50,
     requiresResearch: true,
     requiresVerification: true,    // vizyon tutarlılık kontrolü
@@ -90,7 +90,7 @@ const LAYER_CONFIGS: Record<Layer, LayerConfig> = {
   },
   strategist: {
     layer: "strategist", 
-    model: "claude-opus",
+    model: "gemini-3.1-pro-high",
     maxThoughtsPerChain: 30,
     requiresResearch: true,
     requiresVerification: true,
@@ -98,7 +98,7 @@ const LAYER_CONFIGS: Record<Layer, LayerConfig> = {
   },
   researcher: {
     layer: "researcher",
-    model: "gpt-4o",
+    model: "gemini-3.1-pro-high",
     maxThoughtsPerChain: 20,
     requiresResearch: true,        // zaten araştırma katmanı
     requiresVerification: false,
@@ -106,7 +106,7 @@ const LAYER_CONFIGS: Record<Layer, LayerConfig> = {
   },
   worker: {
     layer: "worker",
-    model: "claude-sonnet",
+    model: "gemini-3.1-pro-high",
     maxThoughtsPerChain: 15,
     requiresResearch: false,       // taktik düşünce, derin araştırma yok
     requiresVerification: true,    // build/test zorunlu
@@ -226,7 +226,7 @@ interface RateLimitConfig {
 |-------|-------|---------|
 | Dil | TypeScript | Tip güvenliği, OpenClaw ekosistemi |
 | Runtime | Bun | Hızlı, TypeScript native |
-| LLM SDK | Vercel AI SDK | Multi-provider, streaming, type-safe |
+| LLM Providers | Kimi, Antigravity, Anthropic, OpenAI, Gemini | 5 provider, model fallback chain |
 | Persistence | Dosya sistemi (MD/YAML) | Git-native, insan okunabilir, basit |
 | CLI | Commander.js | Standart, hafif |
 | State | In-memory + dosya sync | Basit, crash-safe |
