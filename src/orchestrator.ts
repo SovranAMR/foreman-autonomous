@@ -826,7 +826,15 @@ export class Orchestrator {
             memoryContext ? `MEMORY:\n${memoryContext.slice(0, 500)}` : "",
           ].filter(Boolean).join("\n\n---\n\n");
 
-          const toolLlmResult = await this.engine.callLLMWithTools(
+          // ─── EXECUTION MODE SELECTION ──────────────────────
+          // Default: extraction mode (1 LLM call → post-hoc parse)
+          // Tool mode is more powerful but costs N API calls per iteration
+          // and triggers 429 rate limits on constrained endpoints.
+          // Use extraction mode by default; tool mode only when explicitly enabled.
+          const useToolMode = process.env.FOREMAN_TOOL_MODE === "1";
+
+          if (useToolMode) {
+            const toolLlmResult = await this.engine.callLLMWithTools(
             getWorkerPromptForToolMode(),
             atomContext,
             "worker",
@@ -867,6 +875,16 @@ export class Orchestrator {
             "execute",
             [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
           );
+          } else {
+            // Extraction mode: single LLM call, post-hoc command extraction
+            execResult = await this.engine.stepWithPhase(
+              visionChain.id,
+              atomContext,
+              "worker",
+              "execute",
+              [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
+            );
+          }
         } catch (toolError) {
           // Mode B: Fallback — standard stepWithPhase + post-hoc extraction
           console.log(`  [forge] Tool mode unavailable, using extraction mode: ${toolError instanceof Error ? toolError.message.slice(0, 80) : "unknown"}`);
