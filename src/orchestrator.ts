@@ -317,6 +317,13 @@ export class Orchestrator {
     }
 
     let visionOutput = visionResult.thought.output;
+
+    // Guard: empty or trivially short vision — LLM returned nothing useful
+    if (!visionOutput || visionOutput.trim().length < 20) {
+      this.emit({ type: "error", message: "Vision phase returned empty/trivial output" });
+      return this.buildResult(false, totalThoughts, visionChain.id, "vision_empty");
+    }
+
     this.engine.chains.updateSummary(visionChain.id, visionOutput.slice(0, 500));
     this.emit({ type: "phase_end", phase: "vision", detail: visionOutput.slice(0, 100) });
     this.engine.streaming.phaseEnd("vision", visionOutput.slice(0, 100));

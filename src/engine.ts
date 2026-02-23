@@ -403,6 +403,11 @@ export class Engine {
     });
 
     const result = fallbackResult.result;
+
+    // Guard: empty LLM response
+    if (!result.text || result.text.trim().length === 0) {
+      console.warn(`[engine] Empty LLM response from ${result.model ?? model} (layer=${layer})`);
+    }
     this.rateLimiter.onSuccess();
     this.rateLimiter.recordTokens(result.tokenUsage.total);
     this.state.addTokens(result.tokenUsage.total);
