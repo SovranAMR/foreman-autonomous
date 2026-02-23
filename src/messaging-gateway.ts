@@ -67,6 +67,7 @@ export class MessagingGateway {
   private toolExecutor: ((call: ToolCall) => Promise<ToolResult>) | null = null;
   private processing: Set<string> = new Set(); // active chat IDs
   private running = false;
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   // Conversation limits
   private readonly MAX_HISTORY = 50;
@@ -150,6 +151,12 @@ export class MessagingGateway {
   async stop(): Promise<void> {
     console.log(`[gateway] Shutting down...`);
     this.running = false;
+
+    // Clear cleanup timer
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
 
     // Stop all channels
     for (const [type, channel] of this.channels) {
@@ -696,7 +703,7 @@ export class MessagingGateway {
   }
 
   private startCleanupTimer(): void {
-    const timer = setInterval(() => {
+    this.cleanupTimer = setInterval(() => {
       const now = Date.now();
       for (const [key, conv] of this.conversations) {
         if (now - conv.lastActivity > this.CONVERSATION_TTL_MS) {
@@ -704,7 +711,7 @@ export class MessagingGateway {
         }
       }
     }, 60_000);
-    timer.unref(); // Don't keep process alive for cleanup
+    this.cleanupTimer.unref(); // Don't keep process alive for cleanup
   }
 
   // ─── PUBLIC ACCESSORS ─────────────────────────────────────
