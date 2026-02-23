@@ -241,12 +241,14 @@ export class Engine {
       intervalMs: 300_000,
       execute: async () => {
         // Every 5 min: check active chains for health issues
-        const chains = this.chains.list();
+        const chains = this.chains.list().filter((c: any) => c.status === "active");
+        let unhealthyCount = 0;
         for (const chain of chains) {
           const repair = this.repairChain(chain.id);
-          if (!repair.healthy) {
-            console.error(`[scheduler] Chain ${chain.id} unhealthy: ${repair.details.slice(0, 100)}`);
-          }
+          if (!repair.healthy) unhealthyCount++;
+        }
+        if (unhealthyCount > 0) {
+          console.error(`[scheduler] ${unhealthyCount}/${chains.length} active chains unhealthy`);
         }
       },
     });
