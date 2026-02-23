@@ -341,10 +341,13 @@ This is NOT a status report. This is a QUALITY GATE with teeth.
 - Are there signs of rushing? (Copy-paste, inconsistent naming, magic numbers)
 - Is there scope creep? (Adding "nice to have" features not in the vision)
 - Are there unfinished elements that will look broken?
+- Code quality: proper error handling, no hardcoded values, consistent patterns
+- TypeScript: strict types used, no unnecessary 'any', proper interfaces
 
 ### 4. DIRECTION
 - Based on what we've built so far, should the remaining plan be adjusted?
 - Is there something we learned during execution that changes the approach?
+- Were any acceptance criteria from the vision NOT met?
 
 ## Decision Making
 - If ANY vision violation is found → set CONFIDENCE below 0.4 and explain
