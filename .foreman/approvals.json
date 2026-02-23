@@ -4,8 +4,8 @@
       "git * --show-current",
       {
         "pattern": "git * --show-current",
-        "allowCount": 118,
-        "lastUsedAt": "2026-02-23T10:24:08.629Z",
+        "allowCount": 119,
+        "lastUsedAt": "2026-02-23T10:25:27.431Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -14,8 +14,8 @@
       "git * --porcelain=v1",
       {
         "pattern": "git * --porcelain=v1",
-        "allowCount": 118,
-        "lastUsedAt": "2026-02-23T10:24:08.634Z",
+        "allowCount": 119,
+        "lastUsedAt": "2026-02-23T10:25:27.437Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -24,8 +24,8 @@
       "git * --left-right --count * *",
       {
         "pattern": "git * --left-right --count * *",
-        "allowCount": 118,
-        "lastUsedAt": "2026-02-23T10:24:08.637Z",
+        "allowCount": 119,
+        "lastUsedAt": "2026-02-23T10:25:27.440Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -44,8 +44,8 @@
       "git * -A",
       {
         "pattern": "git * -A",
-        "allowCount": 69,
-        "lastUsedAt": "2026-02-23T10:24:08.411Z",
+        "allowCount": 70,
+        "lastUsedAt": "2026-02-23T10:24:08.644Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -54,8 +54,8 @@
       "git * --stat * --numstat *",
       {
         "pattern": "git * --stat * --numstat *",
-        "allowCount": 69,
-        "lastUsedAt": "2026-02-23T10:24:08.434Z",
+        "allowCount": 70,
+        "lastUsedAt": "2026-02-23T10:24:08.659Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -84,8 +84,8 @@
       "npm * * --if-present *",
       {
         "pattern": "npm * * --if-present *",
-        "allowCount": 6,
-        "lastUsedAt": "2026-02-23T10:24:08.503Z",
+        "allowCount": 7,
+        "lastUsedAt": "2026-02-23T10:25:27.425Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -146,16 +146,6 @@
         "pattern": "wc -c *",
         "allowCount": 1,
         "lastUsedAt": "2026-02-23T03:41:34.433Z",
-        "lastSuccess": true,
-        "source": "learned"
-      }
-    ],
-    [
-      "cat *",
-      {
-        "pattern": "cat *",
-        "allowCount": 1,
-        "lastUsedAt": "2026-02-23T03:41:34.436Z",
         "lastSuccess": true,
         "source": "learned"
       }
