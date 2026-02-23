@@ -391,7 +391,7 @@ program
       const mock = new MockProvider("I need more context. Please clarify the task.");
       engine.providers.register({
         name: "mock",
-        supportedModels: ["mock-model", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro", "gemini-ultra"],
+        supportedModels: ["mock-model", "kimi-k2.5", "gemini-3.1-pro-high", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro"],
         generate: mock.generate.bind(mock),
       });
       console.log(`  ${icon.warn} ${brand.gold("Mock provider active")}\n`);
