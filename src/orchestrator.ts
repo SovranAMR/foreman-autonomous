@@ -555,9 +555,28 @@ export class Orchestrator {
         // Cross-chain context is best-effort
       }
 
+      // ── Pre-research: quick web search for current best practices ──
+      let webSearchContext = "";
+      try {
+        const { quickSearch } = await import("./web-search-engine.js");
+        // Extract key terms from block for search
+        const searchTerms = block.split(/\s+/)
+          .filter(w => w.length > 3 && !/^(the|and|for|with|from|into|that|this|will|should|must)$/i.test(w))
+          .slice(0, 5)
+          .join(" ");
+        if (searchTerms.length > 10) {
+          const results = await quickSearch(searchTerms + " best practices", 3);
+          if (results && results.length > 0) {
+            webSearchContext = "\n\nWeb research:\n" + results
+              .map((r: { title: string; snippet: string }) => `- ${r.title}: ${r.snippet}`)
+              .join("\n");
+          }
+        }
+      } catch { /* web search is best-effort */ }
+
       const researchResult = await this.engine.stepWithPhase(
         visionChain.id,
-        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nVISION DOCUMENT (pinned — respect all constraints):\n${visionOutput}${memoryContext}${crossChainCtx}`,
+        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nVISION DOCUMENT (pinned — respect all constraints):\n${visionOutput}${memoryContext}${crossChainCtx}${webSearchContext}`,
         "researcher",
         "research",
         [visionResult.thought.id, decomposeResult.thought.id],
