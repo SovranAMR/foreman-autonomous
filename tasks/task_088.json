@@ -1,0 +1,17 @@
+{
+  "id": "task_088",
+  "projectId": "foreman",
+  "title": "Block 1: Write the precise payload `Hello from Forge` to a new file a",
+  "description": "Write the precise payload `Hello from Forge` to a new file at `./hello-forge.txt` utilizing strictly native file-writing capabilities and avoiding banned inline terminal commands (`echo`, `node -e`). [Acceptance Criteria: The file `./hello-forge.txt` is created in the project root, contains exactly the target string with no extraneous formatting, and zero other project files are modified.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T11:05:37.503Z"
+}

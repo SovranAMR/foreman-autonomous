@@ -1,0 +1,22 @@
+{
+  "id": "task_087",
+  "projectId": "foreman",
+  "title": "Create a simple text file named 'hello-forge.txt' in the project root with the c",
+  "description": "**GOAL**: Create a file named `hello-forge.txt` in the project root containing exactly the string `Hello from Forge`.\n**ACCEPTANCE CRITERIA**: The file exists at `./hello-forge.txt`. The content match",
+  "type": "feature",
+  "priority": "high",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [
+    "chain_041"
+  ],
+  "subtaskIds": [
+    "task_088",
+    "task_089"
+  ],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T11:05:37.503Z"
+}

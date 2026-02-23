@@ -1,22 +1,18 @@
 {
-  "id": "cp_1771842084855_1dir",
-  "task": "Projenin kök dizininde `pipeline-test-output.md` adında basit bir markdown dosyası oluştur. İçinde '# Pipeline Test' başlığı ve 3 tane rastgele yazılım ipucu bulunsun. Bu sadece bir test işlemidir.",
-  "startedAt": 1771842084855,
-  "updatedAt": 1771842704553,
+  "id": "cp_1771844716857_jg3d",
+  "task": "Create a simple text file named 'hello-forge.txt' in the project root with the content 'Hello from Forge'.",
+  "startedAt": 1771844716857,
+  "updatedAt": 1771844737503,
   "phase": "research",
-  "chainId": "chain_040",
-  "completedAtoms": [
-    0,
-    1,
-    1000
-  ],
-  "currentBlock": 1,
-  "currentAtom": 1,
-  "totalThoughts": 3,
-  "totalTokens": 30644,
-  "visionOutput": "**GOAL**: Create a file named `pipeline-test-output.md` in the project root containing exactly an `# Pipeline Test` heading and 3 random software development tips.\n**ACCEPTANCE CRITERIA**: The file is successfully created at the root directory, its exact content is verified via an observable read command (e.g., `cat`), and it clearly displays the required heading and 3 bulleted tips.\n**CONSTRAINTS**: Do not modify any existing files in the repository under any circumstances. Keep the markdown structure completely basic.",
+  "chainId": "chain_041",
+  "completedAtoms": [],
+  "currentBlock": 0,
+  "currentAtom": 0,
+  "totalThoughts": 0,
+  "totalTokens": 0,
+  "visionOutput": "**GOAL**: Create a file named `hello-forge.txt` in the project root containing exactly the string `Hello from Forge`.\n**ACCEPTANCE CRITERIA**: The file exists at `./hello-forge.txt`. The content matches exactly `Hello from Forge`. Real execution output (e.g., via `cat hello-forge.txt`) must strictly prove the content. Zero other files in the repository are modified.\n**CONSTRAINTS**: Do NOT modify any existing files under any circumstances (absolute zero scope creep). Avoid inline terminal commands (`echo`, `node -e`) for the write operation; use native file-writing capabilities to guarantee exact string formatting. Verification must be derived from actual terminal output, not predicted or hallucinated.",
   "blocks": [
-    "Write the exact markdown payload (the `# Pipeline Test` heading and 3 random software development tips) to a new file named `pipeline-test-output.md` in the project root, strictly without modifying any existing repository files. [Acceptance Criteria: The file `pipeline-test-output.md` is successfully created at the project root with the correct heading and 3 bulleted tips, and absolutely no other files in the project are modified.]",
-    "Perform deterministic state verification by executing an observable terminal read command (e.g., `cat pipeline-test-output.md`) to print the exact contents of the file into the execution trace. [Acceptance Criteria: The terminal command successfully executes and outputs the correct file contents, visibly proving the structural integrity of the markdown file.]"
+    "Write the precise payload `Hello from Forge` to a new file at `./hello-forge.txt` utilizing strictly native file-writing capabilities and avoiding banned inline terminal commands (`echo`, `node -e`). [Acceptance Criteria: The file `./hello-forge.txt` is created in the project root, contains exactly the target string with no extraneous formatting, and zero other project files are modified.]",
+    "Execute strictly observable terminal commands (e.g., `cat ./hello-forge.txt` and `wc -c ./hello-forge.txt`) to deterministically verify the exact text content and structural integrity. [Acceptance Criteria: Real terminal execution output perfectly matches the target string and byte count (exactly 16 bytes), providing absolute mathematical proof of success without hallucination.]"
   ]
 }
