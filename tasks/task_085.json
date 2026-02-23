@@ -1,0 +1,17 @@
+{
+  "id": "task_085",
+  "projectId": "foreman",
+  "title": "Block 1: Write the exact markdown payload (the `# Pipeline Test` head",
+  "description": "Write the exact markdown payload (the `# Pipeline Test` heading and 3 random software development tips) to a new file named `pipeline-test-output.md` in the project root, strictly without modifying any existing repository files. [Acceptance Criteria: The file `pipeline-test-output.md` is successfully created at the project root with the correct heading and 3 bulleted tips, and absolutely no other files in the project are modified.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T10:21:48.682Z"
+}

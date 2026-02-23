@@ -1,0 +1,15 @@
+{
+  "id": "mem_134",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] **GOAL**: Create a file named `pipeline-test-output.md` in the project root containing exactly an `# Pipeline Test` heading and 3 random software development tips.\n**ACCEPTANCE CRITERIA**: The file is...",
+  "source": {
+    "type": "thought",
+    "ref": "t_235"
+  },
+  "importance": 0.76,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T10:21:24.854Z",
+  "expired": false
+}
