@@ -1,0 +1,15 @@
+{
+  "id": "mem_116",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute the terminal command `rm -f /tmp/forge-ok.txt` to safely and deterministically remove any existing target file. [Acceptance Criteria: The command completes successfully with exit code 0, re...",
+  "source": {
+    "type": "thought",
+    "ref": "t_173"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T03:14:57.799Z",
+  "expired": false
+}

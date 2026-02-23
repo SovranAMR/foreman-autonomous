@@ -1,0 +1,15 @@
+{
+  "id": "chain_033",
+  "name": "Vision: Create file /tmp/forge-ok.txt with text:",
+  "goal": "Define the vision for: Create file /tmp/forge-ok.txt with text: Forge pipeline works",
+  "layer": "visioner",
+  "thoughts": [
+    "t_170",
+    "t_171",
+    "t_172",
+    "t_173"
+  ],
+  "status": "active",
+  "contextSummary": "**GOAL**: Create the file `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file exists at `/tmp/forge-ok.txt` and its contents match the exact string without any trailing newlines or extraneous formatting.\n**CONSTRAINTS**: Do NOT use `echo` or `node -e` to write the file. Use the native file-writing convention to ensure absolute string fidelity.",
+  "createdAt": "2026-02-23T03:14:05.229Z"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "task_073",
+  "projectId": "foreman",
+  "title": "Block 1: Execute the terminal command `rm -f /tmp/forge-ok.txt` to de",
+  "description": "Execute the terminal command `rm -f /tmp/forge-ok.txt` to deterministically clean the environment and ensure no previous versions or corruptions of the file exist. [Acceptance Criteria: Command executes successfully, guaranteeing a completely clean state for the target file path]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T03:14:34.882Z"
+}

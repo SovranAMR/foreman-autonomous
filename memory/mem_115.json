@@ -1,0 +1,16 @@
+{
+  "id": "mem_115",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] 1. **Idempotent Cleanup**: The use of `rm -f /tmp/forge-ok.txt` is the industry standard for deterministic file removal in automated pipelines. The `-f` (force) flag ensures the command exits with a s...",
+  "source": {
+    "type": "thought",
+    "ref": "t_172"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-23T03:14:47.269Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T03:14:47.272Z"
+}

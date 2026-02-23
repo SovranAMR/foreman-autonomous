@@ -330,6 +330,56 @@
       "cacheTokens": 0,
       "cost": 0.014887500000000001,
       "timestamp": 1771816385837
+    },
+    {
+      "id": "c_1771816397477_05",
+      "model": "gemini-3.1-pro-high",
+      "phase": "worker",
+      "inputTokens": 7058,
+      "outputTokens": 384,
+      "cacheTokens": 0,
+      "cost": 0.023405000000000002,
+      "timestamp": 1771816397477
+    },
+    {
+      "id": "c_1771816457515_n5",
+      "model": "gemini-3.1-pro-high",
+      "phase": "visioner",
+      "inputTokens": 3127,
+      "outputTokens": 172,
+      "cacheTokens": 0,
+      "cost": 0.0103975,
+      "timestamp": 1771816457515
+    },
+    {
+      "id": "c_1771816474875_bv",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 3203,
+      "outputTokens": 228,
+      "cacheTokens": 0,
+      "cost": 0.0114275,
+      "timestamp": 1771816474875
+    },
+    {
+      "id": "c_1771816487265_hu",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 4204,
+      "outputTokens": 306,
+      "cacheTokens": 0,
+      "cost": 0.0151,
+      "timestamp": 1771816487265
+    },
+    {
+      "id": "c_1771816497795_cf",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 4981,
+      "outputTokens": 135,
+      "cacheTokens": 0,
+      "cost": 0.0144775,
+      "timestamp": 1771816497795
     }
   ]
 }
