@@ -12,7 +12,8 @@
     "t_249",
     "t_250",
     "t_251",
-    "t_252"
+    "t_252",
+    "t_253"
   ],
   "status": "active",
   "contextSummary": "**GOAL**: Create a file named `hello-forge.txt` in the project root containing exactly the string `Hello from Forge`.\n**ACCEPTANCE CRITERIA**: The file exists at `./hello-forge.txt`. The content matches exactly `Hello from Forge`. Real execution output (e.g., via `cat hello-forge.txt`) must strictly prove the content. Zero other files in the repository are modified.\n**CONSTRAINTS**: Do NOT modify any existing files under any circumstances (absolute zero scope creep). Avoid inline terminal comman",
