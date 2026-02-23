@@ -65,7 +65,7 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
   ].join("\n");
 
   // 1. Extract file writes: ```filepath\ncontent\n```
-  const fileWriteRx = /```(?:typescript|javascript|python|rust|go|java|html|css|json|yaml|toml|bash|sh|sql|tsx|jsx)?\s*\n\/\/ (?:File|Path|Write to): (.+)\n([\s\S]*?)```/gi;
+  const fileWriteRx = /```[a-z]*\s*\n\/\/ (?:File|Path|Write to): (.+)\n([\s\S]*?)```/gi;
   let match: RegExpExecArray | null;
   while ((match = fileWriteRx.exec(allText)) !== null) {
     ops.push({
