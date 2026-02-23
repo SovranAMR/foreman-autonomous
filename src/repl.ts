@@ -458,11 +458,20 @@ async function handleSlashCommand(
 
 // ─── CHAT TURN ───────────────────────────────────────────────
 
+/** Track models tried in current turn to prevent infinite loops */
+const _triedModels = new Set<string>();
+
 async function handleChatTurn(input: string, state: ReplState): Promise<void> {
   if (!state.provider) {
     console.log(`    ${icon.fail} ${brand.red("No LLM provider available. Run")} ${brand.cyan("foreman login")}`);
     return;
   }
+
+  // Reset tried models on first call (not a retry)
+  if (!_triedModels.has(state.model)) {
+    _triedModels.clear();
+  }
+  _triedModels.add(state.model);
 
   // Add user message
   state.messages.push({ role: "user", content: input });
@@ -512,14 +521,25 @@ async function handleChatTurn(input: string, state: ReplState): Promise<void> {
       state.toolExecutor,
     );
 
+    // Handle empty response — try next model
+    if (!result.text || result.text.trim().length === 0) {
+      spinner.stop();
+      const nextModel = findNextUntried(state.model);
+      if (nextModel) {
+        console.log(`\n    ${icon.warn} ${brand.gold(`${state.model} returned empty response`)}`);
+        console.log(`    ${brand.dim("⚡ Auto-switching to")} ${brand.goldBright(nextModel.label)}${brand.dim("...")}`);
+        state.model = nextModel.id;
+        state.messages.pop(); // remove user msg for retry
+        return handleChatTurn(input, state);
+      }
+      console.log(`\n    ${brand.dim("(no response)")}`);
+    }
+
     if (firstToken) {
-      // No tokens streamed — spinner still running
       spinner.stop();
       if (result.text) {
         process.stdout.write(`\n    ${brand.gold("🔥 foreman ›")} ${result.text}`);
         responseText = result.text;
-      } else {
-        console.log(`\n    ${brand.dim("(no response)")}`);
       }
     }
 
@@ -537,23 +557,22 @@ async function handleChatTurn(input: string, state: ReplState): Promise<void> {
       `    ${brand.dim("─")} ${icon.token} ${brand.dim(`${result.inputTokens}→${result.outputTokens} tokens`)}`,
     );
 
+    // Clear tried models on success
+    _triedModels.clear();
+
   } catch (err: any) {
     spinner.stop();
 
     const msg = err.message || String(err);
 
-    // ─── AUTO-FALLBACK: 400/503 → switch model and retry ───
-    if ((msg.includes("400") || msg.includes("503") || msg.includes("No capacity")) && CHAT_MODELS.length > 1) {
-      const currentIdx = CHAT_MODELS.findIndex(m => m.id === state.model);
-      const nextIdx = (currentIdx + 1) % CHAT_MODELS.length;
-      const nextModel = CHAT_MODELS[nextIdx];
-      if (nextModel && nextModel.id !== state.model) {
-        console.log(`\n    ${icon.warn} ${brand.gold(`${state.model} unavailable (${msg.includes("503") ? "no capacity" : "bad request"})`)}`);
+    // ─── AUTO-FALLBACK: 400/503/capacity → try next untried model ───
+    if (msg.includes("400") || msg.includes("503") || msg.includes("No capacity") || msg.includes("empty")) {
+      const nextModel = findNextUntried(state.model);
+      if (nextModel) {
+        console.log(`\n    ${icon.warn} ${brand.gold(`${state.model} unavailable (${msg.includes("503") ? "no capacity" : "error"})`)}`);
         console.log(`    ${brand.dim("⚡ Auto-switching to")} ${brand.goldBright(nextModel.label)}${brand.dim("...")}`);
         state.model = nextModel.id;
-        // Remove the user message we just added (it'll be re-added on retry)
         state.messages.pop();
-        // Retry with new model
         return handleChatTurn(input, state);
       }
     }
@@ -566,11 +585,24 @@ async function handleChatTurn(input: string, state: ReplState): Promise<void> {
       console.log(`\n    ${icon.fail} ${brand.red("Network error — the forge lost its connection.")}`);
       console.log(`    ${brand.dim(msg.slice(0, 100))}`);
     } else {
-      console.log(`\n    ${icon.fail} ${brand.red(msg.slice(0, 120))}`);
+      console.log(`\n    ${icon.fail} ${brand.red(msg.slice(0, 200))}`);
     }
+
+    _triedModels.clear();
   }
 
   console.log("");
+}
+
+/** Find the next model in CHAT_MODELS that hasn't been tried yet */
+function findNextUntried(currentModel: string): { id: string; label: string } | null {
+  for (const m of CHAT_MODELS) {
+    if (m.id !== currentModel && !_triedModels.has(m.id)) {
+      _triedModels.add(m.id);
+      return m;
+    }
+  }
+  return null;
 }
 
 // ─── MAIN REPL ───────────────────────────────────────────────
