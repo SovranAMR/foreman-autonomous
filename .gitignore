@@ -13,3 +13,4 @@ src/_debug*.ts
 .foreman/
 thoughts/
 .foreman/conversations/
+.foreman/conversations/
