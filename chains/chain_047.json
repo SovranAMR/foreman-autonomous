@@ -1,0 +1,12 @@
+{
+  "id": "chain_047",
+  "name": "Vision: Implement \"Ground Truth Protocol\" to fix",
+  "goal": "Define the vision for: Implement \"Ground Truth Protocol\" to fix hallucination issues in Forge Pipeline. This requires:\n\n1. Create new `chains/verifier.ts` layer between Strategist and Worker\n   - Must gather source files for each atom\n   - Extract verified facts from code (package.json, src/index.ts, etc.)\n   - Update atoms with verifiedData instead of LLM hallucinations\n   \n2. Create `tools/codebaseAnalyzer.ts` tool\n   - Read and analyze: package.json (scripts, deps, entry point), src/index.ts (CLI commands), config files\n   - Extract: commands, entryPoints, dependencies, scripts\n   - Return structured data for atoms to use\n\n3. Implement Guardrails system in Worker\n   - Pre-writing checklist: package.json read? entry point verified? real commands listed?\n   - Forbidden patterns: npm install -g (unverified), fake commands, invented metrics (4m 32s), placeholder URLs\n   - Each claim must reference source code\n\n4. Build PostWriteValidator\n   - Scan output for hallucinations\n   - Cross-check with actual code\n   - Return REWORK status if issues found\n\n5. Update README generation to use evidence-based format\n   - Every claim must have source reference\n   - No unverified npm install commands\n   - No placeholder text\n\nKey requirements:\n- Read actual files from codebase (no mocks)\n- Real implementation (no demo code)\n- Professional code quality\n- All guardrails must be functional\n- Integrate with existing chains/system.ts\n\nStart by examining current codebase structure, then implement each component.",
+  "layer": "visioner",
+  "thoughts": [
+    "t_271"
+  ],
+  "status": "active",
+  "contextSummary": "",
+  "createdAt": "2026-02-23T20:30:29.672Z"
+}
