@@ -1,0 +1,22 @@
+{
+  "id": "task_055",
+  "projectId": "foreman",
+  "title": "Create a file /tmp/forge-ok.txt containing exactly: Forge pipeline works",
+  "description": "- **EMOTION TARGET**: Deterministic Reassurance. The quiet, unyielding certainty of a perfectly engineered system reporting optimal health. It should feel like a vault locking into place—a single, sat",
+  "type": "feature",
+  "priority": "high",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [
+    "chain_025"
+  ],
+  "subtaskIds": [
+    "task_056",
+    "task_057"
+  ],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:42:17.079Z"
+}

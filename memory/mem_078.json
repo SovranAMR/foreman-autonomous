@@ -1,0 +1,16 @@
+{
+  "id": "mem_078",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] - **EMOTION TARGET**: Deterministic Reassurance. The quiet, unyielding certainty of a perfectly engineered system reporting optimal health. It should feel like a vault locking into place—a single, sat...",
+  "source": {
+    "type": "thought",
+    "ref": "t_121"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 3,
+  "createdAt": "2026-02-23T00:41:57.292Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:42:33.892Z"
+}

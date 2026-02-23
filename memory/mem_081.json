@@ -1,0 +1,15 @@
+{
+  "id": "mem_081",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute the precise terminal command `node -e \"require('fs').writeFileSync('/tmp/forge-ok.txt', 'Forge pipeline works')\"` to perform the synchronous, single-strike filesystem write. [Acceptance Cri...",
+  "source": {
+    "type": "thought",
+    "ref": "t_124"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T00:42:53.208Z",
+  "expired": false
+}

@@ -1,0 +1,16 @@
+{
+  "id": "mem_079",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute a synchronous, deterministic single-strike filesystem write to create `/tmp/forge-ok.txt` containing the exact payload `Forge pipeline works`. [Acceptance Criteria: The file is created usin...",
+  "source": {
+    "type": "thought",
+    "ref": "t_122"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 2,
+  "createdAt": "2026-02-23T00:42:17.078Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:42:33.892Z"
+}
