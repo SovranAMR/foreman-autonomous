@@ -118,7 +118,7 @@ Each layer produces **structured, parseable output** — no wishy-washy text. Th
     ║                     THE FORGE ANVIL                           ║
     ╠═══════════════════════════════════════════════════════════════╣
     ║                                                               ║
-    ║   🔧 47+ Professional Tools            📁 File Operations     ║
+    ║   🔧 48 Professional Tools            📁 File Operations     ║
     ║   ─────────────────────────            ────────────────       ║
     ║   • bash - Execute commands            • read_file            ║
     ║   • web_search - Research              • write_file           ║
@@ -136,7 +136,8 @@ Each layer produces **structured, parseable output** — no wishy-washy text. Th
     ║   • Anthropic (Claude)                 • Format validation    ║
     ║   • OpenAI (GPT-4)                     • Automatic retries    ║
     ║   • Google (Gemini)                    • Chain repair         ║
-    ║   • Antigravity (Turkish)              • Rollback engine      ║
+    ║   • Kimi / Moonshot (K2.5)             • Rollback engine      ║
+    ║   • Antigravity (OAuth)                • Cost tracking        ║
     ║   • Smart fallback chain               • Transcript recovery  ║
     ║                                                               ║
     ║   🌐 Messaging Gateway                 💾 State Management    ║
@@ -238,7 +239,7 @@ foreman/
 │   ├── execution-engine.ts     # ⚒️ Atomic operation executor
 │   ├── provider.ts             # 🔌 LLM provider abstraction
 │   ├── types.ts                # 📐 Core type definitions
-│   ├── tools.ts                # 🛠️ 47+ tool implementations
+│   ├── tools.ts                # 🛠️ 48 tool implementations
 │   ├── prompts.ts              # 📝 Layer-specific prompts
 │   ├── parser.ts               # 🔍 Structured output parser
 │   ├── state.ts                # 💾 State management
@@ -390,11 +391,11 @@ $ foreman "Build a task management app with React frontend and Node.js backend"
 
 | Metric | Value |
 |--------|-------|
-| **Tools Available** | 47+ |
+| **Tools Available** | 48 |
 | **Source Modules** | 123 |
 | **Thought Capacity** | 10,000+ per chain |
 | **Session Types** | Multi-agent, Telegram, WhatsApp, CLI |
-| **Provider Backends** | 4 (Anthropic, OpenAI, Gemini, Antigravity) |
+| **Provider Backends** | 5 (Kimi, Anthropic, OpenAI, Gemini, Antigravity) |
 | **Cache Hit Rate** | ~65% for repeated operations |
 | **Average Atom Time** | 2-5 seconds |
 | **Cost Tracking** | Per-request granularity |
@@ -464,6 +465,7 @@ Every failure is recoverable.
 ## 🙏 Acknowledgments
 
 Built with:
+- 🌙 [Kimi / Moonshot AI](https://moonshot.ai) — Primary provider (K2.5)
 - 💙 [Anthropic Claude](https://anthropic.com) — Primary reasoning engine
 - ⚡ [OpenAI GPT](https://openai.com) — Fallback provider
 - 🔷 [Google Gemini](https://deepmind.google/technologies/gemini/) — Multi-modal support
