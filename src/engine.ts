@@ -1227,25 +1227,54 @@ export class Engine {
     const maxIterations = options?.maxIterations ?? 100;
     let responseText = "";
 
-    const result = await antigravProvider.streamChatWithTools(
-      messages,
-      model,
-      (token: string) => {
-        responseText += token;
-        options?.onToken?.(token);
-      },
-      (call: ToolCall) => {
-        options?.onToolCall?.(call);
-      },
-      (result: ToolResult) => {
-        options?.onToolResult?.(result);
-      },
-      maxTokens,
-      maxIterations,
-      async (call: ToolCall) => {
-        return await toolExecutor(call);
-      },
-    );
+    // Retry wrapper for 429/transient errors
+    const MAX_TOOL_RETRIES = 3;
+    let lastToolError: unknown;
+    let result: { text: string; inputTokens: number; outputTokens: number } | undefined;
+
+    for (let attempt = 0; attempt < MAX_TOOL_RETRIES; attempt++) {
+      try {
+        responseText = ""; // reset on retry
+        result = await antigravProvider.streamChatWithTools(
+          messages,
+          model,
+          (token: string) => {
+            responseText += token;
+            options?.onToken?.(token);
+          },
+          (call: ToolCall) => {
+            options?.onToolCall?.(call);
+          },
+          (toolResult: ToolResult) => {
+            options?.onToolResult?.(toolResult);
+          },
+          maxTokens,
+          maxIterations,
+          async (call: ToolCall) => {
+            return await toolExecutor(call);
+          },
+        );
+        lastToolError = undefined;
+        break; // success
+      } catch (err) {
+        lastToolError = err;
+        const msg = err instanceof Error ? err.message : String(err);
+        const is429 = /429|rate.?limit|too.?many/i.test(msg);
+        const isTransient = /503|529|overload|unavail|timeout|ECONNRESET/i.test(msg);
+
+        if ((is429 || isTransient) && attempt < MAX_TOOL_RETRIES - 1) {
+          const waitMs = is429
+            ? Math.min(15000 * (attempt + 1), 60000) // 15s, 30s, 45s...
+            : 5000 * (attempt + 1);
+          console.log(`  [engine] callLLMWithTools: ${is429 ? "429" : "transient"} error, retry ${attempt + 1}/${MAX_TOOL_RETRIES} in ${waitMs / 1000}s`);
+          await new Promise(r => setTimeout(r, waitMs));
+          continue;
+        }
+        throw err; // non-retriable or max retries
+      }
+    }
+
+    if (!result) throw lastToolError ?? new Error("callLLMWithTools: all retries failed");
 
     const totalTokens = result.inputTokens + result.outputTokens;
     this.rateLimiter.onSuccess();
