@@ -107,6 +107,12 @@ const MODEL_COSTS: Record<string, ModelPricing> = {
   "deepseek-chat": { input: 0.27, output: 1.10, cacheRead: 0.07, cacheWrite: 0 },
   "deepseek-reasoner": { input: 0.55, output: 2.19, cacheRead: 0.14, cacheWrite: 0 },
 
+  // Kimi / Moonshot
+  "kimi-k2.5": { input: 0.80, output: 3.20, cacheRead: 0.20, cacheWrite: 0 },
+  "kimi-k2-thinking": { input: 0.80, output: 3.20, cacheRead: 0.20, cacheWrite: 0 },
+  "kimi-k2-thinking-turbo": { input: 0.40, output: 1.60, cacheRead: 0.10, cacheWrite: 0 },
+  "moonshot-v1-128k": { input: 0.80, output: 3.20, cacheRead: 0.20, cacheWrite: 0 },
+
   // Free/cheap models
   "llama-3.3-70b": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "qwen-2.5-72b": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
