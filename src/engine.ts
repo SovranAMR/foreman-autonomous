@@ -1271,7 +1271,7 @@ export class Engine {
     for (let attempt = 0; attempt < MAX_TOOL_RETRIES; attempt++) {
       try {
         responseText = ""; // reset on retry
-        result = await antigravProvider.streamChatWithTools(
+        result = await provider.streamChatWithTools!(
           messages,
           model,
           (token: string) => {
