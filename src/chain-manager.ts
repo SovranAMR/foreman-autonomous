@@ -85,9 +85,11 @@ export class ChainManager {
    * Does not create the thought itself — only adds the reference.
    */
   addThought(chainId: string, thoughtId: string): Chain {
-    const chain = this.get(chainId);
+    let chain = this.get(chainId);
     if (!chain) {
-      throw new Error(`Chain not found: ${chainId}`);
+      // Auto-create missing chain instead of crashing
+      console.warn(`[chains] Chain ${chainId} not found, auto-creating`);
+      chain = this.create({ name: `Auto-recovered ${chainId}`, goal: "Auto-recovered chain", layer: "worker" });
     }
 
     // Duplicate check
@@ -106,7 +108,8 @@ export class ChainManager {
   updateStatus(chainId: string, status: ChainStatus): Chain {
     const chain = this.get(chainId);
     if (!chain) {
-      throw new Error(`Chain not found: ${chainId}`);
+      console.warn(`[chains] Chain ${chainId} not found for status update, skipping`);
+      return { id: chainId, name: "", goal: "", layer: "worker", thoughts: [], status, contextSummary: "" } as Chain;
     }
 
     chain.status = status;
@@ -123,7 +126,8 @@ export class ChainManager {
   updateSummary(chainId: string, summary: string): Chain {
     const chain = this.get(chainId);
     if (!chain) {
-      throw new Error(`Chain not found: ${chainId}`);
+      console.warn(`[chains] Chain ${chainId} not found for summary update, skipping`);
+      return { id: chainId, name: "", goal: "", layer: "worker", thoughts: [], status: "active", contextSummary: summary } as Chain;
     }
 
     chain.contextSummary = summary;
