@@ -3,8 +3,22 @@
   "projectId": "foreman",
   "startedAt": "2026-02-23T00:41:34.198Z",
   "completedTaskIds": [],
+<<<<<<< Updated upstream
   "thoughtIds": [],
   "memoryIds": [],
   "totalTokens": 0,
+=======
+  "thoughtIds": [
+    "t_130",
+    "t_131",
+    "t_132"
+  ],
+  "memoryIds": [
+    "mem_086",
+    "mem_087",
+    "mem_088"
+  ],
+  "totalTokens": 33666,
+>>>>>>> Stashed changes
   "status": "active"
 }

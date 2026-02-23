@@ -1,0 +1,16 @@
+{
+  "id": "mem_082",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] nothing on success. The design system here is the execution trace itself. It must feel like an industrial press perfectly stamping a piece of metal. \n\nOUTPUT:\n**EMOTION TARGET**: Deterministic Reassur...",
+  "source": {
+    "type": "thought",
+    "ref": "t_125"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 7,
+  "createdAt": "2026-02-23T00:45:55.421Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:47:38.824Z"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "mem_086",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] 1. **Optimal Implementation**: The mathematically perfect approach for this verification is an inline Node.js script utilizing native `fs` and `assert` modules: `node -e \"require('assert').strictEqual...",
+  "source": {
+    "type": "thought",
+    "ref": "t_130"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 2,
+  "createdAt": "2026-02-23T00:47:28.160Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:47:38.824Z"
+}

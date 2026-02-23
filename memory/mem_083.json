@@ -1,0 +1,16 @@
+{
+  "id": "mem_083",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute a strict, synchronous filesystem strike using native Node.js to write the exact payload `Forge pipeline works` to `/tmp/forge-ok.txt`. [Acceptance Criteria: Uses native `fs.writeFileSync` w...",
+  "source": {
+    "type": "thought",
+    "ref": "t_126"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 6,
+  "createdAt": "2026-02-23T00:46:15.922Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:47:38.824Z"
+}

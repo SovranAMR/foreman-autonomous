@@ -410,6 +410,89 @@
       "cacheTokens": 0,
       "cost": 0.0180325,
       "timestamp": 1771807373205
+<<<<<<< Updated upstream
+=======
+    },
+    {
+      "id": "c_1771807555411_wl",
+      "model": "gemini-3.1-pro-high",
+      "phase": "visioner",
+      "inputTokens": 2785,
+      "outputTokens": 726,
+      "cacheTokens": 0,
+      "cost": 0.0178525,
+      "timestamp": 1771807555411
+    },
+    {
+      "id": "c_1771807575918_wt",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 3868,
+      "outputTokens": 288,
+      "cacheTokens": 0,
+      "cost": 0.013989999999999999,
+      "timestamp": 1771807575918
+    },
+    {
+      "id": "c_1771807592920_fm",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 5551,
+      "outputTokens": 413,
+      "cacheTokens": 0,
+      "cost": 0.0200725,
+      "timestamp": 1771807592920
+    },
+    {
+      "id": "c_1771807602589_67",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 6823,
+      "outputTokens": 103,
+      "cacheTokens": 0,
+      "cost": 0.0186025,
+      "timestamp": 1771807602589
+    },
+    {
+      "id": "c_1771807628416_yq",
+      "model": "gemini-3.1-pro-high",
+      "phase": "worker",
+      "inputTokens": 9241,
+      "outputTokens": 423,
+      "cacheTokens": 0,
+      "cost": 0.029447499999999998,
+      "timestamp": 1771807628416
+    },
+    {
+      "id": "c_1771807648158_0d",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 9100,
+      "outputTokens": 440,
+      "cacheTokens": 0,
+      "cost": 0.02935,
+      "timestamp": 1771807648158
+    },
+    {
+      "id": "c_1771807658711_hu",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 10443,
+      "outputTokens": 136,
+      "cacheTokens": 0,
+      "cost": 0.0281475,
+      "timestamp": 1771807658711
+    },
+    {
+      "id": "c_1771807680612_7x",
+      "model": "gemini-3.1-pro-high",
+      "phase": "worker",
+      "inputTokens": 13038,
+      "outputTokens": 509,
+      "cacheTokens": 0,
+      "cost": 0.04023,
+      "timestamp": 1771807680612
+>>>>>>> Stashed changes
     }
   ]
 }
