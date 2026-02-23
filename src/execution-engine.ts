@@ -187,10 +187,15 @@ export class ExecutionEngine {
     ".git/objects",
     ".git/refs",
     ".env",
+    ".env.local",
+    ".env.production",
+    ".env.staging",
     "*.key",
     "*.pem",
     "*.p12",
     "*.pfx",
+    "id_rsa",
+    "id_ed25519",
   ];
   /** Active async processes */
   private activeProcesses = new Map<string, AsyncShellHandle>();
@@ -242,6 +247,11 @@ export class ExecutionEngine {
    * Path security check — prevent escaping outside projectRoot.
    */
   private securePath(filePath: string): string {
+    // Null byte injection protection
+    if (filePath.includes("\0")) {
+      throw new Error(`Path contains null byte: rejected`);
+    }
+
     const resolved = filePath.startsWith("/")
       ? filePath
       : join(this.projectRoot, filePath);
