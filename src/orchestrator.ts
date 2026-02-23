@@ -648,6 +648,7 @@ export class Orchestrator {
         // On 3rd failure: skip atom, move to next
         let atomPassed = false;
         let lastRejectionFeedback = "";
+        let execResult: StepResult | undefined;
         let passedAttempt = 0;
 
         for (let attempt = 0; attempt < this.MAX_ATOM_RETRIES; attempt++) {
@@ -755,7 +756,7 @@ export class Orchestrator {
         // Mode A: Tool-enabled (LLM calls tools in real-time) — preferred
         // Mode B: Fallback (LLM plans, Worker Executor extracts & runs post-hoc)
 
-        let execResult: StepResult | undefined;
+        execResult = undefined; // reset for this attempt
         let toolCallCount = 0;
         const toolResults: Array<{ name: string; success: boolean }> = [];
 
