@@ -1,0 +1,12 @@
+{
+  "id": "chain_046",
+  "name": "Vision: Write README saying npm install -g forem",
+  "goal": "Define the vision for: Write README saying npm install -g foreman and foreman init commands",
+  "layer": "visioner",
+  "thoughts": [
+    "t_270"
+  ],
+  "status": "active",
+  "contextSummary": "",
+  "createdAt": "2026-02-23T20:07:33.704Z"
+}
