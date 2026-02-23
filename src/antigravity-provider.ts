@@ -218,9 +218,23 @@ export async function refreshChatModels(creds: AntigravityCredentials): Promise<
     const discovered = await discoverModels(creds);
     if (discovered.length === 0) return; // keep fallback
 
-    const models: Array<{ id: string; label: string; model: string }> = [];
+    // Whitelist: only accept models we know are real chat models
+    // The API returns garbage internal models like tab_jump_flash_lite_preview
+    const ALLOWED_PATTERNS = [
+      "claude-opus", "claude-sonnet", "claude-haiku",
+      "gemini-3.1", "gemini-3", "gemini-2.5", "gemini-2.0",
+    ];
 
-    for (const m of discovered) {
+    const filtered = discovered.filter(m => {
+      const id = m.id.toLowerCase();
+      return ALLOWED_PATTERNS.some(pattern => id.includes(pattern));
+    });
+
+    if (filtered.length === 0) return; // keep fallback
+
+    // Build model entries from discovered - but maintain our preferred order
+    const models: Array<{ id: string; label: string; model: string }> = [];
+    for (const m of filtered) {
       const slug = modelIdToSlug(m.id);
       models.push({
         id: slug,
@@ -230,8 +244,20 @@ export async function refreshChatModels(creds: AntigravityCredentials): Promise<
     }
 
     if (models.length > 0) {
+      // Sort: Claude first, then Gemini high→low
+      models.sort((a, b) => {
+        const order = (m: typeof a) => {
+          if (m.id.includes("opus")) return 0;
+          if (m.id.includes("sonnet")) return 1;
+          if (m.id.includes("3.1") && m.id.includes("high")) return 2;
+          if (m.id.includes("3.1") && m.id.includes("low")) return 3;
+          if (m.id.includes("flash")) return 4;
+          return 5;
+        };
+        return order(a) - order(b);
+      });
+
       CHAT_MODELS = models;
-      // Also update the ANTIGRAVITY_MODELS mapping so resolveModel() works
       for (const m of models) {
         ANTIGRAVITY_MODELS[m.id] = m.model;
       }
