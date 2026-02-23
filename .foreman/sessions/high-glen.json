@@ -1,0 +1,15 @@
+{
+  "id": "070898f4-07c6-4f4e-863a-1066c4eacd85",
+  "slug": "high-glen",
+  "status": "active",
+  "createdAt": 1771805099926,
+  "updatedAt": 1771805099926,
+  "context": {
+    "task": "Analyze the Foreman codebase. Create a breathtaking, highly detailed README.md in English. It must be a masterpiece of documentation. Requirements: 1. Include stunning ASCII art of a blacksmith forging on an anvil at the very top. 2. Explain Foreman as an Autonomous AI Coding Agent & Orchestrator. 3. Highlight the new 'Hyper-Fractal Decomposition' and 'Micro-Agent Orchestration' capabilities (dividing tasks down to the atomic/pixel level and assigning specialized sub-agents). 4. Detail the resilience mechanisms: Auto-Heal, Checkpoint Clearing, and Provider Fallback (Gemini-3.1-pro-high). 5. Balance deep technical architecture with an inspiring, accessible tone. Make it a true showpiece that demonstrates what the ultimate AI coder looks like. Overwrite the existing README.md.",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}

@@ -1,0 +1,16 @@
+{
+  "id": "mem_093",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] **GOAL**: Create the file `/tmp/forge-ok.txt` with the exact text content `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file exists at `/tmp/forge-ok.txt` and its exact string content matches t...",
+  "source": {
+    "type": "thought",
+    "ref": "t_133"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 5,
+  "createdAt": "2026-02-23T00:54:33.515Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:55:09.763Z"
+}

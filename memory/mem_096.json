@@ -1,0 +1,15 @@
+{
+  "id": "mem_096",
+  "projectId": "global",
+  "category": "lesson",
+  "content": "[worker] Wrote the verification payload to `/tmp/forge-ok.txt` using Node's fs module to strictly control formatting. Task successfully completed without unintended side effects.",
+  "source": {
+    "type": "thought",
+    "ref": "t_137"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T00:55:30.138Z",
+  "expired": false
+}

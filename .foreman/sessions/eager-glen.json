@@ -1,0 +1,15 @@
+{
+  "id": "93eb90ba-7d9c-47dd-bdcb-cc6f81277669",
+  "slug": "eager-glen",
+  "status": "active",
+  "createdAt": 1771806979239,
+  "updatedAt": 1771806979239,
+  "context": {
+    "task": "Create a file called /tmp/forge-test-ok.txt with the text: Forge works",
+    "memory": {},
+    "files": []
+  },
+  "metadata": {},
+  "messageCount": 0,
+  "tokenCount": 0
+}
