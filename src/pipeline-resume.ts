@@ -153,6 +153,20 @@ export class PipelineResumeEngine {
   }
 
   /**
+   * Mark a block as fully completed — advance to next block.
+   */
+  completeBlock(blockIndex: number, passedAtoms: number, totalAtoms: number): void {
+    const checkpoint = this.loadCheckpoint();
+    if (!checkpoint) return;
+
+    checkpoint.currentBlock = blockIndex + 1;
+    checkpoint.currentAtom = 0;
+    checkpoint.updatedAt = Date.now();
+
+    this.saveCheckpoint(checkpoint);
+  }
+
+  /**
    * Check if a specific atom has been completed (for resume skip).
    */
   isAtomCompleted(blockIndex: number, atomIndex: number): boolean {

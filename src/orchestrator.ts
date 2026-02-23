@@ -1553,6 +1553,9 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
       console.log(`[forge] Block ${i + 1}/${blocks.length} done in ${blockDurationStr} — ${blockPassedAtoms}/${atoms.length} atoms passed`);
       this.engine.streaming.blockEnd(i);
 
+      // ─── CHECKPOINT: Block complete — save for resume ───
+      this.resume.completeBlock(i, blockPassedAtoms, atoms.length);
+
       // ─── VIBE CHECK MILESTONE — Visual verification at block boundary ───
       try {
         const servers = await detectDevServers();
