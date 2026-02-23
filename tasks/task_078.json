@@ -1,0 +1,22 @@
+{
+  "id": "task_078",
+  "projectId": "foreman",
+  "title": "Create file /tmp/forge-ok.txt with text: Forge pipeline works",
+  "description": "**GOAL**: Deterministically create `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file must exist at `/tmp/forge-ok.txt`. The exact size must be",
+  "type": "feature",
+  "priority": "high",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [
+    "chain_037"
+  ],
+  "subtaskIds": [
+    "task_079",
+    "task_080"
+  ],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T03:35:07.142Z"
+}

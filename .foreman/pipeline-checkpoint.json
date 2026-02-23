@@ -1,18 +1,18 @@
 {
-  "id": "cp_1771817294604_v3f7",
+  "id": "cp_1771817689802_uvl2",
   "task": "Create file /tmp/forge-ok.txt with text: Forge pipeline works",
-  "startedAt": 1771817294604,
-  "updatedAt": 1771817307606,
+  "startedAt": 1771817689802,
+  "updatedAt": 1771817707142,
   "phase": "research",
-  "chainId": "chain_036",
+  "chainId": "chain_037",
   "completedAtoms": [],
   "currentBlock": 0,
   "currentAtom": 0,
   "totalThoughts": 0,
   "totalTokens": 0,
-  "visionOutput": "**GOAL**: Create the file `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file exists at `/tmp/forge-ok.txt`, its exact content is `Forge pipeline works` (with absolutely no trailing newlines), and verification is proven with actual execution evidence rather than hallucinated assumptions.\n**CONSTRAINTS**: Modify ONLY `/tmp/forge-ok.txt` (zero scope creep). You MUST use the native file-writing convention rather than terminal commands like `echo`, `printf`, or `node -e` to avoid formatting artifacts.",
+  "visionOutput": "**GOAL**: Deterministically create `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file must exist at `/tmp/forge-ok.txt`. The exact size must be exactly 20 bytes (proving absolutely no trailing newline). Verification must rely on real, observable command execution output (e.g., `wc -c /tmp/forge-ok.txt`), not predictions or assumptions.\n**CONSTRAINTS**: \n- Strictly use the native file-writing tool/convention.\n- BANNED: `echo`, `node -e`, and `printf`.\n- BANNED: Modifying any existing project files (zero scope creep).\n- BANNED: Trailing newlines.",
   "blocks": [
-    "Execute deterministic state clearance by removing `/tmp/forge-ok.txt` to guarantee a completely clean environment prior to the precise write operation. [Acceptance Criteria: Command `rm -f /tmp/forge-ok.txt` executes successfully, ensuring no previous versions, artifacts, or newline corruptions exist.]",
-    "Write the exact payload `Forge pipeline works` to `/tmp/forge-ok.txt` using the native file-writing convention and perform concrete verification. [Acceptance Criteria: File is created explicitly via native file-writing without using banned terminal commands like `node -e` or `echo`; content contains exactly the target string with absolutely zero trailing newlines; and execution evidence mathematically proves structural integrity without hallucination.]"
+    "Perform idempotent state clearance by removing any existing file at `/tmp/forge-ok.txt`, then write exactly the string `Forge pipeline works` to the file using only native file-writing tools, strictly avoiding banned commands (`echo`, `node -e`, `printf`) and trailing newlines. [Acceptance Criteria: The file `/tmp/forge-ok.txt` is successfully written to disk, no trailing newlines are introduced, and zero existing project files are modified.]",
+    "Execute observable terminal commands to deterministically verify the artifact's structural integrity. [Acceptance Criteria: Real execution output from `wc -c /tmp/forge-ok.txt` irrefutably proves the file size is exactly 20 bytes, and `cat /tmp/forge-ok.txt` confirms the exact string content, guaranteeing no hallucinated states.]"
   ]
 }

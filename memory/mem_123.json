@@ -1,0 +1,16 @@
+{
+  "id": "mem_123",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Perform idempotent state clearance by removing any existing file at `/tmp/forge-ok.txt`, then write exactly the string `Forge pipeline works` to the file using only native file-writing tools, stric...",
+  "source": {
+    "type": "thought",
+    "ref": "t_210"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 2,
+  "createdAt": "2026-02-23T03:35:07.141Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T03:35:24.389Z"
+}

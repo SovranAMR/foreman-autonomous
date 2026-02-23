@@ -1,0 +1,16 @@
+{
+  "id": "mem_122",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] **GOAL**: Deterministically create `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file must exist at `/tmp/forge-ok.txt`. The exact size must be...",
+  "source": {
+    "type": "thought",
+    "ref": "t_209"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 3,
+  "createdAt": "2026-02-23T03:34:49.801Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T03:35:24.389Z"
+}
