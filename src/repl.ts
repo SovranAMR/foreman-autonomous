@@ -674,7 +674,7 @@ export async function startRepl(): Promise<void> {
   const editEngine = new EditEngine();
   const gitEngine = new GitEngine(execEngine);
   const linkIntel = new LinkIntelligence();
-  const toolExecutor = createEngineToolExecutor(cwd, execEngine, editEngine, gitEngine, linkIntel);
+  const toolExecutor = createEngineToolExecutor(cwd, execEngine, editEngine, gitEngine, linkIntel, undefined); // No hooks engine in REPL mode
 
   // State
   const state: ReplState = {

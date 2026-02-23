@@ -719,6 +719,7 @@ export class Orchestrator {
               this.engine.editEngine,
               this.engine.git,
               this.engine.linkIntelligence,
+              this.engine.hooks, // Hook support for hallucination guard
             );
 
             // Build context for tool-enabled LLM call
@@ -1476,6 +1477,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                   this.engine.editEngine,
                   this.engine.git,
                   this.engine.linkIntelligence,
+                  this.engine.hooks, // Hook support for hallucination guard
                 );
 
                 const reResult = await this.engine.callLLMWithTools(

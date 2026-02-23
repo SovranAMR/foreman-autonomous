@@ -43,6 +43,7 @@ import { quickSearch, clearSearchCache, searchCacheStats } from "./web-search-en
 import { webFetch, clearFetchCache, fetchCacheStats } from "./web-fetch-engine.js";
 import { LinkIntelligence, classifyUrl } from "./link-intelligence.js";
 import { extractCodeFences, extractTables, extractSections, extractLists, parseFrontmatter, extractInlineCode } from "./markdown-intelligence.js";
+import type { HooksEngine } from "./hooks-engine.js";
 
 // ─── TYPES ───────────────────────────────────────────────────
 
@@ -827,8 +828,9 @@ export function createEngineToolExecutor(
   editEngine: EditEngine,
   gitEngine: GitEngine,
   linkIntel: LinkIntelligence,
+  hooksEngine?: HooksEngine,
 ): (call: ToolCall) => Promise<ToolResult> {
-  return createToolDispatcher(projectRoot, execEngine, editEngine, gitEngine, linkIntel);
+  return createToolDispatcher(projectRoot, execEngine, editEngine, gitEngine, linkIntel, hooksEngine);
 }
 
 function createToolDispatcher(
@@ -837,16 +839,64 @@ function createToolDispatcher(
   editEngine: EditEngine,
   gitEngine: GitEngine,
   linkIntel: LinkIntelligence,
+  hooksEngine?: HooksEngine,
 ): (call: ToolCall) => Promise<ToolResult> {
   return async (call: ToolCall): Promise<ToolResult> => {
+    // ─── HOOK: before_tool_call ─────────────────────────────
+    if (hooksEngine) {
+      const beforeResult = await hooksEngine.run("before_tool_call", {
+        tool: call.name,
+        args: call.args,
+      });
+      if (beforeResult.block) {
+        return {
+          name: call.name,
+          content: `Tool call blocked: ${beforeResult.blockReason}`,
+          isError: true,
+        };
+      }
+    }
+
+    // ─── TOOL-SPECIFIC HOOKS ────────────────────────────────
+    // Run specialized hooks for specific tools
+    if (hooksEngine && call.name === "bash") {
+      const cmdResult = await hooksEngine.run("before_command", {
+        command: call.args.command,
+        timeout: call.args.timeout_ms,
+      });
+      if (cmdResult.block) {
+        return {
+          name: "bash",
+          content: `Command blocked: ${cmdResult.blockReason}`,
+          isError: true,
+        };
+      }
+    }
+
+    if (hooksEngine && call.name === "write_file") {
+      const fileResult = await hooksEngine.run("before_file_write", {
+        path: call.args.path,
+        content: call.args.content,
+      });
+      if (fileResult.block) {
+        return {
+          name: "write_file",
+          content: `Write blocked: ${fileResult.blockReason}`,
+          isError: true,
+        };
+      }
+    }
+
+    let result: ToolResult;
+
     try {
       switch (call.name) {
         case "bash":
-          return executeBash(engine, call.args);
+          return executeBash(engine, call.args, hooksEngine);
         case "read_file":
           return executeReadFile(engine, call.args);
         case "write_file":
-          return executeWriteFile(engine, call.args);
+          return executeWriteFile(engine, call.args, hooksEngine);
         case "edit_file":
           return executeEditFileV2(editEngine, call.args);
         case "search_files":
@@ -948,12 +998,23 @@ function createToolDispatcher(
           return await executeForge(projectRoot, call.args);
 
         default:
-          return { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
+          result = { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      return { name: call.name, content: `Error: ${message}`, isError: true };
+      result = { name: call.name, content: `Error: ${message}`, isError: true };
     }
+
+    // ─── HOOK: after_tool_call ──────────────────────────────
+    if (hooksEngine) {
+      await hooksEngine.run("after_tool_call", {
+        tool: call.name,
+        args: call.args,
+        result: result,
+      });
+    }
+
+    return result;
   };
 }
 
@@ -967,12 +1028,23 @@ export function executeTool(call: ToolCall): Promise<ToolResult> {
 
 // ─── INDIVIDUAL TOOL IMPLEMENTATIONS ─────────────────────────
 
-function executeBash(engine: ExecutionEngine, args: Record<string, unknown>): ToolResult {
+function executeBash(
+  engine: ExecutionEngine,
+  args: Record<string, unknown>,
+  hooksEngine?: HooksEngine
+): ToolResult {
   const command = args.command as string;
   const timeout = (args.timeout_ms as number) || 30_000;
 
   if (!command) {
     return { name: "bash", content: "Error: command is required", isError: true };
+  }
+
+  // ─── HOOK: before_command ───────────────────────────────
+  if (hooksEngine) {
+    // Note: Hook execution would be async, but ToolResult is sync
+    // We handle this at the dispatcher level for before_tool_call
+    // This is a placeholder for future sync hook support
   }
 
   // Delegates to ExecutionEngine — gets dangerous command blocking,
@@ -1028,7 +1100,11 @@ function executeReadFile(engine: ExecutionEngine, args: Record<string, unknown>)
   };
 }
 
-function executeWriteFile(engine: ExecutionEngine, args: Record<string, unknown>): ToolResult {
+function executeWriteFile(
+  engine: ExecutionEngine,
+  args: Record<string, unknown>,
+  hooksEngine?: HooksEngine
+): ToolResult {
   const filePath = args.path as string;
   const content = args.content as string;
 
@@ -1038,6 +1114,10 @@ function executeWriteFile(engine: ExecutionEngine, args: Record<string, unknown>
   if (content === undefined || content === null) {
     return { name: "write_file", content: "Error: content is required", isError: true };
   }
+
+  // ─── HOOK: before_file_write ────────────────────────────
+  // Note: Async hooks handled at dispatcher level via before_tool_call
+  // Additional file-specific validation can be added here
 
   // Delegates to ExecutionEngine — gets path security,
   // auto-mkdir, denied path checks for free

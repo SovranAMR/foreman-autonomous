@@ -175,6 +175,77 @@ export class HallucinationGuard {
   }
 
   /**
+   * Hook: before_command
+   * Validates shell commands against ground truth.
+   */
+  async beforeCommand(event: HookEvent): Promise<HookResult> {
+    if (!this.config.strictMode || !this.state.groundTruth) {
+      return {};
+    }
+
+    const data = event.data as { command?: string };
+    const command = data.command || "";
+
+    if (!command.trim()) return {};
+
+    // Check for hallucinated commands
+    const gt = this.state.groundTruth;
+
+    // Extract command name (first word before space)
+    const cmdName = command.trim().split(/\s+/)[0];
+
+    // Check if it's a package manager command with potentially wrong package
+    if (cmdName === "npm" || cmdName === "yarn" || cmdName === "pnpm") {
+      // Check for npm install -g (common hallucination)
+      if (command.includes("install -g") || command.includes("i -g")) {
+        // Check if package is actually published
+        const match = command.match(/install\s+-g\s+(\S+)/);
+        if (match) {
+          const pkg = match[1];
+          // Check if this package exists in our dependencies
+          const deps = gt.packageJson.parsed?.dependencies || {};
+          const devDeps = gt.packageJson.parsed?.devDependencies || {};
+          const isLocalDep = Object.prototype.hasOwnProperty.call(deps, pkg);
+          const isDevDep = Object.prototype.hasOwnProperty.call(devDeps, pkg);
+
+          if (!isLocalDep && !isDevDep) {
+            this.state.violationCount++;
+            return {
+              block: true,
+              blockReason: `Potentially hallucinated global install: ${pkg}. This package is not in project dependencies. Use local install (npm install ${pkg}) or verify package exists on npm.`,
+            };
+          }
+        }
+      }
+    }
+
+    // Check for non-existent npm scripts
+    if (command.startsWith("npm run ") || command.startsWith("yarn ")) {
+      const scriptMatch = command.match(/(?:npm run|yarn)\s+(\S+)/);
+      if (scriptMatch) {
+        const scriptName = scriptMatch[1];
+        const scriptExists = gt.availableCommands.some(c =>
+          c.name === scriptName && c.source === "package.json"
+        );
+
+        if (!scriptExists) {
+          const availableScripts = gt.availableCommands
+            .filter(c => c.source === "package.json")
+            .map(c => c.name)
+            .join(", ");
+          this.state.violationCount++;
+          return {
+            block: true,
+            blockReason: `Hallucinated npm script: "${scriptName}" does not exist in package.json scripts. Available scripts: ${availableScripts || "none"}`,
+          };
+        }
+      }
+    }
+
+    return {};
+  }
+
+  /**
    * Hook: after_pipeline
    * Reports on hallucination statistics.
    */
@@ -270,6 +341,11 @@ export function registerHallucinationGuard(
   hooksEngine.register("before_file_write", guard.beforeFileWrite.bind(guard), {
     name: "hallucination-guard-files",
     priority: 80,
+  });
+
+  hooksEngine.register("before_command", guard.beforeCommand.bind(guard), {
+    name: "hallucination-guard-commands",
+    priority: 85,
   });
 
   hooksEngine.register("after_pipeline", guard.afterPipeline.bind(guard), {

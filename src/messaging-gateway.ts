@@ -118,6 +118,7 @@ export class MessagingGateway {
       editEngine,
       gitEngine,
       linkIntel,
+      undefined, // No hooks engine in standalone mode
     );
 
     // Start configured channels
