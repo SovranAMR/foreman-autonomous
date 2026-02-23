@@ -1,0 +1,15 @@
+{
+  "id": "mem_161",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute the terminal command `cat ./hello-forge.txt` to output the file's exact string content directly to the execution trace. [Acceptance Criteria: Command executes successfully and the observabl...",
+  "source": {
+    "type": "thought",
+    "ref": "t_251"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T11:07:54.725Z",
+  "expired": false
+}
