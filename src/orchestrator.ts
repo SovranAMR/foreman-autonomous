@@ -1660,6 +1660,30 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
       this.engine.state.transition("verifying", "Pipeline execution complete, final verify");
     }
 
+    // ─── FINAL VERIFICATION — build/test check ──────────────
+    try {
+      this.engine.streaming.phaseStart("final_verify", "Running final build/test verification...");
+
+      // Try TypeScript type-check
+      const tscResult = this.engine.exec.runShell("npx tsc --noEmit 2>&1 | tail -5", 30_000);
+      if (tscResult.success) {
+        this.engine.streaming.phaseEnd("final_verify", "TypeScript: ✔ No errors");
+      } else {
+        const errors = tscResult.stdout?.trim() || tscResult.stderr?.trim() || "";
+        this.engine.streaming.warning(`TypeScript errors detected: ${errors.slice(0, 200)}`);
+      }
+
+      // Try test suite (quick check)
+      const testResult = this.engine.exec.runShell("npm test 2>&1 | tail -5", 60_000);
+      if (testResult.success) {
+        this.engine.streaming.phaseEnd("final_verify", "Tests: ✔ All passing");
+      } else {
+        this.engine.streaming.warning(`Test failures detected — review before committing`);
+      }
+    } catch {
+      // Final verification is best-effort — don't fail pipeline
+    }
+
     // ─── CHAIN REPAIR — fix any orphaned refs from compaction ──
     const repairResult = this.engine.repairChain(visionChain.id);
     if (!repairResult.healthy) {
