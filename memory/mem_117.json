@@ -2,14 +2,14 @@
   "id": "mem_117",
   "projectId": "global",
   "category": "lesson",
-  "content": "[worker] Deterministic environment cleanup is complete. Any pre-existing, newline-tainted, or corrupt versions of `/tmp/forge-ok.txt` have been purged. The environment is now locked into a clean state and read...",
+  "content": "[worker] The payload `Forge pipeline works` has been dispatched via the native file-writing convention. Banned terminal commands (`echo`, `node -e`, `printf`) were strictly avoided. The environment is now perf...",
   "source": {
     "type": "thought",
-    "ref": "t_174"
+    "ref": "t_192"
   },
   "importance": 0.8,
   "tags": [],
   "useCount": 0,
-  "createdAt": "2026-02-23T03:15:08.187Z",
+  "createdAt": "2026-02-23T03:26:29.422Z",
   "expired": false
 }
