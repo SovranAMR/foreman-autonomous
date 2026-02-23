@@ -730,6 +730,8 @@ export class ExecutionEngine {
     // Auto-cleanup when process exits
     promise.then(() => {
       this.activeProcesses.delete(sessionId);
+    }).catch(() => {
+      this.activeProcesses.delete(sessionId);
     });
 
     // If CommandQueue connected, wrap the promise through the queue
