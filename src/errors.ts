@@ -117,7 +117,8 @@ export function extractErrorCode(err: unknown): string | undefined {
  */
 export function extractStatusCode(err: unknown): number | undefined {
   if (!err || typeof err !== "object") return undefined;
-  const status = (err as any).status ?? (err as any).statusCode ?? (err as any).response?.status;
+  const e = err as Record<string, unknown>;
+  const status = e.status ?? e.statusCode ?? (e.response as Record<string, unknown> | undefined)?.status;
   return typeof status === "number" ? status : undefined;
 }
 

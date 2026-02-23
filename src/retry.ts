@@ -79,9 +79,10 @@ export const AGGRESSIVE_RETRY_CONFIG: RetryConfig = {
 export function classifyLLMError(err: unknown): ErrorClass {
   if (!err || typeof err !== "object") return "fatal";
 
-  const status = (err as any).status ?? (err as any).statusCode;
-  const message = (err as any).message ?? "";
-  const code = (err as any).code ?? "";
+  const e = err as Record<string, unknown>;
+  const status = (e.status ?? e.statusCode) as number | undefined;
+  const message = (e.message ?? "") as string;
+  const code = (e.code ?? "") as string;
 
   // Rate limit
   if (status === 429 || /rate.?limit|too.?many.?requests/i.test(message)) {
@@ -171,10 +172,13 @@ export function computeBackoff(config: RetryConfig, attempt: number): number {
 export function extractRetryAfterMs(err: unknown): number | null {
   if (!err || typeof err !== "object") return null;
 
+  const e = err as Record<string, unknown>;
+
   // Anthropic: headers['retry-after'] (saniye cinsinden)
-  const headers = (err as any).headers ?? (err as any).response?.headers;
+  const headers = (e.headers ?? (e.response as Record<string, unknown> | undefined)?.headers) as Record<string, unknown> | undefined;
   if (headers) {
-    const retryAfter = headers["retry-after"] ?? headers.get?.("retry-after");
+    const getHeader = typeof (headers as any).get === "function" ? (headers as any).get : undefined;
+    const retryAfter = (headers["retry-after"] ?? getHeader?.("retry-after")) as string | undefined;
     if (retryAfter) {
       const seconds = parseFloat(String(retryAfter));
       if (Number.isFinite(seconds) && seconds > 0) {
@@ -184,7 +188,7 @@ export function extractRetryAfterMs(err: unknown): number | null {
   }
 
   // OpenAI: error.retry_after (saniye)
-  const retryAfterField = (err as any).retry_after ?? (err as any).error?.retry_after;
+  const retryAfterField = (e.retry_after ?? (e.error as Record<string, unknown> | undefined)?.retry_after) as number | undefined;
   if (typeof retryAfterField === "number" && Number.isFinite(retryAfterField)) {
     return Math.ceil(retryAfterField * 1000);
   }
