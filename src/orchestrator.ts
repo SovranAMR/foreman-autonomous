@@ -1061,8 +1061,9 @@ export class Orchestrator {
         // Different LLM reviews Worker's output against vision document.
         // Quick local check first, then full LLM review if needed.
         // SKIP for simple visions (no FORBIDDEN list, short vision = simple task)
-        const isSimpleVision = visionOutput.length < 800 && !visionOutput.toLowerCase().includes("forbidden");
-        console.log(`  [reviewer-gate] visionLen=${visionOutput.length} isSimple=${isSimpleVision} status=${execResult?.thought?.status} hasForbidden=${visionOutput.toLowerCase().includes("forbidden")}`);
+        const hasForbiddenSection = /^##\s*FORBIDDEN/im.test(visionOutput);
+        const isSimpleVision = visionOutput.length < 800 && !hasForbiddenSection;
+        console.log(`  [reviewer-gate] visionLen=${visionOutput.length} isSimple=${isSimpleVision} hasForbiddenSection=${hasForbiddenSection}`);
         if (!isSimpleVision && execResult?.thought.status === "done" && execResult?.thought.workerProtocol) {
           const protocol = execResult?.thought.workerProtocol;
 
