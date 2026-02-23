@@ -221,14 +221,14 @@ export class KimiProvider implements LLMProvider {
             }
 
             // Parse streaming response — collect text + tool calls
-            const { text, toolCalls, inputTokens, outputTokens } = await this.parseToolStream(response, onToken);
+            const { text, reasoningContent, toolCalls, inputTokens, outputTokens } = await this.parseToolStream(response, onToken);
             totalInputTokens += inputTokens;
             totalOutputTokens += outputTokens;
 
             // If there are tool calls, execute them and loop
             if (toolCalls.length > 0) {
-                // Add assistant message with tool calls
-                conversationMessages.push({
+                // Add assistant message with tool calls + reasoning_content
+                const assistantMsg: any = {
                     role: "assistant",
                     content: text || "",
                     tool_calls: toolCalls.map(tc => ({
@@ -236,7 +236,12 @@ export class KimiProvider implements LLMProvider {
                         type: "function",
                         function: { name: tc.name, arguments: JSON.stringify(tc.args) },
                     })),
-                } as any);
+                };
+                // Kimi requires reasoning_content on tool call messages when thinking is enabled
+                if (reasoningContent) {
+                    assistantMsg.reasoning_content = reasoningContent;
+                }
+                conversationMessages.push(assistantMsg);
 
                 // Execute each tool and add results
                 for (const tc of toolCalls) {
@@ -332,11 +337,13 @@ export class KimiProvider implements LLMProvider {
         onToken: (token: string) => void,
     ): Promise<{
         text: string;
+        reasoningContent: string;
         toolCalls: Array<{ id: string; name: string; args: Record<string, any> }>;
         inputTokens: number;
         outputTokens: number;
     }> {
         let fullText = "";
+        let reasoningContent = "";
         const toolCallsMap = new Map<number, { id: string; name: string; argsStr: string }>();
         let inputTokens = 0;
         let outputTokens = 0;
@@ -344,7 +351,7 @@ export class KimiProvider implements LLMProvider {
         if (!response.body) {
             const body = await response.text();
             const parsed = this.parseNonStreamResponse(body, onToken);
-            return { ...parsed, toolCalls: [] };
+            return { ...parsed, reasoningContent: "", toolCalls: [] };
         }
 
         const reader = response.body.getReader();
@@ -372,6 +379,11 @@ export class KimiProvider implements LLMProvider {
                     if (delta?.content) {
                         fullText += delta.content;
                         onToken(delta.content);
+                    }
+
+                    // Reasoning/thinking content (Kimi thinking mode)
+                    if (delta?.reasoning_content) {
+                        reasoningContent += delta.reasoning_content;
                     }
 
                     // Tool calls
@@ -410,7 +422,7 @@ export class KimiProvider implements LLMProvider {
             return { id: tc.id, name: tc.name, args };
         });
 
-        return { text: fullText, toolCalls, inputTokens, outputTokens };
+        return { text: fullText, reasoningContent, toolCalls, inputTokens, outputTokens };
     }
 
     /**
