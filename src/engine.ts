@@ -236,26 +236,38 @@ export class Engine {
     this.processRegistry.attachSignalBridge();
 
     // Register periodic tasks in the scheduler
-    this.scheduler.addInterval("chain-health", 300_000, () => {
-      // Every 5 min: check active chains for health issues
-      const chains = this.chains.list();
-      for (const chain of chains) {
-        const repair = this.repairChain(chain.id);
-        if (!repair.healthy) {
-          console.error(`[scheduler] Chain ${chain.id} unhealthy: ${repair.details.slice(0, 100)}`);
+    this.scheduler.addInterval({
+      name: "chain-health",
+      intervalMs: 300_000,
+      execute: async () => {
+        // Every 5 min: check active chains for health issues
+        const chains = this.chains.list();
+        for (const chain of chains) {
+          const repair = this.repairChain(chain.id);
+          if (!repair.healthy) {
+            console.error(`[scheduler] Chain ${chain.id} unhealthy: ${repair.details.slice(0, 100)}`);
+          }
         }
-      }
+      },
     });
 
-    this.scheduler.addInterval("memory-consolidate", 600_000, () => {
-      // Every 10 min: consolidate memory
-      this.memory.consolidate();
+    this.scheduler.addInterval({
+      name: "memory-consolidate",
+      intervalMs: 600_000,
+      execute: async () => {
+        // Every 10 min: consolidate memory
+        this.memory.consolidate();
+      },
     });
 
     // Event-driven tasks — triggered by orchestrator pipeline events
-    this.scheduler.addEventTask("pipeline_success", () => {
-      this.syncMemory();
-      this.memory.consolidate();
+    this.scheduler.addEventTask({
+      name: "pipeline_success",
+      event: "chain-complete" as any,
+      execute: async () => {
+        this.syncMemory();
+        this.memory.consolidate();
+      },
     });
 
     // ─── CROSS-SYSTEM WIRING ────────────────────────────────
@@ -546,7 +558,7 @@ export class Engine {
     const needsCompaction = !contextEval.isSafe ||
       (contextEval.remainingTokens < CONTEXT_WINDOW_WARN_BELOW && allChainThoughts.length > 3);
     if (needsCompaction && allChainThoughts.length > 0) {
-      const chunkRatio = computeAdaptiveChunkRatio(allChainThoughts.length, contextWindowTokens);
+      const chunkRatio = computeAdaptiveChunkRatio(allChainThoughts, contextWindowTokens);
       const compactResult = buildCompactContext({
         thoughts: allChainThoughts,
         maxTokens: Math.floor(contextWindowTokens * chunkRatio),
@@ -858,7 +870,7 @@ export class Engine {
       healthy: health.healthy && repairReport.report.totalRepairs === 0,
       repaired: totalIssues,
       details: [
-        ...health.issues.map(i => `[chain] ${i.type}: ${i.description}`),
+        ...health.issues.map(i => `[chain] ${i.kind}: ${i.message}`),
         repairReport.report.totalRepairs > 0
           ? `[transcript] ${repairReport.report.droppedOrphanResults} orphan results, ${repairReport.report.droppedOrphanCalls} orphan calls, ${repairReport.report.repairedContextRefs} broken refs, ${repairReport.report.insertedGapMarkers} gap markers`
           : "",
@@ -892,7 +904,7 @@ export class Engine {
    * Recall memories relevant to a query using TF-IDF similarity.
    */
   recall(query: string, limit = 5): Array<{ content: string; score: number }> {
-    return this.memory.recall(query, limit);
+    return this.memory.search(query).slice(0, limit).map(r => ({ content: r.entry.content, score: r.score }));
   }
 
   /**
@@ -908,14 +920,16 @@ export class Engine {
    */
   generateCategoryMemoryFiles(): { files: string[]; totalEntries: number } {
     const entries = this.memory.list();
-    return generateCategoryFiles(entries, this.config.projectRoot);
+    const catMap = generateCategoryFiles(entries, this.config.projectRoot);
+    const files = [...catMap.keys()];
+    return { files, totalEntries: entries.length };
   }
 
   /**
    * Parse an existing MEMORY.md back into structured entries.
    */
   parseMemoryDocument(content: string): Array<{ category: string; content: string; tags: string[] }> {
-    return parseMemoryMd(content);
+    return parseMemoryMd(content).map(e => ({ category: e.category, content: e.content, tags: [] as string[] }));
   }
 
   /**
@@ -1169,7 +1183,7 @@ export class Engine {
    * Add a delayed task.
    */
   addDelayedTask(id: string, delayMs: number, fn: () => void | Promise<void>): void {
-    this.scheduler.addDelayed(id, delayMs, fn);
+    this.scheduler.addDelayed({ name: id, delayMs, execute: async () => { fn(); } });
   }
 
   /**
