@@ -1,0 +1,15 @@
+{
+  "id": "mem_112",
+  "projectId": "global",
+  "category": "lesson",
+  "content": "[worker] Deterministic state clearance complete. Any previous corruptions or newline-tainted versions of `/tmp/forge-ok.txt` have been purged. The environment is unblocked and ready for Atom 2 to perform the s...",
+  "source": {
+    "type": "thought",
+    "ref": "t_164"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T03:09:22.297Z",
+  "expired": false
+}

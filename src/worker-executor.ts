@@ -296,6 +296,7 @@ export async function executeOperations(
           }
 
           const cmdResult = execEngine.runShell(op.command, { timeout: 60_000 });
+          console.log(`  [worker-exec] cmd="${op.command.slice(0, 60)}" exit=${cmdResult.exitCode} err=${cmdResult.stderr?.slice(0, 80) ?? ""}`);
           results.push({
             operation: op,
             success: cmdResult.exitCode === 0,

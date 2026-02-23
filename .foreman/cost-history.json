@@ -280,6 +280,16 @@
       "cacheTokens": 0,
       "cost": 0.014502500000000002,
       "timestamp": 1771816143002
+    },
+    {
+      "id": "c_1771816162293_l1",
+      "model": "gemini-3.1-pro-high",
+      "phase": "worker",
+      "inputTokens": 6746,
+      "outputTokens": 391,
+      "cacheTokens": 0,
+      "cost": 0.02273,
+      "timestamp": 1771816162293
     }
   ]
 }
