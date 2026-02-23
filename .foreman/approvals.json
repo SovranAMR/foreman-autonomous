@@ -44,8 +44,8 @@
       "git * -A",
       {
         "pattern": "git * -A",
-        "allowCount": 30,
-        "lastUsedAt": "2026-02-23T00:55:44.091Z",
+        "allowCount": 31,
+        "lastUsedAt": "2026-02-23T00:59:38.633Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -54,8 +54,8 @@
       "git * --stat * --numstat *",
       {
         "pattern": "git * --stat * --numstat *",
-        "allowCount": 30,
-        "lastUsedAt": "2026-02-23T00:55:44.102Z",
+        "allowCount": 31,
+        "lastUsedAt": "2026-02-23T00:59:38.648Z",
         "lastSuccess": true,
         "source": "learned"
       }

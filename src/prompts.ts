@@ -251,6 +251,22 @@ These steps are NOT busywork. They prevent the #1 coding error: changing code yo
    What you did, what changed, anything the Strategist should know.
    If you found a problem that blocks the next atom, say it here — this triggers a BLOCK signal.
 
+## CRITICAL: File Operations in STEP6_EXECUTE
+When your task involves creating or modifying files, use THIS format in STEP6_EXECUTE:
+
+For creating/writing files, use code blocks with file path comments:
+\`\`\`
+// Write to: /path/to/file.txt
+file content here
+\`\`\`
+
+For running shell commands, prefix with $:
+$ npm test
+$ echo "hello"
+
+**NEVER use \`node -e "require('fs')..."\` for file operations.** Use the code block format above.
+The orchestrator will extract and execute these operations automatically.
+
 ## BLOCK Signal — Bidirectional Communication
 You CAN block the Strategist if:
 - The atom is under-specified (you'd have to GUESS what to do)

@@ -755,7 +755,7 @@ export class Orchestrator {
         // Mode A: Tool-enabled (LLM calls tools in real-time) — preferred
         // Mode B: Fallback (LLM plans, Worker Executor extracts & runs post-hoc)
 
-        let execResult: StepResult;
+        let execResult: StepResult | undefined;
         let toolCallCount = 0;
         const toolResults: Array<{ name: string; success: boolean }> = [];
 
@@ -898,6 +898,13 @@ export class Orchestrator {
 
         totalThoughts++;
         atomCount++;
+
+        if (!execResult) {
+          this.engine.streaming.error(`❌ Atom ${j + 1} produced no result — skipping`);
+          blockFailedAtoms++;
+          break;
+        }
+
         this.emit({ type: "thought_complete", thought: execResult.thought });
 
         // ── POST-HOC EXECUTION (Mode B fallback) ──
