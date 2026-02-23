@@ -247,13 +247,28 @@ export async function executeOperations(
             }
           } catch { /* ignore */ }
 
-          const writeResult = execEngine.writeFile(fullPath, op.content);
-          results.push({
-            operation: op,
-            success: writeResult.success,
-            output: writeResult.success ? `Wrote ${op.path}${diffInfo}` : undefined,
-            error: writeResult.error,
-          });
+          // Absolute paths outside project root: write directly (securePath denies them)
+          const isAbsoluteExternal = op.path.startsWith("/") && !op.path.startsWith(projectRoot);
+          if (isAbsoluteExternal) {
+            try {
+              const { mkdirSync, writeFileSync } = await import("node:fs");
+              const { dirname } = await import("node:path");
+              const dir = dirname(fullPath);
+              if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+              writeFileSync(fullPath, op.content, "utf-8");
+              results.push({ operation: op, success: true, output: `Wrote ${fullPath}${diffInfo}` });
+            } catch (err: any) {
+              results.push({ operation: op, success: false, error: err.message });
+            }
+          } else {
+            const writeResult = execEngine.writeFile(fullPath, op.content);
+            results.push({
+              operation: op,
+              success: writeResult.success,
+              output: writeResult.success ? `Wrote ${op.path}${diffInfo}` : undefined,
+              error: writeResult.error,
+            });
+          }
           break;
         }
 
