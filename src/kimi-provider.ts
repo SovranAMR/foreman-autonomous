@@ -110,7 +110,7 @@ export class KimiProvider implements LLMProvider {
             throw new Error(`Kimi API error ${response.status}: ${errText.slice(0, 200)}`);
         }
 
-        const data = await response.json() as any;
+        const data = await response.json() as Record<string, any>;
         const text = data.choices?.[0]?.message?.content ?? "";
         const inputTokens = data.usage?.prompt_tokens ?? 0;
         const outputTokens = data.usage?.completion_tokens ?? 0;
@@ -182,7 +182,9 @@ export class KimiProvider implements LLMProvider {
         const model = KIMI_MODELS.find(m => m.id === modelId)?.model ?? modelId;
         const tools = toOpenAITools();
 
-        const conversationMessages = messages.map(m => ({
+        // OpenAI-compatible message format for tool-calling conversations
+        type ChatMsg = { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; reasoning_content?: string };
+        const conversationMessages: ChatMsg[] = messages.map(m => ({
             role: m.role,
             content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
         }));
@@ -263,7 +265,7 @@ export class KimiProvider implements LLMProvider {
                         role: "tool",
                         content,
                         tool_call_id: tc.id,
-                    } as any);
+                    });
                 }
 
                 finalText += text;

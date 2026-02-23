@@ -136,7 +136,7 @@ export async function npmInfo(packageName: string): Promise<string> {
 
     if (!response.ok) return `Package "${packageName}" not found`;
 
-    const data = (await response.json()) as any;
+    const data = (await response.json()) as Record<string, any>;
     const parts: string[] = [];
     parts.push(`**${data.name}** v${data.version}`);
     if (data.description) parts.push(data.description);
