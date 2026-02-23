@@ -430,6 +430,8 @@
       "cacheTokens": 0,
       "cost": 0.016065000000000003,
       "timestamp": 1771817339733
+<<<<<<< Updated upstream
+=======
     },
     {
       "id": "c_1771817353118_lz",
@@ -440,6 +442,127 @@
       "cacheTokens": 0,
       "cost": 0.024494999999999996,
       "timestamp": 1771817353118
+    },
+    {
+      "id": "c_1771817430076_2u",
+      "model": "gemini-3.1-pro-high",
+      "phase": "visioner",
+      "inputTokens": 3822,
+      "outputTokens": 251,
+      "cacheTokens": 0,
+      "cost": 0.013319999999999999,
+      "timestamp": 1771817430076
+    },
+    {
+      "id": "c_1771817441436_lf",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 3983,
+      "outputTokens": 258,
+      "cacheTokens": 0,
+      "cost": 0.013827500000000001,
+      "timestamp": 1771817441436
+    },
+    {
+      "id": "c_1771817457302_t4",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 5175,
+      "outputTokens": 422,
+      "cacheTokens": 0,
+      "cost": 0.0192675,
+      "timestamp": 1771817457302
+    },
+    {
+      "id": "c_1771817477050_gh",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 5919,
+      "outputTokens": 158,
+      "cacheTokens": 0,
+      "cost": 0.0171675,
+      "timestamp": 1771817477050
+    },
+    {
+      "id": "c_1771817497810_9i",
+      "model": "gemini-3.1-pro-high",
+      "phase": "worker",
+      "inputTokens": 7950,
+      "outputTokens": 484,
+      "cacheTokens": 0,
+      "cost": 0.027135,
+      "timestamp": 1771817497810
+    },
+    {
+      "id": "c_1771817514439_op",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 1302,
+      "outputTokens": 234,
+      "cacheTokens": 0,
+      "cost": 0.006765,
+      "timestamp": 1771817514439
+    },
+    {
+      "id": "c_1771817532956_lh",
+      "model": "gemini-3.1-pro-high",
+      "phase": "worker",
+      "inputTokens": 5001,
+      "outputTokens": 369,
+      "cacheTokens": 0,
+      "cost": 0.018037499999999998,
+      "timestamp": 1771817532956
+    },
+    {
+      "id": "c_1771817548982_dz",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 1608,
+      "outputTokens": 283,
+      "cacheTokens": 0,
+      "cost": 0.008265,
+      "timestamp": 1771817548982
+    },
+    {
+      "id": "c_1771817571333_3y",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 4916,
+      "outputTokens": 508,
+      "cacheTokens": 0,
+      "cost": 0.01991,
+      "timestamp": 1771817571333
+    },
+    {
+      "id": "c_1771817584202_4n",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 5756,
+      "outputTokens": 237,
+      "cacheTokens": 0,
+      "cost": 0.017945,
+      "timestamp": 1771817584202
+    },
+    {
+      "id": "c_1771817598314_v6",
+      "model": "gemini-3.1-pro-high",
+      "phase": "worker",
+      "inputTokens": 7965,
+      "outputTokens": 359,
+      "cacheTokens": 0,
+      "cost": 0.0252975,
+      "timestamp": 1771817598314
+    },
+    {
+      "id": "c_1771817614769_ok",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 1242,
+      "outputTokens": 239,
+      "cacheTokens": 0,
+      "cost": 0.00669,
+      "timestamp": 1771817614769
+>>>>>>> Stashed changes
     }
   ]
 }
