@@ -385,6 +385,12 @@ export class Orchestrator {
     const blocks: string[] = decomposeResult.parsed?.blocks
       ?? this.fallbackParseBlocks(decomposeResult.thought.output);
 
+    // Hard cap: max 8 blocks regardless of what strategist produced
+    if (blocks.length > 8) {
+      console.warn(`[forge] Strategist produced ${blocks.length} blocks, capping at 8`);
+      blocks.length = 8;
+    }
+
     if (blocks.length === 0) {
       this.emit({
         type: "block_detected",
@@ -615,6 +621,12 @@ export class Orchestrator {
       // GET parsed atoms
       const atoms: string[] = atomizeResult.parsed?.atoms
         ?? this.fallbackParseBlocks(atomizeResult.thought.output);
+
+      // Hard cap: max 6 atoms per block
+      if (atoms.length > 6) {
+        console.warn(`[forge] Strategist produced ${atoms.length} atoms for block ${i + 1}, capping at 6`);
+        atoms.length = 6;
+      }
 
       if (atoms.length === 0) {
         this.emit({

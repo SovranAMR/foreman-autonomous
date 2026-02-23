@@ -36,11 +36,11 @@ export class BudgetExceededError extends Error {
 // ─── DEFAULT CONFIG ──────────────────────────────────────────
 
 export const DEFAULT_RATE_LIMIT_CONFIG: InternalConfig = {
-  minDelayBetweenCalls: 3000,      // 3 saniye
-  maxCallsPerMinute: 15,
-  cooldownAfterBurst: 30000,       // 30 saniye
+  minDelayBetweenCalls: 6000,      // 6 seconds — Antigravity RPM ~10
+  maxCallsPerMinute: 10,
+  cooldownAfterBurst: 45000,       // 45 seconds
   backoffStrategy: "exponential",
-  backoffBaseMs: 1000,             // 1 saniye base
+  backoffBaseMs: 2000,             // 2 second base for backoff
   maxRetries: 5,
   modelRotation: {
     primary: "claude-sonnet",

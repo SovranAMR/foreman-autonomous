@@ -1228,7 +1228,7 @@ export class Engine {
     let responseText = "";
 
     // Retry wrapper for 429/transient errors
-    const MAX_TOOL_RETRIES = 3;
+    const MAX_TOOL_RETRIES = 5;
     let lastToolError: unknown;
     let result: { text: string; inputTokens: number; outputTokens: number } | undefined;
 
@@ -1263,9 +1263,10 @@ export class Engine {
         const isTransient = /503|529|overload|unavail|timeout|ECONNRESET/i.test(msg);
 
         if ((is429 || isTransient) && attempt < MAX_TOOL_RETRIES - 1) {
+          // Exponential backoff: 20s, 40s, 60s, 60s for 429
           const waitMs = is429
-            ? Math.min(15000 * (attempt + 1), 60000) // 15s, 30s, 45s...
-            : 5000 * (attempt + 1);
+            ? Math.min(20000 * Math.pow(2, attempt), 60000)
+            : Math.min(5000 * Math.pow(2, attempt), 30000);
           console.log(`  [engine] callLLMWithTools: ${is429 ? "429" : "transient"} error, retry ${attempt + 1}/${MAX_TOOL_RETRIES} in ${waitMs / 1000}s`);
           await new Promise(r => setTimeout(r, waitMs));
           continue;
