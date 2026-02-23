@@ -1,0 +1,15 @@
+{
+  "id": "mem_114",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute the terminal command `rm -f /tmp/forge-ok.txt` to deterministically clean the environment and ensure no previous versions or corruptions of the file exist. [Acceptance Criteria: Command exe...",
+  "source": {
+    "type": "thought",
+    "ref": "t_168"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T03:13:05.842Z",
+  "expired": false
+}
