@@ -40,6 +40,8 @@ import { syncMemoryMd, generateCategoryFiles } from "./memory-md-bridge.js";
 import { batchWrite } from "./batch-file-engine.js";
 import { registerHallucinationGuard, HallucinationGuard } from "./hallucination-guard.js";
 
+import { PipelineObserver } from "./pipeline-observer.js";
+
 // ─── EVENTS ──────────────────────────────────────────────────
 
 export type OrchestratorEvent =
@@ -62,6 +64,7 @@ export class Orchestrator {
   readonly resume: PipelineResumeEngine;
   private listeners: EventListener[] = [];
   private hallucinationGuard: HallucinationGuard | null = null;
+  readonly observer: PipelineObserver;
 
   // ─── TOKEN BUDGETS ──────────────────────────────────────────
   private readonly MAX_TOKENS_PER_ATOM = 8_000;
@@ -76,7 +79,13 @@ export class Orchestrator {
   constructor(engine: Engine) {
     this.engine = engine;
     this.resume = new PipelineResumeEngine(engine.config.projectRoot);
+    this.observer = new PipelineObserver(engine.config.projectRoot);
     this.setupHallucinationGuard();
+
+    // Wire observer to streaming events
+    this.engine.streaming.on("event", (event: import("./streaming-pipeline.js").StreamEvent) => {
+      this.observer.onStreamEvent(event);
+    });
   }
 
   /**
@@ -103,6 +112,8 @@ export class Orchestrator {
     for (const listener of this.listeners) {
       listener(event);
     }
+    // Feed observer
+    this.observer.onOrchestratorEvent(event);
   }
 
   /**
@@ -734,6 +745,7 @@ export class Orchestrator {
 
           this.emit({ type: "phase_start", phase: "execute", detail: `Atom ${j + 1}/${atoms.length}: ${atom.slice(0, 50)}` });
           this.engine.streaming.atomStart(j, atoms.length, atom.slice(0, 50));
+          this.observer.onAtomStart(`Atom ${j + 1}/${atoms.length}: ${atom.slice(0, 100)}`);
 
           try {
             this.engine.rollback.createPoint("atom", `Pre-atom ${j + 1}: ${atom.slice(0, 40)}`, {
@@ -823,6 +835,9 @@ export class Orchestrator {
               memoryContext ? `MEMORY:\n${memoryContext.slice(0, 500)}` : "",
             ].filter(Boolean).join("\n\n---\n\n");
 
+            // ─── OBSERVER: Worker input ──────────────────────
+            this.observer.onWorkerInput(atomContext);
+
             // ─── EXECUTION MODE ──────────────────────────────
             // Extraction mode (default): 1 LLM call, post-hoc command parsing
             // Tool mode (FOREMAN_TOOL_MODE=1): N API calls per atom, more powerful but rate-limited
@@ -903,6 +918,12 @@ export class Orchestrator {
           }
 
           this.emit({ type: "thought_complete", thought: execResult?.thought });
+
+          // ─── OBSERVER: Worker output ──────────────────────
+          this.observer.onWorkerOutput(
+            execResult.thought.output.slice(0, 2000),
+            execResult.thought.confidence,
+          );
 
           // ── POST-HOC EXECUTION (Mode B fallback) ──
           // Only if no tools were called in Mode A (toolCallCount === 0)
@@ -992,6 +1013,7 @@ export class Orchestrator {
 
             // Atom BLOCK — retry with feedback (not skip)
             lastRejectionFeedback = `WORKER BLOCKED: ${execResult?.thought.blockedReason ?? "8-step protocol incomplete"}`;
+            this.observer.onWorkerRetry(attempt, lastRejectionFeedback);
             break; // break retry attempt, will retry with feedback
           }
 

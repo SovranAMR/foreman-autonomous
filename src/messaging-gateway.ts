@@ -316,6 +316,7 @@ export class MessagingGateway {
           "/tools — List available tools",
           "/cost — Token cost report",
           "/cancel — Cancel active forge run",
+          "/observe — Last pipeline report",
           "/rollback — Undo last operation",
         ].join("\n"),
         parseMode: "markdown",
@@ -328,6 +329,33 @@ export class MessagingGateway {
         text: `🛠️ **Available Tools (${TOOL_DEFINITIONS.length})**\n\n${toolList}`,
         parseMode: "markdown",
       };
+    }
+
+    // ─── OBSERVER: Last pipeline report ─────────────────────
+    if (text === "/observe" || text === "/gozlem" || text === "/rapor") {
+      try {
+        const { readdirSync, readFileSync } = await import("node:fs");
+        const { join } = await import("node:path");
+        const observerDir = join(this.config.projectRoot, ".foreman", "observer");
+        if (!existsSync(observerDir)) {
+          return { text: "📊 Henüz pipeline çalıştırılmamış." };
+        }
+        const files = readdirSync(observerDir)
+          .filter(f => f.endsWith("-summary.md"))
+          .sort()
+          .reverse();
+        if (files.length === 0) {
+          return { text: "📊 Pipeline raporu bulunamadı." };
+        }
+        const latest = readFileSync(join(observerDir, files[0]), "utf-8");
+        // Truncate for Telegram (4096 char limit)
+        const truncated = latest.length > 3800
+          ? latest.slice(0, 3800) + "\n\n... (truncated)"
+          : latest;
+        return { text: truncated };
+      } catch {
+        return { text: "❌ Observer raporu okunamadı." };
+      }
     }
 
     // ─── FORGE UTILITY COMMANDS ─────────────────────────────
