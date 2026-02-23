@@ -1,17 +1,18 @@
 {
-  "id": "cp_1771808073516_wlfo",
+  "id": "cp_1771808336170_b0nn",
   "task": "Create a file /tmp/forge-ok.txt containing exactly: Forge pipeline works",
-  "startedAt": 1771808073516,
-  "updatedAt": 1771808081036,
+  "startedAt": 1771808336170,
+  "updatedAt": 1771808346552,
   "phase": "research",
-  "chainId": "chain_027",
+  "chainId": "chain_028",
   "completedAtoms": [],
   "currentBlock": 0,
   "currentAtom": 0,
   "totalThoughts": 0,
   "totalTokens": 0,
-  "visionOutput": "**GOAL**: Create the file `/tmp/forge-ok.txt` with the exact text content `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file exists at `/tmp/forge-ok.txt` and its exact string content matches the requested payload without extraneous formatting.\n**CONSTRAINTS**: Execution must be extremely simple—do not over-engineer this basic file write operation.",
+  "visionOutput": "**GOAL**: Create the file `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file must be created successfully, and a separate verification step must explicitly read `/tmp/forge-ok.txt` to assert that its content is strictly `Forge pipeline works` (proving evidence of success).\n**CONSTRAINTS**: Use native Node.js or standard POSIX utilities. The execution and verification must be deterministic, synchronous, and generate zero noise on success.",
   "blocks": [
-    "Create the file `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`. [Acceptance Criteria: The file exists at `/tmp/forge-ok.txt` and its content matches the required string exactly without extra formatting.]"
+    "Execute a synchronous filesystem write to create `/tmp/forge-ok.txt` containing strictly the string `Forge pipeline works`. [Acceptance Criteria: The file exists at the exact path with the precise string payload. Execution uses native Node.js or standard POSIX utilities, is deterministic, and generates zero noise on success.]",
+    "Perform deterministic state verification to explicitly read and assert the contents of `/tmp/forge-ok.txt`. [Acceptance Criteria: A separate execution explicitly reads the file and asserts its content strictly matches `Forge pipeline works`, failing loudly if incorrect but producing zero output/noise upon successful verification.]"
   ]
 }

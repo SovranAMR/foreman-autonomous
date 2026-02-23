@@ -1,0 +1,17 @@
+{
+  "id": "task_060",
+  "projectId": "foreman",
+  "title": "Block 2: Perform deterministic state verification to explicitly read ",
+  "description": "Perform deterministic state verification to explicitly read and assert the contents of `/tmp/forge-ok.txt`. [Acceptance Criteria: A separate execution explicitly reads the file and asserts its content strictly matches `Forge pipeline works`, failing loudly if incorrect but producing zero output/noise upon successful verification.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:59:06.552Z"
+}

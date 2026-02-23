@@ -1,0 +1,17 @@
+{
+  "id": "task_059",
+  "projectId": "foreman",
+  "title": "Block 1: Execute a synchronous filesystem write to create `/tmp/forge",
+  "description": "Execute a synchronous filesystem write to create `/tmp/forge-ok.txt` containing strictly the string `Forge pipeline works`. [Acceptance Criteria: The file exists at the exact path with the precise string payload. Execution uses native Node.js or standard POSIX utilities, is deterministic, and generates zero noise on success.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:59:06.552Z"
+}
