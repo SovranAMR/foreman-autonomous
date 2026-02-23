@@ -905,15 +905,20 @@ export class Orchestrator {
           break;
         }
 
-        this.emit({ type: "thought_complete", thought: execResult.thought });
+        this.emit({ type: "thought_complete", thought: execResult?.thought });
 
         // ── POST-HOC EXECUTION (Mode B fallback) ──
         // Only if no tools were called in Mode A (toolCallCount === 0)
-        if (toolCallCount === 0 && execResult.thought.workerProtocol && execResult.thought.status === "done") {
-          const protocol = execResult.thought.workerProtocol;
+        if (toolCallCount === 0 && execResult?.thought.workerProtocol && execResult?.thought.status === "done") {
+          const protocol = execResult?.thought.workerProtocol;
 
           if (needsExecution(protocol)) {
             const ops = extractOperations(protocol);
+
+            // Debug: log extracted operations
+            for (const op of ops) {
+              console.log(`  [extract] ${op.type}: path=${op.path ?? "?"}, content=${op.content?.slice(0, 40) ?? "EMPTY"}, cmd=${op.command?.slice(0, 40) ?? "?"}`);
+            }
 
             if (ops.length > 0) {
               this.emit({
@@ -945,8 +950,8 @@ export class Orchestrator {
                 if (execSummary.output) {
                   const feedback = buildExecutionFeedback(execSummary);
                   // Append execution results to thought output
-                  this.engine.thoughts.update(execResult.thought.id, {
-                    output: (execResult.thought.output ?? "") + "\n\n" + feedback,
+                  this.engine.thoughts.update(execResult?.thought.id, {
+                    output: (execResult?.thought.output ?? "") + "\n\n" + feedback,
                   });
                 }
 
@@ -954,7 +959,7 @@ export class Orchestrator {
                 if (execSummary.succeeded > 0) {
                   try {
                     this.engine.git.commitThought({
-                      thoughtId: execResult.thought.id,
+                      thoughtId: execResult?.thought.id,
                       chainId: visionChain.id,
                       layer: "worker",
                       atomIndex: j,
@@ -973,11 +978,11 @@ export class Orchestrator {
         }
 
         // Worker BLOCK — 8-step incomplete or confidence too low
-        if (execResult.thought.status === "blocked") {
+        if (execResult?.thought.status === "blocked") {
           this.emit({
             type: "block_detected",
-            thought: execResult.thought,
-            reason: execResult.thought.blockedReason ?? "Worker protocol incomplete",
+            thought: execResult?.thought,
+            reason: execResult?.thought.blockedReason ?? "Worker protocol incomplete",
           });
 
           // ─── ZAMAN MAKİNESİ: Git reset on BLOCK ─────────────
@@ -991,14 +996,14 @@ export class Orchestrator {
                 phase: "rollback",
                 detail: `Rolled back atom ${j + 1}: ${rollbackResult.message}`,
               });
-              this.engine.streaming.error(`⏪ Atom ${j + 1} rolled back: ${execResult.thought.blockedReason?.slice(0, 60)}`);
+              this.engine.streaming.error(`⏪ Atom ${j + 1} rolled back: ${execResult?.thought.blockedReason?.slice(0, 60)}`);
             }
           } catch {
             // Rollback is best-effort — may fail on non-git projects
           }
 
           // Atom BLOCK — retry with feedback (not skip)
-          lastRejectionFeedback = `WORKER BLOCKED: ${execResult.thought.blockedReason ?? "8-step protocol incomplete"}`;
+          lastRejectionFeedback = `WORKER BLOCKED: ${execResult?.thought.blockedReason ?? "8-step protocol incomplete"}`;
           break; // break retry attempt, will retry with feedback
         }
 
@@ -1012,8 +1017,8 @@ export class Orchestrator {
         }
 
         // ── PER-THOUGHT VALIDATION — granular quality checks ──
-        if (execResult.thought.status === "done") {
-          const thought = execResult.thought;
+        if (execResult?.thought?.status === "done") {
+          const thought = execResult?.thought;
           const validations = [
             validateReasoning(thought),
             validateOutput(thought),
@@ -1054,8 +1059,8 @@ export class Orchestrator {
         // Quick local check first, then full LLM review if needed.
         // SKIP for simple visions (no FORBIDDEN list, short vision = simple task)
         const isSimpleVision = visionOutput.length < 500 && !visionOutput.toLowerCase().includes("forbidden");
-        if (!isSimpleVision && execResult.thought.status === "done" && execResult.thought.workerProtocol) {
-          const protocol = execResult.thought.workerProtocol;
+        if (!isSimpleVision && execResult?.thought.status === "done" && execResult?.thought.workerProtocol) {
+          const protocol = execResult?.thought.workerProtocol;
 
           // Phase 1: Quick local review (no LLM cost)
           const quickResult = quickReviewCheck(protocol, visionOutput);
@@ -1147,11 +1152,11 @@ export class Orchestrator {
         // ─── ATOM QUALITY SCORE ──────────────────────────────
         // Track quality metrics for each passed atom
         const atomQuality = {
-          confidence: execResult.thought.confidence,
+          confidence: execResult?.thought.confidence,
           attempts: passedAttempt + 1,
           toolCalls: toolCallCount,
-          tokenCost: execResult.thought.tokenCost ?? 0,
-          hasVerification: Boolean(execResult.thought.workerProtocol?.step7_verify?.match(/pass|✔|success|\d+ test/i)),
+          tokenCost: execResult?.thought.tokenCost ?? 0,
+          hasVerification: Boolean(execResult?.thought.workerProtocol?.step7_verify?.match(/pass|✔|success|\d+ test/i)),
           firstAttemptPass: passedAttempt === 0,
         };
         this.emit({
@@ -1162,10 +1167,10 @@ export class Orchestrator {
         });
 
         // ─── CHECKPOINT: Atom complete ───
-        this.resume.completeAtom(i, j, 1, execResult.thought.tokenCost ?? 0);
+        this.resume.completeAtom(i, j, 1, execResult?.thought.tokenCost ?? 0);
 
         // ─── STREAMING: Atom end ───
-        this.engine.streaming.atomEnd(j, execResult.thought.tokenCost ?? 0);
+        this.engine.streaming.atomEnd(j, execResult?.thought.tokenCost ?? 0);
 
         // ─── ROLLBACK: Atom checkpoint ───
         this.engine.rollback.createPoint("atom", `Atom ${j + 1}: ${atom.slice(0, 50)}`, {
@@ -1173,8 +1178,8 @@ export class Orchestrator {
         });
 
         // ── VERIFY: Parse worker's step7_verify for actionable results ──
-        if (execResult.thought.workerProtocol?.step7_verify) {
-          const verifyText = execResult.thought.workerProtocol.step7_verify;
+        if (execResult?.thought.workerProtocol?.step7_verify) {
+          const verifyText = execResult?.thought.workerProtocol.step7_verify;
 
           // ─── MARKDOWN INTELLIGENCE: Extract code fences from worker output ──
           // Worker may include code blocks in verify step — extract and analyze
