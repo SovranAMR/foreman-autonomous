@@ -61,6 +61,18 @@ export interface LLMProvider {
 
   /** Generate text */
   generate(messages: LLMMessage[], options: GenerateOptions): Promise<GenerateResult>;
+
+  /** Stream chat with tool calling (optional — used by messaging gateway) */
+  streamChatWithTools?(
+    messages: Array<{ role: string; content: string | any[] }>,
+    modelId: string,
+    onToken: (token: string) => void,
+    onToolCall: (call: { name: string; args: Record<string, any> }) => void,
+    onToolResult: (result: { name: string; content: string; isError?: boolean }) => void,
+    maxTokens?: number,
+    maxIterations?: number,
+    toolExecutor?: (call: { name: string; args: Record<string, any> }) => any,
+  ): Promise<{ text: string; inputTokens: number; outputTokens: number }>;
 }
 
 // ─── MOCK PROVIDER ───────────────────────────────────────────

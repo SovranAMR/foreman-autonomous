@@ -28,6 +28,7 @@ import type {
 } from "./channel.js";
 import { Engine } from "./engine.js";
 import { AntigravityProvider, loadCredentials, getChatModels } from "./antigravity-provider.js";
+import type { LLMProvider } from "./provider.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
 import { EditEngine } from "./edit-engine.js";
@@ -62,7 +63,7 @@ export class MessagingGateway {
   private channels: Map<ChannelType, Channel> = new Map();
   private conversations: Map<string, ConversationState> = new Map();
   private engine: Engine;
-  private provider: AntigravityProvider | null = null;
+  private provider: LLMProvider | null = null;
   private toolExecutor: ((call: ToolCall) => Promise<ToolResult>) | null = null;
   private processing: Set<string> = new Set(); // active chat IDs
   private running = false;
@@ -96,7 +97,7 @@ export class MessagingGateway {
     const { KimiProvider, loadKimiKey } = await import("./kimi-provider.js");
     const kimiKey = loadKimiKey();
     if (kimiKey) {
-      this.provider = new KimiProvider(kimiKey) as any;
+      this.provider = new KimiProvider(kimiKey);
       console.log(`[gateway] Using Kimi provider`);
     } else {
       const creds = loadCredentials();
@@ -342,7 +343,7 @@ export class MessagingGateway {
     }
 
     const models = getChatModels();
-    const kimiDefault = (this.provider as any)?.name === "kimi" ? "kimi-k2.5" : null;
+    const kimiDefault = this.provider?.name === "kimi" ? "kimi-k2.5" : null;
     const modelId = kimiDefault ?? models[0]?.id ?? "claude-sonnet";
 
     // Build system prompt
@@ -363,7 +364,7 @@ export class MessagingGateway {
         // Build summarize function using the provider
         const summarize: SummarizeFunction = async (sysPrompt, userPrompt, model) => {
           const summaryModel = model ?? modelId;
-          const result = await this.provider!.streamChatWithTools(
+          const result = await this.provider!.streamChatWithTools!(
             [
               { role: "system", content: sysPrompt },
               { role: "user", content: userPrompt },
@@ -417,7 +418,7 @@ export class MessagingGateway {
     let responseText = "";
 
     try {
-      const result = await this.provider.streamChatWithTools(
+      const result = await this.provider!.streamChatWithTools!(
         messages,
         modelId,
         // onToken — accumulate response
