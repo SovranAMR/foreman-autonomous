@@ -1,0 +1,17 @@
+{
+  "id": "task_077",
+  "projectId": "foreman",
+  "title": "Block 2: Write the exact payload `Forge pipeline works` to `/tmp/forg",
+  "description": "Write the exact payload `Forge pipeline works` to `/tmp/forge-ok.txt` using the native file-writing convention and perform concrete verification. [Acceptance Criteria: File is created explicitly via native file-writing without using banned terminal commands like `node -e` or `echo`; content contains exactly the target string with absolutely zero trailing newlines; and execution evidence mathematically proves structural integrity without hallucination.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T03:28:27.607Z"
+}
