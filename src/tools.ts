@@ -892,110 +892,158 @@ function createToolDispatcher(
     try {
       switch (call.name) {
         case "bash":
-          return executeBash(engine, call.args, hooksEngine);
+          result = executeBash(engine, call.args);
+          break;
         case "read_file":
-          return executeReadFile(engine, call.args);
+          result = executeReadFile(engine, call.args);
+          break;
         case "write_file":
-          return executeWriteFile(engine, call.args, hooksEngine);
+          result = executeWriteFile(engine, call.args);
+          break;
         case "edit_file":
-          return executeEditFileV2(editEngine, call.args);
+          result = executeEditFileV2(editEngine, call.args);
+          break;
         case "search_files":
-          return executeSearchFiles(projectRoot, call.args);
+          result = executeSearchFiles(projectRoot, call.args);
+          break;
         case "grep":
-          return executeGrep(projectRoot, call.args);
+          result = executeGrep(projectRoot, call.args);
+          break;
         case "list_dir":
-          return executeListDir(projectRoot, call.args);
+          result = executeListDir(projectRoot, call.args);
+          break;
         case "batch_write":
-          return executeBatchWrite(projectRoot, call.args);
+          result = executeBatchWrite(projectRoot, call.args);
+          break;
         case "git_status":
-          return executeGitStatus(gitEngine);
+          result = executeGitStatus(gitEngine);
+          break;
         case "git_commit":
-          return executeGitCommit(gitEngine, call.args);
+          result = executeGitCommit(gitEngine, call.args);
+          break;
         case "security_scan":
-          return executeSecurityScan(projectRoot);
+          result = executeSecurityScan(projectRoot);
+          break;
         case "verify_build":
-          return executeVerifyBuild(call.args);
+          result = executeVerifyBuild(call.args);
+          break;
         case "verify_tests":
-          return executeVerifyTests(call.args);
+          result = executeVerifyTests(call.args);
+          break;
         case "web_search":
-          return executeWebSearch(projectRoot, call.args);
+          result = executeWebSearch(projectRoot, call.args);
+          break;
         case "web_fetch":
-          return executeWebFetchTool(call.args);
+          result = executeWebFetchTool(call.args);
+          break;
         case "analyze_link":
-          return executeAnalyzeLink(linkIntel, call.args);
+          result = executeAnalyzeLink(linkIntel, call.args);
+          break;
         case "parse_markdown":
-          return executeParseMarkdown(call.args);
+          result = executeParseMarkdown(call.args);
+          break;
         case "list_processes":
-          return executeListProcesses(engine);
+          result = executeListProcesses(engine);
+          break;
         case "approval_audit":
-          return executeApprovalAudit(projectRoot, call.args);
+          result = executeApprovalAudit(projectRoot, call.args);
+          break;
         case "git_diff":
-          return executeGitDiff(gitEngine, call.args);
+          result = executeGitDiff(gitEngine, call.args);
+          break;
         case "edit_range":
-          return executeEditRange(editEngine, call.args);
+          result = executeEditRange(editEngine, call.args);
+          break;
         case "edit_undo":
-          return executeEditUndo(editEngine, call.args);
+          result = executeEditUndo(editEngine, call.args);
+          break;
         case "classify_url":
-          return executeClassifyUrl(call.args);
+          result = executeClassifyUrl(call.args);
+          break;
         case "cache_stats":
-          return executeCacheStats();
+          result = executeCacheStats();
+          break;
         case "extract_code":
-          return executeExtractCode(call.args);
+          result = executeExtractCode(call.args);
+          break;
         case "delete_file":
-          return executeDeleteFile(engine, call.args);
+          result = executeDeleteFile(engine, call.args);
+          break;
         case "search_in_files":
-          return executeSearchInFiles(engine, call.args);
+          result = executeSearchInFiles(engine, call.args);
+          break;
         case "kill_processes":
-          return executeKillProcesses(engine);
+          result = executeKillProcesses(engine);
+          break;
         case "batch_ops":
-          return executeBatchOps(engine, call.args);
+          result = executeBatchOps(engine, call.args);
+          break;
         case "git_log":
-          return executeGitLog(gitEngine, call.args);
+          result = executeGitLog(gitEngine, call.args);
+          break;
         case "analyze_media":
-          return executeAnalyzeMedia(engine, call.args);
+          result = executeAnalyzeMedia(engine, call.args);
+          break;
         case "download_file":
-          return await executeDownloadFile(engine, call.args);
+          result = await executeDownloadFile(engine, call.args);
+          break;
         case "cron_list":
-          return executeCronList(engine, call.args);
+          result = executeCronList(engine, call.args);
+          break;
         case "cron_add":
-          return executeCronAdd(engine, call.args);
+          result = executeCronAdd(engine, call.args);
+          break;
         case "cron_remove":
-          return executeCronRemove(engine, call.args);
+          result = executeCronRemove(engine, call.args);
+          break;
         case "session_list":
-          return executeSessionList(engine, call.args);
+          result = executeSessionList(engine, call.args);
+          break;
         case "session_spawn":
-          return executeSessionSpawn(engine, call.args);
+          result = executeSessionSpawn(engine, call.args);
+          break;
         case "semantic_search":
-          return await executeSemanticSearch(engine, call.args);
+          result = await executeSemanticSearch(engine, call.args);
+          break;
 
         // ─── BROWSER TOOLS ──────────────────────────────────
         case "browser_navigate":
-          return await executeBrowserNavigate(engine, call.args);
+          result = await executeBrowserNavigate(engine, call.args);
+          break;
         case "browser_screenshot":
-          return await executeBrowserScreenshot(engine, call.args);
+          result = await executeBrowserScreenshot(engine, call.args);
+          break;
         case "browser_extract":
-          return await executeBrowserExtract(engine, call.args);
+          result = await executeBrowserExtract(engine, call.args);
+          break;
         case "browser_pdf":
-          return await executeBrowserPdf(engine, call.args);
+          result = await executeBrowserPdf(engine, call.args);
+          break;
 
         // ─── IDENTITY & MEMORY TOOLS ────────────────────────
         case "memory_read":
-          return await executeMemoryRead(engine, call.args);
+          result = await executeMemoryRead(engine, call.args);
+          break;
         case "memory_write":
-          return await executeMemoryWrite(engine, call.args);
+          result = await executeMemoryWrite(engine, call.args);
+          break;
         case "memory_search":
-          return await executeMemorySearch(engine, call.args);
+          result = await executeMemorySearch(engine, call.args);
+          break;
 
         // ─── SUB-AGENT TOOLS ────────────────────────────────
         case "spawn_subagent":
-          return await executeSpawnSubagent(engine, call.args);
+          result = await executeSpawnSubagent(engine, call.args);
+          break;
 
         // ─── DIFF TOOLS ─────────────────────────────────────
         case "diff_preview":
-          return await executeDiffPreview(engine, call.args);
+          result = await executeDiffPreview(engine, call.args);
+          break;
 
         case "forge_pipeline":
-          return await executeForge(projectRoot, call.args);
+          result = await executeForge(projectRoot, call.args);
+          break;
 
         default:
           result = { name: call.name, content: `Unknown tool: ${call.name}`, isError: true };
@@ -1031,20 +1079,12 @@ export function executeTool(call: ToolCall): Promise<ToolResult> {
 function executeBash(
   engine: ExecutionEngine,
   args: Record<string, unknown>,
-  hooksEngine?: HooksEngine
 ): ToolResult {
   const command = args.command as string;
   const timeout = (args.timeout_ms as number) || 30_000;
 
   if (!command) {
     return { name: "bash", content: "Error: command is required", isError: true };
-  }
-
-  // ─── HOOK: before_command ───────────────────────────────
-  if (hooksEngine) {
-    // Note: Hook execution would be async, but ToolResult is sync
-    // We handle this at the dispatcher level for before_tool_call
-    // This is a placeholder for future sync hook support
   }
 
   // Delegates to ExecutionEngine — gets dangerous command blocking,
@@ -1103,7 +1143,6 @@ function executeReadFile(engine: ExecutionEngine, args: Record<string, unknown>)
 function executeWriteFile(
   engine: ExecutionEngine,
   args: Record<string, unknown>,
-  hooksEngine?: HooksEngine
 ): ToolResult {
   const filePath = args.path as string;
   const content = args.content as string;
@@ -1114,10 +1153,6 @@ function executeWriteFile(
   if (content === undefined || content === null) {
     return { name: "write_file", content: "Error: content is required", isError: true };
   }
-
-  // ─── HOOK: before_file_write ────────────────────────────
-  // Note: Async hooks handled at dispatcher level via before_tool_call
-  // Additional file-specific validation can be added here
 
   // Delegates to ExecutionEngine — gets path security,
   // auto-mkdir, denied path checks for free
