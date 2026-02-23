@@ -498,11 +498,15 @@ export class AntigravityProvider implements LLMProvider {
 
     for (const endpoint of endpoints) {
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30_000);
         let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
           method: "POST",
           headers: getHeaders(this.credentials.accessToken),
           body: JSON.stringify(requestBody),
+          signal: controller.signal,
         });
+        clearTimeout(timeout);
 
         // 401/403 → refresh token and retry
         if (response.status === 401 || response.status === 403) {
@@ -669,11 +673,15 @@ export class AntigravityProvider implements LLMProvider {
 
       for (const endpoint of endpoints) {
         try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 30_000);
           let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
             method: "POST",
             headers: getHeaders(this.credentials.accessToken),
             body: JSON.stringify(requestBody),
+            signal: controller.signal,
           });
+          clearTimeout(timeout);
 
           if (response.status === 401 || response.status === 403) {
             const refreshed = await refreshAntigravityToken(
@@ -699,7 +707,7 @@ export class AntigravityProvider implements LLMProvider {
           // Add 120s timeout to prevent hanging on incomplete streams
           const bodyPromise = response.text();
           const timeoutPromise = new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error("Response read timeout (120s)")), 120_000),
+            setTimeout(() => reject(new Error("Response read timeout (60s)")), 60_000),
           );
           const body = await Promise.race([bodyPromise, timeoutPromise]);
           console.log(`[provider] Response received: ${body.length} chars, iteration ${iteration + 1}`);
