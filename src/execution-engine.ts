@@ -159,6 +159,15 @@ const DANGEROUS_PATTERNS = [
   "dd if=/dev/zero of=/dev/sd",
   ":(){ :|:& };:",  // fork bomb
   "echo '' > /etc/",
+  "> /etc/passwd",
+  "> /etc/shadow",
+  "chmod 000 /",
+  "chown -R",
+  "mv / ",
+  "shutdown",
+  "reboot",
+  "init 0",
+  "init 6",
 ];
 
 /**
@@ -166,8 +175,10 @@ const DANGEROUS_PATTERNS = [
  * These catch `curl <url> | sh`, `wget <url> | bash`, etc.
  */
 const DANGEROUS_PIPE_RX = [
-  /curl\s.*\|\s*(?:sh|bash)/i,
-  /wget\s.*\|\s*(?:sh|bash)/i,
+  /curl\s.*\|\s*(?:sh|bash|zsh)/i,
+  /wget\s.*\|\s*(?:sh|bash|zsh)/i,
+  /python[3]?\s+-c\s+['"].*urllib.*exec/i, // Python download-and-exec
+  /eval\s*\$\(curl/i, // eval $(curl ...)
 ];
 
 /**
