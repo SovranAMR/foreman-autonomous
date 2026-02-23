@@ -24,15 +24,25 @@ export const CONTEXT_WINDOW_WARN_BELOW = 16_000;
 
 /** Known context window sizes per model (tokens) */
 export const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
+  // Anthropic
   "claude-opus": 200_000,
   "claude-sonnet": 200_000,
   "claude-haiku": 200_000,
+  // OpenAI
   "gpt-4o": 128_000,
   "gpt-4o-mini": 128_000,
   "gpt-4-turbo": 128_000,
+  // Google
   "gemini-pro": 1_048_576,
   "gemini-flash": 1_048_576,
   "gemini-ultra": 1_048_576,
+  "gemini-3.1-pro": 1_048_576,
+  "gemini-3.1-pro-high": 1_048_576,
+  // Kimi / Moonshot
+  "kimi-k2.5": 131_072,
+  "kimi-k2-thinking": 131_072,
+  "kimi-k2-thinking-turbo": 131_072,
+  "moonshot-v1-128k": 131_072,
 };
 
 const DEFAULT_CONTEXT_WINDOW = 128_000;
