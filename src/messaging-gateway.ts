@@ -553,7 +553,7 @@ export class MessagingGateway {
       "- web_search, web_fetch — Internet research",
       "- browser_screenshot, browser_navigate — Browser control",
       "- forge_pipeline — Full 4-layer coding pipeline for complex tasks",
-      "- ... and more (47 tools total)",
+      "- ... and more (48 tools total)",
       "",
       "## Rules",
       "- Be concise — messaging has character limits",

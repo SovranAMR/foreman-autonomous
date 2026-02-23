@@ -2,94 +2,62 @@
 
 > Bu dosyayı her session başında oku. Foreman'ın anlık durumunu gösterir.
 
-## Mevcut Durum: MVP TAMAMLANDI ✅
+## Mevcut Durum: PRODUCTION-READY ✅
 
-Foreman CLI'dan tam pipeline çalıştırabiliyor:
+Foreman tam pipeline + Telegram bot olarak çalışıyor.
+
 ```bash
-foreman init "proje" && foreman run "görev" --mock
+foreman init "proje" && foreman run "görev"       # CLI pipeline
+foreman serve --telegram '<token>' --allow <id>    # Telegram bot
+foreman repl                                       # Interactive REPL
 ```
+
+## Stats
+
+| Metrik | Değer |
+|--------|-------|
+| Source Files | 126 `.ts` |
+| Total LOC | ~49,000 |
+| Tests | 636+ (0 fail) |
+| Test Files | 38 |
+| LLM Tools | 48 |
+| CLI Commands | 47 |
+| REPL Commands | 16 |
+| Engines | 40 (32 wired in orchestrator) |
+| Git Commits | 248+ |
+| Providers | 5 (Kimi, Antigravity, Anthropic, OpenAI, Gemini) |
 
 ## Fazlar
 
 | Faz | Durum | Açıklama |
 |-----|-------|----------|
 | Faz 0: Temel İnşa | ✅ | Tip sistemi, state machine, persistence, rate limiter, engine, CLI |
-| Faz 1: LLM Provider | ✅ | Anthropic + OpenAI SDK entegrasyonu |
-| Faz 1.5: Orkestratör | ✅ | Tam pipeline (vision→execute→reflect), event system |
-| Faz 1.7: UI + Installer | ✅ | Theme, gradient logo, setup wizard, install.sh |
-| Faz 2: Gerçek LLM Test | ⏳ | API key ayarla, gerçek görevle test et |
-| Faz 3: Research Engine | ✅ | OpenClaw transplant: Brave Search API, web fetch (Readability + HTML→MD), SSRF koruması, cache |
-| Faz 4: Execution Engine | ✅ | OpenClaw transplant: async spawn (timeout/kill), line-range read, smart truncation, detailed git ops |
-| Faz 5: Context & Memory | ⏳ | Context compression, cross-session memory |
+| Faz 1: LLM Provider | ✅ | 5 provider (Kimi, Antigravity, Anthropic, OpenAI, Gemini) |
+| Faz 1.5: Orkestratör | ✅ | 4-layer pipeline (vision→decompose→research→execute→review) |
+| Faz 1.7: UI + Installer | ✅ | Theme, gradient logo, setup wizard |
+| Faz 2: Gerçek LLM Test | ✅ | Forge pipeline E2E verified |
+| Faz 3: Research Engine | ✅ | Brave Search, web fetch, SSRF protection, cache |
+| Faz 4: Execution Engine | ✅ | Async spawn, security scanner, approval engine |
+| Faz 5: Context & Memory | ✅ | Compression, embedding, multi-session, TF-IDF |
+| Faz 6: Messaging Gateway | ✅ | Telegram bot + WhatsApp channel |
+| Faz 7: Deep Audit | ✅ | Type safety, security hardening, dead code cleanup |
 
-## Tamamlanan Chain'ler
+## Aktif Konfigürasyon
 
-| # | Chain | Test | LOC | Açıklama |
-|---|-------|------|-----|----------|
-| 1 | chain_001: Type System | — | 603 | Tüm core tipler (10 thought) |
-| 2 | chain_002: State Machine | 14 | ~200 | StateManager, auto-persist, error types |
-| 3 | chain_003: Persistence | 25 | ~300 | ThoughtManager, ChainManager, Validators |
-| 4 | chain_004: Rate Limiter | 12 | ~250 | Throttle, model rotation, token budget |
-| 5 | chain_005: Engine | 10 | ~300 | LLMProvider, prompts, Engine core |
-| 6 | chain_006: CLI | manual | ~280 | Commander.js, 9 komut |
-| 7 | chain_007: LLM Providers | — | ~300 | Anthropic + OpenAI SDK |
-| 8 | chain_008: Orchestrator | 5 | ~250 | Full pipeline, event system, reflection |
+- **Primary Model**: `kimi-k2.5` (Moonshot AI)
+- **Fallback**: `gemini-3.1-pro-high` (Antigravity OAuth)
+- **Default Layer Config**: `gemini-3.1-pro-high` (all layers)
+- **Bot**: `@Foreman_DasBot` on Telegram
+- **Rate Limit**: 6s between calls, 10/min max
 
-## Metrikler
+## Son Audit Sonuçları (2026-02-24)
 
-- **Toplam chain**: 8
-- **Toplam test**: 282 (0 fail)
-- **Toplam kaynak dosya**: 20+ (.ts)
-- **Toplam LOC**: ~5000+
-- **Git commits**: 19+
-- **GitHub**: https://github.com/SovranAMR/foreman
-
-## Dosya → Sorumluluk Haritası
-
-| Dosya | Ne yapar | Bağımlılıkları |
-|-------|----------|----------------|
-| `types.ts` | Tüm tipler, VALID_TRANSITIONS | — |
-| `state.ts` | State machine, persist | types |
-| `thought-manager.ts` | Thought CRUD, auto-ID | types |
-| `chain-manager.ts` | Chain CRUD, addThought | types |
-| `validators.ts` | Thought completion kontrol | types |
-| `rate-limiter.ts` | Throttle, rotation, budget | types |
-| `provider.ts` | LLMProvider interface, Mock, Registry | types |
-| `anthropic-provider.ts` | Anthropic SDK wrapper | provider |
-| `openai-provider.ts` | OpenAI SDK wrapper | provider |
-| `prompts.ts` | 4 katman system prompt | types |
-| `engine.ts` | think(), step(), parsing | state, thought-manager, chain-manager, rate-limiter, provider, prompts, validators |
-| `orchestrator.ts` | run() pipeline, events | engine |
-| `setup.ts` | API key wizard | theme, anthropic-provider, openai-provider |
-| `theme.ts` | Renkler, ikonlar, box'lar | chalk, gradient-string, figures |
-| `execution-engine.ts` | File ops, shell (sync+async), git, process mgmt | — |
-| `research-engine.ts` | File search, npm info, web research | web-search-engine, web-fetch-engine |
-| `web-search-engine.ts` | Brave Search API | web-shared |
-| `web-fetch-engine.ts` | URL fetch, SSRF protection, HTML→MD | web-shared, web-fetch-utils |
-| `web-fetch-utils.ts` | HTML→Markdown, text extraction | — |
-| `web-shared.ts` | Cache, timeout, response utils | — |
-| `tools.ts` | LLM function calling tool definitions | execution-engine |
-
-## Bağımlılıklar
-
-### Runtime
-- `@anthropic-ai/sdk` — Anthropic API
-- `openai` — OpenAI API
-- `commander` — CLI framework
-- `chalk` — Terminal renkleri
-- `gradient-string` — Gradient text
-- `figures` — Unicode ikonlar
-- `boxen` — Terminal kutuları
-- `ora` — Spinner (henüz kullanılmıyor, reserved)
-
-### Dev
-- `tsx` — TypeScript executor
-- `typescript` — Type checking
-
-## Sonraki Adımlar (Öncelik Sırasıyla)
-
-1. **Gerçek LLM testi**: API key'leri ayarla, gerçek görev üzerinde test et
-2. **BLOK 3: Git Integration**: Atomik commit per thought, branch mgmt, diff analysis
-3. **BLOK 5: Memory Deepening**: Embedding-based similarity, MEMORY.md format
-4. **BLOK 6: Context & Session**: Sliding window context, session transcript→summary
-5. **BLOK 4: Browser & Visual**: Puppeteer/Playwright, screenshot verification (son)
+- `as any` casts: 93 → 4 (remaining: WhatsApp SDK compat only)
+- Dead code: 0 (after cleanup)
+- State files in git: 0 (all gitignored)
+- Unhandled promise rejections: 0 (all fixed)
+- Timer leaks: 0 (cleanup timer properly cleared)
+- Security: null byte protection, expanded command blocklist, SSH key denial
+- Empty response guards: vision + callLLM
+- Message queue: concurrent messages queued instead of dropped
+- Conversation trimming: message count + character budget (100K)
