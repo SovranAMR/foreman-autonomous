@@ -53,6 +53,23 @@ export interface WorkerExecutionSummary {
 
 // ─── OPERATION EXTRACTION ────────────────────────────────────
 
+const DANGEROUS_PATTERNS = [
+  /\brm\s+-rf?\s+\//,      // rm -rf /
+  /\bsudo\b/,               // sudo anything
+  /\bshutdown\b/,           // shutdown
+  /\breboot\b/,             // reboot
+  /\bmkfs\b/,               // format disk
+  /\bdd\s+if=/,             // disk dump
+  /\bcurl\b.*\|\s*\bbash\b/, // curl | bash
+  /\bwget\b.*\|\s*\bbash\b/, // wget | bash
+  /\bnpm\s+publish\b/,      // npm publish
+  /\bgit\s+push\s+.*--force/, // git push --force
+];
+
+function isDangerousCommand(cmd: string): boolean {
+  return DANGEROUS_PATTERNS.some(p => p.test(cmd));
+}
+
 /**
  * Extract file operations from worker protocol text.
  * Looks for code blocks with file paths, write/edit markers, and shell commands.
@@ -109,6 +126,8 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
     for (const cmd of commands) {
       // Skip file creation commands — handled by file write extraction
       if (cmd.startsWith("cat >") || cmd.startsWith("cat <<")) continue;
+      // Skip dangerous commands
+      if (isDangerousCommand(cmd)) continue;
       ops.push({ type: "run_command", command: cmd });
     }
   }
@@ -117,7 +136,7 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
   const inlineCmdRx = /^\$\s+(.+)$/gm;
   while ((match = inlineCmdRx.exec(protocol.step6_execute)) !== null) {
     const cmd = match[1].trim();
-    if (!ops.some(o => o.command === cmd)) {
+    if (!ops.some(o => o.command === cmd) && !isDangerousCommand(cmd)) {
       ops.push({ type: "run_command", command: cmd });
     }
   }
