@@ -24,6 +24,15 @@
  *   foreman internals providers   — provider status
  */
 
+// Global error handlers — prevent silent crashes
+process.on("uncaughtException", (err) => {
+  console.error(`[foreman] Uncaught exception:`, err.message);
+  process.exit(1);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error(`[foreman] Unhandled rejection:`, reason instanceof Error ? reason.message : String(reason));
+});
+
 import { Command } from "commander";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
