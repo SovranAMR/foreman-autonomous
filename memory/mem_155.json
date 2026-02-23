@@ -2,12 +2,12 @@
   "id": "mem_155",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Write the precise payload `Hello from Forge` to a new file at `./hello-forge.txt` utilizing strictly native file-writing capabilities and avoiding banned inline terminal commands (`echo`, `node -e`...",
+  "content": "[strategist] 1. Write the precise payload to a new file at utilizing strictly native file-writing capabilities and avoiding banned inline terminal commands (,...",
   "source": {
     "type": "thought",
     "ref": "t_245"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 12,
   "createdAt": "2026-02-23T11:05:37.502Z",

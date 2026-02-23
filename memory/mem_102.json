@@ -2,12 +2,12 @@
   "id": "mem_102",
   "projectId": "global",
   "category": "reference",
-  "content": "[researcher] Using native Node.js `fs.writeFileSync` via an inline command (e.g., `node -e \"require('fs').writeFileSync('/tmp/forge-ok.txt', 'Forge pipeline works');\"`) is the optimal approach for this block. It s...",
+  "content": "[researcher] Using native Node.js via an inline command (e.g.,) is the optimal approach for this block. It s...",
   "source": {
     "type": "thought",
     "ref": "t_146"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 62,
   "createdAt": "2026-02-23T01:03:27.893Z",

@@ -2,12 +2,12 @@
   "id": "mem_157",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Execute the terminal command `rm -f ./hello-forge.txt` to perform idempotent state clearance and guarantee a perfectly clean environment prior to the write operation. [Acceptance Criteria: The comm...",
+  "content": "[strategist] 1. Execute the terminal command to perform idempotent state clearance and guarantee a perfectly clean environment prior to the write operation. [Acceptance Criteria: The comm...",
   "source": {
     "type": "thought",
     "ref": "t_247"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 10,
   "createdAt": "2026-02-23T11:06:24.601Z",

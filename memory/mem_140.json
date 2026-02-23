@@ -2,12 +2,12 @@
   "id": "mem_140",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Execute the terminal command `cat pipeline-test-output.md` in the project root to perform observable deterministic state verification. [Acceptance Criteria: The command successfully executes with e...",
+  "content": "[strategist] 1. Execute the terminal command in the project root to perform observable deterministic state verification. [Acceptance Criteria: The command successfully executes with e...",
   "source": {
     "type": "thought",
     "ref": "t_242"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 15,
   "createdAt": "2026-02-23T10:30:29.702Z",

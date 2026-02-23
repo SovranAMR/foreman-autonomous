@@ -1,0 +1,15 @@
+{
+  "id": "mem_193",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] **GOAL**: Create the file with the exact text content.",
+  "source": {
+    "type": "manual",
+    "ref": "MEMORY.md"
+  },
+  "importance": 0.9,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T11:41:47.456Z",
+  "expired": true
+}

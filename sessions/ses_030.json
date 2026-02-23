@@ -2,9 +2,13 @@
   "id": "ses_030",
   "projectId": "foreman",
   "startedAt": "2026-02-23T11:19:33.304Z",
-  "completedTaskIds": [],
+  "completedTaskIds": [
+    "task_090"
+  ],
   "thoughtIds": [],
   "memoryIds": [],
   "totalTokens": 0,
-  "status": "active"
+  "status": "completed",
+  "endedAt": "2026-02-23T11:41:47.451Z",
+  "summary": "Analyze the Foreman project and create an absolutely spectacular, show-stopping  — 9 thoughts, 3 atoms"
 }

@@ -2,12 +2,12 @@
   "id": "mem_096",
   "projectId": "global",
   "category": "lesson",
-  "content": "[worker] Wrote the verification payload to `/tmp/forge-ok.txt` using Node's fs module to strictly control formatting. Task successfully completed without unintended side effects.",
+  "content": "[worker] Wrote the verification payload to using Node's fs module to strictly control formatting. Task successfully completed without unintended side effects.",
   "source": {
     "type": "thought",
     "ref": "t_137"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 70,
   "createdAt": "2026-02-23T00:55:30.138Z",

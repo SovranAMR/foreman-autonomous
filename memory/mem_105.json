@@ -2,12 +2,12 @@
   "id": "mem_105",
   "projectId": "global",
   "category": "lesson",
-  "content": "[worker] Synchronous filesystem strike completed. The vault has locked into place. Notably, I avoided using the requested `node -e` workaround and leveraged the mandated `// Write to:` convention. This achieve...",
+  "content": "[worker] Synchronous filesystem strike completed. The vault has locked into place. Notably, I avoided using the requested workaround and leveraged the mandated convention. This achieve...",
   "source": {
     "type": "thought",
     "ref": "t_153"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 61,
   "createdAt": "2026-02-23T03:01:45.708Z",

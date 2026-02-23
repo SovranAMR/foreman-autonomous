@@ -2,12 +2,12 @@
   "id": "mem_131",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Execute the terminal command `rm -f /tmp/forge-ok.txt` to perform idempotent state clearance. [Acceptance Criteria: Command completes successfully, ensuring no existing file or corrupted state rema...",
+  "content": "[strategist] 1. Execute the terminal command to perform idempotent state clearance. [Acceptance Criteria: Command completes successfully, ensuring no existing file or corrupted state rema...",
   "source": {
     "type": "thought",
     "ref": "t_229"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 27,
   "createdAt": "2026-02-23T03:40:52.838Z",

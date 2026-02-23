@@ -2,12 +2,12 @@
   "id": "mem_182",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Execute the terminal command `rm -f README.md` in the project root to guarantee a perfectly clean, deterministic state prior to initialization. [Acceptance Criteria: The command executes successful...",
+  "content": "[strategist] 1. Execute the terminal command in the project root to guarantee a perfectly clean, deterministic state prior to initialization. [Acceptance Criteria: The command executes successful...",
   "source": {
     "type": "thought",
     "ref": "t_257"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 0,
   "createdAt": "2026-02-23T11:26:40.425Z",

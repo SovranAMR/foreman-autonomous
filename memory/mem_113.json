@@ -2,12 +2,12 @@
   "id": "mem_113",
   "projectId": "global",
   "category": "reference",
-  "content": "[researcher] 1. **The Native Write Paradigm**: Project memory explicitly proves that terminal-based file writing (`echo` or `node -e`) introduces high failure rates due to escaping issues, \"Atom Task Disobedience\"...",
+  "content": "[researcher] 1. **The Native Write Paradigm**: Project memory explicitly proves that terminal-based file writing ( or) introduces high failure rates due to escaping issues, \"Atom Task Disobedience\"...",
   "source": {
     "type": "thought",
     "ref": "t_167"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 49,
   "createdAt": "2026-02-23T03:12:53.808Z",

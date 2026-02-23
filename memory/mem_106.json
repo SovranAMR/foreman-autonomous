@@ -2,12 +2,12 @@
   "id": "mem_106",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Execute a deterministic write operation to create `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works` with absolutely no trailing newline. [Acceptance Criteria: File exists at ...",
+  "content": "[strategist] 1. Execute a deterministic write operation to create containing exactly the string with absolutely no trailing newline. [Acceptance Criteria: File exists at ...",
   "source": {
     "type": "thought",
     "ref": "t_156"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 59,
   "createdAt": "2026-02-23T03:05:05.632Z",

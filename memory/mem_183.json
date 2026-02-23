@@ -1,0 +1,15 @@
+{
+  "id": "mem_183",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] nothing on success. The design system here is the execution trace itself. It must feel like an industrial press perfectly stamping a piece of metal.",
+  "source": {
+    "type": "manual",
+    "ref": "MEMORY.md"
+  },
+  "importance": 0.9,
+  "tags": [],
+  "useCount": 82,
+  "createdAt": "2026-02-23T11:40:23.351Z",
+  "expired": true
+}

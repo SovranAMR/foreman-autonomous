@@ -2,12 +2,12 @@
   "id": "mem_120",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Execute the terminal command `rm -f /tmp/forge-ok.txt` to perform idempotent state clearance. [Acceptance Criteria: The command executes successfully with exit code 0, deterministically removing th...",
+  "content": "[strategist] 1. Execute the terminal command to perform idempotent state clearance. [Acceptance Criteria: The command executes successfully with exit code 0, deterministically removing th...",
   "source": {
     "type": "thought",
     "ref": "t_197"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 41,
   "createdAt": "2026-02-23T03:28:59.738Z",

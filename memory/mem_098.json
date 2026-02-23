@@ -2,12 +2,12 @@
   "id": "mem_098",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Execute a synchronous filesystem write to create `/tmp/forge-ok.txt` containing strictly the string `Forge pipeline works`. [Acceptance Criteria: The file exists at the exact path with the precise ...",
+  "content": "[strategist] 1. Execute a synchronous filesystem write to create containing strictly the string. [Acceptance Criteria: The file exists at the exact path with the precise ...",
   "source": {
     "type": "thought",
     "ref": "t_140"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 68,
   "createdAt": "2026-02-23T00:59:06.551Z",

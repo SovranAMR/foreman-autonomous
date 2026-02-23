@@ -2,12 +2,12 @@
   "id": "mem_119",
   "projectId": "global",
   "category": "reference",
-  "content": "[researcher] 1. **Idempotent State Clearance**: Executing `rm -f /tmp/forge-ok.txt` is the industry-standard and mathematically optimal approach for deterministic cleanup. The `-f` (force) flag ensures the command...",
+  "content": "[researcher] 1. **Idempotent State Clearance**: Executing is the industry-standard and mathematically optimal approach for deterministic cleanup. The (force) flag ensures the command...",
   "source": {
     "type": "thought",
     "ref": "t_196"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 41,
   "createdAt": "2026-02-23T03:28:45.019Z",

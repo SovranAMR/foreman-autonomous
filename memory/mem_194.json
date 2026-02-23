@@ -1,5 +1,5 @@
 {
-  "id": "mem_144",
+  "id": "mem_194",
   "projectId": "global",
   "category": "decision",
   "content": "[visioner] **GOAL**: Create the file containing exactly the string.",
@@ -9,8 +9,7 @@
   },
   "importance": 0.9,
   "tags": [],
-  "useCount": 14,
-  "createdAt": "2026-02-23T10:31:44.671Z",
-  "expired": true,
-  "lastUsedAt": "2026-02-23T11:25:02.111Z"
+  "useCount": 0,
+  "createdAt": "2026-02-23T11:41:47.456Z",
+  "expired": true
 }
