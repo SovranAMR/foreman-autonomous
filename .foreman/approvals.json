@@ -4,8 +4,8 @@
       "git * --show-current",
       {
         "pattern": "git * --show-current",
-        "allowCount": 101,
-        "lastUsedAt": "2026-02-23T03:36:09.581Z",
+        "allowCount": 107,
+        "lastUsedAt": "2026-02-23T03:38:28.408Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -14,8 +14,8 @@
       "git * --porcelain=v1",
       {
         "pattern": "git * --porcelain=v1",
-        "allowCount": 101,
-        "lastUsedAt": "2026-02-23T03:36:09.587Z",
+        "allowCount": 107,
+        "lastUsedAt": "2026-02-23T03:38:28.412Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -24,8 +24,8 @@
       "git * --left-right --count * *",
       {
         "pattern": "git * --left-right --count * *",
-        "allowCount": 101,
-        "lastUsedAt": "2026-02-23T03:36:09.590Z",
+        "allowCount": 107,
+        "lastUsedAt": "2026-02-23T03:38:28.415Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -34,8 +34,8 @@
       "git * * -m *",
       {
         "pattern": "git * * -m *",
-        "allowCount": 25,
-        "lastUsedAt": "2026-02-23T03:34:35.141Z",
+        "allowCount": 26,
+        "lastUsedAt": "2026-02-23T03:36:55.061Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -44,8 +44,8 @@
       "git * -A",
       {
         "pattern": "git * -A",
-        "allowCount": 54,
-        "lastUsedAt": "2026-02-23T03:36:09.381Z",
+        "allowCount": 59,
+        "lastUsedAt": "2026-02-23T03:38:10.237Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -54,8 +54,8 @@
       "git * --stat * --numstat *",
       {
         "pattern": "git * --stat * --numstat *",
-        "allowCount": 54,
-        "lastUsedAt": "2026-02-23T03:36:09.398Z",
+        "allowCount": 59,
+        "lastUsedAt": "2026-02-23T03:38:10.250Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -84,8 +84,8 @@
       "npm * * --if-present *",
       {
         "pattern": "npm * * --if-present *",
-        "allowCount": 2,
-        "lastUsedAt": "2026-02-23T03:36:09.468Z",
+        "allowCount": 3,
+        "lastUsedAt": "2026-02-23T03:36:29.482Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -104,8 +104,8 @@
       "rm -f *",
       {
         "pattern": "rm -f *",
-        "allowCount": 6,
-        "lastUsedAt": "2026-02-23T03:36:09.369Z",
+        "allowCount": 7,
+        "lastUsedAt": "2026-02-23T03:38:10.051Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -126,6 +126,16 @@
         "pattern": "ls -l * * * * * *",
         "allowCount": 1,
         "lastUsedAt": "2026-02-23T03:31:37.824Z",
+        "lastSuccess": true,
+        "source": "learned"
+      }
+    ],
+    [
+      "test * -f * * * * * * *",
+      {
+        "pattern": "test * -f * * * * * * *",
+        "allowCount": 1,
+        "lastUsedAt": "2026-02-23T03:38:10.053Z",
         "lastSuccess": true,
         "source": "learned"
       }
