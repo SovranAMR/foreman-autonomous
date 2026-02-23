@@ -598,10 +598,18 @@ export class MessagingGateway {
   }
 
   private trimConversation(conv: ConversationState): void {
-    // Keep only recent messages
+    // Message count cap
     if (conv.messages.length > this.MAX_HISTORY) {
-      // Keep system prompt context but trim middle
       conv.messages = conv.messages.slice(-this.MAX_HISTORY);
+    }
+
+    // Character-based cap (~100K chars ≈ ~25K tokens)
+    // Trim oldest messages until under budget
+    const MAX_CHARS = 100_000;
+    let totalChars = conv.messages.reduce((sum, m) => sum + (typeof m.content === "string" ? m.content.length : 0), 0);
+    while (totalChars > MAX_CHARS && conv.messages.length > 4) {
+      const removed = conv.messages.shift()!;
+      totalChars -= typeof removed.content === "string" ? removed.content.length : 0;
     }
   }
 
