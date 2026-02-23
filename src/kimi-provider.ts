@@ -44,7 +44,9 @@ export function saveKimiKey(key: string): void {
 
 export const KIMI_MODELS = [
     { id: "kimi-k2.5", label: "Kimi K2.5", model: "kimi-k2.5" },
-    { id: "kimi-k2.5-thinking", label: "Kimi K2.5 (Thinking)", model: "kimi-k2.5-thinking" },
+    { id: "kimi-k2.5-thinking", label: "Kimi K2.5 (Thinking)", model: "kimi-k2-thinking" },
+    { id: "kimi-k2-thinking", label: "Kimi K2 (Thinking)", model: "kimi-k2-thinking" },
+    { id: "kimi-k2-thinking-turbo", label: "Kimi K2 (Thinking Turbo)", model: "kimi-k2-thinking-turbo" },
     { id: "moonshot-v1-128k", label: "Moonshot V1 128K", model: "moonshot-v1-128k" },
 ] as const;
 
