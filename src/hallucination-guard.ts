@@ -82,15 +82,6 @@ export class HallucinationGuard {
   }
 
   /**
-   * Hook: before_thought
-   * Validates input before LLM generation.
-   */
-  async beforeThought(event: HookEvent): Promise<HookResult> {
-    // Could add pre-generation validation here
-    return {};
-  }
-
-  /**
    * Hook: after_thought
    * Validates LLM output against ground truth.
    */
