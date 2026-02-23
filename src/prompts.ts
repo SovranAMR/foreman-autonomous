@@ -148,10 +148,15 @@ CONFIDENCE: [0.0-1.0]
 
 ## Output Format — ATOMIZE (parser-enforced)
 OUTPUT:
-1. [exact atomic task description — specific enough for a Worker to execute without guessing]
-2. [exact atomic task description]
+1. [exact atomic task — include target file paths, function names, or component names]
+2. [exact atomic task — what to create/modify/delete and WHERE]
 ...
-CONFIDENCE: [0.0-1.0]`;
+CONFIDENCE: [0.0-1.0]
+
+## Atomize Quality Checklist
+- Does each atom mention a SPECIFIC file or component? If not, rewrite it.
+- Could a Worker execute this WITHOUT reading the vision? If not, add context.
+- Is the acceptance criteria TESTABLE? (run command, check output, verify file exists)`;
 
 // ─── RESEARCHER ──────────────────────────────────────────────
 
