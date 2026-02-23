@@ -24,6 +24,12 @@ import {
   DEFAULT_CHAT_MODEL,
   refreshChatModels,
 } from "./antigravity-provider.js";
+import {
+  KimiProvider,
+  loadKimiKey,
+  KIMI_MODELS,
+  DEFAULT_KIMI_MODEL,
+} from "./kimi-provider.js";
 import type { ToolCall, ToolResult } from "./tools.js";
 import { createToolExecutor, createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
@@ -59,7 +65,7 @@ interface ChatMessage {
 interface ReplState {
   model: string;
   messages: ChatMessage[];
-  provider: AntigravityProvider | null;
+  provider: AntigravityProvider | KimiProvider | null;
   projectName: string;
   projectInfo: string;
   totalTokens: number;
@@ -613,9 +619,10 @@ export async function startRepl(): Promise<void> {
   // Detect project
   const project = detectProject(cwd);
 
-  // Load credentials
+  // Load credentials — skip Antigravity onboarding if Kimi key exists
+  const hasKimiKey = !!loadKimiKey();
   let creds = loadCredentials();
-  if (!creds || Date.now() >= creds.expiresAt) {
+  if (!hasKimiKey && (!creds || Date.now() >= creds.expiresAt)) {
     // Try onboarding
     console.log("");
     console.log(`    ${icon.warn} ${brand.gold("No active credentials — the forge needs fuel.")}`);
@@ -630,9 +637,26 @@ export async function startRepl(): Promise<void> {
     creds = loadCredentials();
   }
 
-  // Create provider
-  let provider: AntigravityProvider | null = null;
-  if (creds) {
+  // Create provider — Kimi first (if key exists), then Antigravity fallback
+  let provider: AntigravityProvider | KimiProvider | null = null;
+  let activeModel = DEFAULT_CHAT_MODEL;
+  let activeModelList = CHAT_MODELS;
+
+  const kimiKey = loadKimiKey();
+  if (kimiKey) {
+    try {
+      provider = new KimiProvider(kimiKey);
+      activeModel = DEFAULT_KIMI_MODEL;
+      activeModelList = [...KIMI_MODELS] as any;
+      // Replace CHAT_MODELS with Kimi models for the fallback system
+      CHAT_MODELS.splice(0, CHAT_MODELS.length, ...KIMI_MODELS as any);
+      console.log(`    ${icon.done} ${brand.gold("Kimi K2.5 API key loaded — forge powered by Moonshot AI")}`);
+    } catch (err: any) {
+      console.log(`    ${icon.fail} ${brand.red("Kimi key invalid:")} ${brand.dim(err.message)}`);
+    }
+  }
+
+  if (!provider && creds) {
     try {
       provider = new AntigravityProvider(creds);
       // Discover models from API in background (non-blocking)
@@ -654,7 +678,7 @@ export async function startRepl(): Promise<void> {
 
   // State
   const state: ReplState = {
-    model: DEFAULT_CHAT_MODEL,
+    model: activeModel,
     messages: [{ role: "system", content: systemPrompt }],
     provider,
     projectName: project.name,
