@@ -1,0 +1,15 @@
+{
+  "id": "mem_117",
+  "projectId": "global",
+  "category": "lesson",
+  "content": "[worker] Deterministic environment cleanup is complete. Any pre-existing, newline-tainted, or corrupt versions of `/tmp/forge-ok.txt` have been purged. The environment is now locked into a clean state and read...",
+  "source": {
+    "type": "thought",
+    "ref": "t_174"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T03:15:08.187Z",
+  "expired": false
+}

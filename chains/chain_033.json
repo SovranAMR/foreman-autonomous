@@ -7,7 +7,8 @@
     "t_170",
     "t_171",
     "t_172",
-    "t_173"
+    "t_173",
+    "t_174"
   ],
   "status": "active",
   "contextSummary": "**GOAL**: Create the file `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file exists at `/tmp/forge-ok.txt` and its contents match the exact string without any trailing newlines or extraneous formatting.\n**CONSTRAINTS**: Do NOT use `echo` or `node -e` to write the file. Use the native file-writing convention to ensure absolute string fidelity.",
