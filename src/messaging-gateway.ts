@@ -639,8 +639,9 @@ export class MessagingGateway {
           const raw = readFileSync(filePath, "utf-8");
           const data = JSON.parse(raw);
 
-          // Skip expired conversations
+          // Remove expired conversation files from disk
           if (Date.now() - data.lastActivity > this.CONVERSATION_TTL_MS) {
+            try { unlinkSync(filePath); } catch { /* best-effort cleanup */ }
             continue;
           }
 
@@ -708,6 +709,11 @@ export class MessagingGateway {
       for (const [key, conv] of this.conversations) {
         if (now - conv.lastActivity > this.CONVERSATION_TTL_MS) {
           this.conversations.delete(key);
+          // Remove persisted file
+          try {
+            const filename = key.replace(/[^a-zA-Z0-9_-]/g, "_") + ".json";
+            unlinkSync(join(this.CONVERSATIONS_DIR, filename));
+          } catch { /* file may not exist */ }
         }
       }
     }, 60_000);
