@@ -1,0 +1,16 @@
+{
+  "id": "mem_129",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Deterministically clean the target path and write the exact payload `Forge pipeline works` to `/tmp/forge-ok.txt`. [Acceptance Criteria: Any existing file is removed using `rm -f`, the exact string...",
+  "source": {
+    "type": "thought",
+    "ref": "t_227"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 2,
+  "createdAt": "2026-02-23T03:40:20.419Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T03:40:39.886Z"
+}
