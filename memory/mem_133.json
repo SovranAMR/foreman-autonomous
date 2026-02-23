@@ -1,0 +1,15 @@
+{
+  "id": "mem_133",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute the terminal command `wc -c < /tmp/forge-ok.txt` to mathematically prove the artifact's structural integrity. [Acceptance Criteria: The command must be executed and output exactly `20` in t...",
+  "source": {
+    "type": "thought",
+    "ref": "t_233"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T03:42:01.605Z",
+  "expired": false
+}

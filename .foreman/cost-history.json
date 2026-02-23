@@ -220,6 +220,26 @@
       "cacheTokens": 0,
       "cost": 0.0305575,
       "timestamp": 1771818094423
+    },
+    {
+      "id": "c_1771818110566_dr",
+      "model": "gemini-3.1-pro-high",
+      "phase": "researcher",
+      "inputTokens": 8956,
+      "outputTokens": 464,
+      "cacheTokens": 0,
+      "cost": 0.02935,
+      "timestamp": 1771818110566
+    },
+    {
+      "id": "c_1771818121600_ki",
+      "model": "gemini-3.1-pro-high",
+      "phase": "strategist",
+      "inputTokens": 9734,
+      "outputTokens": 143,
+      "cacheTokens": 0,
+      "cost": 0.02648,
+      "timestamp": 1771818121600
     }
   ]
 }

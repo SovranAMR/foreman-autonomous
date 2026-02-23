@@ -4,8 +4,8 @@
       "git * --show-current",
       {
         "pattern": "git * --show-current",
-        "allowCount": 113,
-        "lastUsedAt": "2026-02-23T03:41:34.542Z",
+        "allowCount": 114,
+        "lastUsedAt": "2026-02-23T03:42:01.728Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -14,8 +14,8 @@
       "git * --porcelain=v1",
       {
         "pattern": "git * --porcelain=v1",
-        "allowCount": 113,
-        "lastUsedAt": "2026-02-23T03:41:34.547Z",
+        "allowCount": 114,
+        "lastUsedAt": "2026-02-23T03:42:01.735Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -24,8 +24,8 @@
       "git * --left-right --count * *",
       {
         "pattern": "git * --left-right --count * *",
-        "allowCount": 113,
-        "lastUsedAt": "2026-02-23T03:41:34.550Z",
+        "allowCount": 114,
+        "lastUsedAt": "2026-02-23T03:42:01.738Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -44,8 +44,8 @@
       "git * -A",
       {
         "pattern": "git * -A",
-        "allowCount": 65,
-        "lastUsedAt": "2026-02-23T03:41:34.448Z",
+        "allowCount": 66,
+        "lastUsedAt": "2026-02-23T03:41:34.556Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -54,8 +54,8 @@
       "git * --stat * --numstat *",
       {
         "pattern": "git * --stat * --numstat *",
-        "allowCount": 65,
-        "lastUsedAt": "2026-02-23T03:41:34.466Z",
+        "allowCount": 66,
+        "lastUsedAt": "2026-02-23T03:41:34.567Z",
         "lastSuccess": true,
         "source": "learned"
       }
