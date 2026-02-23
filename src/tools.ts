@@ -1834,7 +1834,13 @@ function executeBatchOps(engine: ExecutionEngine, args: Record<string, unknown>)
     return { name: "batch_ops", content: "Error: operations array required", isError: true };
   }
 
-  const results = engine.executeOperations(ops as any);
+  const validTypes = new Set(["read", "write", "edit", "create", "delete"]);
+  const validOps = ops.filter(op => validTypes.has(op.type)) as import("./execution-engine.js").FileOperation[];
+  if (validOps.length === 0) {
+    return { name: "batch_ops", content: "Error: no valid operations (type must be read/write/edit/create/delete)", isError: true };
+  }
+
+  const results = engine.executeOperations(validOps);
   const summary = results.map(r =>
     r.success ? `✔ ${r.path}` : `✖ ${r.path}: ${r.error ?? "unknown"}`
   ).join("\n");
@@ -1973,7 +1979,7 @@ function executeSessionList(engine: any, args: Record<string, unknown>): ToolRes
   if (!engine.sessionManager) return { name: "session_list", content: "Session manager not available", isError: true };
   const status = args.status as string | undefined;
   const sessions = engine.sessionManager.listSessions(
-    status ? { status: status as any } : undefined,
+    status ? { status: status as import("./multi-session.js").SessionStatus } : undefined,
   );
 
   if (sessions.length === 0) {

@@ -177,8 +177,8 @@ export function extractRetryAfterMs(err: unknown): number | null {
   // Anthropic: headers['retry-after'] (saniye cinsinden)
   const headers = (e.headers ?? (e.response as Record<string, unknown> | undefined)?.headers) as Record<string, unknown> | undefined;
   if (headers) {
-    const getHeader = typeof (headers as any).get === "function" ? (headers as any).get : undefined;
-    const retryAfter = (headers["retry-after"] ?? getHeader?.("retry-after")) as string | undefined;
+    const h = headers as Record<string, unknown> & { get?: (key: string) => string | null };
+    const retryAfter = (h["retry-after"] ?? h.get?.("retry-after")) as string | undefined;
     if (retryAfter) {
       const seconds = parseFloat(String(retryAfter));
       if (Number.isFinite(seconds) && seconds > 0) {
