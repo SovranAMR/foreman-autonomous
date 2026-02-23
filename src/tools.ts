@@ -2310,12 +2310,33 @@ async function executeForge(
 
     const result = await orchestrator.run(task);
 
+    // Gather changed files via git
+    let changedFiles = "";
+    try {
+      const gitStatus = engine.git.executor.gitStatus();
+      if (!gitStatus.clean) {
+        const files = [...(gitStatus.staged ?? []), ...(gitStatus.unstaged ?? [])];
+        if (files.length > 0) {
+          changedFiles = `\n--- Changed Files (${files.length}) ---\n${files.slice(0, 15).join("\n")}${files.length > 15 ? `\n... and ${files.length - 15} more` : ""}`;
+        }
+      }
+    } catch { /* git not available */ }
+
+    // Cost summary
+    let costSummary = "";
+    try {
+      const report = engine.costTracker.formatReport();
+      if (report) costSummary = `\n--- Cost ---\n${report.split("\n").slice(0, 3).join("\n")}`;
+    } catch { /* best-effort */ }
+
     // Build summary
     const summary = [
       result.success ? "✅ Pipeline completed successfully" : "❌ Pipeline failed",
       `Thoughts: ${result.totalThoughts}`,
       `Tokens: ${result.totalTokens.toLocaleString()}`,
       result.blockedAt ? `Blocked at: ${result.blockedAt}` : "",
+      changedFiles,
+      costSummary,
       "",
       "--- Events ---",
       ...events.slice(-20), // Last 20 events
