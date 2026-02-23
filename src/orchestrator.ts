@@ -650,6 +650,8 @@ export class Orchestrator {
         let lastRejectionFeedback = "";
         let execResult: StepResult | undefined;
         let passedAttempt = 0;
+        let toolCallCount = 0;
+        const toolResults: Array<{ name: string; success: boolean }> = [];
 
         for (let attempt = 0; attempt < this.MAX_ATOM_RETRIES; attempt++) {
           if (attempt > 0) {
@@ -757,8 +759,8 @@ export class Orchestrator {
         // Mode B: Fallback (LLM plans, Worker Executor extracts & runs post-hoc)
 
         execResult = undefined; // reset for this attempt
-        let toolCallCount = 0;
-        const toolResults: Array<{ name: string; success: boolean }> = [];
+        toolCallCount = 0;
+        toolResults.length = 0;
 
         try {
           // Mode A: Try tool-enabled execution
