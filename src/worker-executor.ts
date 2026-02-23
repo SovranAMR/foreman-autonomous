@@ -62,6 +62,7 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
   const allText = [
     protocol.step4_decide,
     protocol.step6_execute,
+    protocol.step7_verify, // Worker may include verification commands
   ].join("\n");
 
   // 1. Extract file writes: ```filepath\ncontent\n```
@@ -131,6 +132,19 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
   const mkdirRx = /(?:mkdir|create directory)\s+(?:-p\s+)?[`"]([^`"]+)[`"]/gi;
   while ((match = mkdirRx.exec(allText)) !== null) {
     ops.push({ type: "create_dir", path: match[1].trim() });
+  }
+
+  // 8. Fallback: code fence with a filename-like first line (e.g. ```tsx\nsrc/app.tsx\n...)
+  const filenameFenceRx = /```[a-z]*\s*\n([\w./-]+\.(?:tsx?|jsx?|css|json|md|html|vue|svelte|yaml|toml|py))\n([\s\S]*?)```/gi;
+  while ((match = filenameFenceRx.exec(allText)) !== null) {
+    const path = match[1].trim();
+    if (!ops.some(o => o.path === path)) {
+      ops.push({
+        type: "write_file",
+        path,
+        content: match[2].trimEnd(),
+      });
+    }
   }
 
   return ops;
