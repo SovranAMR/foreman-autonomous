@@ -542,6 +542,22 @@ async function handleChatTurn(input: string, state: ReplState): Promise<void> {
 
     const msg = err.message || String(err);
 
+    // ─── AUTO-FALLBACK: 400/503 → switch model and retry ───
+    if ((msg.includes("400") || msg.includes("503") || msg.includes("No capacity")) && CHAT_MODELS.length > 1) {
+      const currentIdx = CHAT_MODELS.findIndex(m => m.id === state.model);
+      const nextIdx = (currentIdx + 1) % CHAT_MODELS.length;
+      const nextModel = CHAT_MODELS[nextIdx];
+      if (nextModel && nextModel.id !== state.model) {
+        console.log(`\n    ${icon.warn} ${brand.gold(`${state.model} unavailable (${msg.includes("503") ? "no capacity" : "bad request"})`)}`);
+        console.log(`    ${brand.dim("⚡ Auto-switching to")} ${brand.goldBright(nextModel.label)}${brand.dim("...")}`);
+        state.model = nextModel.id;
+        // Remove the user message we just added (it'll be re-added on retry)
+        state.messages.pop();
+        // Retry with new model
+        return handleChatTurn(input, state);
+      }
+    }
+
     if (msg.includes("401") || msg.includes("403") || msg.includes("refresh")) {
       console.log(`\n    ${icon.fail} ${brand.red("Auth expired.")} Run ${brand.cyan("foreman login")} to re-authenticate.`);
     } else if (msg.includes("429") || msg.toLowerCase().includes("rate")) {
