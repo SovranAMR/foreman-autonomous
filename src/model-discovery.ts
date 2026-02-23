@@ -90,16 +90,16 @@ async function fetchFromAPI(creds: AntigravityCredentials): Promise<DiscoveredMo
 
             if (!response.ok) continue;
 
-            const data = (await response.json()) as any;
+            const data = (await response.json()) as Record<string, unknown>;
 
-            if (!data.models) continue;
+            const modelsMap = data.models as Record<string, Record<string, unknown>> | undefined;
+            if (!modelsMap) continue;
 
             const models: DiscoveredModel[] = [];
-            for (const [id, info] of Object.entries(data.models)) {
-                const m = info as any;
+            for (const [id, info] of Object.entries(modelsMap)) {
                 models.push({
                     id,
-                    displayName: m.displayName || id,
+                    displayName: (info.displayName as string) || id,
                 });
             }
 
