@@ -20,7 +20,7 @@ Foreman, AI agent'ları 4 katmanlı düşünce zinciriyle orkestre eder. Her kat
 ### 🔮 Vizyoner (Visioner)
 - **Sorusu**: "Bu NEDEN var?"
 - **Rolü**: Ruh, yön, estetik karar. Projenin hissiyatını belirler.
-- **Model**: `claude-opus` (en derin muhakeme gerekli)
+- **Model**: `kimi-k2.5` (primary), `gemini-3.1-pro-high` (fallback)
 - **Kurallar**: Araştırma zorunlu, doğrulama zorunlu, BLOCK gönderemez (en üst katman)
 - **Max thought/chain**: 50
 - **Prompt**: `src/prompts.ts` → `VISIONER_SYSTEM`
@@ -28,7 +28,7 @@ Foreman, AI agent'ları 4 katmanlı düşünce zinciriyle orkestre eder. Her kat
 ### 🧩 Stratejist (Strategist)
 - **Sorusu**: "Bu NASIL organize edilir?"
 - **Rolü**: Vizyonu 5-8 bloğa parçalar, her bloğu 3-6 atoma böler (fraktal decomposition)
-- **Model**: `claude-opus`
+- **Model**: `kimi-k2.5` (primary), `gemini-3.1-pro-high` (fallback)
 - **Kurallar**: Max 8 blok, max 6 atom/blok. Vizyon tutarsızsa vizyoneri BLOCK'layabilir
 - **Max thought/chain**: 30
 - **Prompt**: `src/prompts.ts` → `STRATEGIST_SYSTEM`
@@ -36,7 +36,7 @@ Foreman, AI agent'ları 4 katmanlı düşünce zinciriyle orkestre eder. Her kat
 ### 🔍 Araştırmacı (Researcher)
 - **Sorusu**: "Başkaları NE yaptı?"
 - **Rolü**: Her karar öncesi kanıt toplar. Best practice, benchmark, risk analizi.
-- **Model**: `gpt-4o` (geniş bilgi tabanı)
+- **Model**: `kimi-k2.5` (primary), `gpt-4o` (fallback)
 - **Kurallar**: Kaynak belirtmek zorunlu, risk/tradeoff açıkça yazılmalı. Stratejisti BLOCK'layabilir
 - **Max thought/chain**: 20
 - **Prompt**: `src/prompts.ts` → `RESEARCHER_SYSTEM`
@@ -44,7 +44,7 @@ Foreman, AI agent'ları 4 katmanlı düşünce zinciriyle orkestre eder. Her kat
 ### ⚡ İşçi (Worker)
 - **Sorusu**: "BURADA ne yapmalıyım?"
 - **Rolü**: Tek atomik görevi uygular — 8 adımlık zorunlu protokolle
-- **Model**: `claude-sonnet` (hızlı, pratik)
+- **Model**: `kimi-k2.5` (primary), `claude-sonnet` (fallback)
 - **Kurallar**: Araştırma gerektirmez ama doğrulama zorunlu. Stratejisti BLOCK'layabilir
 - **Max thought/chain**: 15
 - **8-Adım Protokol** (boş bırakılamaz):
@@ -150,9 +150,11 @@ foreman/
 │   ├── chain-manager.ts   — ChainManager: CRUD, addThought, updateStatus
 │   ├── validators.ts      — validateThoughtCompletion: reasoning/output/confidence/workerProtocol kontrol
 │   ├── rate-limiter.ts    — RateLimiter: throttle (3s min), burst (15/min), model rotation, token budget
-│   ├── provider.ts        — LLMProvider interface, MockProvider, ProviderRegistry
-│   ├── anthropic-provider.ts — AnthropicProvider: SDK, model mapping (claude-opus→claude-3-5-sonnet-20241022), token tracking
-│   ├── openai-provider.ts — OpenAIProvider: SDK, model mapping (gpt-4o→gpt-4o), token tracking
+│   ├── provider.ts        — LLMProvider interface (with streamChatWithTools), MockProvider, ProviderRegistry
+│   ├── kimi-provider.ts   — KimiProvider: Moonshot API, K2.5/K2-thinking models, tool calling, reasoning_content
+│   ├── antigravity-provider.ts — AntigravityProvider: Google OAuth, Gemini/Claude/GPT via proxy
+│   ├── anthropic-provider.ts — AnthropicProvider: SDK, model mapping, token tracking
+│   ├── openai-provider.ts — OpenAIProvider: SDK, model mapping, token tracking
 │   ├── prompts.ts         — 4 katman system prompt, context builder, user prompt builder
 │   ├── engine.ts          — Engine: think(), step(), LLM response parsing, rate limit + state integration
 │   ├── orchestrator.ts    — Orchestrator: run() tam pipeline, event system, block detection, reflection
