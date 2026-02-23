@@ -43,6 +43,8 @@ export type EventType =
   | "test-fail"
   | "build-success"
   | "build-fail"
+  | "pipeline_success"
+  | "pipeline_failure"
   | "custom";
 
 export interface ScheduledTask {

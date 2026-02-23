@@ -265,7 +265,7 @@ export class Engine {
     // Event-driven tasks — triggered by orchestrator pipeline events
     this.scheduler.addEventTask({
       name: "pipeline_success",
-      event: "chain-complete" as any,
+      event: "chain-complete",
       execute: async () => {
         this.syncMemory();
         this.memory.consolidate();
@@ -676,7 +676,7 @@ export class Engine {
 
     // 6. Validation — if parse failed or validator rejects → blocked
     if (!formatValid) {
-      const missing = (parseResult as any).error?.missing ?? [];
+      const missing = !parseResult.ok ? parseResult.error?.missing ?? [] : [];
       const parseError = new ParseFailedError(phase, missing, rawText.slice(0, 200));
       updateData.status = "blocked";
       updateData.blockedReason = parseError.message;
@@ -1238,8 +1238,7 @@ export class Engine {
     }
 
     // Check if provider supports tool calling
-    const antigravProvider = (provider as any);
-    if (typeof antigravProvider.streamChatWithTools !== "function") {
+    if (typeof provider.streamChatWithTools !== "function") {
       // Fallback: call without tools and extract operations post-hoc
       return this.callLLM(systemPrompt, userPrompt, layer);
     }

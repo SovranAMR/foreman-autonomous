@@ -46,6 +46,7 @@ export class ForgeGatewayBridge {
   private engine: Engine;
   private config: ForgeGatewayConfig;
   private activeRuns = new Map<string, { orchestrator: Orchestrator; startedAt: number }>();
+  private _lastPipelineStatus: { phase: string; task?: string; summary?: string; startedAt?: number; endedAt?: number } | null = null;
 
   constructor(engine: Engine, config?: Partial<ForgeGatewayConfig>) {
     this.engine = engine;
@@ -128,14 +129,14 @@ export class ForgeGatewayBridge {
    */
   notifyPipelineStart(task: string): void {
     // Store pipeline status for gateway queries
-    (this as any)._lastPipelineStatus = { phase: "running", task, startedAt: Date.now() };
+    this._lastPipelineStatus = { phase: "running", task, startedAt: Date.now() };
   }
 
   /**
    * Notify bridge that a pipeline ended.
    */
   notifyPipelineEnd(success: boolean, summary: string): void {
-    (this as any)._lastPipelineStatus = { phase: success ? "complete" : "failed", summary, endedAt: Date.now() };
+    this._lastPipelineStatus = { phase: success ? "complete" : "failed", summary, endedAt: Date.now() };
   }
 
   /**

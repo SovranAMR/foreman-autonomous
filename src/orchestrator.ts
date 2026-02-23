@@ -126,7 +126,7 @@ export class Orchestrator {
 
     // Layer-based confidence — engine already checked thresholds
     // But if engine gives "warn", orchestrator should be notified
-    const confLevel = this.engine.evaluateConfidence(result.thought.layer as any, result.thought.confidence);
+    const confLevel = this.engine.evaluateConfidence(result.thought.layer, result.thought.confidence);
     if (confLevel === "block") {
       this.emit({
         type: "block_detected",
@@ -418,8 +418,8 @@ export class Orchestrator {
       title: task.slice(0, 80),
       description: visionOutput.slice(0, 200),
       projectId: this.engine.state.snapshot().projectName,
-      type: "feature" as any,
-      priority: "high" as any,
+      type: "feature",
+      priority: "high",
     });
     this.engine.tasks.addChain(parentTask.id, visionChain.id);
 
@@ -428,8 +428,8 @@ export class Orchestrator {
         title: `Block ${bi + 1}: ${blocks[bi].slice(0, 60)}`,
         description: blocks[bi],
         projectId: this.engine.state.snapshot().projectName,
-        type: "feature" as any,
-        priority: "medium" as any,
+        type: "feature",
+        priority: "medium",
       });
       this.engine.tasks.addSubtask(parentTask.id, blockTask.id);
     }
@@ -2031,9 +2031,9 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     // Fire scheduler events for pipeline lifecycle
     try {
       if (success) {
-        this.engine.scheduler.fireEvent("pipeline_success" as any);
+        this.engine.scheduler.fireEvent("pipeline_success");
       } else {
-        this.engine.scheduler.fireEvent("pipeline_failure" as any);
+        this.engine.scheduler.fireEvent("pipeline_failure");
       }
     } catch { /* scheduler events are best-effort */ }
 

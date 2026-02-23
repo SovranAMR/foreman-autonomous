@@ -647,9 +647,9 @@ export async function startRepl(): Promise<void> {
     try {
       provider = new KimiProvider(kimiKey);
       activeModel = DEFAULT_KIMI_MODEL;
-      activeModelList = [...KIMI_MODELS] as any;
+      activeModelList = KIMI_MODELS.map(m => ({ ...m }));
       // Replace CHAT_MODELS with Kimi models for the fallback system
-      CHAT_MODELS.splice(0, CHAT_MODELS.length, ...KIMI_MODELS as any);
+      CHAT_MODELS.splice(0, CHAT_MODELS.length, ...KIMI_MODELS.map(m => ({ ...m })));
       console.log(`    ${icon.done} ${brand.gold("Kimi K2.5 API key loaded — forge powered by Moonshot AI")}`);
     } catch (err: any) {
       console.log(`    ${icon.fail} ${brand.red("Kimi key invalid:")} ${brand.dim(err.message)}`);

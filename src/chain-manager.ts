@@ -114,7 +114,7 @@ export class ChainManager {
 
     chain.status = status;
     if (status === "completed") {
-      (chain as any).completedAt = new Date().toISOString();
+      chain.completedAt = new Date().toISOString();
     }
     this.writeToDisk(chain);
     return chain;
