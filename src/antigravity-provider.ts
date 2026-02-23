@@ -67,7 +67,6 @@ const ANTIGRAVITY_MODELS: Record<string, string> = {
   "gemini-3-flash": "gemini-3.1-flash",
   "claude-sonnet-4-6": "claude-sonnet-4-6",
   "claude-opus-4-6-thinking": "claude-opus-4-6-thinking",
-  "gpt-oss-120b-medium": "gpt-oss-120b-medium",
 };
 
 function resolveModel(model: string): string {
@@ -104,6 +103,7 @@ export function saveCredentials(creds: AntigravityCredentials): void {
 interface SSEPart {
   text?: string;
   thought?: boolean;
+  thoughtSignature?: string;
   functionCall?: {
     name: string;
     args: Record<string, any>;
@@ -191,12 +191,11 @@ import { toGeminiFunctionDeclarations, executeTool, type ToolCall, type ToolResu
 
 /** Hardcoded fallback — used only if API discovery fails */
 const FALLBACK_CHAT_MODELS: Array<{ id: string; label: string; model: string }> = [
+  { id: "claude-opus-4-6-thinking", label: "Claude Opus 4.6 (Thinking)", model: "claude-opus-4-6-thinking" },
+  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (Thinking)", model: "claude-sonnet-4-6" },
   { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro (High)", model: "gemini-3.1-pro-high" },
   { id: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro (Low)", model: "gemini-3.1-pro" },
   { id: "gemini-3-flash", label: "Gemini 3 Flash", model: "gemini-3.1-flash" },
-  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (Thinking)", model: "claude-sonnet-4-6" },
-  { id: "claude-opus-4-6-thinking", label: "Claude Opus 4.6 (Thinking)", model: "claude-opus-4-6-thinking" },
-  { id: "gpt-oss-120b-medium", label: "GPT-OSS 120B (Medium)", model: "gpt-oss-120b-medium" },
 ];
 
 /** Models available in the REPL chat mode — dynamically updated by discovery */
@@ -267,7 +266,6 @@ export class AntigravityProvider implements LLMProvider {
     "claude-opus",
     "claude-opus-4-6-thinking",
     "claude-haiku",
-    "gpt-oss-120b-medium",
   ] as const;
 
   private credentials: AntigravityCredentials;
