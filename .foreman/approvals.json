@@ -44,8 +44,8 @@
       "git * -A",
       {
         "pattern": "git * -A",
-        "allowCount": 52,
-        "lastUsedAt": "2026-02-23T03:33:18.330Z",
+        "allowCount": 53,
+        "lastUsedAt": "2026-02-23T03:35:40.713Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -54,8 +54,8 @@
       "git * --stat * --numstat *",
       {
         "pattern": "git * --stat * --numstat *",
-        "allowCount": 52,
-        "lastUsedAt": "2026-02-23T03:33:18.347Z",
+        "allowCount": 53,
+        "lastUsedAt": "2026-02-23T03:35:40.731Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -104,8 +104,8 @@
       "rm -f *",
       {
         "pattern": "rm -f *",
-        "allowCount": 5,
-        "lastUsedAt": "2026-02-23T03:31:37.821Z",
+        "allowCount": 6,
+        "lastUsedAt": "2026-02-23T03:36:09.369Z",
         "lastSuccess": true,
         "source": "learned"
       }

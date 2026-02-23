@@ -1,0 +1,15 @@
+{
+  "id": "mem_124",
+  "projectId": "global",
+  "category": "lesson",
+  "content": "[worker] Deterministic state clearance commands have been dispatched. Once the execution trace logs the intentional failure of the `ls -l` command, the environment is irrefutably proven to be clean. The vault ...",
+  "source": {
+    "type": "thought",
+    "ref": "t_213"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T03:36:09.364Z",
+  "expired": false
+}
