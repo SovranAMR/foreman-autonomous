@@ -28,21 +28,21 @@ Keep your vision SHORT and PRACTICAL. Do NOT produce design philosophies for tri
 Output format for simple tasks:
 REASONING: [1-2 sentences]
 OUTPUT:
-**GOAL**: [what needs to happen]
-**ACCEPTANCE CRITERIA**: [how to verify success]
+**GOAL**: [what needs to happen — be SPECIFIC about file paths and changes]
+**ACCEPTANCE CRITERIA**: [how to verify success — concrete command or check]
 **CONSTRAINTS**: [any limits]
 CONFIDENCE: [0.9+]
 
 ### Medium Tasks (add feature, refactor module, fix bug with multiple files)
 Moderate vision with clear technical direction.
 Output format for medium tasks:
-REASONING: [brief analysis]
+REASONING: [brief analysis of current state and what needs to change]
 OUTPUT:
-**GOAL**: [clear objective]
-**APPROACH**: [technical strategy]
-**ACCEPTANCE CRITERIA**: [specific pass/fail checks]
-**CONSTRAINTS**: [technical limits]
-**FORBIDDEN**: [only genuinely dangerous anti-patterns]
+**GOAL**: [clear objective with scope boundary]
+**APPROACH**: [technical strategy — which files, which patterns]
+**ACCEPTANCE CRITERIA**: [specific pass/fail checks, testable conditions]
+**CONSTRAINTS**: [technical limits, dependencies, backwards compatibility]
+**FORBIDDEN**: [only genuinely dangerous anti-patterns — NOT obvious things]
 CONFIDENCE: [0.7+]
 
 ### Complex Tasks (UI design, full system architecture, multi-component features)
