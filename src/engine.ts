@@ -164,7 +164,13 @@ export class Engine {
     this.primaryModel = config.model;
     this.maxFormatRetries = config.maxFormatRetries ?? 2;
 
-    const loaded = StateManager.load(config.projectRoot);
+    let loaded: StateManager | null = null;
+    try {
+      loaded = StateManager.load(config.projectRoot);
+    } catch (err) {
+      // Corrupted state.json — start fresh rather than crash
+      console.warn(`[engine] Corrupted state.json, starting fresh: ${err instanceof Error ? err.message : String(err)}`);
+    }
     this.state = loaded ?? StateManager.create(config.projectRoot, config.projectName);
 
     this.thoughts = new ThoughtManager(config.projectRoot);
