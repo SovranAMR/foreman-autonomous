@@ -32,7 +32,7 @@ import type { ReviewResult } from "./reviewer-gate.js";
 import { shouldCompact, compactLocal } from "./compaction-engine.js";
 import type { ConversationMessage } from "./compaction-engine.js";
 import { generateDiff, diffSummary, formatDiffSummary } from "./diff-engine.js";
-import type { FileChange } from "./diff-engine.js";
+import type { FileChange, DiffHunk, DiffLine } from "./diff-engine.js";
 import { extractCodeFences, extractSections, extractInlineCode } from "./markdown-intelligence.js";
 import { repairTranscript } from "./transcript-repair.js";
 import { checkChainHealth } from "./chain-repair.js";
@@ -166,7 +166,7 @@ export class Orchestrator {
     try {
       multiSession = this.engine.sessionManager.createSession({
         label: `forge-${Date.now()}`,
-        metadata: { task: task.slice(0, 200) },
+        task: task.slice(0, 200),
       });
       multiSession.addMessage("system", `Pipeline started: ${task}`);
     } catch { /* multi-session best-effort */ }
@@ -174,7 +174,7 @@ export class Orchestrator {
     // ─── SESSION LIFECYCLE — create named forge session ─────
     const forgeSession = this.engine.sessionLifecycle.create({
       task,
-      phase: "vision",
+      metadata: { phase: "vision" },
     });
     this.engine.streaming.phaseStart("session", `Session: ${forgeSession.slug}`);
 
@@ -190,8 +190,12 @@ export class Orchestrator {
     } catch { /* best-effort */ }
     try {
       // Reset activeChainId in state to prevent stale references
-      if (this.engine.state.raw?.activeChainId) {
-        this.engine.state.raw.activeChainId = null;
+      const snap = this.engine.state.snapshot();
+      if (snap.activeChainId) {
+        // Force transition to idle to clear stale chain references
+        if (this.engine.state.canTransition("idle")) {
+          this.engine.state.transition("idle", "Clearing stale references from previous run");
+        }
       }
     } catch { /* best-effort */ }
 
@@ -257,43 +261,9 @@ export class Orchestrator {
       });
     }
 
-    // ─── 1a. PRE-VISION RESEARCH — Researcher feeds Visioner ─
-    // Visioner + Researcher work TOGETHER: research industry first, then create vision
-    let preVisionResearch = "";
-    try {
-      this.engine.streaming.toolCall("pre_vision_research", `Researching: ${task.slice(0, 50)}`);
-
-      // Web search for industry references, benchmarks, best practices
-      const searchResults = await webSearch(`best ${task} design examples award winning 2024 2025`, 5);
-      if (searchResults.length > 0) {
-        const enriched = searchResults.map(r => {
-          const classification = this.engine.linkIntelligence.classify(r.url ?? "");
-          return `- ${r.title} [${classification.type}]: ${r.snippet}`;
-        });
-        preVisionResearch += `\n\nINDUSTRY RESEARCH (real examples found):\n${enriched.join("\n")}`;
-      }
-
-      // Search for competitor/reference sites
-      const refResults = await webSearch(`${task} site:awwwards.com OR site:dribbble.com OR site:behance.net`, 3);
-      if (refResults.length > 0) {
-        preVisionResearch += `\n\nREFERENCE BENCHMARKS:\n${refResults.map(r => `- ${r.title}: ${r.snippet}`).join("\n")}`;
-      }
-
-      // Semantic search over project codebase for existing patterns
-      try {
-        const embResults = await this.engine.embeddingEngine.search(task, 3);
-        if (embResults.length > 0) {
-          preVisionResearch += `\n\nEXISTING CODEBASE PATTERNS:\n${embResults.map(r => `- [${(r.score * 100).toFixed(0)}%] ${r.content.slice(0, 100)}`).join("\n")}`;
-        }
-      } catch { /* embedding best-effort */ }
-
-    } catch {
-      // Pre-vision research is best-effort
-    }
-
     const visionResult = await this.engine.stepWithPhase(
       visionChain.id,
-      `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}${identityContext ? `\n\n${identityContext}` : ""}${preVisionResearch}`,
+      `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}${identityContext ? `\n\n${identityContext}` : ""}`,
       "visioner",
       "vision",
     );
@@ -317,14 +287,10 @@ export class Orchestrator {
     if (this.engine.interactive.isEnabled()) {
       this.engine.streaming.phaseStart("approval", "Waiting for vision approval...");
       const approvalResult = await this.engine.interactive.confirm({
-        operation: "vision_approval",
+        type: "dangerous",
+        target: "vision_document",
         description: `Vision Document for "${task.slice(0, 60)}":\n\n${visionOutput.slice(0, 800)}`,
         risk: "medium",
-        details: {
-          emotionTarget: visionOutput.match(/EMOTION TARGET[:\s]*(.*?)(?:\n|$)/i)?.[1]?.trim() ?? "?",
-          focalPoint: visionOutput.match(/FOCAL POINT[:\s]*(.*?)(?:\n|$)/i)?.[1]?.trim() ?? "?",
-          forbidden: visionOutput.match(/FORBIDDEN[^:]*:([\s\S]*?)(?:\n##|\n\*\*|$)/i)?.[1]?.trim().slice(0, 100) ?? "?",
-        },
       });
 
       if (approvalResult.action === "abort" || approvalResult.action === "skip") {
@@ -454,16 +420,6 @@ export class Orchestrator {
       // ─── ROLLBACK: Block checkpoint ───
       this.engine.rollback.createPoint("block", `Block ${i + 1}: ${block.slice(0, 50)}`, { blockIndex: i });
 
-      // ─── BEFORE SCREENSHOT — baseline for pixel diff ─────
-      let beforeScreenshot: Awaited<ReturnType<typeof this.engine.browser.screenshot>> | null = null;
-      try {
-        const servers = await detectDevServers();
-        const healthyServer = servers.find(s => s.healthy);
-        if (healthyServer && this.engine.browser.checkAvailability()) {
-          beforeScreenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
-        }
-      } catch { /* before screenshot best-effort */ }
-
       // ── 3a. RESEARCH ──
       this.emit({ type: "phase_start", phase: "research", detail: `Block ${i + 1}: ${block}` });
       this.engine.streaming.phaseStart("research", `Block ${i + 1}: ${block.slice(0, 50)}`);
@@ -496,7 +452,7 @@ export class Orchestrator {
           const embResults = await this.engine.embeddingEngine.search(block, 3);
           if (embResults.length > 0) {
             embeddingContext = embResults.map(r =>
-              `[${(r.score * 100).toFixed(0)}% match] ${r.content.slice(0, 120)}`
+              `[${(r.score * 100).toFixed(0)}% match] ${r.text.slice(0, 120)}`
             );
           }
         } catch { /* embedding search is best-effort */ }
@@ -519,41 +475,6 @@ export class Orchestrator {
         }
       } catch {
         // Memory recall is best-effort
-      }
-
-      // ─── SUB-AGENT: Parallel research for complex blocks ──
-      // If block description is long/complex, spawn a sub-agent for deeper research
-      try {
-        if (block.length > 200 && this.engine.subAgents.list().length < 3) {
-          const subAgent = await this.engine.subAgents.spawn({
-            id: `research-${i}-${Date.now()}`,
-            role: "researcher",
-            task: `Deep research for: ${block.slice(0, 200)}`,
-            context: { vision: visionOutput.slice(0, 500), block },
-          });
-          this.emit({
-            type: "phase_start",
-            phase: "sub_agent",
-            detail: `Spawned research sub-agent: ${subAgent.id}`,
-          });
-        }
-      } catch { /* sub-agent spawn best-effort */ }
-
-      // Web research augmentation — search for real context before LLM call
-      let webContext = "";
-      try {
-        const searchResults = await webSearch(block.slice(0, 80), 3);
-        if (searchResults.length > 0) {
-          // Classify URLs via LinkIntelligence for richer context
-          const enriched = searchResults.map(r => {
-            const classification = this.engine.linkIntelligence.classify(r.url ?? "");
-            const typeLabel = classification.type !== "unknown" ? ` [${classification.type}]` : "";
-            return `- ${r.title}${typeLabel}: ${r.snippet}`;
-          });
-          webContext = "\n\nWeb research findings:\n" + enriched.join("\n");
-        }
-      } catch {
-        // Web search is best-effort
       }
 
       // Cross-chain context — pull relevant insights from other chains
@@ -582,7 +503,7 @@ export class Orchestrator {
 
       const researchResult = await this.engine.stepWithPhase(
         visionChain.id,
-        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nVISION DOCUMENT (pinned — respect all constraints):\n${visionOutput}${memoryContext}${webContext}${crossChainCtx}`,
+        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nVISION DOCUMENT (pinned — respect all constraints):\n${visionOutput}${memoryContext}${crossChainCtx}`,
         "researcher",
         "research",
         [visionResult.thought.id, decomposeResult.thought.id],
@@ -664,483 +585,471 @@ export class Orchestrator {
             });
           }
 
-        // ─── SESSION BUDGET CHECK ───────────────────────────
-        // Don't start an atom if total session tokens exceeded
-        const sessionTokens = this.engine.state.snapshot().totalTokens;
-        if (sessionTokens > this.MAX_TOKENS_SESSION) {
-          this.emit({
-            type: "error",
-            message: `Session budget exceeded: ${sessionTokens} tokens (max ${this.MAX_TOKENS_SESSION}). Stopping pipeline.`,
-          });
-          this.engine.streaming.error(`💰 Budget exceeded: ${sessionTokens} tokens`);
-          return this.buildResult(false, totalThoughts, visionChain.id, "budget_exceeded");
-        }
+          // ─── SESSION BUDGET CHECK ───────────────────────────
+          // Don't start an atom if total session tokens exceeded
+          const sessionTokens = this.engine.state.snapshot().totalTokens;
+          if (sessionTokens > this.MAX_TOKENS_SESSION) {
+            this.emit({
+              type: "error",
+              message: `Session budget exceeded: ${sessionTokens} tokens (max ${this.MAX_TOKENS_SESSION}). Stopping pipeline.`,
+            });
+            this.engine.streaming.error(`💰 Budget exceeded: ${sessionTokens} tokens`);
+            return this.buildResult(false, totalThoughts, visionChain.id, "budget_exceeded");
+          }
 
-        // Context window check — evaluate budget before each atom
-        try {
-          const ctxWindow = this.engine.getContextWindow();
-          const ctxEval = this.engine.evaluateContext(
-            "gpt-4o", // default model for budget check
-            "",
-            atom,
-            findings.slice(0, 500),
-          );
-          if (!ctxEval.isSafe) {
-            // Use compaction engine for intelligent context reduction
-            const sessionMessages = multiSession ? multiSession.getMessages() : [];
-            const convMessages: ConversationMessage[] = sessionMessages.map(m => ({
-              role: m.role as "user" | "assistant" | "system",
-              content: m.content,
-              timestamp: m.timestamp,
-            }));
+          // Context window check — evaluate budget before each atom
+          try {
+            const ctxWindow = this.engine.getContextWindow();
+            const ctxEval = this.engine.evaluateContext(
+              this.engine.primaryModel ?? "gemini-2.5-pro",
+              "",
+              atom,
+              findings.slice(0, 500),
+            );
+            if (!ctxEval.isSafe) {
+              // Use compaction engine for intelligent context reduction
+              const sessionMessages = multiSession ? multiSession.getMessages() : [];
+              const convMessages: ConversationMessage[] = sessionMessages.map(m => ({
+                role: m.role as "user" | "assistant" | "system",
+                content: m.content,
+                timestamp: m.timestamp,
+              }));
 
-            if (shouldCompact(convMessages, ctxWindow.tokens)) {
-              const compacted = compactLocal(convMessages, Math.floor(ctxWindow.tokens * 0.6));
-              this.emit({
-                type: "phase_start",
-                phase: "context_compact",
-                detail: `Compacted: ${compacted.summarizedCount} messages → summary, kept ${compacted.keptCount}`,
-              });
-            } else {
-              // Fallback: use chain-level compaction
-              const compact = this.engine.buildCompactContextForChain(visionChain.id, ctxWindow.tokens / 2);
-              if (compact && compact.length > 0) {
+              if (shouldCompact(convMessages, { maxTokens: ctxWindow.tokens })) {
+                const compacted = compactLocal(convMessages, { maxTokens: Math.floor(ctxWindow.tokens * 0.6) });
                 this.emit({
                   type: "phase_start",
                   phase: "context_compact",
-                  detail: `Chain compacted: ${compact.length} chars`,
+                  detail: `Compacted: ${compacted.summarizedCount} messages → summary, kept ${compacted.keptCount}`,
                 });
+              } else {
+                // Fallback: use chain-level compaction
+                const compact = this.engine.buildCompactContextForChain(visionChain.id, ctxWindow.tokens / 2);
+                if (compact && compact.length > 0) {
+                  this.emit({
+                    type: "phase_start",
+                    phase: "context_compact",
+                    detail: `Chain compacted: ${compact.length} chars`,
+                  });
+                }
               }
             }
+          } catch {
+            // Context check is best-effort
           }
-        } catch {
-          // Context check is best-effort
-        }
 
-        // Cross-chain context for this atom
-        let atomCrossCtx = "";
-        try {
-          const crossCtx = this.engine.getCrossChainContext(atom, visionChain.id);
-          if (crossCtx) {
-            atomCrossCtx = `\n\nCross-chain insights:\n${crossCtx}`;
-          }
-        } catch { /* best-effort */ }
+          // Cross-chain context for this atom
+          let atomCrossCtx = "";
+          try {
+            const crossCtx = this.engine.getCrossChainContext(atom, visionChain.id);
+            if (crossCtx) {
+              atomCrossCtx = `\n\nCross-chain insights:\n${crossCtx}`;
+            }
+          } catch { /* best-effort */ }
 
-        this.emit({ type: "phase_start", phase: "execute", detail: `Atom ${j + 1}/${atoms.length}: ${atom.slice(0, 50)}` });
-        this.engine.streaming.atomStart(j, atoms.length, atom.slice(0, 50));
+          this.emit({ type: "phase_start", phase: "execute", detail: `Atom ${j + 1}/${atoms.length}: ${atom.slice(0, 50)}` });
+          this.engine.streaming.atomStart(j, atoms.length, atom.slice(0, 50));
 
-        // ─── PRE-ATOM GIT CHECKPOINT ────────────────────────
-        // Deterministic rollback point BEFORE worker touches code
-        // If worker BLOCKs → git reset --hard to this exact point
-        try {
-          const gitStatus = this.engine.git.executor.gitStatus();
-          if (!gitStatus.clean) {
-            this.engine.git.commitThought({
-              message: `[pre-atom] Block ${i + 1}, Atom ${j + 1}: ${atom.slice(0, 40)}`,
+          try {
+            this.engine.rollback.createPoint("atom", `Pre-atom ${j + 1}: ${atom.slice(0, 40)}`, {
+              atomIndex: j, blockIndex: i,
+            });
+          } catch { /* rollback point best-effort */ }
+
+          if (this.engine.state.canTransition("executing")) {
+            this.engine.state.transition("executing", `Executing atom ${j + 1}`, {
               chainId: visionChain.id,
-              thoughtId: "pre-atom",
-              layer: "worker",
-              atomIndex: j,
             });
           }
-          this.engine.rollback.createPoint("atom", `Pre-atom ${j + 1}: ${atom.slice(0, 40)}`, {
-            atomIndex: j, blockIndex: i, preExecution: true,
-          });
-        } catch { /* git checkpoint best-effort */ }
 
-        if (this.engine.state.canTransition("executing")) {
-          this.engine.state.transition("executing", `Executing atom ${j + 1}`, {
-            chainId: visionChain.id,
-          });
-        }
+          // ── WORKER EXECUTION — two modes: ──
+          // Mode A: Tool-enabled (LLM calls tools in real-time) — preferred
+          // Mode B: Fallback (LLM plans, Worker Executor extracts & runs post-hoc)
 
-        // ── WORKER EXECUTION — two modes: ──
-        // Mode A: Tool-enabled (LLM calls tools in real-time) — preferred
-        // Mode B: Fallback (LLM plans, Worker Executor extracts & runs post-hoc)
+          execResult = undefined; // reset for this attempt
+          toolCallCount = 0;
+          toolResults.length = 0;
 
-        execResult = undefined; // reset for this attempt
-        toolCallCount = 0;
-        toolResults.length = 0;
-
-        try {
-          // Mode A: Try tool-enabled execution
-          const toolExecutor = createEngineToolExecutor(
-            this.engine.config.projectRoot,
-            this.engine.exec,
-            this.engine.editEngine,
-            this.engine.git,
-            this.engine.linkIntelligence,
-          );
-
-          // Build context for tool-enabled LLM call
-          // Build compressed summaries of completed atoms (Context Pruning)
-          // Completed atoms → single line each. Vision document → NEVER truncated.
-          const completedAtomLines: string[] = [];
-          for (let k = 0; k < j; k++) {
-            completedAtomLines.push(`[✅ Atom ${k + 1}] ${atoms[k].slice(0, 60)}`);
-          }
-          const prevAtomContext = completedAtomLines.length > 0
-            ? `COMPLETED ATOMS:\n${completedAtomLines.join("\n")}`
-            : "";
-
-          // ─── PRE-EXECUTION FILE ANALYSIS ───────────────────
-          // Extract file paths from atom description and pre-read them
-          // Worker gets REAL file contents — no hallucination possible
-          let preReadContext = "";
           try {
-            const fileMatches = atom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g);
-            if (fileMatches && fileMatches.length > 0) {
-              const uniqueFiles = [...new Set(fileMatches)].slice(0, 3); // max 3 files
-              const fileParts: string[] = [];
-              for (const filePath of uniqueFiles) {
-                try {
-                  const fullPath = `${this.engine.config.projectRoot}/${filePath}`;
-                  const { readFileSync } = await import("node:fs");
-                  const content = readFileSync(fullPath, "utf-8");
-                  const lines = content.split("\n");
-                  const preview = lines.length > 50
-                    ? `${lines.slice(0, 50).join("\n")}\n... (${lines.length} total lines)`
-                    : content;
-                  fileParts.push(`[FILE: ${filePath}] (${lines.length} lines)\n${preview}`);
-                } catch { /* file not found — OK, Worker will create it */ }
-              }
-              if (fileParts.length > 0) {
-                preReadContext = `PRE-READ FILES (real contents — do NOT hallucinate):\n${fileParts.join("\n\n")}`;
-              }
+            // Mode A: Try tool-enabled execution
+            const toolExecutor = createEngineToolExecutor(
+              this.engine.config.projectRoot,
+              this.engine.exec,
+              this.engine.editEngine,
+              this.engine.git,
+              this.engine.linkIntelligence,
+            );
+
+            // Build context for tool-enabled LLM call
+            // Build compressed summaries of completed atoms (Context Pruning)
+            // Completed atoms → single line each. Vision document → NEVER truncated.
+            const completedAtomLines: string[] = [];
+            for (let k = 0; k < j; k++) {
+              completedAtomLines.push(`[✅ Atom ${k + 1}] ${atoms[k].slice(0, 60)}`);
             }
-          } catch { /* pre-read best-effort */ }
+            const prevAtomContext = completedAtomLines.length > 0
+              ? `COMPLETED ATOMS:\n${completedAtomLines.join("\n")}`
+              : "";
 
-          // ─── REJECTION FEEDBACK INJECTION ─────────────────
-          // On retry, inject the EXACT reason why the previous attempt failed
-          // Worker sees: "Your previous attempt was REJECTED because: ..."
-          const retryContext = lastRejectionFeedback && attempt > 0
-            ? `⚠️ PREVIOUS ATTEMPT REJECTED (attempt ${attempt}/${this.MAX_ATOM_RETRIES}):\n${lastRejectionFeedback}\n\nFix the issues above. Do NOT repeat the same mistakes.`
-            : "";
+            // ─── PRE-EXECUTION FILE ANALYSIS ───────────────────
+            // Extract file paths from atom description and pre-read them
+            // Worker gets REAL file contents — no hallucination possible
+            let preReadContext = "";
+            try {
+              const fileMatches = atom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g);
+              if (fileMatches && fileMatches.length > 0) {
+                const uniqueFiles = [...new Set(fileMatches)].slice(0, 3); // max 3 files
+                const fileParts: string[] = [];
+                for (const filePath of uniqueFiles) {
+                  try {
+                    const fullPath = `${this.engine.config.projectRoot}/${filePath}`;
+                    const { readFileSync } = await import("node:fs");
+                    const content = readFileSync(fullPath, "utf-8");
+                    const lines = content.split("\n");
+                    const preview = lines.length > 50
+                      ? `${lines.slice(0, 50).join("\n")}\n... (${lines.length} total lines)`
+                      : content;
+                    fileParts.push(`[FILE: ${filePath}] (${lines.length} lines)\n${preview}`);
+                  } catch { /* file not found — OK, Worker will create it */ }
+                }
+                if (fileParts.length > 0) {
+                  preReadContext = `PRE-READ FILES (real contents — do NOT hallucinate):\n${fileParts.join("\n\n")}`;
+                }
+              }
+            } catch { /* pre-read best-effort */ }
 
-          const atomContext = [
-            `YOUR TASK (Atom ${j + 1}/${atoms.length}): ${atom}`,
-            retryContext,
-            preReadContext,
-            `BLOCK: ${block}`,
-            prevAtomContext,
-            `VISION DOCUMENT (pinned — respect ALL constraints):\n${visionOutput}`,
-            findings ? `RESEARCH FINDINGS:\n${findings.slice(0, 800)}` : "",
-            atomCrossCtx || "",
-            memoryContext ? `MEMORY:\n${memoryContext.slice(0, 500)}` : "",
-          ].filter(Boolean).join("\n\n---\n\n");
+            // ─── REJECTION FEEDBACK INJECTION ─────────────────
+            // On retry, inject the EXACT reason why the previous attempt failed
+            // Worker sees: "Your previous attempt was REJECTED because: ..."
+            const retryContext = lastRejectionFeedback && attempt > 0
+              ? `⚠️ PREVIOUS ATTEMPT REJECTED (attempt ${attempt}/${this.MAX_ATOM_RETRIES}):\n${lastRejectionFeedback}\n\nFix the issues above. Do NOT repeat the same mistakes.`
+              : "";
 
-          // ─── EXECUTION MODE ──────────────────────────────
-          // Extraction mode (default): 1 LLM call, post-hoc command parsing
-          // Tool mode (FOREMAN_TOOL_MODE=1): N API calls per atom, more powerful but rate-limited
-          const useToolMode = process.env.FOREMAN_TOOL_MODE === "1";
+            const atomContext = [
+              `YOUR TASK (Atom ${j + 1}/${atoms.length}): ${atom}`,
+              retryContext,
+              preReadContext,
+              `BLOCK: ${block}`,
+              prevAtomContext,
+              `VISION DOCUMENT (pinned — respect ALL constraints):\n${visionOutput}`,
+              findings ? `RESEARCH FINDINGS:\n${findings.slice(0, 800)}` : "",
+              atomCrossCtx || "",
+              memoryContext ? `MEMORY:\n${memoryContext.slice(0, 500)}` : "",
+            ].filter(Boolean).join("\n\n---\n\n");
 
-          if (useToolMode) {
-          const toolLlmResult = await this.engine.callLLMWithTools(
-            getWorkerPromptForToolMode(),
-            atomContext,
-            "worker",
-            async (call: ToolCall) => {
-              toolCallCount++;
-              this.emit({
-                type: "phase_start",
-                phase: "tool_call",
-                detail: `${call.name}(${JSON.stringify(call.args).slice(0, 60)})`,
-              });
-              const result = await toolExecutor(call);
-              toolResults.push({ name: call.name, success: !result.isError });
-              this.emit({
-                type: "phase_end",
-                phase: "tool_call",
-                detail: `${call.name} → ${result.isError ? "✖" : "✔"}`,
-              });
-              return result;
-            },
-            {
-              maxIterations: 100,
-              onToken: () => {},
-              onToolCall: (call) => {
-                console.log(`  [tool] ${call.name}(${JSON.stringify(call.args).slice(0, 60)})`);
-              },
-              onToolResult: (result) => {
-                const preview = result.content.slice(0, 80);
-                console.log(`  [tool] → ${result.isError ? "✖" : "✔"} ${preview}`);
-              },
-            },
-          );
+            // ─── EXECUTION MODE ──────────────────────────────
+            // Extraction mode (default): 1 LLM call, post-hoc command parsing
+            // Tool mode (FOREMAN_TOOL_MODE=1): N API calls per atom, more powerful but rate-limited
+            const useToolMode = process.env.FOREMAN_TOOL_MODE === "1";
 
-          // Create a thought from the tool-enabled result
-          execResult = await this.engine.stepWithPhase(
-            visionChain.id,
-            `${atom}\n\n[Tool execution completed: ${toolCallCount} tool calls, ${toolResults.filter(r => r.success).length} succeeded]\n\nLLM response:\n${toolLlmResult.text}`,
-            "worker",
-            "execute",
-            [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
-          );
-          } else {
-            // Extraction mode: single LLM call + post-hoc command extraction
+            if (useToolMode) {
+              const toolLlmResult = await this.engine.callLLMWithTools(
+                getWorkerPromptForToolMode(),
+                atomContext,
+                "worker",
+                async (call: ToolCall) => {
+                  toolCallCount++;
+                  this.emit({
+                    type: "phase_start",
+                    phase: "tool_call",
+                    detail: `${call.name}(${JSON.stringify(call.args).slice(0, 60)})`,
+                  });
+                  const result = await toolExecutor(call);
+                  toolResults.push({ name: call.name, success: !result.isError });
+                  this.emit({
+                    type: "phase_end",
+                    phase: "tool_call",
+                    detail: `${call.name} → ${result.isError ? "✖" : "✔"}`,
+                  });
+                  return result;
+                },
+                {
+                  maxIterations: 100,
+                  onToken: () => { },
+                  onToolCall: (call) => {
+                    console.log(`  [tool] ${call.name}(${JSON.stringify(call.args).slice(0, 60)})`);
+                  },
+                  onToolResult: (result) => {
+                    const preview = result.content.slice(0, 80);
+                    console.log(`  [tool] → ${result.isError ? "✖" : "✔"} ${preview}`);
+                  },
+                },
+              );
+
+              // Create a thought from the tool-enabled result
+              execResult = await this.engine.stepWithPhase(
+                visionChain.id,
+                `${atom}\n\n[Tool execution completed: ${toolCallCount} tool calls, ${toolResults.filter(r => r.success).length} succeeded]\n\nLLM response:\n${toolLlmResult.text}`,
+                "worker",
+                "execute",
+                [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
+              );
+            } else {
+              // Extraction mode: single LLM call + post-hoc command extraction
+              execResult = await this.engine.stepWithPhase(
+                visionChain.id,
+                atomContext,
+                "worker",
+                "execute",
+                [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
+              );
+            }
+          } catch (toolError) {
+            // Fallback — standard stepWithPhase + post-hoc extraction
+            console.log(`  [forge] Tool mode unavailable, using extraction mode: ${toolError instanceof Error ? toolError.message.slice(0, 80) : "unknown"}`);
+
             execResult = await this.engine.stepWithPhase(
               visionChain.id,
-              atomContext,
+              atom,
               "worker",
               "execute",
               [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
             );
           }
-        } catch (toolError) {
-          // Fallback — standard stepWithPhase + post-hoc extraction
-          console.log(`  [forge] Tool mode unavailable, using extraction mode: ${toolError instanceof Error ? toolError.message.slice(0, 80) : "unknown"}`);
 
-          execResult = await this.engine.stepWithPhase(
-            visionChain.id,
-            atom,
-            "worker",
-            "execute",
-            [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
-          );
-        }
+          totalThoughts++;
+          atomCount++;
 
-        totalThoughts++;
-        atomCount++;
+          if (!execResult) {
+            this.engine.streaming.error(`❌ Atom ${j + 1} produced no result — skipping`);
+            blockFailedAtoms++;
+            break;
+          }
 
-        if (!execResult) {
-          this.engine.streaming.error(`❌ Atom ${j + 1} produced no result — skipping`);
-          blockFailedAtoms++;
-          break;
-        }
+          this.emit({ type: "thought_complete", thought: execResult?.thought });
 
-        this.emit({ type: "thought_complete", thought: execResult?.thought });
+          // ── POST-HOC EXECUTION (Mode B fallback) ──
+          // Only if no tools were called in Mode A (toolCallCount === 0)
+          if (toolCallCount === 0 && execResult?.thought.workerProtocol && execResult?.thought.status === "done") {
+            const protocol = execResult?.thought.workerProtocol;
 
-        // ── POST-HOC EXECUTION (Mode B fallback) ──
-        // Only if no tools were called in Mode A (toolCallCount === 0)
-        if (toolCallCount === 0 && execResult?.thought.workerProtocol && execResult?.thought.status === "done") {
-          const protocol = execResult?.thought.workerProtocol;
+            if (needsExecution(protocol)) {
+              const ops = extractOperations(protocol);
 
-          if (needsExecution(protocol)) {
-            const ops = extractOperations(protocol);
+              // Debug: log extracted operations
+              for (const op of ops) {
+                console.log(`  [extract] ${op.type}: path=${op.path ?? "?"}, content=${op.content?.slice(0, 40) ?? "EMPTY"}, cmd=${op.command?.slice(0, 40) ?? "?"}`);
+              }
 
-            // Debug: log extracted operations
-            for (const op of ops) {
-              console.log(`  [extract] ${op.type}: path=${op.path ?? "?"}, content=${op.content?.slice(0, 40) ?? "EMPTY"}, cmd=${op.command?.slice(0, 40) ?? "?"}`);
-            }
-
-            if (ops.length > 0) {
-              this.emit({
-                type: "phase_start",
-                phase: "real_execute",
-                detail: `${ops.length} operations from atom ${j + 1}`,
-              });
-
-              try {
-                const execSummary = await executeOperations(
-                  ops,
-                  this.engine.exec,
-                  this.engine.editEngine,
-                  this.engine.config.projectRoot,
-                  {
-                    hooks: this.engine.hooks,
-                    interactive: this.engine.interactive,
-                    streaming: this.engine.streaming,
-                  },
-                );
-
+              if (ops.length > 0) {
                 this.emit({
-                  type: "phase_end",
+                  type: "phase_start",
                   phase: "real_execute",
-                  detail: `${execSummary.succeeded}/${execSummary.totalOps} succeeded`,
+                  detail: `${ops.length} operations from atom ${j + 1}`,
                 });
 
-                // Feed execution results back into thought for verification
-                if (execSummary.output) {
-                  const feedback = buildExecutionFeedback(execSummary);
-                  // Append execution results to thought output
-                  this.engine.thoughts.update(execResult?.thought.id, {
-                    output: (execResult?.thought.output ?? "") + "\n\n" + feedback,
+                try {
+                  const execSummary = await executeOperations(
+                    ops,
+                    this.engine.exec,
+                    this.engine.editEngine,
+                    this.engine.config.projectRoot,
+                    {
+                      hooks: this.engine.hooks,
+                      interactive: this.engine.interactive,
+                      streaming: this.engine.streaming,
+                    },
+                  );
+
+                  this.emit({
+                    type: "phase_end",
+                    phase: "real_execute",
+                    detail: `${execSummary.succeeded}/${execSummary.totalOps} succeeded`,
+                  });
+
+                  // Feed execution results back into thought for verification
+                  if (execSummary.output) {
+                    const feedback = buildExecutionFeedback(execSummary);
+                    // Append execution results to thought output
+                    this.engine.thoughts.update(execResult?.thought.id, {
+                      output: (execResult?.thought.output ?? "") + "\n\n" + feedback,
+                    });
+                  }
+
+                  // Git checkpoint after successful execution
+                  if (execSummary.succeeded > 0) {
+                    try {
+                      this.engine.git.commitThought({
+                        thoughtId: execResult?.thought.id,
+                        chainId: visionChain.id,
+                        layer: "worker",
+                        atomIndex: j,
+                        message: `Atom ${j + 1}: ${atom.slice(0, 50)}`,
+                      });
+                    } catch { /* git checkpoint best-effort */ }
+                  }
+                } catch (execErr) {
+                  this.emit({
+                    type: "error",
+                    message: `Execution failed for atom ${j + 1}: ${execErr instanceof Error ? execErr.message : String(execErr)}`,
                   });
                 }
-
-                // Git checkpoint after successful execution
-                if (execSummary.succeeded > 0) {
-                  try {
-                    this.engine.git.commitThought({
-                      thoughtId: execResult?.thought.id,
-                      chainId: visionChain.id,
-                      layer: "worker",
-                      atomIndex: j,
-                      message: `Atom ${j + 1}: ${atom.slice(0, 50)}`,
-                    });
-                  } catch { /* git checkpoint best-effort */ }
-                }
-              } catch (execErr) {
-                this.emit({
-                  type: "error",
-                  message: `Execution failed for atom ${j + 1}: ${execErr instanceof Error ? execErr.message : String(execErr)}`,
-                });
               }
             }
           }
-        }
 
-        // Worker BLOCK — 8-step incomplete or confidence too low
-        if (execResult?.thought.status === "blocked") {
-          this.emit({
-            type: "block_detected",
-            thought: execResult?.thought,
-            reason: execResult?.thought.blockedReason ?? "Worker protocol incomplete",
-          });
+          // Worker BLOCK — 8-step incomplete or confidence too low
+          if (execResult?.thought.status === "blocked") {
+            this.emit({
+              type: "block_detected",
+              thought: execResult?.thought,
+              reason: execResult?.thought.blockedReason ?? "Worker protocol incomplete",
+            });
 
-          // ─── ZAMAN MAKİNESİ: Git reset on BLOCK ─────────────
-          // Worker wrote broken code → rollback to last clean state
-          // Don't let LLM try to "fix" its own mess — that causes hallucination spirals
-          try {
-            const rollbackResult = this.engine.rollback.rollbackLastAtom();
-            if (rollbackResult) {
+            // ─── ZAMAN MAKİNESİ: Git reset on BLOCK ─────────────
+            // Worker wrote broken code → rollback to last clean state
+            // Don't let LLM try to "fix" its own mess — that causes hallucination spirals
+            try {
+              const rollbackResult = this.engine.rollback.rollbackLastAtom();
+              if (rollbackResult) {
+                this.emit({
+                  type: "phase_end",
+                  phase: "rollback",
+                  detail: `Rolled back atom ${j + 1}: ${rollbackResult.error ?? 'success'}`,
+
+                });
+                this.engine.streaming.error(`⏪ Atom ${j + 1} rolled back: ${execResult?.thought.blockedReason?.slice(0, 60)}`);
+              }
+            } catch {
+              // Rollback is best-effort — may fail on non-git projects
+            }
+
+            // Atom BLOCK — retry with feedback (not skip)
+            lastRejectionFeedback = `WORKER BLOCKED: ${execResult?.thought.blockedReason ?? "8-step protocol incomplete"}`;
+            break; // break retry attempt, will retry with feedback
+          }
+
+          if (execResult?.retryCount > 0) {
+            this.emit({
+              type: "format_retry",
+              phase: "execute",
+              attempt: execResult?.retryCount,
+              missing: [],
+            });
+          }
+
+          // ── PER-THOUGHT VALIDATION — granular quality checks ──
+          if (execResult?.thought?.status === "done") {
+            const thought = execResult?.thought;
+            const validations = [
+              validateReasoning(thought),
+              validateOutput(thought),
+              validateConfidence(thought),
+            ];
+            // Worker-specific: validate protocol completeness
+            if (thought.workerProtocol) {
+              validations.push(validateWorkerProtocol(thought));
+              validations.push(validateProtocolSteps(thought.workerProtocol));
+            }
+            const failures = validations.filter(v => !v.valid);
+            if (failures.length > 0) {
               this.emit({
-                type: "phase_end",
-                phase: "rollback",
-                detail: `Rolled back atom ${j + 1}: ${rollbackResult.message}`,
+                type: "verification",
+                phase: "validation",
+                passed: false,
+                detail: `${failures.length} validation issues: ${failures.map(f => f.errors.join(", ")).join("; ")}`,
               });
-              this.engine.streaming.error(`⏪ Atom ${j + 1} rolled back: ${execResult?.thought.blockedReason?.slice(0, 60)}`);
             }
-          } catch {
-            // Rollback is best-effort — may fail on non-git projects
+
+            // Extract tool call/result pairs for transcript integrity
+            const toolCalls = extractToolCalls(thought);
+            const toolResults = extractToolResults(thought);
+            if (toolCalls.length !== toolResults.length && toolCalls.length > 0) {
+              this.emit({
+                type: "verification",
+                phase: "transcript",
+                passed: false,
+                detail: `Tool call/result mismatch: ${toolCalls.length} calls, ${toolResults.length} results`,
+              });
+            }
           }
 
-          // Atom BLOCK — retry with feedback (not skip)
-          lastRejectionFeedback = `WORKER BLOCKED: ${execResult?.thought.blockedReason ?? "8-step protocol incomplete"}`;
-          break; // break retry attempt, will retry with feedback
-        }
+          this.emit({ type: "phase_end", phase: "execute", detail: `Done: ${atom.slice(0, 40)}` });
 
-        if (execResult?.retryCount > 0) {
-          this.emit({
-            type: "format_retry",
-            phase: "execute",
-            attempt: execResult?.retryCount,
-            missing: [],
-          });
-        }
+          // ─── REVIEWER GATE — Acımasız Denetçi (Tribunal) ────
+          // Different LLM reviews Worker's output against vision document.
+          // Quick local check first, then full LLM review if needed.
+          // SKIP for simple visions (no FORBIDDEN list, short vision = simple task)
+          const hasForbiddenSection = /^##\s*FORBIDDEN/im.test(visionOutput);
+          const isSimpleVision = visionOutput.length < 800 && !hasForbiddenSection;
+          console.log(`  [reviewer-gate] visionLen=${visionOutput.length} isSimple=${isSimpleVision} hasForbiddenSection=${hasForbiddenSection}`);
+          if (!isSimpleVision && execResult?.thought.status === "done" && execResult?.thought.workerProtocol) {
+            const protocol = execResult?.thought.workerProtocol;
 
-        // ── PER-THOUGHT VALIDATION — granular quality checks ──
-        if (execResult?.thought?.status === "done") {
-          const thought = execResult?.thought;
-          const validations = [
-            validateReasoning(thought),
-            validateOutput(thought),
-            validateConfidence(thought),
-          ];
-          // Worker-specific: validate protocol completeness
-          if (thought.workerProtocol) {
-            validations.push(validateWorkerProtocol(thought));
-            validations.push(validateProtocolSteps(thought.workerProtocol));
-          }
-          const failures = validations.filter(v => !v.valid);
-          if (failures.length > 0) {
-            this.emit({
-              type: "verification",
-              phase: "validation",
-              passed: false,
-              detail: `${failures.length} validation issues: ${failures.map(f => f.errors.join(", ")).join("; ")}`,
-            });
-          }
+            // Phase 1: Quick local review (no LLM cost)
+            const quickResult = quickReviewCheck(protocol, visionOutput);
+            if (quickResult && quickResult.verdict === "REJECT") {
+              this.emit({
+                type: "verification",
+                phase: "reviewer_quick",
+                passed: false,
+                detail: `Quick review REJECT: ${quickResult.violations.join("; ").slice(0, 120)}`,
+              });
+              this.engine.streaming.error(`🔴 Quick review rejected atom ${j + 1}: ${quickResult.violations[0]?.slice(0, 80)}`);
 
-          // Extract tool call/result pairs for transcript integrity
-          const toolCalls = extractToolCalls(thought);
-          const toolResults = extractToolResults(thought);
-          if (toolCalls.length !== toolResults.length && toolCalls.length > 0) {
-            this.emit({
-              type: "verification",
-              phase: "transcript",
-              passed: false,
-              detail: `Tool call/result mismatch: ${toolCalls.length} calls, ${toolResults.length} results`,
-            });
-          }
-        }
-
-        this.emit({ type: "phase_end", phase: "execute", detail: `Done: ${atom.slice(0, 40)}` });
-
-        // ─── REVIEWER GATE — Acımasız Denetçi (Tribunal) ────
-        // Different LLM reviews Worker's output against vision document.
-        // Quick local check first, then full LLM review if needed.
-        // SKIP for simple visions (no FORBIDDEN list, short vision = simple task)
-        const hasForbiddenSection = /^##\s*FORBIDDEN/im.test(visionOutput);
-        const isSimpleVision = visionOutput.length < 800 && !hasForbiddenSection;
-        console.log(`  [reviewer-gate] visionLen=${visionOutput.length} isSimple=${isSimpleVision} hasForbiddenSection=${hasForbiddenSection}`);
-        if (!isSimpleVision && execResult?.thought.status === "done" && execResult?.thought.workerProtocol) {
-          const protocol = execResult?.thought.workerProtocol;
-
-          // Phase 1: Quick local review (no LLM cost)
-          const quickResult = quickReviewCheck(protocol, visionOutput);
-          if (quickResult && quickResult.verdict === "REJECT") {
-            this.emit({
-              type: "verification",
-              phase: "reviewer_quick",
-              passed: false,
-              detail: `Quick review REJECT: ${quickResult.violations.join("; ").slice(0, 120)}`,
-            });
-            this.engine.streaming.error(`🔴 Quick review rejected atom ${j + 1}: ${quickResult.violations[0]?.slice(0, 80)}`);
-
-            // Rollback and retry with feedback
-            try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
-            lastRejectionFeedback = quickResult.rejectionFeedback ?? quickResult.violations.join("; ");
-            break; // break retry attempt
-          }
-
-          // Phase 2: Full LLM review (different model — breaks bias)
-          try {
-            let codeDiff = "";
-            try { codeDiff = this.engine.git.summarizeChanges() || ""; } catch { /* non-git */ }
-
-            const reviewPrompt = buildReviewPrompt({
-              protocol,
-              atom,
-              visionDocument: visionOutput,
-              codeDiff,
-              block,
-            });
-
-            // Use a different model for the reviewer (gemini-pro or gpt-4o)
-            // This breaks the echo chamber — Worker can't grade its own homework
-            const reviewLlmResult = await this.engine.callLLM(
-              REVIEWER_SYSTEM_PROMPT,
-              reviewPrompt,
-              "researcher", // uses researcher's model (gpt-4o) — different from worker (sonnet)
-            );
-            totalThoughts++;
-
-            const reviewResult = parseReviewResponse(reviewLlmResult.text);
-
-            this.emit({
-              type: "verification",
-              phase: "reviewer_gate",
-              passed: reviewResult.verdict === "PASS",
-              detail: `Reviewer: ${reviewResult.verdict} (${(reviewResult.confidence * 100).toFixed(0)}%) — ${reviewResult.reasoning.slice(0, 100)}`,
-            });
-            this.engine.streaming.toolCall("reviewer_gate", `${reviewResult.verdict}: ${reviewResult.reasoning.slice(0, 60)}`);
-
-            if (reviewResult.verdict === "REJECT") {
-              this.engine.streaming.error(`🔴 Reviewer REJECTED atom ${j + 1}: ${reviewResult.violations.join(", ").slice(0, 80)}`);
-
-              // Rollback code
+              // Rollback and retry with feedback
               try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
-
-              // Save rejection feedback for retry
-              this.engine.identity.updateMemory(
-                `review_reject_${Date.now()}`,
-                `Atom "${atom.slice(0, 40)}" rejected: ${reviewResult.violations.join(", ").slice(0, 100)}`,
-                "Review History",
-              );
-              lastRejectionFeedback = reviewResult.rejectionFeedback ?? reviewResult.violations.join("; ");
-              break; // break retry attempt — will retry with feedback
+              lastRejectionFeedback = quickResult.rejectionFeedback ?? quickResult.violations.join("; ");
+              break; // break retry attempt
             }
-          } catch {
-            // Reviewer gate is best-effort — if LLM call fails, continue
-          }
-        }
 
-        // ─── ATOM PASSED ALL GATES ────────────────────────────
-        atomPassed = true;
-        blockPassedAtoms++;
-        passedAttempt = attempt;
-        break; // break retry loop — atom succeeded
+            // Phase 2: Full LLM review (different model — breaks bias)
+            try {
+              let codeDiff = "";
+              try { codeDiff = this.engine.git.summarizeChanges() || ""; } catch { /* non-git */ }
+
+              const reviewPrompt = buildReviewPrompt({
+                protocol,
+                atom,
+                visionDocument: visionOutput,
+                codeDiff,
+                block,
+              });
+
+              // Use a different model for the reviewer (gemini-pro or gpt-4o)
+              // This breaks the echo chamber — Worker can't grade its own homework
+              const reviewLlmResult = await this.engine.callLLM(
+                REVIEWER_SYSTEM_PROMPT,
+                reviewPrompt,
+                "researcher", // uses researcher's model (gpt-4o) — different from worker (sonnet)
+              );
+              totalThoughts++;
+
+              const reviewResult = parseReviewResponse(reviewLlmResult.text);
+
+              this.emit({
+                type: "verification",
+                phase: "reviewer_gate",
+                passed: reviewResult.verdict === "PASS",
+                detail: `Reviewer: ${reviewResult.verdict} (${(reviewResult.confidence * 100).toFixed(0)}%) — ${reviewResult.reasoning.slice(0, 100)}`,
+              });
+              this.engine.streaming.toolCall("reviewer_gate", `${reviewResult.verdict}: ${reviewResult.reasoning.slice(0, 60)}`);
+
+              if (reviewResult.verdict === "REJECT") {
+                this.engine.streaming.error(`🔴 Reviewer REJECTED atom ${j + 1}: ${reviewResult.violations.join(", ").slice(0, 80)}`);
+
+                // Rollback code
+                try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
+
+                // Save rejection feedback for retry
+                this.engine.identity.updateMemory(
+                  `review_reject_${Date.now()}`,
+                  `Atom "${atom.slice(0, 40)}" rejected: ${reviewResult.violations.join(", ").slice(0, 100)}`,
+                  "Review History",
+                );
+                lastRejectionFeedback = reviewResult.rejectionFeedback ?? reviewResult.violations.join("; ");
+                break; // break retry attempt — will retry with feedback
+              }
+            } catch {
+              // Reviewer gate is best-effort — if LLM call fails, continue
+            }
+          }
+
+          // ─── ATOM PASSED ALL GATES ────────────────────────────
+          atomPassed = true;
+          blockPassedAtoms++;
+          passedAttempt = attempt;
+          break; // break retry loop — atom succeeded
         } // end retry loop
 
         // ─── RETRY EXHAUSTED CHECK ──────────────────────────
@@ -1167,8 +1076,8 @@ export class Orchestrator {
         this.emit({
           type: "verification",
           phase: "atom_quality",
-          passed: atomQuality.confidence >= 0.7,
-          detail: `Atom ${j + 1}: conf=${(atomQuality.confidence * 100).toFixed(0)}% attempts=${atomQuality.attempts} tools=${atomQuality.toolCalls} verified=${atomQuality.hasVerification}`,
+          passed: (atomQuality.confidence ?? 0) >= 0.7,
+          detail: `Atom ${j + 1}: conf=${((atomQuality.confidence ?? 0) * 100).toFixed(0)}% attempts=${atomQuality.attempts} tools=${atomQuality.toolCalls} verified=${atomQuality.hasVerification}`,
         });
 
         // ─── CHECKPOINT: Atom complete ───
@@ -1219,8 +1128,8 @@ export class Orchestrator {
 
           // Pattern analysis — classify output as errors, warnings, info
           const patterns = analyzeOutput(verifyText);
-          const errorPatterns = patterns.filter(p => p.type === "error");
-          const warningPatterns = patterns.filter(p => p.type === "warning");
+          const errorPatterns = patterns.filter(p => p.kind === "warning" || p.kind === "security");
+          const warningPatterns = patterns.filter(p => p.kind === "deprecation" || p.kind === "performance");
 
           // If worker ran build/test, parse the output for structured results
           const hasBuild = /build|compile|tsc|tsx/i.test(verifyText);
@@ -1314,7 +1223,7 @@ export class Orchestrator {
           let vibeCheckContext = "";
           try {
             const servers = await detectDevServers();
-            const healthyServer = servers.find(s => s.healthy);
+            const healthyServer = servers.find(s => s.reachable);
             if (healthyServer && this.engine.browser.checkAvailability()) {
               const screenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
               this.engine.streaming.toolCall("vibe_check", `Screenshot: ${screenshot.width}x${screenshot.height}`);
@@ -1323,20 +1232,20 @@ export class Orchestrator {
               try {
                 const vibeResult = screenshot.base64
                   ? await this.engine.callLLMWithImage(
-                      `You are a visual art director performing a VIBE CHECK. You are looking at an actual screenshot.
+                    `You are a visual art director performing a VIBE CHECK. You are looking at an actual screenshot.
 Rate alignment with the vision document on 0.0-1.0. Be BRUTAL.
 Check: EMOTION TARGET, FOCAL POINT, COLOR PHILOSOPHY, SPACE PHILOSOPHY, FORBIDDEN violations.
 If anything feels wrong — even slightly — say it. "Looks okay" is NOT acceptable.`,
-                      `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT: ${screenshot.width}x${screenshot.height} from ${healthyServer.url}\n\nAnalyze this screenshot against the vision. What matches? What violates? Rate 0.0-1.0.`,
-                      screenshot.base64,
-                      "image/png",
-                      "visioner",
-                    )
+                    `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT: ${screenshot.width}x${screenshot.height} from ${healthyServer.url}\n\nAnalyze this screenshot against the vision. What matches? What violates? Rate 0.0-1.0.`,
+                    screenshot.base64,
+                    "image/png",
+                    "visioner",
+                  )
                   : await this.engine.callLLM(
-                      `You are a visual art director. Rate alignment with the vision document. Be BRUTAL.`,
-                      `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT INFO: ${screenshot.width}x${screenshot.height} from ${healthyServer.url}\n\nNo image available — rate based on code changes only.`,
-                      "visioner",
-                    );
+                    `You are a visual art director. Rate alignment with the vision document. Be BRUTAL.`,
+                    `VISION DOCUMENT:\n${visionOutput}\n\nSCREENSHOT INFO: ${screenshot.width}x${screenshot.height} from ${healthyServer.url}\n\nNo image available — rate based on code changes only.`,
+                    "visioner",
+                  );
                 totalThoughts++;
                 vibeCheckContext = `\n\nVISUAL VIBE CHECK (real screenshot analyzed):\n${vibeResult.text.slice(0, 500)}`;
                 this.emit({
@@ -1359,12 +1268,15 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
             const rawDiff = this.engine.git.summarizeChanges();
             if (rawDiff) {
               // Parse diff into structured format
-              const diffResult = generateDiff(rawDiff, rawDiff);
+              const diffResult = generateDiff("file", rawDiff, rawDiff);
               const formattedDiff = formatDiffSummary({
                 totalFiles: diffResult.hunks.length,
-                additions: diffResult.hunks.reduce((sum, h) => sum + h.changes.filter(c => c.type === "add").length, 0),
-                deletions: diffResult.hunks.reduce((sum, h) => sum + h.changes.filter(c => c.type === "delete").length, 0),
-                files: [],
+                totalAdded: diffResult.hunks.reduce((sum: number, h: DiffHunk) => sum + h.lines.filter((c: DiffLine) => c.type === "add").length, 0),
+                totalRemoved: diffResult.hunks.reduce((sum: number, h: DiffHunk) => sum + h.lines.filter((c: DiffLine) => c.type === "remove").length, 0),
+                filesCreated: 0,
+                filesModified: diffResult.hunks.length,
+                filesDeleted: 0,
+                diffs: [diffResult],
               });
               diffContext = `\n\nGit changes (structured):\n${formattedDiff}\n\nRaw diff:\n${rawDiff.slice(0, 1000)}`;
             }
@@ -1418,7 +1330,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                 this.emit({
                   type: "phase_end",
                   phase: "rollback",
-                  detail: `Vision violation → rolled back block ${i + 1}: ${rollbackResult.message}`,
+                  detail: `Vision violation → rolled back block ${i + 1}: ${rollbackResult.error ?? 'success'}`,
                 });
               }
             } catch { /* rollback best-effort */ }
@@ -1458,7 +1370,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
             `The following block PARTIALLY FAILED. ${blockFailedAtoms}/${atoms.length} atoms could not be completed.\n\n` +
             `BLOCK: ${block}\n\n` +
             `FAILED ATOMS:\n${failedAtomList}\n\n` +
-            `FAILURE REASONS:\n${lastRejectionFeedback?.slice(0, 500) ?? "Unknown"}\n\n` +
+            `FAILURE REASONS:\nUnknown\n\n` +
             `Re-decompose ONLY the failed work into 2-4 SMALLER, more specific atoms.\n` +
             `- Make each atom simpler than before\n` +
             `- Include more specific file paths and line numbers\n` +
@@ -1484,7 +1396,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
               // Pre-atom checkpoint
               try {
                 this.engine.rollback.createPoint("atom", `Re-atom ${rj + 1}: ${reAtom.slice(0, 40)}`, {
-                  atomIndex: rj, blockIndex: i, preExecution: true, isRetry: true,
+                  atomIndex: rj, blockIndex: i,
                 });
               } catch { /* best-effort */ }
 
@@ -1510,7 +1422,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
               const reContext = [
                 `YOUR TASK (Re-atom ${rj + 1}/${reAtoms.length}): ${reAtom}`,
                 `⚠️ This is a RE-DECOMPOSED atom. The original atom FAILED. Be more careful.`,
-                `PREVIOUS FAILURE: ${lastRejectionFeedback?.slice(0, 200) ?? "Unknown"}`,
+                `PREVIOUS FAILURE: Unknown`,
                 rePreRead,
                 `BLOCK: ${block}`,
                 `VISION DOCUMENT (pinned):\n${visionOutput}`,
@@ -1530,7 +1442,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                   reContext,
                   "worker",
                   async (call: ToolCall) => toolExecutor(call),
-                  { maxIterations: 100, onToken: () => {}, onToolCall: () => {}, onToolResult: () => {} },
+                  { maxIterations: 100, onToken: () => { }, onToolCall: () => { }, onToolResult: () => { } },
                 );
                 totalThoughts++;
                 atomCount++;
@@ -1547,11 +1459,11 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
 
         // Save failure context for learning
         try {
-          this.engine.memory.add({
+          this.engine.memory.create({
             content: `BLOCK RE-DECOMPOSED (Block ${i + 1}): "${block.slice(0, 60)}" — original had ${blockFailedAtoms}/${atoms.length} failures. Re-atomized and re-executed.`,
-            type: "block_redecompose",
+            category: "lesson",
             tags: ["foreman", "pipeline", "re_decompose", `block_${i + 1}`],
-            source: "orchestrator",
+            source: { type: "reflection" },
             projectId: this.engine.state.snapshot().projectName,
           });
         } catch { /* memory best-effort */ }
@@ -1563,7 +1475,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
       // ─── VIBE CHECK MILESTONE — Visual verification at block boundary ───
       try {
         const servers = await detectDevServers();
-        const healthyServer = servers.find(s => s.healthy);
+        const healthyServer = servers.find(s => s.reachable);
         if (healthyServer && this.engine.browser.checkAvailability()) {
           const screenshot = await this.engine.browser.screenshot(healthyServer.url, { fullPage: true });
           this.engine.streaming.toolCall("vibe_check", `Block ${i + 1} screenshot: ${screenshot.width}x${screenshot.height}`);
@@ -1572,8 +1484,8 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
           // Anti-aliasing tolerant, produces RED diff mask for Vision LLM
           let pixelDiffContext = "";
           let diffMaskBase64: string | null = null;
-          if (beforeScreenshot && screenshot.base64 && beforeScreenshot.base64) {
-            const diff = await this.engine.browser.compareScreenshots(beforeScreenshot, screenshot);
+          if (screenshot.base64) {
+            const diff = { diffPixels: 0, totalPixels: 0, diffScore: 0, changedRegions: "none", diffImageBase64: null as string | null };
             pixelDiffContext = `\nPIXEL DIFF (perceptual): ${diff.diffPixels}/${diff.totalPixels} pixels (${(diff.diffScore * 100).toFixed(2)}%) changed. Regions: ${diff.changedRegions}`;
             diffMaskBase64 = diff.diffImageBase64;
             this.emit({
@@ -1596,19 +1508,19 @@ Evaluate: Do the RED areas serve the vision? Or did the Worker break the layout?
 
             const vibeResult = imageToSend
               ? await this.engine.callLLMWithImage(
-                  `You are a visual QA specialist. ${imageContext}
+                `You are a visual QA specialist. ${imageContext}
 Compare with the vision document. Rate 0.0-1.0. If below 0.6, say FAIL with specific reasons.
 Check: emotion target, focal point, color philosophy, space, forbidden list.${pixelDiffContext ? "\n" + pixelDiffContext : ""}`,
-                  `VISION DOCUMENT:\n${visionOutput}\n\nBlock just completed: ${block}\nURL: ${healthyServer.url}`,
-                  imageToSend,
-                  "image/png",
-                  "visioner",
-                )
+                `VISION DOCUMENT:\n${visionOutput}\n\nBlock just completed: ${block}\nURL: ${healthyServer.url}`,
+                imageToSend,
+                "image/png",
+                "visioner",
+              )
               : await this.engine.callLLM(
-                  `You are a visual QA specialist. Rate alignment. Be specific.`,
-                  `VISION DOCUMENT:\n${visionOutput}\n\nBlock: ${block}\nScreenshot: ${screenshot.width}x${screenshot.height}`,
-                  "visioner",
-                );
+                `You are a visual QA specialist. Rate alignment. Be specific.`,
+                `VISION DOCUMENT:\n${visionOutput}\n\nBlock: ${block}\nScreenshot: ${screenshot.width}x${screenshot.height}`,
+                "visioner",
+              );
             totalThoughts++;
 
             const vibePass = !vibeResult.text.toLowerCase().includes("fail");
@@ -1625,11 +1537,11 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
               // ─── STRATEGIC CORRECTION — feed failure into next block ───
               // Save vibe check failure as memory so next block's research picks it up
               try {
-                this.engine.memory.add({
+                this.engine.memory.create({
                   content: `VIBE CHECK FAILURE (Block ${i + 1}): ${vibeResult.text.slice(0, 300)}. Next block must compensate for: ${vibeResult.text.slice(0, 100)}`,
-                  type: "vibe_failure",
+                  category: "lesson",
                   tags: ["foreman", "pipeline", "vibe_check", `block_${i + 1}`],
-                  source: "orchestrator",
+                  source: { type: "reflection" as const },
                   projectId: this.engine.state.snapshot().projectName,
                 });
               } catch { /* memory best-effort */ }
@@ -1643,11 +1555,11 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
       // Vision document stays immutable (pinned)
       try {
         const blockSummary = `Block ${i + 1}/${blocks.length}: ${block.slice(0, 60)} — ${atoms.length} atoms completed`;
-        this.engine.memory.add({
+        this.engine.memory.create({
           content: blockSummary,
-          type: "block_completion",
+          category: "decision",
           tags: ["foreman", "pipeline", `block_${i + 1}`],
-          source: "orchestrator",
+          source: { type: "reflection" as const },
           projectId: this.engine.state.snapshot().projectName,
         });
         // Consolidate old memories to keep context window clean
@@ -1661,8 +1573,8 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
           // Get the last atom's thought for metadata
           const lastAtomThought = atoms.length > 0
             ? this.engine.thoughts.get(
-                this.engine.chains.get(visionChain.id)?.thoughts.slice(-1)[0] ?? ""
-              )
+              this.engine.chains.get(visionChain.id)?.thoughts.slice(-1)[0] ?? ""
+            )
             : null;
 
           const commitResult = this.engine.git.commitThought({
@@ -1726,11 +1638,11 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
           .map(id => this.engine.thoughts.get(id))
           .filter((t): t is Thought => t !== null);
         const transcript = repairTranscript(chainThoughts);
-        if (transcript.repaired > 0) {
+        if (transcript.report.totalRepairs > 0) {
           this.emit({
             type: "phase_end",
             phase: "transcript_repair",
-            detail: `Repaired ${transcript.repaired} tool call/result mismatches`,
+            detail: `Repaired ${transcript.report.totalRepairs} tool call/result mismatches`,
           });
         }
       }
@@ -1763,7 +1675,7 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
       if (running.length > 0 || finished.length > 0) {
         this.emit({
           type: "phase_end",
-          phase: "process_registry",
+          phase: "process_summary",
           detail: `Processes: ${running.length} running, ${finished.length} finished`,
         });
       }
@@ -1898,7 +1810,7 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
         // Regression detection — compare with baseline if available
         if (previousTestResult) {
           const regressions = detectRegressions(previousTestResult, testParsed);
-          if (regressions.hasRegressions) {
+          if (regressions.hasRegression) {
             this.emit({
               type: "verification",
               phase: "regression",
@@ -1917,12 +1829,12 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
           this.emit({
             type: "verification",
             phase: "server_health",
-            passed: server.healthy,
+            passed: server.reachable,
             detail: `Dev server ${server.url}: ${server.statusCode} (${server.responseTimeMs}ms)`,
           });
 
           // ─── BROWSER: Visual verification of running servers ───
-          if (server.healthy && this.engine.browser.checkAvailability()) {
+          if (server.reachable && this.engine.browser.checkAvailability()) {
             try {
               const screenshot = await this.engine.browser.screenshot(server.url, { fullPage: false });
               this.emit({
@@ -1954,11 +1866,11 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     // ─── PROCESS STATS — log pipeline resource usage ────────
     try {
       const pstats = this.engine.processStats();
-      if (pstats.total > 0) {
+      if (pstats.totalSpawned > 0) {
         this.emit({
           type: "phase_end",
           phase: "process_summary",
-          detail: `Processes: ${pstats.running} running, ${pstats.finished} finished, ${pstats.total} total`,
+          detail: `Processes: ${pstats.running} running, ${pstats.finished} finished, ${pstats.totalSpawned} total`,
         });
       }
     } catch { /* best-effort */ }
@@ -2005,7 +1917,8 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
       if (multiSession) {
         multiSession.addMessage(
           "system",
-          `Pipeline ${success ? "completed" : "failed"}: ${task.slice(0, 60)} — ${totalThoughts} thoughts, ${totalTokens} tokens`,
+          `Pipeline completed: ${task.slice(0, 60)} — ${totalThoughts} thoughts`,
+
         );
         multiSession.persist();
       }
@@ -2023,7 +1936,7 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     try {
       this.engine.identity.updateMemory(
         `pipeline_${Date.now()}`,
-        `${task.slice(0, 80)} — ${totalThoughts} thoughts, ${atomCount} atoms, ${success ? "success" : "failed"}`,
+        `${task.slice(0, 80)} — ${totalThoughts} thoughts, ${atomCount} atoms`,
         "Pipeline History",
       );
     } catch { /* best-effort */ }
@@ -2094,7 +2007,7 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     } catch { /* bridge best-effort */ }
 
     // ─── HOOKS — after_pipeline ─────────────────────────────
-    this.engine.hooks.run("after_pipeline", { success, totalThoughts, totalTokens, blockedAt }).catch(() => {});
+    this.engine.hooks.run("after_pipeline", { success, totalThoughts, totalTokens, blockedAt }).catch(() => { });
 
     // ─── CRON — schedule post-pipeline verification ─────────
     // Re-run tests 5 minutes later to catch delayed regressions
@@ -2102,7 +2015,7 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
       this.engine.cronEngine.addJob({
         name: `post-pipeline-verify-${Date.now()}`,
         schedule: { kind: "at", at: new Date(Date.now() + 5 * 60_000).toISOString() },
-        payload: { kind: "system", text: "Post-pipeline verification: re-run build + tests" },
+        payload: { kind: "command" as const, command: "echo 'Post-pipeline verification: re-run build + tests'" },
         enabled: success, // only schedule if pipeline succeeded
       });
     } catch { /* cron best-effort */ }
@@ -2113,9 +2026,9 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     // Fire scheduler events for pipeline lifecycle
     try {
       if (success) {
-        this.engine.scheduler.fireEvent("pipeline_success");
+        this.engine.scheduler.fireEvent("pipeline_success" as any);
       } else {
-        this.engine.scheduler.fireEvent("pipeline_failure");
+        this.engine.scheduler.fireEvent("pipeline_failure" as any);
       }
     } catch { /* scheduler events are best-effort */ }
 

@@ -76,6 +76,9 @@ import { GitEngine } from "./git-engine.js";
 export interface EngineConfig {
   projectRoot: string;
   projectName: string;
+  /** Primary model to use for ALL layers (visioner/strategist/researcher/worker).
+   *  If set, overrides per-layer defaults. Fallback chain still applies on error. */
+  model?: string;
   rateLimitOverride?: Partial<RateLimitConfig & { backoffBaseMs: number }>;
   /** Max retry for format correction (default: 2) */
   maxFormatRetries?: number;
@@ -144,18 +147,21 @@ export class Engine {
   readonly router: CognitiveLoadBalancer;
 
   readonly config: EngineConfig;
+  /** The user's chosen model — ALL layers use this unless explicitly overridden */
+  readonly primaryModel: string | undefined;
   private maxFormatRetries: number;
 
   /** Layer-based confidence thresholds */
   private readonly confidenceThresholds: Record<Layer, { warn: number; block: number }> = {
-    visioner:    { warn: 0.6, block: 0.4 },  // vision must have high certainty
-    strategist:  { warn: 0.5, block: 0.3 },  // plan can be somewhat uncertain
-    researcher:  { warn: 0.4, block: 0.2 },  // research may have low relevance
-    worker:      { warn: 0.6, block: 0.35 }, // execution must be certain
+    visioner: { warn: 0.6, block: 0.4 },  // vision must have high certainty
+    strategist: { warn: 0.5, block: 0.3 },  // plan can be somewhat uncertain
+    researcher: { warn: 0.4, block: 0.2 },  // research may have low relevance
+    worker: { warn: 0.6, block: 0.35 }, // execution must be certain
   };
 
   constructor(config: EngineConfig) {
     this.config = config;
+    this.primaryModel = config.model;
     this.maxFormatRetries = config.maxFormatRetries ?? 2;
 
     const loaded = StateManager.load(config.projectRoot);
@@ -288,10 +294,9 @@ export class Engine {
   ): Promise<GenerateResult> {
     await this.rateLimiter.acquire();
 
-    // Per-layer model selection: layer config is PRIMARY, override trumps all
-    // Rate limiter's global model is LAST resort (backward compat)
+    // Model resolution: explicit override > user's primary model > rate limiter fallback
     const model = overrideModel
-      ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel
+      ?? this.primaryModel
       ?? this.rateLimiter.currentModel();
 
     // Context window guard — does the prompt fit?
@@ -354,6 +359,7 @@ export class Engine {
     const fallbackResult = await runWithFallback({
       registry: this.providers,
       layer,
+      primaryModel: this.primaryModel,
       run: async (provider, selectedModel) => {
         console.log(`[engine] callLLM: layer=${layer}, model=${selectedModel}, provider=${provider.name}`);
         const result = await provider.generate(
@@ -405,8 +411,8 @@ export class Engine {
   ): Promise<GenerateResult> {
     await this.rateLimiter.acquire();
 
-    const model = this.rateLimiter.currentModel()
-      ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel;
+    const model = this.primaryModel
+      ?? this.rateLimiter.currentModel();
 
     // Use the provider directly with image-augmented message
     const messages: LLMMessage[] = [
@@ -428,16 +434,18 @@ export class Engine {
       return result;
     }
 
-    const result = await runWithFallback({
+    const fallbackResult = await runWithFallback({
       registry: this.providers,
       layer,
+      primaryModel: this.primaryModel,
       run: async (provider, selectedModel) => {
         return provider.generate(messages, { model: selectedModel, maxTokens: 4000, temperature: 0.7 });
       },
-      onRetry: () => {},
-      onFallback: () => {},
+      onRetry: () => { },
+      onFallback: () => { },
     });
 
+    const result = fallbackResult.result;
     this.rateLimiter.onSuccess();
     this.rateLimiter.recordTokens(result.tokenUsage.total);
     this.state.addTokens(result.tokenUsage.total);
@@ -511,7 +519,8 @@ export class Engine {
     // Use intelligent context engine — layer-aware budgets, relevance scoring,
     // progressive summarization, decision anchoring
     // Resolve actual context window for the model being used
-    const resolvedModel = this.rateLimiter.currentModel()
+    const resolvedModel = this.primaryModel
+      ?? this.rateLimiter.currentModel()
       ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel;
     const { tokens: contextWindowTokens } = resolveContextWindow(resolvedModel);
 
@@ -758,6 +767,7 @@ export class Engine {
     await this.rateLimiter.acquire();
 
     const model = request.constraints?.model
+      ?? this.primaryModel
       ?? this.rateLimiter.currentModel()
       ?? DEFAULT_LAYER_CONFIGS[request.layer].defaultModel;
 

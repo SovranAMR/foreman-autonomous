@@ -118,6 +118,8 @@ export async function runWithFallback<T>(params: {
   registry: ProviderRegistry;
   /** Which layer this is running for */
   layer: Layer;
+  /** User's primary model — tried first for ALL layers */
+  primaryModel?: string;
   /** Model fallback listesi (opsiyonel — yoksa default) */
   candidates?: ModelCandidate[];
   /** Retry config (opsiyonel) */
@@ -131,8 +133,22 @@ export async function runWithFallback<T>(params: {
   /** Abort sinyali */
   abortSignal?: AbortSignal;
 }): Promise<FallbackResult<T>> {
-  const candidates = params.candidates ?? DEFAULT_LAYER_MODELS[params.layer];
+  let candidates = params.candidates ?? DEFAULT_LAYER_MODELS[params.layer];
   const retryConfig = params.retry ?? DEFAULT_RETRY_CONFIG;
+
+  // If user set a primary model, prepend it to candidates for ALL layers
+  if (params.primaryModel) {
+    const primary = params.primaryModel;
+    // Find which provider supports this model
+    const provider = params.registry.getProviderForModel(primary);
+    if (provider) {
+      // Remove duplicates of this model from the list, then prepend
+      candidates = [
+        { provider: provider.name, model: primary },
+        ...candidates.filter(c => c.model !== primary),
+      ];
+    }
+  }
   const attempts: FallbackAttempt[] = [];
   let lastError: unknown;
 
