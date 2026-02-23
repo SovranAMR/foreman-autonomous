@@ -568,7 +568,7 @@ export class Orchestrator {
           const results = await quickSearch(searchTerms + " best practices", 3);
           if (results && results.length > 0) {
             webSearchContext = "\n\nWeb research:\n" + results
-              .map((r: { title: string; snippet: string }) => `- ${r.title}: ${r.snippet}`)
+              .map((r) => `- ${r.title}: ${r.description}`)
               .join("\n");
           }
         }
