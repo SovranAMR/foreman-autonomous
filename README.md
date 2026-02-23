@@ -1,183 +1,123 @@
 <div align="center">
 
-<pre>
-                  .-'-.                    
-                 /     \                   
-               _/       \_                 
-              / |       | \                
-             /  |  __   |  \               
-            /   | (  )  |   \              
-           /    |  ||   |    \             
-          /     |  ||   |     \            
-         /______|__||___|______\           
-                   ||               * .  * 
-                   ||     _______  .  * .  
-                   ||    [=======]   *  .  
-                   ||    |       | .  *  . 
-                   ||    |_______|   *  .  
-                   ||    |       |         
-               ____||____|_______|____     
-              [_______________________]    
-              |                       |    
-              |                       |    
-              |_______________________|    
-
-      F  O  R  E  M  A  N   |   T  H  E   F  O  R  G  E
-</pre>
-
-### AI Agent Orchestrator — Atomic Thought Chains with Vision, Research, and Tactical Reasoning
-
-[![Pipeline: 4-Layer Forge](https://img.shields.io/badge/Pipeline-4--Layer_Forge-FF5722?style=for-the-badge&logo=apachespark)](https://github.com/sovranamr/foreman)
-[![Engines: Active](https://img.shields.io/badge/Engines-Active-4CAF50?style=for-the-badge&logo=engineyard)](https://github.com/sovranamr/foreman)
-[![Intelligence: Context-Aware](https://img.shields.io/badge/Intelligence-Context--Aware-2196F3?style=for-the-badge&logo=openai)](https://github.com/sovranamr/foreman)
-[![Integrations: Telegram & WhatsApp](https://img.shields.io/badge/Integrations-Telegram_%7C_WhatsApp-25D366?style=for-the-badge&logo=whatsapp)](https://github.com/sovranamr/foreman)
-
-> *"Do not simply write code. Forge it. Strike the iron while it's hot, temper it with research, and shape it with strategy."*
-
-</div>
-
----
-
-## 📖 For Everyone: What is Foreman?
-
-Imagine having a **Senior Staff Engineer** living directly inside your Telegram, WhatsApp, or Terminal. 
-
-Foreman is not just a chatbot that answers questions. It is a **fully autonomous coding agent** that can:
-- **Read and write files** on your machine.
-- **Run terminal commands** to build, test, and deploy software.
-- **Browse the web** to read documentation or search for solutions.
-- **Plan and execute** entirely new features from scratch.
-
-If you ask it to *"Build a weather app,"* Foreman will design the UI, figure out the API, write the frontend, setup the backend, run tests to ensure it works, and fix any errors it encounters—all while sending you progress updates via text messages. 
-
-It thinks, it researches, it builds, and it verifies. 
-
----
-
-## ⚙️ For Developers: The Technical Reality
-
-Foreman is a **multi-agent orchestrated execution environment**. It bridges the gap between Large Language Models (LLMs) and local machine state through a heavily constrained, securely isolated Execution Engine. 
-
-Built on a zero-dependency local ethos (with robust API integrations), Foreman utilizes a revolutionary architectural pattern known as the **Forge Pipeline**. Instead of relying on a single zero-shot LLM pass, complex tasks are routed through a 4-layer cognitive pipeline. 
-
-### 🧠 The Cognitive Router
-Every incoming request (from CLI, Telegram, or WhatsApp) hits the `Cognitive Router`. This engine determines the cognitive load of the prompt. 
-- **Direct Mode:** For simple tasks (`"What does this file do?"` or `"Run git status"`), the request is passed directly to the Worker layer for immediate execution.
-- **Forge Mode:** For complex tasks (`"Refactor the authentication module"`, `"Build a new dashboard"`), the router triggers the full **Forge Pipeline**.
-
----
-
-## ⚒️ The Forge Pipeline (4-Layer Orchestration)
-
-When a complex task is triggered, Foreman spins up a micro-team of specialized sub-agents. They operate in a strict sequence, passing context downward.
-
-```mermaid
-graph TD
-    User((User)) -->|Telegram/WhatsApp/CLI| Gateway[Messaging Gateway]
-    Gateway --> Router[Cognitive Router]
-    Router -->|Direct Command| Executor[Worker Engine]
-    Router -->|Complex Task| Forge[Forge Pipeline]
-    
-    subgraph The Forge
-        V[Visioner] -->|Scope & Acceptance| S[Strategist]
-        S -->|Task Decomposition| R[Researcher]
-        R -->|Context & Docs| W[Worker]
-    end
-    
-    Forge --> Executor
-    
-    subgraph Engines
-        Executor <--> File[File/Batch Engine]
-        Executor <--> Git[Git Engine]
-        Executor <--> Web[Browser/Web Fetch]
-        Executor <--> Term[Shell/Async Process]
-    end
-```
-
-### 1️⃣ The Visioner (`src/vision-pipeline.ts`)
-**The Architect.** Analyzes the raw user prompt and defines the *True North*. It outputs a strict set of Acceptance Criteria and a Vision Document. It does not write code; it defines what "done" looks like.
-
-### 2️⃣ The Strategist (`src/thought-manager.ts`)
-**The Project Manager.** Takes the Vision Document and breaks it down into atomic, highly tactical steps. It sequences dependencies (e.g., *"We must initialize the package.json before writing the entry point"*).
-
-### 3️⃣ The Researcher (`src/research-engine.ts`)
-**The Scout.** Takes the strategy and executes localized and web searches. It reads existing project files, greps the codebase, pulls the latest API docs via web fetch, and builds a massive Context Payload. 
-
-### 4️⃣ The Worker (`src/worker-executor.ts`)
-**The Blacksmith.** Takes the explicit instructions and the researched context and begins striking the anvil. It has full access to the Execution Engine. It writes code, runs `npm install`, runs tests, and reads the output. If a test fails, the Worker enters a self-healing loop until the Acceptance Criteria (defined by the Visioner) are met.
-
----
-
-## 🛠️ The Engines
-
-Foreman is powered by a suite of specialized, highly-tested typescript engines.
-
-| Engine | Capability | Description |
-| :--- | :--- | :--- |
-| **Execution Engine** | `src/execution-engine.ts` | The core sandbox. Safely executes bash commands with SIGKILL timeouts, line-range file reading, and middle-cut truncation to protect LLM context limits. |
-| **Git Engine** | `src/git-engine.ts` | Deep Git integration. Analyzes diffs, checks statuses, manages commits, and handles automatic rollbacks if the pipeline fails. |
-| **Security Scanner**| `src/security-scanner.ts` | Enforces safety. Prevents destructive commands (`rm -rf /`, fork bombs) and blocks SSRF attempts in web fetching. |
-| **Context Intel** | `src/context-intelligence.ts`| Semantic analysis and Markdown intelligence. Parses complex documentation and extracts only the code fences or tables needed by the Worker. |
-| **Messaging Gateway**| `src/messaging-gateway.ts`| Connects the orchestrator directly to `@whiskeysockets/baileys` (WhatsApp) and `grammy` (Telegram) for real-time remote control. |
-
----
-
-## 🚀 Capabilities
-
-- **Multi-Session Sub-agents:** Foreman can spawn isolated sub-agents to handle parallel background tasks (`src/subagent-engine.ts`).
-- **Interactive Approval:** Automatically pauses and asks the human for permission via Telegram before executing highly destructive commands.
-- **Visual QA:** Capable of spinning up an internal browser (`src/browser-engine.ts`), taking screenshots, and visually validating UI work using image comparison tools like `pixelmatch`.
-- **Memory Persistence:** Uses persistent memory bridges (`src/memory-md-bridge.ts`) to remember your coding preferences, API keys, and architectural decisions across sessions.
-
----
-
-## 💻 Getting Started
-
-### Installation
-Clone the repository and install dependencies:
-
-```bash
-git clone https://github.com/sovranamr/foreman.git
-cd foreman
-npm install
-```
-
-### Running Foreman
-
-Start the interactive CLI Repl:
-```bash
-npm run build
-./bin/foreman
-```
-
-Start the Messaging Gateway (Telegram/WhatsApp):
-```bash
-./bin/foreman --gateway
-```
-
-### Usage Examples
-
-**In CLI:**
-```bash
-> Foreman, grep the src directory for 'TODO' and fix the ones in orchestrator.ts
-> Run the tests, and if they fail, keep fixing the engine until they pass.
-```
-
-**In Telegram (`/forge` command):**
 ```text
-/forge Build a dark-mode toggle component in React. Read the existing Tailwind config to ensure colors match our current theme. Write the tests and verify them in the browser.
+      _,.,
+    ,'   ,'
+   /   ,'
+  /   , 
+ /   ,
+/   '
+|   |
+|   |
+|   |
+ \   \     .==.
+  \   \   _||||_      
+   \   \  ||||||       
+    \   \ |____|         
+     \   \  ||           
+      \   \ ||           
+       \   \||          
+        \   |!   __     
+         \  |!  /  \    
+          \ |! |    |   
+           \|! |    |   
+            |!  \__/    
+            |!          
+            |!          
+            |!   
+      ======|!======    
+      |     |!     |    
+      |     |!     |    
+      |     |!     |    
+      |     |!     |    
+      |     |!     |    
+      |            |    
+      |            |    
+      |            |    
+      |            |    
+      |____________|    
+```
+
+# F O R E M A N
+**The Hyper-Fractal Autonomous Coding Engine**
+
+*We do not generate text. We forge masterpieces, atom by atom, pixel by pixel, hitting the anvil until the code is unbreakable.*
+
+</div>
+
+---
+
+## 🌌 The Shift: Hyper-Fractal Micro-Agent Orchestration
+
+Standard LLMs act as single-shot generators. You ask for a house; they draw you a flat picture of a house. They lack depth, persistence, and the true iteration required for architectural mastery.
+
+Foreman was designed with a fundamentally different philosophy: **Hyper-Fractal Decomposition**.
+
+When Foreman is given a vision (e.g., "Design an award-winning UI"), it does not rush to write code. Instead, the `forge_pipeline` triggers a multi-dimensional orchestration:
+
+1. **The Visioner**: Dreams the overarching architecture and aesthetic.
+2. **The Strategist**: Fractures the vision down to its atomic particles. A 'Hero Section' is not one task; it is 50 micro-tasks. The typography, the shadow opacity, the animation timing—each becomes an isolated branch.
+3. **Micro-Agent Spawning (`spawn_subagent`)**: For each micro-task, a specialized sub-agent is awakened. The *Color Specialist* focuses 100% of its neural capacity solely on the hex codes. The *Spacing Expert* calculates rems and paddings. 
+4. **The Master Synthesizer**: The final anvil. It takes the hundreds of microscopic decisions made by the sub-agents, reviews them for perfect cohesion, and strikes them into the codebase. 
+
+---
+
+## 🛡️ Unbreakable Core: Recent Engineering Feats
+
+To support this massive, multi-agent cognitive load, Foreman’s core engine has been recently fortified. It is no longer just a script; it is a self-healing neural organism.
+
+### 1. 🧬 Auto-Heal & Ghost Chain Exorcism (`state.ts` & `orchestrator.ts`)
+Previously, if a massive fractal generation was interrupted, the state engine would look for a deceased checkpoint (e.g., `chain_013`) and crash upon awakening. 
+* **The Fix**: Foreman now possesses an active pulse-check. Upon initialization, `clearCheckpoint()` scans the temporal disk. If a ghost chain is detected, it auto-heals the state, wipes the corruption, and elegantly spawns a fresh cognitive chain without human intervention.
+
+### 2. 🔀 404 Graceful Failover & Bootstrap Providers
+Relying on a single model endpoint is a fatal flaw in autonomous systems.
+* **The Fix**: The `tools.ts` has been re-engineered with `bootstrapProviders()`. If an API returns a 404 or drops a connection mid-forge, it is no longer fatal. The system intercepts the failure, logs a warning, and gracefully continues its work.
+
+### 3. 🧠 Gemini-3.1-Pro-High Primary Integration
+Foreman now defaults to the bleeding-edge `gemini-3.1-pro-high` context window, equipped to handle the massive multi-million token budgets required for Hyper-Fractal Synthesis.
+
+### 4. ♾️ Deep Limits Expansion
+To allow true "masterpiece" forging, internal cognitive limiters were rewritten:
+* **Thought Budget**: Expanded from 8,000 to **128,000** tokens per thought.
+* **Chain Budget**: Expanded from 40,000 to **512,000** tokens per chain.
+* **Session Budget**: A monumental **2,000,000** tokens per session.
+
+---
+
+## ⚡ Using The Forge
+
+To invoke the Master Architect for a multi-file, hyper-detailed creation:
+
+```bash
+# Standard direct commands
+foreman "Fix the typo in README"
+foreman "Add a new route to user.js"
+
+# 🔨 THE FORGE (For Masterpieces)
+foreman "forge_pipeline: Design an Awwwards-winning dental hospital hero section. Break it down to the pixel. Focus deeply on the typography, colors, and layout."
+```
+
+### The Architecture of a Forge
+
+```text
+[User Request] 
+      │
+      ▼
+(Forge Pipeline Initiated)
+      │
+      ├─► [Visioner]    (Sets the aesthetic/architectural blueprint)
+      │
+      ├─► [Strategist]  (Fractures the blueprint into 100+ micro-atoms)
+      │
+      ├─► [Researcher]  (Scours docs, references, and existing code base)
+      │
+      └─► [Workers]     (Parallel sub-agents forge individual atoms)
+            │
+            ▼
+   [Master Synthesizer] (Integrates, reviews visual QA, and strikes the anvil)
 ```
 
 ---
 
-## 🛡️ Security & Constraints
-
-Foreman has root-level access to the directory it is started in. **With great power comes great responsibility.**
-- **Dangerous Commands Blocked:** `src/enforce.ts` strictly prohibits harmful bash commands.
-- **Rollback Engine:** Failed Forge pipelines automatically revert Git trees to their previous state to prevent broken commits.
-- **Cost Tracking:** The `CostTracker` monitors token usage and halts the pipeline if anomalous spending is detected.
-
----
-<div align="center">
-  <p><i>Forged with ⚙️ by the Open Source Community.</i></p>
-</div>
+*Built with relentless iteration. Built to Forge.*
