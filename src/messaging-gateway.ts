@@ -66,6 +66,7 @@ export class MessagingGateway {
   private provider: LLMProvider | null = null;
   private toolExecutor: ((call: ToolCall) => Promise<ToolResult>) | null = null;
   private processing: Set<string> = new Set(); // active chat IDs
+  private messageQueue: Map<string, InboundMessage[]> = new Map(); // queued messages per chat
   private running = false;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -193,10 +194,16 @@ export class MessagingGateway {
     // Skip empty messages
     if (!message.text.trim()) return null;
 
-    // Concurrency guard — one message per chat at a time
+    // Concurrency guard — one message per chat at a time, others queued
     const chatKey = `${message.channel}:${message.chatId}`;
     if (this.processing.has(chatKey)) {
-      return { text: "⏳ Processing previous message... please wait." };
+      // Queue the message — it'll be processed after current finishes
+      const queue = this.messageQueue.get(chatKey) ?? [];
+      if (queue.length < 5) { // Cap queue at 5 to prevent flooding
+        queue.push(message);
+        this.messageQueue.set(chatKey, queue);
+      }
+      return { text: "⏳ Processing previous message... yours is queued." };
     }
 
     this.processing.add(chatKey);
@@ -240,6 +247,17 @@ export class MessagingGateway {
       return { text: `❌ Error: ${errorMsg.slice(0, 200)}` };
     } finally {
       this.processing.delete(chatKey);
+
+      // Process queued message if any
+      const queue = this.messageQueue.get(chatKey);
+      if (queue && queue.length > 0) {
+        const next = queue.shift()!;
+        if (queue.length === 0) this.messageQueue.delete(chatKey);
+        // Process async — don't block the return
+        this.handleMessage(next).catch(err => {
+          console.error(`[gateway] Queued message processing failed:`, err);
+        });
+      }
     }
   }
 
