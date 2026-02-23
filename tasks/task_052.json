@@ -1,0 +1,17 @@
+{
+  "id": "task_052",
+  "projectId": "foreman",
+  "title": "Block 3: Implement the synchronous `fs.writeFileSync` operation targe",
+  "description": "Implement the synchronous `fs.writeFileSync` operation targeting `/tmp/forge-test-ok.txt` with the exact payload. [Acceptance Criteria: The script contains the synchronous write command passing the strict UTF-8 string `Forge works` with exact capitalization and no conversational filler.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:36:55.511Z"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "mem_074",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] pure signal, zero noise.\n\nOUTPUT:\n**EMOTION TARGET**: Deterministic Reassurance. The cold, precise satisfaction of a complex engine turning over flawlessly on the first ignition attempt. Total certain...",
+  "source": {
+    "type": "thought",
+    "ref": "t_116"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 3,
+  "createdAt": "2026-02-23T00:36:38.748Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:37:17.767Z"
+}

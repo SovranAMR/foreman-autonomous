@@ -1,0 +1,17 @@
+{
+  "id": "task_054",
+  "projectId": "foreman",
+  "title": "Block 5: Perform a byte-level verification of the generated file to e",
+  "description": "Perform a byte-level verification of the generated file to ensure absolute compliance with the typography, space philosophy, and forbidden list. [Acceptance Criteria: The file `/tmp/forge-test-ok.txt` is confirmed to be exactly 11 bytes long, containing strictly `Forge works` without any markdown backticks, padding, or conversational filler.]",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:36:55.511Z"
+}

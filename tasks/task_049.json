@@ -1,0 +1,25 @@
+{
+  "id": "task_049",
+  "projectId": "foreman",
+  "title": "Create a file called /tmp/forge-test-ok.txt with the text: Forge works",
+  "description": "pure signal, zero noise.\n\nOUTPUT:\n**EMOTION TARGET**: Deterministic Reassurance. The cold, precise satisfaction of a complex engine turning over flawlessly on the first ignition attempt. Total certain",
+  "type": "feature",
+  "priority": "high",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [
+    "chain_024"
+  ],
+  "subtaskIds": [
+    "task_050",
+    "task_051",
+    "task_052",
+    "task_053",
+    "task_054"
+  ],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T00:36:55.511Z"
+}
