@@ -1,508 +1,285 @@
-<!-- 
-  ╔══════════════════════════════════════════════════════════════════════════════╗
-  ║                                                                              ║
-  ║   ███████╗ ██████╗ ██████╗ ███████╗███╗   ███╗ █████╗ ███╗   ██╗            ║
-  ║   ██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗ ████║██╔══██╗████╗  ██║            ║
-  ║   █████╗  ██║   ██║██████╔╝█████╗  ██╔████╔██║███████║██╔██╗ ██║            ║
-  ║   ██╔══╝  ██║   ██║██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══██║██║╚██╗██║            ║
-  ║   ██║     ╚██████╔╝██║  ██║███████╗██║ ╚═╝ ██║██║  ██║██║ ╚████║            ║
-  ║   ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝            ║
-  ║                                                                              ║
-  ║           AI Agent Orchestrator — Atomic Thought Chains                      ║
-  ╚══════════════════════════════════════════════════════════════════════════════╝
--->
+# Foreman
 
-<div align="center">
+**AI agent orchestrator that decomposes tasks into atomic, verifiable thought chains.**
+
+4-layer cognitive pipeline: **Visioner → Strategist → Researcher → Worker**. Each layer produces structured output. Each atom is executed, verified, and recoverable.
 
 ```
-                    🔥 THE FORGE IS LIT 🔥
-    
-                               /\
-                              /  \
-                             /    \
-                            /______\
-                           /|      |\
-                          / |      | \
-                         /  |  🔥  |  \
-                        /___|______|___\
-                            |      |
-                            |  /
-                           🔨/
-                          /  
-                         /   
-                        ⚒️    
-                    
-            "From raw code, we forge masterpieces"
+  Visioner    →    Strategist    →    Researcher    →    Worker
+  defines          decomposes         gathers            executes
+  success          into atoms         context            & verifies
 ```
-
-**Foreman** is an industrial-grade AI orchestration engine that transforms chaotic development tasks into **atomic, verifiable, self-healing thought chains**.
-
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)]()
-
-</div>
 
 ---
 
-## ⚡ Quick Start
+## What it does
+
+You give it a task. It:
+
+1. **Vision** — defines what "done" looks like (acceptance criteria, constraints)
+2. **Decompose** — breaks it into 1-8 execution blocks, each block into atoms
+3. **Research** — fetches docs, searches web, analyzes links for each block
+4. **Execute** — runs each atom with real tools, verifies output, retries on failure
+
+Not a chatbot wrapper. An execution engine with 49 tools, 5 LLM providers, and self-healing chains.
+
+---
+
+## Quick Start
 
 ```bash
-# Install the forge
-npm install -g foreman
+git clone https://github.com/SovranAMR/foreman.git
+cd foreman
+npm install
 
-# Initialize your first project
-foreman init my-awesome-project
+# Set up API keys
+npx tsx src/cli.ts setup
 
-# Or jump straight into the fire
-foreman "Build a React dashboard with real-time charts"
+# Run a task
+npx tsx src/cli.ts run "Build a REST API with Express"
+
+# Interactive REPL
+npx tsx src/cli.ts repl
+
+# Start Telegram bot
+npx tsx src/cli.ts serve --telegram '<BOT_TOKEN>' --allow <USER_ID>
 ```
 
 ---
 
-## 🏗️ What is Foreman?
-
-Imagine having a **master blacksmith** for your codebase — someone who:
-
-- 🔥 **Plans** the entire construction before touching metal
-- 🔍 **Researches** the best techniques and materials  
-- ⚒️ **Executes** each strike with precision
-- ✅ **Verifies** every weld is solid
-- 🔄 **Recovers** gracefully when things break
-
-That's Foreman. It doesn't just generate code — it **thinks through** complex tasks using a 4-layer cognitive architecture inspired by human expertise.
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    THE COGNITIVE FORGE                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   🎯 VISIONER        🧠 STRATEGIST       🔬 RESEARCHER         │
-│   ┌─────────┐        ┌────────────┐      ┌─────────────┐       │
-│   │ Defines │   →    │ Plans      │  →   │ Gathers     │       │
-│   │ Success │        │ Execution  │      │ Intel       │       │
-│   └────┬────┘        └─────┬──────┘      └──────┬──────┘       │
-│        │                   │                    │               │
-│        └───────────────────┴────────────────────┘               │
-│                            │                                    │
-│                            ▼                                    │
-│                    ⚒️ THE WORKER ⚒️                             │
-│                   ┌─────────────────┐                           │
-│                   │ Executes Atoms  │                           │
-│                   │ Verifies Output │                           │
-│                   │ Self-Heals      │                           │
-│                   └─────────────────┘                           │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                    Engine (engine.ts)                      │
+│                                                            │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
+│  │ Provider │  │ Thought  │  │  Chain   │  │ Session  │ │
+│  │ Registry │  │ Manager  │  │ Manager  │  │ Manager  │ │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘ │
+│                                                            │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
+│  │Execution │  │   Edit   │  │   Git    │  │  Memory  │ │
+│  │ Engine   │  │  Engine  │  │  Engine  │  │ Manager  │ │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘ │
+│                                                            │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
+│  │   Rate   │  │ Security │  │ Approval │  │ Rollback │ │
+│  │ Limiter  │  │ Scanner  │  │  Engine  │  │  Engine  │ │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘ │
+│                                                            │
+│         Orchestrator (orchestrator.ts) — 1200 LOC          │
+│         4-layer pipeline with reviewer gate                │
+└──────────────────────────────────────────────────────────┘
 ```
 
----
+### The 4 Layers
 
-## 🎭 The Four Layers Explained
+| Layer | File | What it does |
+|-------|------|-------------|
+| **Visioner** | `prompts.ts` | Defines GOAL, ACCEPTANCE CRITERIA, CONSTRAINTS. Adaptive: simple tasks get 3 lines, complex get full design docs. |
+| **Strategist** | `prompts.ts` | Decomposes into blocks (max 8) and atoms (max 6 per block). Hard caps enforced in orchestrator. |
+| **Researcher** | `research-engine.ts` | Web search, URL fetch, link analysis, project memory scan. Runs as sub-agent per block. |
+| **Worker** | `worker-executor.ts` | Executes atoms using 8-step protocol. Extraction mode (1 LLM call + post-hoc parse) or tool mode. |
 
-| Layer | Role | Analogy | What It Does |
-|-------|------|---------|--------------|
-| **Visioner** | Architect | 👁️ The Master Planner | Defines success criteria, acceptance tests, and the "definition of done" |
-| **Strategist** | Engineer | 🗺️ The Blueprint Maker | Decomposes tasks into atomic, parallelizable execution blocks |
-| **Researcher** | Scout | 🔭 The Intelligence Gatherer | Searches web, fetches docs, analyzes links, enriches context |
-| **Worker** | Blacksmith | ⚒️ The Craftsman | Executes each atom, validates output, retries on failure, reports progress |
+### Worker 8-Step Protocol
 
-Each layer produces **structured, parseable output** — no wishy-washy text. The engine validates everything. If validation fails, it retries with corrections.
-
----
-
-## 🛠️ Core Capabilities
+Every worker atom follows this exact structure:
 
 ```
-    ╔═══════════════════════════════════════════════════════════════╗
-    ║                     THE FORGE ANVIL                           ║
-    ╠═══════════════════════════════════════════════════════════════╣
-    ║                                                               ║
-    ║   🔧 47+ Professional Tools            📁 File Operations     ║
-    ║   ─────────────────────────            ────────────────       ║
-    ║   • bash - Execute commands            • read_file            ║
-    ║   • web_search - Research              • write_file           ║
-    ║   • web_fetch - Deep analysis          • edit_file            ║
-    ║   • browser_* - Web automation         • batch_write          ║
-    ║   • semantic_search - AI retrieval     • diff_preview         ║
-    ║   • cron_* - Scheduled jobs            • search_in_files      ║
-    ║   • git_* - Version control            • analyze_media        ║
-    ║   • memory_* - Persistent storage      • download_file        ║
-    ║   • spawn_subagent - Parallel work     • delete_file         ║
-    ║   • session_* - Multi-agent chats      • Security scanning   ║
-    ║                                                               ║
-    ║   🧠 Multi-Provider AI                 🔄 Self-Healing        ║
-    ║   ────────────────────                 ────────────           ║
-    ║   • Anthropic (Claude)                 • Format validation    ║
-    ║   • OpenAI (GPT-4)                     • Automatic retries    ║
-    ║   • Google (Gemini)                    • Chain repair         ║
-    ║   • Antigravity (Turkish)              • Rollback engine      ║
-    ║   • Smart fallback chain               • Transcript recovery  ║
-    ║                                                               ║
-    ║   🌐 Messaging Gateway                 💾 State Management    ║
-    ║   ────────────────────                 ────────────────       ║
-    ║   • Telegram Bot API                   • Thought chains       ║
-    ║   • WhatsApp (Baileys)                 • Session persistence  ║
-    ║   • Async job queues                   • Memory bridge        ║
-    ║   • Scheduled tasks                    • Cache layer          ║
-    ║                                                               ║
-    ╚═══════════════════════════════════════════════════════════════╝
+STEP1_READ     → Read relevant files
+STEP2_CONTEXT  → Understand scope
+STEP3_IMPACT   → Assess side effects
+STEP4_DECIDE   → Choose approach
+STEP5_PREDICT  → Predict outcome
+STEP6_EXECUTE  → Run operations (// Write to: path, $ command)
+STEP7_VERIFY   → Verify results
+STEP8_REPORT   → Report status
 ```
 
 ---
 
-## 🚀 CLI Commands
+## Tools (49)
+
+All real implementations, no mocks.
+
+**File ops:** `read_file` `write_file` `edit_file` `edit_range` `edit_undo` `delete_file` `list_dir` `search_files` `search_in_files` `batch_write` `batch_ops`
+
+**Execution:** `bash` `grep` `list_processes` `kill_processes` `verify_build` `verify_tests`
+
+**Web:** `web_search` `web_fetch` `analyze_link` `classify_url` `browser_navigate` `browser_screenshot` `browser_extract` `browser_pdf` `download_file`
+
+**Git:** `git_status` `git_diff` `git_log` `git_commit`
+
+**Memory:** `memory_read` `memory_write` `memory_search` `semantic_search`
+
+**Code:** `extract_code` `parse_markdown` `diff_preview`
+
+**Orchestration:** `forge_pipeline` `spawn_subagent` `session_list` `session_spawn`
+
+**System:** `cron_add` `cron_list` `cron_remove` `security_scan` `approval_audit` `cache_stats` `analyze_media`
+
+---
+
+## LLM Providers
+
+| Provider | Module | Models |
+|----------|--------|--------|
+| **Kimi (Moonshot)** | `kimi-provider.ts` | kimi-k2.5, kimi-k2-thinking, kimi-k2-thinking-turbo |
+| **Antigravity** | `antigravity-provider.ts` | gemini-3.1-pro-high, claude-sonnet, claude-opus + dynamic list |
+| **OpenAI** | `openai-provider.ts` | gpt-4o, gpt-4o-mini |
+| **Anthropic** | `anthropic-provider.ts` | claude-sonnet-4, claude-opus-4 |
+| **Gemini** | `gemini-provider.ts` | gemini-2.5-pro, gemini-2.5-flash |
+
+Provider registry with automatic fallback chain. 404 → try next model. 429 → exponential backoff (20s/40s/60s). Rate limiter: 10 RPM default.
+
+---
+
+## Messaging Gateway
 
 ```bash
-# 🎨 Interactive Setup
-foreman setup              # Configure API keys interactively
+# Telegram
+npx tsx src/cli.ts serve --telegram '<BOT_TOKEN>' --allow <USER_ID>
 
-# 🏗️ Project Management  
-foreman init <name>        # Create new project with structure
-foreman status             # Show system health & metrics
-
-# ⚡ Task Execution
-foreman run "Build API"    # Run task (full pipeline)
-foreman "Fix bugs"         # Quick task (default command)
-
-# 📋 Task Tracking
-foreman task add           # Add task interactively
-foreman task list          # View all tasks
-foreman task show <id>     # Task details
-foreman task done <id>     # Mark complete
-foreman board              # Kanban board view
-
-# 🔧 Maintenance
-foreman doctor             # System health check
-foreman serve              # Start messaging gateway
-
-# 🔍 Debugging (internals)
-foreman internals thoughts    # List thought chains
-foreman internals chains      # Chain status
-foreman internals memory      # Memory entries
-foreman internals sessions    # Active sessions
-foreman internals cache       # Cache statistics
+# WhatsApp (Baileys)
+npx tsx src/cli.ts serve --whatsapp --allow <PHONE>
 ```
+
+- Natural chat — LLM decides when to use `forge_pipeline` tool vs direct tools
+- Conversation persistence (`.foreman/conversations/`)
+- 30-min TTL, `/clear` to reset
+- Automatic compaction at 40K tokens
+- Provider preference: Kimi key → Antigravity fallback
 
 ---
 
-## 🏛️ Architecture Deep Dive
+## CLI Commands
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        FOREMAN ENGINE                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐     │
-│  │   Provider  │◄──►│   Engine    │◄──►│  Execution Engine   │     │
-│  │   Registry  │    │   Core      │    │  (Atomic Operations)│     │
-│  └─────────────┘    └──────┬──────┘    └─────────────────────┘     │
-│                            │                                        │
-│         ┌──────────────────┼──────────────────┐                    │
-│         ▼                  ▼                  ▼                    │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐             │
-│  │   State     │    │   Thought   │    │   Chain     │             │
-│  │   Manager   │    │   Manager   │    │   Manager   │             │
-│  └─────────────┘    └─────────────┘    └─────────────┘             │
-│                                                                     │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐             │
-│  │   Memory    │    │   Session   │    │   Cache     │             │
-│  │   Manager   │    │   Manager   │    │   Manager   │             │
-│  └─────────────┘    └─────────────┘    └─────────────┘             │
-│                                                                     │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐             │
-│  │   Task      │    │   Rate      │    │   Security  │             │
-│  │   Scheduler │    │   Limiter   │    │   Scanner   │             │
-│  └─────────────┘    └─────────────┘    └─────────────┘             │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+foreman setup              # Configure API keys
+foreman login              # Antigravity OAuth
+foreman init <name>        # New project scaffold
+foreman status             # System health
+foreman run <task>         # Full pipeline execution
+foreman repl               # Interactive REPL
+foreman task add/list/done # Task management
+foreman board              # Kanban view
+foreman doctor             # Health check
+foreman scan               # Security scan
+foreman repair             # Fix orphaned chains
+foreman rollback <hash>    # Revert a commit
+foreman serve              # Messaging gateway
+foreman internals          # Debug: thoughts, chains, memory, sessions, cache
 ```
 
-### Key Design Principles
-
-1. **Atomicity** — Every operation is an atom. Success or failure, no partial states.
-2. **Observability** — Full traceability through thought chains. Know exactly what happened.
-3. **Resilience** — Automatic retries, fallbacks, chain repair, rollback capabilities.
-4. **Extensibility** — Plugin architecture. Add new tools, providers, channels easily.
-5. **Safety** — Command risk scoring, approval engine, security scanning.
+47 CLI commands, 16 REPL commands.
 
 ---
 
-## 📊 Project Structure
-
-```
-foreman/
-├── 📁 src/                     # 123 TypeScript modules
-│   ├── engine.ts               # 🧠 Core orchestration engine
-│   ├── cli.ts                  # 🖥️ Command-line interface
-│   ├── execution-engine.ts     # ⚒️ Atomic operation executor
-│   ├── provider.ts             # 🔌 LLM provider abstraction
-│   ├── types.ts                # 📐 Core type definitions
-│   ├── tools.ts                # 🛠️ 47+ tool implementations
-│   ├── prompts.ts              # 📝 Layer-specific prompts
-│   ├── parser.ts               # 🔍 Structured output parser
-│   ├── state.ts                # 💾 State management
-│   ├── thought-manager.ts      # 💭 Thought chain logic
-│   ├── chain-manager.ts        # ⛓️ Chain lifecycle
-│   ├── memory-manager.ts       # 🧠 Persistent memory
-│   ├── session-manager.ts      # 👥 Session handling
-│   ├── cache-manager.ts        # ⚡ Caching layer
-│   ├── rate-limiter.ts         # ⏱️ Rate limiting
-│   ├── security-scanner.ts     # 🔒 Security scanning
-│   ├── approval-engine.ts      # ✅ Command approval
-│   ├── edit-engine.ts          # ✏️ Smart file editing
-│   ├── browser-engine.ts       # 🌐 Browser automation
-│   ├── cron-engine.ts          # ⏰ Scheduled jobs
-│   ├── git-engine.ts           # 📦 Git operations
-│   ├── subagent-engine.ts      # 🤖 Sub-agent spawning
-│   ├── rollback-engine.ts      # ↩️ Change rollback
-│   ├── cost-tracker.ts         # 💰 Cost tracking
-│   ├── streaming-pipeline.ts   # 📡 Streaming output
-│   ├── theme.ts                # 🎨 Visual theming
-│   ├── animations.ts           # ✨ CLI animations
-│   └── ... 90+ more modules
-│
-├── 📁 chains/                  # 🔗 Chain definitions (52 files)
-├── 📁 memory/                  # 💾 Persistent memory (196 entries)
-├── 📁 sessions/                # 👥 Session storage (35 sessions)
-├── 📁 tasks/                   # 📋 Task storage (96 tasks)
-├── 📁 thoughts/                # 💭 Thought history (275 thoughts)
-├── 📁 cache/                   # ⚡ Request cache
-│
-├── 📄 package.json             # 📦 Dependencies & scripts
-├── 📄 tsconfig.json            # ⚙️ TypeScript config
-├── 📄 install.sh               # 🚀 Installation script
-├── 📄 foreman.mjs              # 🎯 Entry point
-│
-└── 📄 README.md                # 📖 You are here!
-```
-
----
-
-## 🔥 Why Foreman?
-
-### The Problem
-
-Most AI coding assistants are like **blind blacksmiths** — they swing hammers wildly, hoping to hit the right spot. They:
-- ❌ Hallucinate and generate broken code
-- ❌ Don't plan before executing
-- ❌ Can't recover from mistakes
-- ❌ Lose context in long sessions
-- ❌ Have no memory between sessions
-
-### The Foreman Solution
-
-```
-        BEFORE FOREMAN                    AFTER FOREMAN
-        ──────────────                    ─────────────
-        
-   🤖 "Here's some code"            🎯 "Here's the plan"
-        ↓                              ↓
-   😰 "Oops, broke it"              🔍 "Researching..."
-        ↓                              ↓
-   😵 "Starting over"               ⚒️ "Executing atom #1"
-        ↓                              ↓
-   💸 $$$ wasted                    ✅ "Verified. Next atom."
-        ↓                              ↓
-   😭 Despair                       🎉 Shippable code
-```
-
----
-
-## 🎨 Visual Experience
-
-Foreman isn't just functional — it's **beautiful**.
-
-```
-╔═══════════════════════════════════════════════════════════════════════╗
-║                    ⚒️  THE FORGE AWAKENS  ⚒️                         ║
-╠═══════════════════════════════════════════════════════════════════════╣
-║                                                                       ║
-║    🔥 Sparks fly as the dwarf strikes the anvil...                   ║
-║                                                                       ║
-║       ⣀⣤⣴⣶⣾⣿⣿⣿⣿⣷⣦⣤⣀                                            ║
-║    ⣠⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⣄                                          ║
-║  ⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣄                                        ║
-║ ⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦                                       ║
-║ ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿                                       ║
-║ ⠹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠏                                       ║
-║  ⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠋                                        ║
-║    ⠙⠻⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠟⠋                                          ║
-║       ⠉⠛⠻⠿⣿⣿⣿⣿⣿⣿⡿⠿⠟⠛⠉                                             ║
-║                                                                       ║
-╚═══════════════════════════════════════════════════════════════════════╝
-```
-
-Features include:
-- ✨ Animated dwarf striking an anvil
-- 🔥 Spark rain entrance animation
-- 📊 Phase-by-phase progress tracking
-- 🎨 Beautiful gradient theming
-- ⏱️ Smart spinners and progress bars
-- 🖼️ Completion boxes with stats
-
----
-
-## 🧪 Example: Building a Full-Stack App
-
-```bash
-$ foreman "Build a task management app with React frontend and Node.js backend"
-
-🔥 Initializing the forge...
-
-📋 PHASE 1: VISIONER
-   Defining success criteria...
-   ✓ Acceptance tests defined (12 items)
-   ✓ Architecture decided: React + Express + SQLite
-
-🗺️ PHASE 2: STRATEGIST  
-   Decomposing into atoms...
-   ✓ 24 execution atoms created
-   ✓ Dependency graph built
-   ✓ Parallel paths identified
-
-🔭 PHASE 3: RESEARCHER
-   Gathering intelligence...
-   ✓ Latest React patterns fetched
-   ✓ Best practices for Express API
-   ✓ Component library recommendations
-
-⚒️ PHASE 4: WORKER
-   Executing atoms...
-   
-   [1/24] 📁 Create project structure
-   [2/24] ⚙️ Initialize package.json  
-   [3/24] 📦 Install dependencies
-   ...
-   [22/24] 🧪 Run tests
-   [23/24] ✅ Verify acceptance criteria
-   [24/24] 📝 Generate documentation
-   
-✨ COMPLETE! 
-   Time: 4m 32s
-   Cost: $0.47
-   Atoms: 24/24 successful
-```
-
----
-
-## 📈 Performance & Scale
+## Project Stats
 
 | Metric | Value |
 |--------|-------|
-| **Tools Available** | 47+ |
-| **Source Modules** | 123 |
-| **Thought Capacity** | 10,000+ per chain |
-| **Session Types** | Multi-agent, Telegram, WhatsApp, CLI |
-| **Provider Backends** | 4 (Anthropic, OpenAI, Gemini, Antigravity) |
-| **Cache Hit Rate** | ~65% for repeated operations |
-| **Average Atom Time** | 2-5 seconds |
-| **Cost Tracking** | Per-request granularity |
+| Source files | 85 `.ts` modules (+ 38 test files) |
+| Total LOC | ~47,500 |
+| Tools | 49 |
+| Tests | 807+ (0 failures) |
+| CLI commands | 47 |
+| LLM providers | 5 |
+| Git commits | 214+ |
+| Dependencies | 15 runtime, 2 dev |
 
 ---
 
-## 🔐 Security First
+## File Structure
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│                    SECURITY LAYERS                             │
-├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│  Layer 1: Command Risk Scoring                                 │
-│  ├── Dangerous patterns detected (rm -rf, sudo, etc.)         │
-│  └── Risk score 0-100 assigned                                │
-│                                                                │
-│  Layer 2: Approval Engine                                      │
-│  ├── Auto-allow safe commands                                 │
-│  ├── Prompt for risky operations                              │
-│  └── Escalate dangerous requests                              │
-│                                                                │
-│  Layer 3: Security Scanner                                     │
-│  ├── Secret leakage detection                                 │
-│  ├── .gitignore validation                                    │
-│  └── File permission checks                                   │
-│                                                                │
-│  Layer 4: Rollback System                                      │
-│  ├── Atomic operation logs                                    │
-│  ├── Per-file change tracking                                 │
-│  └── One-command recovery                                     │
-│                                                                │
-└────────────────────────────────────────────────────────────────┘
+foreman/
+├── src/
+│   ├── engine.ts                # Core — wires all subsystems
+│   ├── orchestrator.ts          # 4-layer pipeline (1200 LOC)
+│   ├── cli.ts                   # Commander.js CLI (47 commands)
+│   ├── repl.ts                  # Interactive REPL
+│   ├── tools.ts                 # 49 tool definitions + executor
+│   ├── prompts.ts               # Layer-specific system prompts
+│   ├── worker-executor.ts       # Post-hoc extraction + execution
+│   ├── reviewer-gate.ts         # Acımasız quality gate
+│   │
+│   ├── kimi-provider.ts         # Moonshot Kimi K2.5 (primary)
+│   ├── antigravity-provider.ts  # Google Antigravity OAuth
+│   ├── anthropic-provider.ts    # Claude direct
+│   ├── openai-provider.ts       # GPT-4o direct
+│   ├── gemini-provider.ts       # Gemini direct
+│   ├── provider-bootstrap.ts    # Auto-register available providers
+│   ├── provider.ts              # Provider registry interface
+│   │
+│   ├── execution-engine.ts      # Shell exec, file ops, securePath
+│   ├── edit-engine.ts           # Surgical text edits
+│   ├── git-engine.ts            # Git operations
+│   ├── browser-engine.ts        # Puppeteer automation
+│   ├── research-engine.ts       # Web research sub-agent
+│   ├── web-search-engine.ts     # Brave Search API
+│   ├── web-fetch-engine.ts      # URL fetch + readability
+│   │
+│   ├── thought-manager.ts       # Thought CRUD + indexing
+│   ├── chain-manager.ts         # Chain lifecycle
+│   ├── session-manager.ts       # Multi-session support
+│   ├── memory-manager.ts        # Persistent memory (TF-IDF)
+│   ├── cache-manager.ts         # Request caching
+│   ├── state.ts                 # State persistence
+│   │
+│   ├── rate-limiter.ts          # RPM throttle + cooldown
+│   ├── retry.ts                 # 404/429/5xx retry with fallback
+│   ├── security-scanner.ts      # Secret detection, .gitignore audit
+│   ├── approval-engine.ts       # Command risk scoring
+│   ├── rollback-engine.ts       # Atomic rollback
+│   ├── chain-repair.ts          # Orphan/stale chain healing
+│   ├── cost-tracker.ts          # Per-request cost tracking
+│   ├── cognitive-router.ts      # Load balancing across providers
+│   │
+│   ├── messaging-gateway.ts     # Telegram/WhatsApp gateway
+│   ├── telegram-channel.ts      # Grammy-based Telegram bot
+│   ├── whatsapp-channel.ts      # Baileys WhatsApp
+│   ├── streaming-pipeline.ts    # Real-time event streaming
+│   │
+│   └── *.test.ts                # 38 test files, 807+ tests
+│
+├── bin/foreman                  # Entry point (bash → tsx)
+├── package.json                 # ESM, Node 22+, tsx
+├── tsconfig.json
+├── VISION.md                    # Design philosophy
+├── ARCHITECTURE.md              # System architecture
+└── AGENTS.md                    # Agent guidelines
 ```
 
 ---
 
-## 🤝 Contributing
+## Design Principles
 
-The forge is always open! We welcome:
-
-- 🔧 New tool implementations
-- 🔌 Additional LLM providers
-- 🌐 New messaging channels
-- 🐛 Bug fixes
-- 📚 Documentation improvements
-- 🎨 Visual enhancements
+1. **Atomicity** — every operation succeeds or fails completely. No partial state.
+2. **Verification** — worker protocol requires STEP7 evidence. Reviewer gate validates.
+3. **Resilience** — 3 retries per atom, chain repair, rollback, provider fallback.
+4. **Extraction over tools** — default mode: 1 LLM call + post-hoc parse. Saves API calls.
+5. **No mocks** — every tool does real work. `bash` runs real commands. `web_search` hits Brave API.
 
 ---
 
-## 📜 Philosophy
+## Requirements
 
-```
-"Pure signal, zero noise."
-
-The design system here is the execution trace itself. 
-It must feel like an industrial press perfectly stamping 
-a piece of metal — deterministic, precise, inevitable.
-
-Every thought is an atom.
-Every atom is verifiable.
-Every failure is recoverable.
-```
+- Node.js 22+ (tested on 24.13.1)
+- tsx (TypeScript execution)
+- At least one API key: Kimi, Antigravity, OpenAI, Anthropic, or Gemini
 
 ---
 
-## 🙏 Acknowledgments
+## License
 
-Built with:
-- 💙 [Anthropic Claude](https://anthropic.com) — Primary reasoning engine
-- ⚡ [OpenAI GPT](https://openai.com) — Fallback provider
-- 🔷 [Google Gemini](https://deepmind.google/technologies/gemini/) — Multi-modal support
-- 🇹🇷 [Antigravity](https://antigravity.ai) — Turkish LLM provider
-- 📦 [Commander.js](https://github.com/tj/commander.js/) — CLI framework
-- 🎨 [Chalk](https://github.com/chalk/chalk) — Terminal colors
-- 📊 [Boxen](https://github.com/sindresorhus/boxen) — Terminal boxes
+MIT
 
 ---
 
 <div align="center">
 
-```
-        ⚒️  MAY YOUR CODE BE EVER SOLID  ⚒️
-        
-            ⠀⠀⠀⠀⠀⠀⢀⣤⣶⣶⣤⣀⠀⠀⠀⠀⠀⠀⠀
-            ⠀⠀⠀⠀⣠⣾⣿⣿⣿⣿⣿⣿⣷⣄⠀⠀⠀⠀⠀
-            ⠀⠀⢀⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡀⠀⠀⠀
-            ⠀⢠⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄⠀⠀
-            ⢀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡀⠀
-            ⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣇⠀
-            ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀
-            ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀
-            ⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠀
-            ⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁⠀
-              ⠙⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠋⠀⠀
-                 ⠉⠛⠿⠿⣿⡿⠿⠛⠉⠀⠀⠀⠀
-```
-
-**[⭐ Star us on GitHub](https://github.com/yourusername/foreman)**
+**[github.com/SovranAMR/foreman](https://github.com/SovranAMR/foreman)**
 
 </div>
-
----
-
-<p align="center">
-  <sub>Built with 🔥 by the Foreman Team | Licensed under MIT</sub>
-</p>
-
-<!--
-  Remember: "From raw code, we forge masterpieces."
--->
