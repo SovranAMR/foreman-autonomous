@@ -69,6 +69,10 @@ export class Orchestrator {
   private readonly MAX_TOKENS_SESSION = 500_000;
   private readonly MAX_ATOM_RETRIES = 3;
 
+  // ─── PIPELINE METRICS ─────────────────────────────────────
+  private pipelineStartTime = 0;
+  private phaseTimings: Map<string, number> = new Map();
+
   constructor(engine: Engine) {
     this.engine = engine;
     this.resume = new PipelineResumeEngine(engine.config.projectRoot);
@@ -155,6 +159,8 @@ export class Orchestrator {
     let totalThoughts = 0;
 
     // ─── STREAMING — announce pipeline start ────────────────
+    this.pipelineStartTime = Date.now();
+    this.phaseTimings.clear();
     this.engine.streaming.pipelineStart(task);
 
     // ─── FORGE BRIDGE — notify gateway about pipeline start ─
@@ -1976,6 +1982,13 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     blockedAt?: string,
   ) {
     const totalTokens = this.engine.state.snapshot().totalTokens;
+    const durationMs = Date.now() - this.pipelineStartTime;
+    const durationStr = durationMs > 60_000
+      ? `${(durationMs / 60_000).toFixed(1)}m`
+      : `${(durationMs / 1000).toFixed(1)}s`;
+
+    // Log pipeline timing
+    console.log(`[forge] Pipeline ${success ? "completed" : "failed"} in ${durationStr} — ${totalThoughts} thoughts, ${totalTokens} tokens`);
 
     // Session auto-end on failure too
     if (!success) {
