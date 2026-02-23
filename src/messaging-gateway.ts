@@ -92,12 +92,20 @@ export class MessagingGateway {
   async start(): Promise<void> {
     console.log(`[gateway] Starting Foreman Messaging Gateway...`);
 
-    // Initialize provider
-    const creds = loadCredentials();
-    if (!creds) {
-      throw new Error("No Antigravity credentials. Run: foreman login");
+    // Initialize provider — prefer Kimi, fallback to Antigravity
+    const { KimiProvider, loadKimiKey } = await import("./kimi-provider.js");
+    const kimiKey = loadKimiKey();
+    if (kimiKey) {
+      this.provider = new KimiProvider(kimiKey) as any;
+      console.log(`[gateway] Using Kimi provider`);
+    } else {
+      const creds = loadCredentials();
+      if (!creds) {
+        throw new Error("No API credentials. Set Kimi key or run: foreman login");
+      }
+      this.provider = new AntigravityProvider(creds);
+      console.log(`[gateway] Using Antigravity provider`);
     }
-    this.provider = new AntigravityProvider(creds);
 
     // Initialize tool executor with Engine subsystems
     const execEngine = new ExecutionEngine(this.config.projectRoot);
@@ -333,7 +341,8 @@ export class MessagingGateway {
     }
 
     const models = getChatModels();
-    const modelId = models[0]?.id ?? "claude-sonnet";
+    const kimiDefault = (this.provider as any)?.name === "kimi" ? "kimi-k2.5" : null;
+    const modelId = kimiDefault ?? models[0]?.id ?? "claude-sonnet";
 
     // Build system prompt
     const systemPrompt = await this.buildSystemPrompt();
