@@ -1,0 +1,16 @@
+{
+  "id": "mem_110",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Write the exact payload `Forge pipeline works` to `/tmp/forge-ok.txt` using the native file-writing convention (e.g., `// Write to:`). [Acceptance Criteria: The file is successfully written at the ...",
+  "source": {
+    "type": "thought",
+    "ref": "t_161"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 2,
+  "createdAt": "2026-02-23T03:08:30.938Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T03:08:49.134Z"
+}

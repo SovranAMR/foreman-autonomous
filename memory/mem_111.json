@@ -1,0 +1,16 @@
+{
+  "id": "mem_111",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] 1. **The Terminal Anti-Pattern**: Project memory explicitly proves that using `echo` or `node -e` inline terminal scripts results in persistent failures, specifically \"Atom Task Disobedience\" and trai...",
+  "source": {
+    "type": "thought",
+    "ref": "t_162"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-23T03:08:49.131Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T03:08:49.134Z"
+}
