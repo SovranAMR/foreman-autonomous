@@ -1007,11 +1007,11 @@ export class Orchestrator {
           break; // break retry attempt, will retry with feedback
         }
 
-        if (execResult.retryCount > 0) {
+        if (execResult?.retryCount > 0) {
           this.emit({
             type: "format_retry",
             phase: "execute",
-            attempt: execResult.retryCount,
+            attempt: execResult?.retryCount,
             missing: [],
           });
         }

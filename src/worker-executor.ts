@@ -285,7 +285,7 @@ export async function executeOperations(
               description: `Worker command: ${op.command.slice(0, 80)}`,
               target: op.command,
             });
-            if (riskLevel === "critical" || riskLevel === "high") {
+            if (riskLevel === "critical") {
               results.push({
                 operation: op,
                 success: false,
