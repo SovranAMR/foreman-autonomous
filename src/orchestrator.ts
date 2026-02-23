@@ -908,18 +908,8 @@ export class Orchestrator {
                     });
                   }
 
-                  // Git checkpoint after successful execution
-                  if (execSummary.succeeded > 0) {
-                    try {
-                      this.engine.git.commitThought({
-                        thoughtId: execResult?.thought.id,
-                        chainId: visionChain.id,
-                        layer: "worker",
-                        atomIndex: j,
-                        message: `Atom ${j + 1}: ${atom.slice(0, 50)}`,
-                      });
-                    } catch { /* git checkpoint best-effort */ }
-                  }
+                  // Git checkpoint disabled — per-atom commits pollute history.
+                  // Commit decision is left to the user after pipeline completes.
                 } catch (execErr) {
                   this.emit({
                     type: "error",
@@ -1609,36 +1599,8 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
         this.engine.memory.consolidate();
       } catch { /* memory compression best-effort */ }
 
-      // ── GIT CHECKPOINT — save progress after each block with thought metadata ──
-      try {
-        const gitStatus = this.engine.git.executor.gitStatus();
-        if (!gitStatus.clean) {
-          // Get the last atom's thought for metadata
-          const lastAtomThought = atoms.length > 0
-            ? this.engine.thoughts.get(
-              this.engine.chains.get(visionChain.id)?.thoughts.slice(-1)[0] ?? ""
-            )
-            : null;
-
-          const commitResult = this.engine.git.commitThought({
-            message: `Block ${i + 1}/${blocks.length}: ${block.slice(0, 50)}`,
-            chainId: visionChain.id,
-            thoughtId: lastAtomThought?.id ?? "unknown",
-            layer: "worker",
-            atomIndex: atomCount,
-            atomTotal: atoms.length,
-          });
-          if (commitResult.success) {
-            this.emit({
-              type: "phase_end",
-              phase: "git_checkpoint",
-              detail: `Committed: ${commitResult.shortHash ?? "ok"} — Block ${i + 1}`,
-            });
-          }
-        }
-      } catch {
-        // Git checkpoint is best-effort — don't fail pipeline
-      }
+      // Git checkpoint disabled — per-block auto-commits pollute history.
+      // User can commit manually after pipeline completes.
     }
 
     // ─── COMPLETE ───────────────────────────────────────────
