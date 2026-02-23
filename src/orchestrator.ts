@@ -1059,7 +1059,7 @@ export class Orchestrator {
         // Different LLM reviews Worker's output against vision document.
         // Quick local check first, then full LLM review if needed.
         // SKIP for simple visions (no FORBIDDEN list, short vision = simple task)
-        const isSimpleVision = visionOutput.length < 500 && !visionOutput.toLowerCase().includes("forbidden");
+        const isSimpleVision = visionOutput.length < 800 && !visionOutput.toLowerCase().includes("forbidden");
         if (!isSimpleVision && execResult?.thought.status === "done" && execResult?.thought.workerProtocol) {
           const protocol = execResult?.thought.workerProtocol;
 
