@@ -198,11 +198,18 @@ export async function executeOperations(
     hooks?: HooksEngine;
     interactive?: InteractiveConfirm;
     streaming?: StreamingPipeline;
+    maxOps?: number;
   },
 ): Promise<WorkerExecutionSummary> {
   const results: ExecutionResult[] = [];
 
-  for (const op of ops) {
+  // Safety cap — prevent runaway execution from bad parsing
+  const maxOps = options?.maxOps ?? 20;
+  const opsToExecute = ops.length > maxOps
+    ? (console.warn(`[worker-executor] ${ops.length} ops exceeds cap of ${maxOps}, truncating`), ops.slice(0, maxOps))
+    : ops;
+
+  for (const op of opsToExecute) {
     try {
       // ─── HOOKS: before_tool ───
       if (options?.hooks) {
