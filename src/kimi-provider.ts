@@ -83,11 +83,15 @@ export class KimiProvider implements LLMProvider {
     async generate(messages: LLMMessage[], options: GenerateOptions): Promise<GenerateResult> {
         const model = KIMI_MODELS.find(m => m.id === options.model)?.model ?? options.model;
 
+        // Kimi k2.5 and k2-thinking models require temperature=1
+        const isK2Model = model.includes("k2");
+        const temperature = isK2Model ? 1 : (options.temperature ?? 0.7);
+
         const body = {
             model,
             messages: messages.map(m => ({ role: m.role, content: m.content })),
             max_tokens: options.maxTokens ?? 4096,
-            temperature: options.temperature ?? 0.7,
+            temperature,
             stream: false,
         };
 
@@ -194,10 +198,12 @@ export class KimiProvider implements LLMProvider {
         let finalText = "";
 
         for (let iteration = 0; iteration < maxIterations; iteration++) {
+            const isK2 = model.includes("k2");
             const body: any = {
                 model,
                 messages: conversationMessages,
                 max_tokens: maxTokens,
+                temperature: isK2 ? 1 : 0.7,
                 stream: true,
                 tools,
                 tool_choice: "auto",
