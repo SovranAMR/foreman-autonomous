@@ -1,0 +1,15 @@
+{
+  "id": "mem_121",
+  "projectId": "global",
+  "category": "lesson",
+  "content": "[worker] Deterministic state clearance is complete. `rm -f /tmp/forge-ok.txt` ran successfully, ensuring no tainted versions or artifacts of the file remain. The environment is perfectly clean and ready for st...",
+  "source": {
+    "type": "thought",
+    "ref": "t_198"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T03:29:13.123Z",
+  "expired": false
+}
