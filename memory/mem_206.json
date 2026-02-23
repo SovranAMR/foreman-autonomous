@@ -1,0 +1,15 @@
+{
+  "id": "mem_206",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] **GOAL**: Create the file containing exactly the string.",
+  "source": {
+    "type": "manual",
+    "ref": "MEMORY.md"
+  },
+  "importance": 0.9,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T15:19:31.963Z",
+  "expired": true
+}

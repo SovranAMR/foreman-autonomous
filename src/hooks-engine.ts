@@ -10,6 +10,7 @@
  * Hook Points:
  * - before_pipeline / after_pipeline
  * - before_phase / after_phase
+ * - before_thought / after_thought
  * - before_tool_call / after_tool_call
  * - before_file_write / after_file_write
  * - before_command / after_command
@@ -25,6 +26,8 @@ export type HookName =
   | "after_pipeline"
   | "before_phase"
   | "after_phase"
+  | "before_thought"
+  | "after_thought"
   | "before_tool_call"
   | "after_tool_call"
   | "before_file_write"

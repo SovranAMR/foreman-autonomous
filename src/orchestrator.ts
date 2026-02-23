@@ -38,6 +38,7 @@ import { repairTranscript } from "./transcript-repair.js";
 import { checkChainHealth } from "./chain-repair.js";
 import { syncMemoryMd, generateCategoryFiles } from "./memory-md-bridge.js";
 import { batchWrite } from "./batch-file-engine.js";
+import { registerHallucinationGuard, HallucinationGuard } from "./hallucination-guard.js";
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ export class Orchestrator {
   private engine: Engine;
   readonly resume: PipelineResumeEngine;
   private listeners: EventListener[] = [];
+  private hallucinationGuard: HallucinationGuard | null = null;
 
   // ─── TOKEN BUDGETS ──────────────────────────────────────────
   private readonly MAX_TOKENS_PER_ATOM = 8_000;
@@ -70,6 +72,23 @@ export class Orchestrator {
   constructor(engine: Engine) {
     this.engine = engine;
     this.resume = new PipelineResumeEngine(engine.config.projectRoot);
+    this.setupHallucinationGuard();
+  }
+
+  /**
+   * Initialize hallucination guard with hooks.
+   */
+  private setupHallucinationGuard(): void {
+    this.hallucinationGuard = registerHallucinationGuard(
+      this.engine.hooks,
+      this.engine.config.projectRoot,
+      {
+        enableGroundTruth: true,
+        validateOutputs: true,
+        strictMode: true,
+        injectContext: true,
+      }
+    );
   }
 
   on(listener: EventListener): void {
@@ -142,6 +161,15 @@ export class Orchestrator {
     try {
       this.engine.forgeBridge.notifyPipelineStart(task);
     } catch { /* bridge best-effort */ }
+
+    // ─── HALLUCINATION GUARD — initialize ground truth ──────
+    if (this.hallucinationGuard) {
+      await this.hallucinationGuard.initialize();
+      const gt = this.hallucinationGuard.getGroundTruth();
+      if (gt) {
+        this.engine.streaming.warning("Ground truth loaded — fact-checking enabled");
+      }
+    }
 
     // ─── HOOKS — before_pipeline ────────────────────────────
     const hookResult = await this.engine.hooks.run("before_pipeline", { task });
@@ -269,6 +297,19 @@ export class Orchestrator {
     );
     totalThoughts++;
     this.emit({ type: "thought_complete", thought: visionResult.thought });
+
+    // ─── HOOKS: after_thought (vision) ──────────────────────
+    const visionAfterHook = await this.engine.hooks.run("after_thought", {
+      layer: "visioner",
+      input: task,
+      output: visionResult.thought.output,
+      reasoning: visionResult.thought.reasoning,
+    });
+    if (visionAfterHook.block) {
+      this.engine.streaming.error(`Vision fact-check failed: ${visionAfterHook.blockReason}`);
+      this.engine.chains.updateStatus(visionChain.id, "blocked");
+      return this.buildResult(false, totalThoughts, visionChain.id, "vision_fact_check");
+    }
 
     if (this.checkBlock(visionResult, "vision")) {
       this.engine.chains.updateStatus(visionChain.id, "blocked");

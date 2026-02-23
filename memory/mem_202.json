@@ -1,0 +1,15 @@
+{
+  "id": "mem_202",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Create the 15-line ASCII header banner featuring the massive central anvil with frozen hammer-strike moment and radial spark explosion using only ASCII characters (* + ^ ~ ⚡ as bright clusters, ` a...",
+  "source": {
+    "type": "thought",
+    "ref": "t_263"
+  },
+  "importance": 0.7360000000000001,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T15:17:04.217Z",
+  "expired": false
+}

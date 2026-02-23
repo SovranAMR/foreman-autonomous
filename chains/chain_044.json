@@ -1,0 +1,12 @@
+{
+  "id": "chain_044",
+  "name": "Vision: Create an epic, comprehensive README.md ",
+  "goal": "Define the vision for: Create an epic, comprehensive README.md for the foreman project that:\n\n1. FIRST - Thoroughly analyze the entire foreman codebase:\n   - Read all source files to understand architecture\n   - Understand the tool system (bash, file operations, git, web, browser, etc.)\n   - Understand the forge_pipeline concept (Visioner, Strategist, Researcher, Worker layers)\n   - Understand the multi-agent system with sub-agents\n   - Understand the memory system, approval system, security scanning\n   - List all 47+ tools with descriptions\n\n2. Create a README.md with:\n   - MASSIVE ASCII art header showing a blacksmith/forger at an anvil (foreman theme)\n   - Multiple ASCII decorations throughout (hammers, anvils, gears, sparks)\n   - Clear project description in both technical AND simple terms\n   - Architecture section explaining the 4-layer pipeline\n   - Complete tool catalog with categorized lists\n   - Usage examples with code blocks\n   - Feature highlights with ASCII bullet points\n   - Installation/setup instructions\n   - Contribution guidelines\n   - Make it visually stunning with strategic use of ASCII borders and decorations\n\n3. The tone should be:\n   - Professional but exciting\n   - Like a master craftsman showing their workshop\n   - Technical accuracy mixed with accessible explanations\n   - Use phrases like \"The Forge\", \"The Anvil\", \"Strike while hot\"\n\n4. Structure:\n   - Epic ASCII header art\n   - One-line punchy description\n   - \"What is Foreman?\" (simple explanation)\n   - \"The Architecture\" (technical deep dive)\n   - \"The Tools\" (categorized with icons)\n   - \"The Forge Pipeline\" (explained with ASCII diagram)\n   - Usage examples\n   - Installation\n   - Footer with ASCII signature\n\nMake this a SHOWCASE piece. The ASCII art should be detailed and impressive. The content should be comprehensive and accurate based on the actual codebase.",
+  "layer": "visioner",
+  "thoughts": [
+    "t_268"
+  ],
+  "status": "active",
+  "contextSummary": "",
+  "createdAt": "2026-02-23T18:12:31.766Z"
+}

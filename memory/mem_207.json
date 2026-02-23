@@ -1,0 +1,16 @@
+{
+  "id": "mem_207",
+  "projectId": "global",
+  "category": "decision",
+  "content": "[visioner] **GOAL**: Deterministically create containing exactly the string.",
+  "source": {
+    "type": "manual",
+    "ref": "MEMORY.md"
+  },
+  "importance": 0.9,
+  "tags": [],
+  "useCount": 4,
+  "createdAt": "2026-02-23T15:19:31.963Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T18:17:23.514Z"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "task_096",
+  "projectId": "foreman",
+  "title": "Block 4: Document the Core Mechanism (Atomic Tasks & Block Signals) w",
+  "description": "Document the Core Mechanism (Atomic Tasks & Block Signals) with gunmetal gray ASCII-shaded code blocks containing actual TypeScript interfaces or conceptual truth, marked with ASCII spark comments (// * or // +). [Acceptance Criteria: Code blocks use ASCII shading (▒, ░) for \"gunmetal\" aesthetic; critical lines marked with spark symbols; explains BLOCK/",
+  "type": "feature",
+  "priority": "medium",
+  "status": "backlog",
+  "dependsOn": [],
+  "chainIds": [],
+  "subtaskIds": [],
+  "tags": [],
+  "acceptanceCriteria": [],
+  "totalTokens": 0,
+  "notes": [],
+  "createdAt": "2026-02-23T15:17:04.219Z"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "chain_045",
+  "name": "Vision: Create an impressive, comprehensive READ",
+  "goal": "Define the vision for: Create an impressive, comprehensive README.md for the foreman project that:\n\n1. First, thoroughly analyze the entire codebase to understand:\n   - Project structure and architecture\n   - All source files and their purposes\n   - Key features and capabilities\n   - Configuration files\n   - Tool/function inventory\n   - Design patterns and philosophy\n\n2. Then create a README.md with:\n   - EPIC ASCII art header showing a blacksmith/anvil scene with \"FOREMAN\" title\n   - Multiple ASCII art decorations throughout (hammer, forge, sparks, etc.)\n   - Technical overview section explaining the architecture\n   - Accessible explanation for non-technical readers\n   - Feature showcase with examples\n   - Usage guide\n   - Project structure diagram (ASCII tree)\n   - Philosophy/vision section\n   - Getting started guide\n\nThe README should be written in English, be visually stunning with creative ASCII art, and balance technical depth with accessibility. Make it showcase-worthy - something that would impress developers and be shareable.\n\nSave the final README.md to the project root.",
+  "layer": "visioner",
+  "thoughts": [
+    "t_269"
+  ],
+  "status": "active",
+  "contextSummary": "",
+  "createdAt": "2026-02-23T18:17:23.505Z"
+}
