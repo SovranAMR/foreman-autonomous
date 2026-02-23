@@ -50,7 +50,7 @@ export interface LayerConfig {
 export const DEFAULT_LAYER_CONFIGS: Readonly<Record<Layer, LayerConfig>> = {
   visioner: {
     layer: "visioner",
-    defaultModel: "claude-opus",
+    defaultModel: "gemini-3.1-pro-high",
     maxThoughtsPerChain: 50,
     requiresResearch: true,
     requiresVerification: true,
@@ -58,7 +58,7 @@ export const DEFAULT_LAYER_CONFIGS: Readonly<Record<Layer, LayerConfig>> = {
   },
   strategist: {
     layer: "strategist",
-    defaultModel: "claude-opus",
+    defaultModel: "gemini-3.1-pro-high",
     maxThoughtsPerChain: 30,
     requiresResearch: true,
     requiresVerification: true,
@@ -66,7 +66,7 @@ export const DEFAULT_LAYER_CONFIGS: Readonly<Record<Layer, LayerConfig>> = {
   },
   researcher: {
     layer: "researcher",
-    defaultModel: "gpt-4o",
+    defaultModel: "gemini-3.1-pro-high",
     maxThoughtsPerChain: 20,
     requiresResearch: true, // already the research layer
     requiresVerification: false,
@@ -74,7 +74,7 @@ export const DEFAULT_LAYER_CONFIGS: Readonly<Record<Layer, LayerConfig>> = {
   },
   worker: {
     layer: "worker",
-    defaultModel: "claude-sonnet",
+    defaultModel: "gemini-3.1-pro-high",
     maxThoughtsPerChain: 15,
     requiresResearch: false, // tactical thinking, no deep research
     requiresVerification: true, // build/test zorunlu
