@@ -1,0 +1,16 @@
+{
+  "id": "mem_072",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Overwrite `README.md` with exactly ` ```text ` followed by a newline to clear previous failures and initialize the pure text block. [Acceptance Criteria: `README.md` is overwritten and contains onl...",
+  "source": {
+    "type": "thought",
+    "ref": "t_113"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-23T00:21:56.681Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:21:57.750Z"
+}

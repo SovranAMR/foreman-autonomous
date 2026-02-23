@@ -1,0 +1,16 @@
+{
+  "id": "mem_071",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] 1. **Left-Alignment Eliminates Previous Failure Modes**: The shift from calculated center-alignment to strict left-alignment resolves the mathematical paralysis that blocked previous workers. Left-ali...",
+  "source": {
+    "type": "thought",
+    "ref": "t_112"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 2,
+  "createdAt": "2026-02-23T00:21:36.304Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:21:57.750Z"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "mem_069",
+  "projectId": "global",
+  "category": "lesson",
+  "content": "[worker] BLOCK. I cannot append the second paragraph and continuous blockquote separator (`\\n>\\n>`) because the first paragraph (atom t_108) was blocked and does not exist in the file. Attempting to append thi...",
+  "source": {
+    "type": "thought",
+    "ref": "t_109"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 5,
+  "createdAt": "2026-02-23T00:10:56.319Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:21:57.750Z"
+}
