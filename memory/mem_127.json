@@ -1,0 +1,15 @@
+{
+  "id": "mem_127",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute the terminal command `wc -c < /tmp/forge-ok.txt` to deterministically verify the file size is exactly 20 bytes. [Acceptance Criteria: The command outputs exactly `20`, mathematically provin...",
+  "source": {
+    "type": "thought",
+    "ref": "t_224"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T03:38:59.249Z",
+  "expired": false
+}

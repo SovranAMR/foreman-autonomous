@@ -1,0 +1,16 @@
+{
+  "id": "mem_126",
+  "projectId": "global",
+  "category": "reference",
+  "content": "[researcher] 1. **Verification Primitives**: The combination of `wc -c` (byte count) and `cat` (content validation) provides deterministic, mathematical proof of the artifact's state. The exact payload `Forge pipe...",
+  "source": {
+    "type": "thought",
+    "ref": "t_223"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-23T03:38:48.705Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T03:38:48.708Z"
+}
