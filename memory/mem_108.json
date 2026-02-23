@@ -1,0 +1,15 @@
+{
+  "id": "mem_108",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Execute the terminal command `rm -f /tmp/forge-ok.txt` to guarantee a completely clean state prior to the write operation. [Acceptance Criteria: Command executes successfully, ensuring no previous ...",
+  "source": {
+    "type": "thought",
+    "ref": "t_158"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 0,
+  "createdAt": "2026-02-23T03:05:55.047Z",
+  "expired": false
+}

@@ -1,18 +1,18 @@
 {
-  "id": "cp_1771808582135_gimq",
-  "task": "Create a file /tmp/forge-ok.txt containing exactly: Forge pipeline works",
-  "startedAt": 1771808582135,
-  "updatedAt": 1771808593464,
+  "id": "cp_1771815886400_iieo",
+  "task": "Create file /tmp/forge-ok.txt with text: Forge pipeline works",
+  "startedAt": 1771815886400,
+  "updatedAt": 1771815905632,
   "phase": "research",
-  "chainId": "chain_029",
+  "chainId": "chain_030",
   "completedAtoms": [],
   "currentBlock": 0,
   "currentAtom": 0,
   "totalThoughts": 0,
   "totalTokens": 0,
-  "visionOutput": "**GOAL**: Create the file `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file exists at `/tmp/forge-ok.txt`. A separate verification step must successfully read the file and output its exact contents to standard output to prove the state.\n**CONSTRAINTS**: Use reliable, native tools (such as Node.js `fs` module). Verification must produce clear terminal evidence to satisfy strict review criteria.",
+  "visionOutput": "OUTPUT:\n**GOAL**: Create the file `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.\n**ACCEPTANCE CRITERIA**: The file exists at `/tmp/forge-ok.txt`. The file content is the precise string `Forge pipeline works` with absolutely no trailing newline. A distinct verification step must provide clear evidence of the exact file contents (e.g., verifying the byte length or strictly matching the string).\n**CONSTRAINTS**: No trailing newlines or extra whitespace. Must use a deterministic writing method (e.g., `printf`, Node's `fs.writeFileSync`, or the system's designated file-writer tool). Verification evidence is strictly mandatory to satisfy previous rejection criteria.",
   "blocks": [
-    "Execute a synchronous write operation using native Node.js tools to create `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`. [Acceptance Criteria: The file is created at the target path with the precise string, avoiding any extraneous formatting or newlines.]",
-    "Read the newly created file using native tools and output its exact contents to the terminal standard output. [Acceptance Criteria: Standard output displays the file's exact contents, generating unequivocal terminal evidence that the file state matches the vision.]"
+    "Execute a deterministic write operation to create `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works` with absolutely no trailing newline. [Acceptance Criteria: File exists at `/tmp/forge-ok.txt` and was created using a strict method like `printf` or Node's `fs.writeFileSync` that guarantees no extraneous whitespace.]",
+    "Perform a strict verification step to independently prove the file's exact contents and structural integrity. [Acceptance Criteria: A terminal command (such as `wc -c` or a Node.js assertion script) is executed that explicitly outputs evidence of the exact 20-byte length and perfect string match.]"
   ]
 }
