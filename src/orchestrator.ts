@@ -826,15 +826,13 @@ export class Orchestrator {
             memoryContext ? `MEMORY:\n${memoryContext.slice(0, 500)}` : "",
           ].filter(Boolean).join("\n\n---\n\n");
 
-          // ─── EXECUTION MODE SELECTION ──────────────────────
-          // Default: extraction mode (1 LLM call → post-hoc parse)
-          // Tool mode is more powerful but costs N API calls per iteration
-          // and triggers 429 rate limits on constrained endpoints.
-          // Use extraction mode by default; tool mode only when explicitly enabled.
+          // ─── EXECUTION MODE ──────────────────────────────
+          // Extraction mode (default): 1 LLM call, post-hoc command parsing
+          // Tool mode (FOREMAN_TOOL_MODE=1): N API calls per atom, more powerful but rate-limited
           const useToolMode = process.env.FOREMAN_TOOL_MODE === "1";
 
           if (useToolMode) {
-            const toolLlmResult = await this.engine.callLLMWithTools(
+          const toolLlmResult = await this.engine.callLLMWithTools(
             getWorkerPromptForToolMode(),
             atomContext,
             "worker",
@@ -876,7 +874,7 @@ export class Orchestrator {
             [atomizeResult.thought.id, researchResult.thought.id, visionResult.thought.id],
           );
           } else {
-            // Extraction mode: single LLM call, post-hoc command extraction
+            // Extraction mode: single LLM call + post-hoc command extraction
             execResult = await this.engine.stepWithPhase(
               visionChain.id,
               atomContext,
@@ -886,7 +884,7 @@ export class Orchestrator {
             );
           }
         } catch (toolError) {
-          // Mode B: Fallback — standard stepWithPhase + post-hoc extraction
+          // Fallback — standard stepWithPhase + post-hoc extraction
           console.log(`  [forge] Tool mode unavailable, using extraction mode: ${toolError instanceof Error ? toolError.message.slice(0, 80) : "unknown"}`);
 
           execResult = await this.engine.stepWithPhase(
@@ -1047,7 +1045,9 @@ export class Orchestrator {
         // ─── REVIEWER GATE — Acımasız Denetçi (Tribunal) ────
         // Different LLM reviews Worker's output against vision document.
         // Quick local check first, then full LLM review if needed.
-        if (execResult.thought.status === "done" && execResult.thought.workerProtocol) {
+        // SKIP for simple visions (no FORBIDDEN list, short vision = simple task)
+        const isSimpleVision = visionOutput.length < 500 && !visionOutput.toLowerCase().includes("forbidden");
+        if (!isSimpleVision && execResult.thought.status === "done" && execResult.thought.workerProtocol) {
           const protocol = execResult.thought.workerProtocol;
 
           // Phase 1: Quick local review (no LLM cost)
@@ -1975,11 +1975,13 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     } catch { /* best-effort */ }
 
     // ─── SESSION AUTO-END ───────────────────────────────────
-    this.engine.sessions.end(
-      session.id,
-      "completed",
-      `${task.slice(0, 80)} — ${totalThoughts} thoughts, ${atomCount} atoms`,
-    );
+    try {
+      this.engine.sessions.end(
+        session.id,
+        "completed",
+        `${task.slice(0, 80)} — ${totalThoughts} thoughts, ${atomCount} atoms`,
+      );
+    } catch { /* session may already be closed or missing */ }
 
     // ─── MULTI-SESSION — record pipeline end ────────────────
     try {
