@@ -2,12 +2,12 @@
   "id": "mem_052",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Implement Redux-Normalized State Mutators in `src/forge/state.ts` to strictly enforce the flat, non-nested architecture. [Acceptance Criteria: Create helper functions (e.g., `addNode`, `updateNodeS...",
+  "content": "[strategist] 1. Implement Redux-Normalized State Mutators in to strictly enforce the flat, non-nested architecture. [Acceptance Criteria: Create helper functions (e.g.,, `updateNodeS...",
   "source": {
     "type": "thought",
     "ref": "t_088"
   },
-  "importance": 0.76,
+  "importance": 0.6,
   "tags": [],
   "useCount": 0,
   "createdAt": "2026-02-22T23:47:42.919Z",

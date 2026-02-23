@@ -2,12 +2,12 @@
   "id": "mem_087",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Execute the terminal command `node -e \"require('assert').strictEqual(require('fs').readFileSync('/tmp/forge-ok.txt', 'utf8'), 'Forge pipeline works')\"` to perform the deterministic state verificati...",
+  "content": "[strategist] 1. Execute the terminal command to perform the deterministic state verificati...",
   "source": {
     "type": "thought",
     "ref": "t_131"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 1,
   "createdAt": "2026-02-23T00:47:38.714Z",

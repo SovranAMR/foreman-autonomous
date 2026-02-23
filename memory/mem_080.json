@@ -2,12 +2,12 @@
   "id": "mem_080",
   "projectId": "global",
   "category": "reference",
-  "content": "[researcher] 1. **Optimal Implementation Method**: Node.js `fs.writeFileSync('/tmp/forge-ok.txt', 'Forge pipeline works')` is the gold standard for this block. It inherently guarantees synchronous execution (block...",
+  "content": "[researcher] 1. **Optimal Implementation Method**: Node.js is the gold standard for this block. It inherently guarantees synchronous execution (block...",
   "source": {
     "type": "thought",
     "ref": "t_123"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 1,
   "createdAt": "2026-02-23T00:42:33.890Z",

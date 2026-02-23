@@ -2,12 +2,12 @@
   "id": "mem_038",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Re-architect the orchestration state to use a flat adjacency array mapping `parentId` to `childId` across the MACRO, MESO, MICRO, and NANO taxonomy. [Acceptance Criteria: `state.ts` exports a flat-...",
+  "content": "[strategist] 1. Re-architect the orchestration state to use a flat adjacency array mapping to across the MACRO, MESO, MICRO, and NANO taxonomy. [Acceptance Criteria: exports a flat-...",
   "source": {
     "type": "thought",
     "ref": "t_071"
   },
-  "importance": 0.784,
+  "importance": 0.6,
   "tags": [],
   "useCount": 0,
   "createdAt": "2026-02-22T23:38:00.017Z",

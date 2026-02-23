@@ -2,12 +2,12 @@
   "id": "mem_075",
   "projectId": "global",
   "category": "pattern",
-  "content": "[strategist] 1. Validate the `/tmp` directory permissions to guarantee a deterministic environment for the synchronous filesystem strike. [Acceptance Criteria: The `/tmp` directory is verified as accessible and wr...",
+  "content": "[strategist] 1. Validate the directory permissions to guarantee a deterministic environment for the synchronous filesystem strike. [Acceptance Criteria: The directory is verified as accessible and wr...",
   "source": {
     "type": "thought",
     "ref": "t_117"
   },
-  "importance": 0.8,
+  "importance": 0.9,
   "tags": [],
   "useCount": 6,
   "createdAt": "2026-02-23T00:36:55.510Z",

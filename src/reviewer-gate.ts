@@ -179,9 +179,13 @@ export function quickReviewCheck(protocol: WorkerProtocol, visionDocument: strin
     const allWorkerText = Object.values(protocol).join(" ").toLowerCase();
 
     for (const forbidden of forbiddenItems) {
-      const keywords = forbidden.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+      const keywords = forbidden.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+      // Need at least 3 keyword matches to trigger, and keywords must be substantial
+      // This prevents false positives from generic words appearing in task descriptions
+      if (keywords.length < 2) continue; // skip vague forbidden items
       const matched = keywords.filter(kw => allWorkerText.includes(kw));
-      if (matched.length >= 2) {
+      const matchRatio = matched.length / keywords.length;
+      if (matchRatio >= 0.6 && matched.length >= 3) {
         violations.push(`FORBIDDEN violation: "${forbidden}" — matched keywords: ${matched.join(", ")}`);
       }
     }

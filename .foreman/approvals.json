@@ -44,8 +44,8 @@
       "git * -A",
       {
         "pattern": "git * -A",
-        "allowCount": 27,
-        "lastUsedAt": "2026-02-23T00:47:38.801Z",
+        "allowCount": 28,
+        "lastUsedAt": "2026-02-23T00:48:00.671Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -54,8 +54,8 @@
       "git * --stat * --numstat *",
       {
         "pattern": "git * --stat * --numstat *",
-        "allowCount": 27,
-        "lastUsedAt": "2026-02-23T00:47:38.814Z",
+        "allowCount": 28,
+        "lastUsedAt": "2026-02-23T00:48:00.683Z",
         "lastSuccess": true,
         "source": "learned"
       }
@@ -76,6 +76,26 @@
         "pattern": "git * --numstat",
         "allowCount": 3,
         "lastUsedAt": "2026-02-23T00:10:56.329Z",
+        "lastSuccess": true,
+        "source": "learned"
+      }
+    ],
+    [
+      "npm * * --if-present *",
+      {
+        "pattern": "npm * * --if-present *",
+        "allowCount": 1,
+        "lastUsedAt": "2026-02-23T00:48:00.782Z",
+        "lastSuccess": true,
+        "source": "learned"
+      }
+    ],
+    [
+      "git * --no-color",
+      {
+        "pattern": "git * --no-color",
+        "allowCount": 2,
+        "lastUsedAt": "2026-02-23T00:49:37.096Z",
         "lastSuccess": true,
         "source": "learned"
       }
