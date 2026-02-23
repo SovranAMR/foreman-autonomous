@@ -13,6 +13,7 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { TOOL_DEFINITIONS, executeTool, type ToolCall, type ToolResult } from "./tools.js";
+import type { LLMProvider, LLMMessage, GenerateOptions, GenerateResult } from "./provider.js";
 
 // ─── CONFIG ──────────────────────────────────────────────────
 
@@ -64,7 +65,7 @@ function toOpenAITools(): any[] {
 
 // ─── PROVIDER ────────────────────────────────────────────────
 
-export class KimiProvider {
+export class KimiProvider implements LLMProvider {
     readonly name = "kimi";
     readonly supportedModels = KIMI_MODELS.map(m => m.id);
 
@@ -72,6 +73,55 @@ export class KimiProvider {
 
     constructor(apiKey: string) {
         this.apiKey = apiKey;
+    }
+
+    /**
+     * Non-streaming generate — for engine/forge_pipeline compatibility.
+     */
+    async generate(messages: LLMMessage[], options: GenerateOptions): Promise<GenerateResult> {
+        const model = KIMI_MODELS.find(m => m.id === options.model)?.model ?? options.model;
+
+        const body = {
+            model,
+            messages: messages.map(m => ({ role: m.role, content: m.content })),
+            max_tokens: options.maxTokens ?? 4096,
+            temperature: options.temperature ?? 0.7,
+            stream: false,
+        };
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 60_000);
+
+        const response = await fetch(KIMI_ENDPOINT, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${this.apiKey}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Kimi API error ${response.status}: ${errText.slice(0, 200)}`);
+        }
+
+        const data = await response.json() as any;
+        const text = data.choices?.[0]?.message?.content ?? "";
+        const inputTokens = data.usage?.prompt_tokens ?? 0;
+        const outputTokens = data.usage?.completion_tokens ?? 0;
+
+        return {
+            text,
+            tokenUsage: {
+                input: inputTokens,
+                output: outputTokens,
+                total: inputTokens + outputTokens,
+            },
+            model: options.model,
+        };
     }
 
     /**

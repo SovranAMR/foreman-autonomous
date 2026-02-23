@@ -3,13 +3,24 @@ import { AnthropicProvider } from "./anthropic-provider.js";
 import { OpenAIProvider } from "./openai-provider.js";
 import { GeminiProvider } from "./gemini-provider.js";
 import { AntigravityProvider, loadCredentials } from "./antigravity-provider.js";
+import { KimiProvider, loadKimiKey } from "./kimi-provider.js";
 import { getApiKey } from "./setup.js";
 
 /**
  * Bootstraps the engine with available LLM providers.
- * Reads credentials from ~/.foreman/config.json and Antigravity OAuth.
+ * Priority: Kimi > Anthropic > OpenAI > Gemini > Antigravity
  */
 export function bootstrapProviders(engine: Engine): void {
+  // Kimi (highest priority when configured)
+  const kimiKey = loadKimiKey();
+  if (kimiKey) {
+    try {
+      engine.providers.register(new KimiProvider(kimiKey));
+    } catch {
+      // ignore
+    }
+  }
+
   // Anthropic
   const anthropicKey = getApiKey("anthropic");
   if (anthropicKey) {
@@ -40,7 +51,7 @@ export function bootstrapProviders(engine: Engine): void {
     }
   }
 
-  // Antigravity (OAuth)
+  // Antigravity (OAuth) — fallback
   const antigravCreds = loadCredentials();
   if (antigravCreds) {
     try {

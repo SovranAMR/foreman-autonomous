@@ -2141,10 +2141,16 @@ async function executeForge(
     const { Engine } = await import("./engine.js");
     const { Orchestrator } = await import("./orchestrator.js");
     const { basename } = await import("node:path");
+    const { loadKimiKey: loadKimi } = await import("./kimi-provider.js");
+
+    // Use Kimi model if API key is configured
+    const kimiKey = loadKimi();
+    const engineModel = kimiKey ? "kimi-k2.5" : undefined;
 
     const engine = new Engine({
       projectRoot,
       projectName: basename(projectRoot),
+      model: engineModel,
     });
 
     // Bootstrap LLM providers — forge needs them for all 4 layers
