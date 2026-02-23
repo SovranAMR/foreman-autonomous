@@ -1,0 +1,16 @@
+{
+  "id": "mem_063",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Overwrite `README.md` with a ` ```text ` code block containing a highly detailed, vertically dominant Blacksmith ASCII art (hammer, anvil, sparks). You must manually pad the left side of the art wi...",
+  "source": {
+    "type": "thought",
+    "ref": "t_102"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 6,
+  "createdAt": "2026-02-23T00:06:40.584Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:10:01.189Z"
+}

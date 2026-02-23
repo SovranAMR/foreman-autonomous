@@ -1,0 +1,16 @@
+{
+  "id": "mem_067",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Append the first paragraph of the Philosophy section to `README.md` to establish the foundational definition. You must use this exact string to guarantee the brutalist tone: `\\n\\n> FOREMAN is an au...",
+  "source": {
+    "type": "thought",
+    "ref": "t_107"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 1,
+  "createdAt": "2026-02-23T00:10:00.145Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:10:01.189Z"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "mem_061",
+  "projectId": "global",
+  "category": "pattern",
+  "content": "[strategist] 1. Overwrite `README.md` to establish the \"Focal Point and Monolith\" by inserting a detailed Blacksmith ASCII art (centered via spacing inside a standard ` ```text ` block) with heavy negative space, ...",
+  "source": {
+    "type": "thought",
+    "ref": "t_100"
+  },
+  "importance": 0.8,
+  "tags": [],
+  "useCount": 8,
+  "createdAt": "2026-02-23T00:05:45.151Z",
+  "expired": false,
+  "lastUsedAt": "2026-02-23T00:10:01.189Z"
+}
