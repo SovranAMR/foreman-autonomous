@@ -615,8 +615,19 @@ export class Orchestrator {
       // ── 3c. EXECUTE EACH ATOM ──
       let blockPassedAtoms = 0;
       let blockFailedAtoms = 0;
+      const blockStartTime = Date.now();
       for (let j = 0; j < atoms.length; j++) {
         const atom = atoms[j];
+
+        // Block-level failure threshold — if majority of atoms fail, skip remaining
+        if (blockFailedAtoms > 0 && blockFailedAtoms >= Math.ceil(atoms.length / 2)) {
+          this.emit({
+            type: "error",
+            message: `Block ${i + 1}: ${blockFailedAtoms}/${atoms.length} atoms failed — skipping remaining atoms`,
+          });
+          this.engine.streaming.warning(`Block ${i + 1} abandoned: too many failures (${blockFailedAtoms}/${atoms.length})`);
+          break;
+        }
 
         // ─── RETRY LOOP — Atom execution with feedback-driven retries ───
         // On BLOCK/REJECT: rollback → inject failure feedback → retry (max 3)
@@ -1516,6 +1527,11 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
       }
 
       // ─── STREAMING: Block end ───
+      const blockDurationMs = Date.now() - blockStartTime;
+      const blockDurationStr = blockDurationMs > 60_000
+        ? `${(blockDurationMs / 60_000).toFixed(1)}m`
+        : `${(blockDurationMs / 1000).toFixed(1)}s`;
+      console.log(`[forge] Block ${i + 1}/${blocks.length} done in ${blockDurationStr} — ${blockPassedAtoms}/${atoms.length} atoms passed`);
       this.engine.streaming.blockEnd(i);
 
       // ─── VIBE CHECK MILESTONE — Visual verification at block boundary ───
