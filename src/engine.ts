@@ -409,6 +409,12 @@ export class Engine {
     if (!result.text || result.text.trim().length === 0) {
       console.warn(`[engine] Empty LLM response from ${result.model ?? model} (layer=${layer})`);
     }
+
+    // Visioner Token Limit (100K) — Summary Mode Guard
+    if (layer === "visioner" && result.tokenUsage.total > 100_000) {
+      this.streaming.warning(`Visioner token usage (${result.tokenUsage.total}) exceeded 100K limit. Switching to summary mode.`);
+    }
+
     this.rateLimiter.onSuccess();
     this.rateLimiter.recordTokens(result.tokenUsage.total);
     this.state.addTokens(result.tokenUsage.total);
