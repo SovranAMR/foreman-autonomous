@@ -1030,7 +1030,6 @@ export class Orchestrator {
                   type: "phase_end",
                   phase: "rollback",
                   detail: `Rolled back atom ${j + 1}: ${rollbackResult.error ?? 'success'}`,
-
                 });
                 this.engine.streaming.error(`⏪ Atom ${j + 1} rolled back: ${execResult?.thought.blockedReason?.slice(0, 60)}`);
               }
@@ -1041,7 +1040,7 @@ export class Orchestrator {
             // Atom BLOCK — retry with feedback (not skip)
             lastRejectionFeedback = `WORKER BLOCKED: ${execResult?.thought.blockedReason ?? "8-step protocol incomplete"}`;
             this.observer.onWorkerRetry(attempt, lastRejectionFeedback);
-            break; // break retry attempt, will retry with feedback
+            continue; // RETRY the atom instead of breaking to outer loop
           }
 
           if (execResult?.retryCount > 0) {

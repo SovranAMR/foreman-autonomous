@@ -92,6 +92,30 @@ describe("Worker Executor Robustness", () => {
         newPath: "new.ts"
       });
     });
+
+    it("should extract delete operations", () => {
+      const protocol = {
+        ...mockProtocol,
+        step6_execute: "Delete `obsolete.tmp`"
+      };
+      const ops = extractOperations(protocol);
+      expect(ops).toContainEqual({
+        type: "delete_file",
+        path: "obsolete.tmp"
+      });
+    });
+
+    it("should extract mkdir operations", () => {
+      const protocol = {
+        ...mockProtocol,
+        step6_execute: "Create directory `src/components`"
+      };
+      const ops = extractOperations(protocol);
+      expect(ops).toContainEqual({
+        type: "create_dir",
+        path: "src/components"
+      });
+    });
   });
 
   describe("executeOperations", () => {
@@ -146,6 +170,13 @@ describe("Worker Executor Robustness", () => {
       expect(result.succeeded).toBe(1);
       expect(result.failed).toBe(1);
       expect(result.operations[0].error).toBe("fail");
+    });
+
+    it("should execute delete operations", async () => {
+      const ops: any[] = [{ type: "delete_file", path: "trash.log" }];
+      const result = await executeOperations(ops, mockExec, mockEdit, projectRoot);
+      expect(mockExec.deleteFile).toHaveBeenCalledWith("trash.log");
+      expect(result.succeeded).toBe(1);
     });
   });
 });
