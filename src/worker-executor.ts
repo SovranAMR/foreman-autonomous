@@ -71,7 +71,7 @@ const DANGEROUS_PATTERNS = [
   /\bchown\s+-R\s+.*\s+\//,    // global chown
 ];
 
-function isDangerousCommand(cmd: string): boolean {
+export function isDangerousCommand(cmd: string): boolean {
   return DANGEROUS_PATTERNS.some(p => p.test(cmd));
 }
 
