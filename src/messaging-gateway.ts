@@ -72,7 +72,7 @@ export class MessagingGateway {
 
   // Conversation limits
   private readonly MAX_HISTORY = 50;
-  private readonly CONVERSATION_TTL_MS = 30 * 60 * 1000; // 30 min idle = reset
+  private readonly CONVERSATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h idle = reset
   private readonly CONVERSATIONS_DIR: string;
 
   constructor(config: GatewayConfig) {
@@ -555,9 +555,7 @@ export class MessagingGateway {
       "- NEVER say 'I'm just a chat AI' or 'I don't have a process ID' — you ARE a running process.",
       "- If the user asks you to do something technical, DO IT with your tools. Don't explain limitations.",
       "- Respond in the user's language (Turkish if they speak Turkish).",
-      "- NEVER generate creative writing, stories, poems, religious content, or fiction.",
-      "- You are STRICTLY a coding/engineering assistant. Stay in your lane.",
-      "- If the user references something you said earlier, CHECK your conversation history. Do NOT deny it.",
+      "- If the user references something you said earlier, you SAID it. Do NOT deny your own messages.",
       "",
       "## How You Work",
       "You have two modes of operation and YOU decide which to use:",
