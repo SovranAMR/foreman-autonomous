@@ -204,6 +204,7 @@ export class Engine {
     this.interactive = new InteractiveConfirm();
     this.rollback = new RollbackEngine(config.projectRoot);
     this.costTracker = new CostTracker(config.projectRoot);
+    this.costTracker.onAlert((msg) => this.streaming.warning(msg));
     this.hooks = new HooksEngine();
     this.projectInfo = detectProject(config.projectRoot);
 
@@ -413,12 +414,19 @@ export class Engine {
     this.state.addTokens(result.tokenUsage.total);
 
     // Track cost
-    this.costTracker.record(
+    const costEntry = this.costTracker.record(
       result.model ?? model,
       layer,
       result.tokenUsage.input,
       result.tokenUsage.output,
     );
+
+    // Sync cost with observer
+    this.streaming.emit("event", {
+      type: "cost",
+      detail: `Cost: $${costEntry.cost.toFixed(4)}`,
+      data: costEntry,
+    } as any);
 
     return result;
   }
