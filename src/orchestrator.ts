@@ -70,7 +70,7 @@ export class Orchestrator {
   // ─── TOKEN BUDGETS ──────────────────────────────────────────
   private readonly MAX_TOKENS_PER_ATOM = 8_000;
   private readonly MAX_TOKENS_PER_BLOCK = 40_000;
-  private readonly MAX_TOKENS_SESSION = 500_000;
+  private readonly MAX_TOKENS_SESSION = 2_000_000;
   private readonly MAX_ATOM_RETRIES = 3;
 
   // ─── PIPELINE METRICS ─────────────────────────────────────
