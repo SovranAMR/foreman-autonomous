@@ -68,23 +68,28 @@ const SECRET_PATTERNS: Array<{ name: string; pattern: RegExp; severity: FindingS
   { name: "GitHub Token", pattern: /gh[ps]_[A-Za-z0-9_]{36,}/g, severity: "critical" },
   { name: "npm Token", pattern: /npm_[A-Za-z0-9]{36}/g, severity: "critical" },
   { name: "Slack Token", pattern: /xox[baprs]-[A-Za-z0-9-]{10,}/g, severity: "high" },
-  { name: "Generic API Key", pattern: /(?:api[_-]?key|apikey)\s*[=:]\s*["']?[A-Za-z0-9_\-]{20,}["']?/gi, severity: "high" },
+  { name: "Generic API Key", pattern: /(?:api[_-]?key|apikey|access[_-]?token|auth[_-]?token)\s*[=:]\s*["']?[A-Za-z0-9_\-]{20,}["']?/gi, severity: "high" },
   { name: "Generic Secret", pattern: /(?:secret|password|passwd|pwd)\s*[=:]\s*["'][^"']{8,}["']/gi, severity: "high" },
   { name: "Private Key Header", pattern: /-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----/g, severity: "critical" },
   { name: "Bearer Token", pattern: /Bearer\s+[A-Za-z0-9\-._~+/]+=*/g, severity: "medium" },
   { name: "Connection String", pattern: /(?:mongodb|postgres|mysql|redis):\/\/[^\s"']+/gi, severity: "high" },
+  { name: "Stripe API Key", pattern: /(?:sk|pk)_(?:test|live)_[0-9a-zA-Z]{24}/g, severity: "critical" },
+  { name: "Google Cloud API Key", pattern: /AIza[0-9A-Za-z\-_]{35}/g, severity: "critical" },
+  { name: "Heroku API Key", pattern: /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, severity: "high" },
 ];
 
 const SENSITIVE_FILES = [
   ".env", ".env.local", ".env.production", ".env.staging",
   "credentials", "secrets", ".npmrc", ".pypirc",
-  "id_rsa", "id_ed25519", "id_ecdsa",
+  "id_rsa", "id_ed25519", "id_ecdsa", "service-account.json",
+  "key.pem", "server.key", "cert.p12",
 ];
 
 const GITIGNORE_SHOULD_INCLUDE = [
   ".env", ".env.local", ".env.*",
   "*.pem", "*.key", "*.p12", "*.pfx",
   "node_modules/", "dist/", ".DS_Store",
+  "credentials.json", "*.session", "*.log",
 ];
 
 const HARDCODED_PATTERNS: Array<{ name: string; pattern: RegExp; severity: FindingSeverity }> = [
@@ -92,6 +97,8 @@ const HARDCODED_PATTERNS: Array<{ name: string; pattern: RegExp; severity: Findi
   { name: "Hardcoded IP address", pattern: /\b(?:10|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b/g, severity: "low" },
   { name: "Debug flag", pattern: /(?:debug|DEBUG)\s*[=:]\s*(?:true|1|"true")/g, severity: "info" },
   { name: "TODO/FIXME/HACK", pattern: /\b(?:TODO|FIXME|HACK|XXX)\b/g, severity: "info" },
+  { name: "PostgreSQL Default Credentials", pattern: /postgres:\/\/postgres:[^@]+@/gi, severity: "high" },
+  { name: "Redis No-Auth", pattern: /redis:\/\/[:@][^\s"']+/gi, severity: "medium" },
 ];
 
 const SKIP_DIRS = new Set([
