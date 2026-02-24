@@ -19,6 +19,7 @@ import type { DecomposeParseResult, AtomizeParseResult } from "./parser.js";
 import { parseBuildOutput, parseTestOutput, analyzeOutput, detectRegressions, checkServerHealth, detectDevServers } from "./verification-engine.js";
 import { extractCrossChainContext } from "./context-intelligence.js";
 import { extractOperations, executeOperations, needsExecution, buildExecutionFeedback } from "./worker-executor.js";
+import { validateWorkerOutput } from "./ground-truth-validator.js";
 import { PipelineResumeEngine } from "./pipeline-resume.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall, ToolResult } from "./tools.js";
@@ -1314,26 +1315,38 @@ export class Orchestrator {
           }
         }
 
-        // ── PHYSICAL BUILD CHECK — actually run build after atom ──
-        // Don't trust Worker's self-reported step7_verify — verify independently
-        try {
-          const buildCheck = this.engine.git.executor.runShell("npm run build --if-present 2>&1", 30_000);
-          if (buildCheck.success) {
-            const buildParsed = parseBuildOutput(buildCheck.stdout + "\n" + buildCheck.stderr);
-            if (buildParsed.errors.length > 0) {
-              this.emit({
-                type: "verification",
-                phase: "atom_build",
-                passed: false,
-                detail: `Build BROKEN after atom ${j + 1}: ${buildParsed.errors[0]?.message?.slice(0, 80)}`,
-              });
-              this.engine.streaming.error(`🔨 Build broken after atom ${j + 1}`);
-              // Don't rollback — Worker might fix it in next atom
-              // But flag it in memory for awareness
-              lastRejectionFeedback = `Build broken: ${buildParsed.errors.map(e => e.message).join("; ").slice(0, 200)}`;
+        // ── GROUND TRUTH VALIDATION — verify worker claims against reality ──
+        // Don't trust Worker's self-reported step7_verify — validate independently
+        if (execResult?.thought.workerProtocol) {
+          try {
+            const validation = validateWorkerOutput(
+              execResult.thought.workerProtocol,
+              // Pass execution summary if available (from extraction mode)
+              null, // execSummary already fed back above
+              this.engine.git.executor,
+              this.engine.config.projectRoot,
+            );
+
+            this.emit({
+              type: "verification",
+              phase: "ground_truth",
+              passed: validation.passed,
+              detail: validation.summary,
+            });
+
+            if (!validation.passed) {
+              const failedChecks = validation.checks.filter(c => !c.passed && c.severity === "critical");
+              this.engine.streaming.error(`🔍 Ground truth: ${failedChecks.length} critical checks failed`);
+              for (const check of failedChecks) {
+                this.engine.streaming.error(`  ${check.detail}`);
+              }
+              // Feed validation results back as rejection feedback for retry
+              lastRejectionFeedback = `Ground truth validation failed (score: ${(validation.score * 100).toFixed(0)}%): ${failedChecks.map(c => c.detail).join("; ").slice(0, 300)}`;
+            } else {
+              this.engine.streaming.toolCall("ground_truth", `✅ ${validation.checks.length} checks passed (${(validation.score * 100).toFixed(0)}%)`);
             }
-          }
-        } catch { /* build check best-effort */ }
+          } catch { /* ground truth validation best-effort */ }
+        }
 
         // ── REFLECT every 5 atoms — Visioner as Art Director ──
         if (atomCount > 0 && atomCount % 5 === 0) {
