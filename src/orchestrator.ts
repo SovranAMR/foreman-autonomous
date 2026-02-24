@@ -100,6 +100,9 @@ export class Orchestrator {
         validateOutputs: true,
         strictMode: true,
         injectContext: true,
+        onViolation: (message, severity) => {
+          this.emit({ type: "hallucination", message, severity });
+        },
       }
     );
   }
@@ -973,8 +976,32 @@ export class Orchestrator {
                     });
                   }
 
-                  // Git checkpoint disabled — per-atom commits pollute history.
-                  // Commit decision is left to the user after pipeline completes.
+                  // ─── AUTOMATIC COMMIT ─────────────────────────────
+                  // Commitment logic moved from atom boundary to here
+                  // Only commit if: Git is enabled, project has git, and operations succeeded
+                  if (this.engine.git && execSummary.succeeded > 0) {
+                    const git = this.engine.git;
+                    try {
+                      // Status check to see if there are actual changes
+                      const gitStatus = git.executor.gitStatus();
+                      if (!gitStatus.clean) {
+                        const commitMsg = `${atom.slice(0, 50)}${execSummary.failed > 0 ? " (partial)" : ""}`;
+                        const commitResult = git.commitThought({
+                          message: commitMsg,
+                          chainId: visionChain.id,
+                          thoughtId: execResult.thought.id,
+                          layer: "worker",
+                          atomIndex: j + 1,
+                          atomTotal: atoms.length,
+                        });
+                        if (commitResult.success) {
+                          this.engine.streaming.toolCall("git_commit", commitResult.shortHash);
+                        }
+                      }
+                    } catch (gitErr) {
+                      console.warn(`[orchestrator] Git commit failed: ${gitErr}`);
+                    }
+                  }
                 } catch (execErr) {
                   this.emit({
                     type: "error",
