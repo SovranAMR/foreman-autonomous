@@ -84,6 +84,7 @@ export class HallucinationGuard {
   /**
    * Hook: after_thought
    * Validates LLM output against ground truth.
+   * Vision layer gets relaxed checking — it's exploratory, not assertive.
    */
   async afterThought(event: HookEvent): Promise<HookResult> {
     if (!this.config.validateOutputs || !this.state.groundTruth) {
@@ -95,10 +96,16 @@ export class HallucinationGuard {
 
     if (!content.trim()) return {};
 
+    // Vision layer is exploratory — relaxed fact-checking
+    // Only block on dangerous hallucinations (wrong commands, fake URLs)
+    // NOT on structural claims (file counts, module descriptions, architecture analysis)
+    const isVisionLayer = data.layer === "visioner" || data.layer === "vision";
+    const isResearchLayer = data.layer === "researcher" || data.layer === "research";
+
     const checker = createFactChecker(this.state.groundTruth, {
       strictCommands: this.config.strictMode,
-      strictFiles: this.config.strictMode,
-      strictMetrics: this.config.strictMode,
+      strictFiles: this.config.strictMode && !isVisionLayer, // Vision can reference files loosely
+      strictMetrics: this.config.strictMode && !isVisionLayer && !isResearchLayer, // Vision/research can estimate
       strictLinks: this.config.strictMode,
     });
 
@@ -107,6 +114,22 @@ export class HallucinationGuard {
 
     if (!result.valid) {
       this.state.violationCount += result.violations.length;
+
+      // Vision layer: only block on critical violations (commands, links)
+      if (isVisionLayer) {
+        const criticalViolations = result.violations.filter(v =>
+          v.type === "command" || v.type === "link" || v.severity === "error"
+        );
+        // Only block if there are dangerous command/link violations
+        const dangerousCount = result.violations.filter(v =>
+          v.type === "command" || v.type === "link"
+        ).length;
+        if (dangerousCount === 0) {
+          // File/metric/claim violations in vision — warn but don't block
+          console.log(`[guard] Vision: ${result.violations.length} soft violations (not blocking)`);
+          return {};
+        }
+      }
 
       if (this.config.strictMode) {
         // Generate feedback for retry
