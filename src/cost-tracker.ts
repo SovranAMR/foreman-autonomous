@@ -80,7 +80,7 @@ export interface CostBudget {
 // ─── MODEL PRICING TABLE ─────────────────────────────────────
 // Prices per 1M tokens in USD
 
-const MODEL_COSTS: Record<string, ModelPricing> = {
+export const MODEL_COSTS: Record<string, ModelPricing> = {
   // Gemini
   "gemini-2.5-pro": { input: 1.25, output: 10.0, cacheRead: 0.3125, cacheWrite: 0 },
   "gemini-2.5-flash": { input: 0.15, output: 0.60, cacheRead: 0.0375, cacheWrite: 0 },
