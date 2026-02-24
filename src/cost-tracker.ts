@@ -99,9 +99,20 @@ export const MODEL_COSTS: Record<string, ModelPricing> = {
   "o3-mini": { input: 1.10, output: 4.40, cacheRead: 0.55, cacheWrite: 0 },
 
   // Anthropic
+  "claude-3-5-sonnet": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
+  "claude-3.5-sonnet": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
+  "claude-3-7-sonnet": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
+  "claude-3.7-sonnet": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
   "claude-sonnet-4": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
-  "claude-opus-4": { input: 15.0, output: 75.0, cacheRead: 1.5, cacheWrite: 18.75 },
+  "claude-3-5-haiku": { input: 0.80, output: 4.0, cacheRead: 0.08, cacheWrite: 1.0 },
+  "claude-3.5-haiku": { input: 0.80, output: 4.0, cacheRead: 0.08, cacheWrite: 1.0 },
   "claude-haiku-3.5": { input: 0.80, output: 4.0, cacheRead: 0.08, cacheWrite: 1.0 },
+  "claude-opus-4": { input: 15.0, output: 75.0, cacheRead: 1.5, cacheWrite: 18.75 },
+
+  // Grok / xAI
+  "grok-2": { input: 2.0, output: 10.0, cacheRead: 0, cacheWrite: 0 },
+  "grok-3": { input: 4.0, output: 20.0, cacheRead: 0, cacheWrite: 0 },
+  "grok-3-thinking": { input: 4.0, output: 20.0, cacheRead: 0, cacheWrite: 0 },
 
   // Deepseek
   "deepseek-chat": { input: 0.27, output: 1.10, cacheRead: 0.07, cacheWrite: 0 },
@@ -139,14 +150,22 @@ export class CostTracker {
   /**
    * Set alert callback.
    */
-  onAlert(callback: (message: string) => void): void {
+  public onAlert(callback: (message: string) => void): void {
     this.alertCallback = callback;
+  }
+
+  /**
+   * Inject budget configuration.
+   */
+  public setBudget(budget: Partial<CostBudget>): void {
+    this.budget = { ...this.budget, ...budget };
+    this.checkBudget();
   }
 
   /**
    * Record a cost entry.
    */
-  record(
+  public record(
     model: string,
     phase: string,
     inputTokens: number,
@@ -180,21 +199,21 @@ export class CostTracker {
   /**
    * Get total cost for this session.
    */
-  getTotalCost(): number {
+  public getTotalCost(): number {
     return this.entries.reduce((sum, e) => sum + e.cost, 0);
   }
 
   /**
    * Get total tokens for this session.
    */
-  getTotalTokens(): number {
+  public getTotalTokens(): number {
     return this.entries.reduce((sum, e) => sum + e.inputTokens + e.outputTokens, 0);
   }
 
   /**
    * Get cost for a specific pipeline run (by chainId).
    */
-  getRunCost(chainId: string): number {
+  public getRunCost(chainId: string): number {
     return this.entries
       .filter(e => e.chainId === chainId)
       .reduce((sum, e) => sum + e.cost, 0);
@@ -203,7 +222,7 @@ export class CostTracker {
   /**
    * Generate a cost report.
    */
-  generateReport(): CostReport {
+  public generateReport(): CostReport {
     const totalCost = this.getTotalCost();
     const totalTokens = this.getTotalTokens();
     const totalInputTokens = this.entries.reduce((s, e) => s + e.inputTokens, 0);
@@ -255,7 +274,7 @@ export class CostTracker {
   /**
    * Format report as string.
    */
-  formatReport(): string {
+  public formatReport(): string {
     const r = this.generateReport();
     const lines: string[] = [];
 
@@ -288,7 +307,7 @@ export class CostTracker {
   /**
    * Get pricing for a model (exact match or fuzzy).
    */
-  getPricing(modelId: string): ModelPricing {
+  public getPricing(modelId: string): ModelPricing {
     // Exact match
     if (MODEL_COSTS[modelId]) return MODEL_COSTS[modelId];
 
@@ -306,7 +325,7 @@ export class CostTracker {
   /**
    * Add custom model pricing.
    */
-  addPricing(modelId: string, pricing: ModelPricing): void {
+  public addPricing(modelId: string, pricing: ModelPricing): void {
     MODEL_COSTS[modelId] = pricing;
   }
 
