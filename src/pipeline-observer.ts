@@ -229,6 +229,11 @@ export class PipelineObserver {
         this.hallucinations.push(event.message);
         this.recordEvent("guard", "hallucination", { detail: event.message });
         break;
+      case "cost" as any:
+        if ((event as any).data?.cost) {
+          this.totalCost += (event as any).data.cost;
+        }
+        break;
     }
   }
 
