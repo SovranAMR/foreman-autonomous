@@ -55,6 +55,16 @@ describe("Worker Executor — Operation Extraction", () => {
     assert.ok(cmds.some(c => c.includes("pnpm test")));
     assert.ok(cmds.some(c => c.includes("cargo build")));
   });
+
+  it("extracts rename operations", () => {
+    const protocol = makeProtocol({
+      step6_execute: "Rename `old.ts` to `new.ts`",
+    });
+    const ops = extractOperations(protocol);
+    assert.equal(ops[0].type, "rename_node");
+    assert.equal(ops[0].path, "old.ts");
+    assert.equal(ops[0].newPath, "new.ts");
+  });
 });
 
 describe("Worker Executor — Needs Execution", () => {

@@ -28,8 +28,9 @@ import type { StreamingPipeline } from "./streaming-pipeline.js";
 // ─── TYPES ───────────────────────────────────────────────────
 
 export interface ExtractedOperation {
-  type: "write_file" | "edit_file" | "run_command" | "delete_file" | "create_dir";
+  type: "write_file" | "edit_file" | "run_command" | "delete_file" | "create_dir" | "rename_node";
   path?: string;
+  newPath?: string;
   content?: string;
   oldText?: string;
   newText?: string;
@@ -155,6 +156,16 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
   const mkdirRx = /(?:mkdir|create directory)\s+(?:-p\s+)?[`"]([^`"]+)[`"]/gi;
   while ((match = mkdirRx.exec(allText)) !== null) {
     ops.push({ type: "create_dir", path: match[1].trim() });
+  }
+
+  // 7.5 Rename file/dir
+  const renameRx = /(?:rename|move|mv)\s+[`"]([^`"]+)[`"]\s+(?:to|->)\s+[`"]([^`"]+)[`"]/gi;
+  while ((match = renameRx.exec(allText)) !== null) {
+    ops.push({
+      type: "rename_node",
+      path: match[1].trim(),
+      newPath: match[2].trim(),
+    });
   }
 
   // 8. Fallback: code fence with a filename-like first line (e.g. ```tsx\nsrc/app.tsx\n...)
@@ -405,6 +416,29 @@ export async function executeOperations(
               mkdirSync(fullPath, { recursive: true });
             }
             results.push({ operation: op, success: true, output: `Created ${op.path}` });
+          } catch (err) {
+            results.push({ operation: op, success: false, error: err instanceof Error ? err.message : String(err) });
+          }
+          break;
+        }
+
+        case "rename_node": {
+          if (!op.path || !op.newPath) {
+            results.push({ operation: op, success: false, error: "Missing path or newPath" });
+            break;
+          }
+          try {
+            const { renameSync, existsSync } = await import("node:fs");
+            const fullPath = op.path.startsWith("/") ? op.path : `${projectRoot}/${op.path}`;
+            const fullNewPath = op.newPath.startsWith("/") ? op.newPath : `${projectRoot}/${op.newPath}`;
+
+            if (!existsSync(fullPath)) {
+              results.push({ operation: op, success: false, error: `Source not found: ${op.path}` });
+              break;
+            }
+
+            renameSync(fullPath, fullNewPath);
+            results.push({ operation: op, success: true, output: `Renamed ${op.path} to ${op.newPath}` });
           } catch (err) {
             results.push({ operation: op, success: false, error: err instanceof Error ? err.message : String(err) });
           }
