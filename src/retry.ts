@@ -111,12 +111,12 @@ export function classifyLLMError(err: unknown): ErrorClass {
   }
 
   // Quota / billing
-  if (/quota|billing|insufficient|exceeded|budget/i.test(message)) {
+  if (/quota|billing|insufficient|exceeded|budget|credits/i.test(message)) {
     return "quota";
   }
 
   // Auth — message-based (if no status)
-  if (/auth|permission|forbidden|invalid.*key|api.?key.*invalid/i.test(message)) {
+  if (/auth|permission|forbidden|invalid.*key|api.?key.*invalid|unauthorized/i.test(message)) {
     return "auth";
   }
 

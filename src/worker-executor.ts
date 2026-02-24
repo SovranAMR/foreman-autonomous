@@ -146,6 +146,19 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
     }
   }
 
+  // 5.5 Shell code blocks: ```\n$ command\n``` (unlabeled)
+  const genericBashRx = /```\s*\n((?:\$\s+.+\n?)+)```/gi;
+  while ((match = genericBashRx.exec(allText)) !== null) {
+    const commands = match[1].trim().split("\n")
+      .map(l => l.replace(/^\$\s*/, "").trim())
+      .filter(l => l);
+    for (const cmd of commands) {
+      if (!ops.some(o => o.command === cmd) && !isDangerousCommand(cmd)) {
+        ops.push({ type: "run_command", command: cmd });
+      }
+    }
+  }
+
   // 6. Delete operations
   const deleteRx = /(?:delete|remove|rm)\s+(?:file\s+)?[`"]([^`"]+)[`"]/gi;
   while ((match = deleteRx.exec(allText)) !== null) {
