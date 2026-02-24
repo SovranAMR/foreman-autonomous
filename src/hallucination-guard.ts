@@ -20,6 +20,8 @@ export interface GuardConfig {
   strictMode: boolean;
   /** Inject ground truth into prompts */
   injectContext: boolean;
+  /** Callback for violations */
+  onViolation?: (message: string, severity: "warn" | "error") => void;
 }
 
 export interface GuardState {
@@ -104,8 +106,8 @@ export class HallucinationGuard {
 
     const checker = createFactChecker(this.state.groundTruth, {
       strictCommands: this.config.strictMode,
-      strictFiles: this.config.strictMode && !isVisionLayer, // Vision can reference files loosely
-      strictMetrics: this.config.strictMode && !isVisionLayer && !isResearchLayer, // Vision/research can estimate
+      strictFiles: this.config.strictMode && !isVisionLayer, 
+      strictMetrics: this.config.strictMode && !isVisionLayer && !isResearchLayer,
       strictLinks: this.config.strictMode,
     });
 
@@ -117,15 +119,12 @@ export class HallucinationGuard {
 
       // Vision layer: only block on critical violations (commands, links)
       if (isVisionLayer) {
-        const criticalViolations = result.violations.filter(v =>
-          v.type === "command" || v.type === "link" || v.severity === "error"
-        );
-        // Only block if there are dangerous command/link violations
         const dangerousCount = result.violations.filter(v =>
           v.type === "command" || v.type === "link"
         ).length;
         if (dangerousCount === 0) {
           // File/metric/claim violations in vision — warn but don't block
+          this.config.onViolation?.(`Vision soft hallucination: ${result.violations[0].message}`, "warn");
           console.log(`[guard] Vision: ${result.violations.length} soft violations (not blocking)`);
           return {};
         }
@@ -134,6 +133,7 @@ export class HallucinationGuard {
       if (this.config.strictMode) {
         // Generate feedback for retry
         const feedback = checker.generateFeedback(result);
+        this.config.onViolation?.(`${data.layer} hallucination: ${result.violations[0].message}`, "error");
 
         return {
           block: true,

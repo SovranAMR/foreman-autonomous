@@ -64,6 +64,10 @@ const DANGEROUS_PATTERNS = [
   /\bwget\b.*\|\s*\bbash\b/, // wget | bash
   /\bnpm\s+publish\b/,      // npm publish
   /\bgit\s+push\s+.*--force/, // git push --force
+  /\btruncate\s+-s\s+0\s+\//, // truncate system files
+  /\bmv\s+.*\s+\/dev\/null/, // move to dev null
+  /\bchmod\s+-R\s+777\s+\//,  // global chmod 777
+  /\bchown\s+-R\s+.*\s+\//,    // global chown
 ];
 
 function isDangerousCommand(cmd: string): boolean {

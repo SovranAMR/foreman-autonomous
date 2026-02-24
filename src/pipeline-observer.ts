@@ -47,7 +47,8 @@ export type ObserverCategory =
   | "tool"
   | "review"
   | "error"
-  | "system";
+  | "system"
+  | "guard";
 
 export interface AtomRecord {
   blockIndex: number;
@@ -110,6 +111,7 @@ export interface PipelineSummary {
   passedAtoms: number;
   failedAtoms: number;
   totalToolCalls: number;
+  totalHallucinations: number;
   totalTokens: number;
   totalCost: number;
   phases: PhaseRecord[];
@@ -134,6 +136,7 @@ export class PipelineObserver {
   private phases: PhaseRecord[] = [];
   private errors: string[] = [];
   private warnings: string[] = [];
+  private hallucinations: string[] = [];
   private eventCounter = 0;
   private pipelineStartTime = 0;
   private task = "";
@@ -215,6 +218,10 @@ export class PipelineObserver {
       case "error":
         this.errors.push(event.message);
         this.recordEvent("error", "error", { detail: event.message });
+        break;
+      case "hallucination":
+        this.hallucinations.push(event.message);
+        this.recordEvent("guard", "hallucination", { detail: event.message });
         break;
     }
   }
@@ -428,8 +435,10 @@ export class PipelineObserver {
       this.currentAtom.attempts = attempt + 1;
       this.currentAtom.rejectionFeedback = reason;
     }
-    this.recordEvent("worker", "retry", {
-      detail: `Retry #${attempt + 1}: ${reason.slice(0, 100)}`,
+    const isHallucination = reason.includes("Hallucination");
+    const category = isHallucination ? "guard" : "worker";
+    this.recordEvent(category, "retry", {
+      detail: `Retry #${attempt + 1}${isHallucination ? " (hallucination recovery)" : ""}: ${reason.slice(0, 100)}`,
     });
   }
 
@@ -508,6 +517,7 @@ export class PipelineObserver {
     let passedAtoms = 0;
     let failedAtoms = 0;
     let totalToolCalls = 0;
+    let totalHallucinations = this.hallucinations.length;
     let totalTokens = 0;
 
     for (const block of this.blocks) {
@@ -531,6 +541,7 @@ export class PipelineObserver {
       passedAtoms,
       failedAtoms,
       totalToolCalls,
+      totalHallucinations,
       totalTokens,
       totalCost: 0, // filled by cost tracker
       phases: [...this.phases],
@@ -558,10 +569,11 @@ export class PipelineObserver {
       `**Status:** ${s.success ? "✅ Success" : "❌ Failed"}`,
       ``,
       `## Overview`,
-      `| Metric | Value |`,
-      `|--------|-------|`,
+      `| Metrics | Value |`,
+      `|---------|-------|`,
       `| Blocks | ${s.totalBlocks} |`,
       `| Atoms | ${s.totalAtoms} (${s.passedAtoms} passed, ${s.failedAtoms} failed) |`,
+      `| Hallucinations | ${s.totalHallucinations} 🛡️ |`,
       `| Tool Calls | ${s.totalToolCalls} |`,
       `| Tokens | ${s.totalTokens.toLocaleString()} |`,
       ``,
@@ -627,6 +639,15 @@ export class PipelineObserver {
       lines.push(``);
     }
 
+    // Hallucinations
+    if (this.hallucinations.length > 0) {
+      lines.push(`## Hallucinations 🛡️`, ``);
+      for (const h of this.hallucinations) {
+        lines.push(`- ⚠️ ${h}`);
+      }
+      lines.push(``);
+    }
+
     return lines.join("\n");
   }
 
@@ -641,6 +662,7 @@ export class PipelineObserver {
       `*Süre:* ${s.durationStr}`,
       `*Bloklar:* ${s.totalBlocks}`,
       `*Atomlar:* ${s.passedAtoms}✔ / ${s.failedAtoms}✖`,
+      `*Hallucinations:* ${s.totalHallucinations} 🛡️`,
       `*Tool Calls:* ${s.totalToolCalls}`,
       `*Tokens:* ${s.totalTokens.toLocaleString()}`,
     ];
