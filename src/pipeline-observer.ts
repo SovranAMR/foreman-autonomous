@@ -142,6 +142,7 @@ export class PipelineObserver {
   private task = "";
   private logPath: string;
   private logDir: string;
+  private totalCost = 0;
 
   // Current state tracking
   private currentBlock: BlockRecord | null = null;
@@ -169,6 +170,11 @@ export class PipelineObserver {
   enableTelegram(callback: (text: string) => Promise<void>, throttleMs = 2000): void {
     this.telegramCallback = callback;
     this.telegramThrottleMs = throttleMs;
+  }
+
+  /** Set total cost (called by CostTracker). */
+  setTotalCost(cost: number): void {
+    this.totalCost = cost;
   }
 
   // ─── ORCHESTRATOR EVENT HANDLER ─────────────────────────
@@ -276,6 +282,7 @@ export class PipelineObserver {
     this.errors = [];
     this.warnings = [];
     this.eventCounter = 0;
+    this.totalCost = 0;
 
     this.recordEvent("pipeline", "start", { detail: `Pipeline started: ${task.slice(0, 100)}` });
     this.sendTelegram(`⚒️ *Forge Pipeline Başladı*\n\n📋 ${escapeMarkdown(task.slice(0, 200))}`);
@@ -543,7 +550,7 @@ export class PipelineObserver {
       totalToolCalls,
       totalHallucinations,
       totalTokens,
-      totalCost: 0, // filled by cost tracker
+      totalCost: this.totalCost,
       phases: [...this.phases],
       blocks: [...this.blocks],
       errors: [...this.errors],
@@ -576,6 +583,7 @@ export class PipelineObserver {
       `| Hallucinations | ${s.totalHallucinations} 🛡️ |`,
       `| Tool Calls | ${s.totalToolCalls} |`,
       `| Tokens | ${s.totalTokens.toLocaleString()} |`,
+      `| Cost | $${s.totalCost.toFixed(4)} |`,
       ``,
     ];
 
@@ -665,6 +673,7 @@ export class PipelineObserver {
       `*Hallucinations:* ${s.totalHallucinations} 🛡️`,
       `*Tool Calls:* ${s.totalToolCalls}`,
       `*Tokens:* ${s.totalTokens.toLocaleString()}`,
+      `*Maliyet:* $${s.totalCost.toFixed(4)}`,
     ];
 
     // Per-block summary
