@@ -69,6 +69,11 @@ const DANGEROUS_PATTERNS = [
   /\bmv\s+.*\s+\/dev\/null/, // move to dev null
   /\bchmod\s+-R\s+777\s+\//,  // global chmod 777
   /\bchown\s+-R\s+.*\s+\//,    // global chown
+  /\bhistory\s+-c\b/,           // clear history (suspicious)
+  /\brm\s+.*\.log\b/,           // deleting logs
+  /\bkurl\b/,                    // common obfuscated curl
+  /\bncat\s+.*\s+-e\s+/,         // reverse shell
+  /\bpython\s+-c\s+.*import\s+socket/, // reverse shell
 ];
 
 export function isDangerousCommand(cmd: string): boolean {
