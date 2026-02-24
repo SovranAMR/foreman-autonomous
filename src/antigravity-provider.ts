@@ -498,15 +498,15 @@ export class AntigravityProvider implements LLMProvider {
 
     for (const endpoint of endpoints) {
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 180_000);
+        
+        
         let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
           method: "POST",
           headers: getHeaders(this.credentials.accessToken),
           body: JSON.stringify(requestBody),
-          signal: controller.signal,
+          
         });
-        clearTimeout(timeout);
+        
 
         // 401/403 → refresh token and retry
         if (response.status === 401 || response.status === 403) {
@@ -673,15 +673,15 @@ export class AntigravityProvider implements LLMProvider {
 
       for (const endpoint of endpoints) {
         try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 180_000);
+          
+          
           let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
             method: "POST",
             headers: getHeaders(this.credentials.accessToken),
             body: JSON.stringify(requestBody),
-            signal: controller.signal,
+            
           });
-          clearTimeout(timeout);
+          
 
           if (response.status === 401 || response.status === 403) {
             const refreshed = await refreshAntigravityToken(

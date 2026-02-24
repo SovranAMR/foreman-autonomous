@@ -95,8 +95,8 @@ export class KimiProvider implements LLMProvider {
             stream: false,
         };
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 180_000);
+        
+        
 
         const response = await fetch(KIMI_ENDPOINT, {
             method: "POST",
@@ -105,9 +105,9 @@ export class KimiProvider implements LLMProvider {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
-            signal: controller.signal,
+            
         });
-        clearTimeout(timeout);
+        
 
         if (!response.ok) {
             const errText = await response.text();
@@ -148,8 +148,8 @@ export class KimiProvider implements LLMProvider {
             stream: true,
         };
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 120_000);
+        
+        
 
         const response = await fetch(KIMI_ENDPOINT, {
             method: "POST",
@@ -158,9 +158,9 @@ export class KimiProvider implements LLMProvider {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
-            signal: controller.signal,
+            
         });
-        clearTimeout(timeout);
+        
 
         if (!response.ok) {
             const errText = await response.text();
@@ -209,8 +209,8 @@ export class KimiProvider implements LLMProvider {
                 tool_choice: "auto",
             };
 
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 180_000);
+            
+            
 
             const response = await fetch(KIMI_ENDPOINT, {
                 method: "POST",
@@ -219,9 +219,9 @@ export class KimiProvider implements LLMProvider {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(body),
-                signal: controller.signal,
+                
             });
-            clearTimeout(timeout);
+            
 
             if (!response.ok) {
                 const errText = await response.text();
