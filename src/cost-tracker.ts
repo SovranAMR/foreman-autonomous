@@ -44,6 +44,7 @@ export interface CostEntry {
   timestamp: number;
   chainId?: string;
   atomIndex?: number;
+  error?: string; // Track failures
 }
 
 export interface PhaseCostBreakdown {
@@ -103,6 +104,8 @@ export const MODEL_COSTS: Record<string, ModelPricing> = {
   "claude-3.5-sonnet": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
   "claude-3-7-sonnet": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
   "claude-3.7-sonnet": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
+  "claude-3-7-sonnet-thinking": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
+  "claude-3.7-sonnet-thinking": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
   "claude-sonnet-4": { input: 3.0, output: 15.0, cacheRead: 0.3, cacheWrite: 3.75 },
   "claude-3-5-haiku": { input: 0.80, output: 4.0, cacheRead: 0.08, cacheWrite: 1.0 },
   "claude-3.5-haiku": { input: 0.80, output: 4.0, cacheRead: 0.08, cacheWrite: 1.0 },
@@ -127,6 +130,8 @@ export const MODEL_COSTS: Record<string, ModelPricing> = {
   // Free/cheap models
   "llama-3.3-70b": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "qwen-2.5-72b": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  "sonar-pro": { input: 3.0, output: 15.0, cacheRead: 0, cacheWrite: 0 },
+  "sonar-reasoning": { input: 1.0, output: 5.0, cacheRead: 0, cacheWrite: 0 },
 };
 
 const DEFAULT_PRICING: ModelPricing = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
@@ -171,7 +176,7 @@ export class CostTracker {
     inputTokens: number,
     outputTokens: number,
     cacheTokens = 0,
-    meta?: { chainId?: string; atomIndex?: number },
+    meta?: { chainId?: string; atomIndex?: number; error?: string },
   ): CostEntry {
     const pricing = this.getPricing(model);
     const cost = this.calculateCost(pricing, inputTokens, outputTokens, cacheTokens);
@@ -187,6 +192,7 @@ export class CostTracker {
       timestamp: Date.now(),
       chainId: meta?.chainId,
       atomIndex: meta?.atomIndex,
+      error: meta?.error,
     };
 
     this.entries.push(entry);
@@ -290,7 +296,9 @@ export class CostTracker {
     if (r.byPhase.length > 0) {
       lines.push(`\n  \x1b[1mBy Phase:\x1b[0m`);
       for (const p of r.byPhase) {
-        lines.push(`    ${p.phase.padEnd(12)} $${p.totalCost.toFixed(4)} (${p.callCount} calls)`);
+        const errorCount = this.entries.filter(e => e.phase === p.phase && e.error).length;
+        const errorIndicator = errorCount > 0 ? ` \x1b[31m(${errorCount} fails)\x1b[0m` : "";
+        lines.push(`    ${p.phase.padEnd(12)} $${p.totalCost.toFixed(4)} (${p.callCount} calls)${errorIndicator}`);
       }
     }
 
