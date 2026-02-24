@@ -499,7 +499,7 @@ export class AntigravityProvider implements LLMProvider {
     for (const endpoint of endpoints) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30_000);
+        const timeout = setTimeout(() => controller.abort(), 180_000);
         let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
           method: "POST",
           headers: getHeaders(this.credentials.accessToken),
@@ -674,7 +674,7 @@ export class AntigravityProvider implements LLMProvider {
       for (const endpoint of endpoints) {
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 30_000);
+          const timeout = setTimeout(() => controller.abort(), 180_000);
           let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
             method: "POST",
             headers: getHeaders(this.credentials.accessToken),

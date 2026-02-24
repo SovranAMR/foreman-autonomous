@@ -96,7 +96,7 @@ export class KimiProvider implements LLMProvider {
         };
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 60_000);
+        const timeout = setTimeout(() => controller.abort(), 180_000);
 
         const response = await fetch(KIMI_ENDPOINT, {
             method: "POST",
@@ -149,7 +149,7 @@ export class KimiProvider implements LLMProvider {
         };
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30_000);
+        const timeout = setTimeout(() => controller.abort(), 120_000);
 
         const response = await fetch(KIMI_ENDPOINT, {
             method: "POST",
@@ -210,7 +210,7 @@ export class KimiProvider implements LLMProvider {
             };
 
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 60_000);
+            const timeout = setTimeout(() => controller.abort(), 180_000);
 
             const response = await fetch(KIMI_ENDPOINT, {
                 method: "POST",
