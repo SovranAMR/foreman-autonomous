@@ -150,6 +150,7 @@ export class Engine {
   /** The user's chosen model — ALL layers use this unless explicitly overridden */
   readonly primaryModel: string | undefined;
   private maxFormatRetries: number;
+  private _lastUnhealthyCount = 0;
 
   /** Layer-based confidence thresholds */
   private readonly confidenceThresholds: Record<Layer, { warn: number; block: number }> = {
@@ -254,9 +255,11 @@ export class Engine {
           const repair = this.repairChain(chain.id);
           if (!repair.healthy) unhealthyCount++;
         }
-        if (unhealthyCount > 0) {
-          console.error(`[scheduler] ${unhealthyCount}/${chains.length} active chains unhealthy`);
+        // Only log once when count changes, not every tick
+        if (unhealthyCount > 0 && unhealthyCount !== this._lastUnhealthyCount) {
+          console.warn(`[scheduler] ${unhealthyCount}/${chains.length} active chains unhealthy — consider running 'foreman chains cleanup'`);
         }
+        this._lastUnhealthyCount = unhealthyCount;
       },
     });
 
