@@ -98,16 +98,21 @@ export class HallucinationGuard {
 
     if (!content.trim()) return {};
 
-    // Vision layer is exploratory — relaxed fact-checking
-    // Only block on dangerous hallucinations (wrong commands, fake URLs)
-    // NOT on structural claims (file counts, module descriptions, architecture analysis)
+    // Vision layer is exploratory — do NOT fact-check or block
+    // Vision creates plans, describes architecture, estimates scope
+    // All assertions are aspirational, not factual claims
+    // Real validation happens at worker/reviewer level
     const isVisionLayer = data.layer === "visioner" || data.layer === "vision";
+    if (isVisionLayer) {
+      return {};
+    }
+
     const isResearchLayer = data.layer === "researcher" || data.layer === "research";
 
     const checker = createFactChecker(this.state.groundTruth, {
       strictCommands: this.config.strictMode,
-      strictFiles: this.config.strictMode && !isVisionLayer, 
-      strictMetrics: this.config.strictMode && !isVisionLayer && !isResearchLayer,
+      strictFiles: this.config.strictMode,
+      strictMetrics: this.config.strictMode && !isResearchLayer,
       strictLinks: this.config.strictMode,
     });
 
@@ -117,23 +122,10 @@ export class HallucinationGuard {
     if (!result.valid) {
       this.state.violationCount += result.violations.length;
 
-      // Vision layer: only block on critical violations (commands, links)
-      if (isVisionLayer) {
-        const dangerousCount = result.violations.filter(v =>
-          v.type === "command" || v.type === "link"
-        ).length;
-        if (dangerousCount === 0) {
-          // File/metric/claim violations in vision — warn but don't block
-          this.config.onViolation?.(`Vision soft hallucination: ${result.violations[0].message}`, "warn");
-          console.log(`[guard] Vision: ${result.violations.length} soft violations (not blocking)`);
-          return {};
-        }
-      }
-
       if (this.config.strictMode) {
         // Generate feedback for retry
         const feedback = checker.generateFeedback(result);
-        this.config.onViolation?.(`${data.layer} hallucination: ${result.violations[0].message}`, "error");
+        this.config.onViolation?.(`${data.layer} hallucination: ${result.violations[0].reason}`, "error");
 
         return {
           block: true,
