@@ -302,7 +302,12 @@ export class PipelineObserver {
         success,
         durationMs: duration,
         blocks: this.blocks.length,
-        errors: this.errors.length,
+        atoms: summary.totalAtoms,
+        passed: summary.passedAtoms,
+        failed: summary.failedAtoms,
+        cost: summary.totalCost,
+        tokens: summary.totalTokens,
+        hallucinations: summary.totalHallucinations,
       },
     });
 
@@ -481,8 +486,11 @@ export class PipelineObserver {
       this.currentToolCall.result = detail.slice(0, 500);
       this.currentToolCall.success = detail.includes("✔") || !detail.includes("✖");
     }
+    this.recordEvent("tool", "result", { 
+      detail,
+      data: { success: this.currentToolCall?.success }
+    });
     this.currentToolCall = null;
-    this.recordEvent("tool", "result", { detail });
   }
 
   // ─── OPERATION TRACKING ─────────────────────────────────
