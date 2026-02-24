@@ -2101,8 +2101,8 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
       ? `${(durationMs / 60_000).toFixed(1)}m`
       : `${(durationMs / 1000).toFixed(1)}s`;
 
-    // Log pipeline timing
-    console.log(`[forge] Pipeline ${success ? "completed" : "failed"} in ${durationStr} — ${totalThoughts} thoughts, ${totalTokens} tokens`);
+    // Log pipeline timing with more detail
+    console.log(`[forge] Pipeline ${success ? "completed" : "failed"} in ${durationStr} — ${totalThoughts} thoughts, ${totalTokens} tokens${blockedAt ? ` (blocked at ${blockedAt})` : ""}`);
 
     // Session auto-end on failure too
     if (!success) {
@@ -2111,7 +2111,7 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
         this.engine.sessions.end(
           activeSession.id,
           "completed",
-          `Blocked at ${blockedAt} — ${totalThoughts} thoughts`,
+          `Blocked at ${blockedAt ?? "unknown"} — ${totalThoughts} thoughts`,
         );
       }
     }
