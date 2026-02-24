@@ -125,8 +125,8 @@ export function classifyLLMError(err: unknown): ErrorClass {
     return "timeout";
   }
 
-  // Transient network
-  if (/ECONNREFUSED|ENETUNREACH|ENOTFOUND|socket|network/i.test(code + message)) {
+  // Transient network (socket closed, connection reset, terminated)
+  if (/ECONNREFUSED|ENETUNREACH|ENOTFOUND|socket|network|terminated|UND_ERR|other side closed/i.test(code + message)) {
     return "transient";
   }
 
