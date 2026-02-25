@@ -9,10 +9,6 @@ _Last synced: 2026-02-25_
 ⚠️ [visioner] **GOAL**: Create the file with the exact text content. <!-- mem_143 -->
 ⚠️ [visioner] **GOAL**: Create a file named in the project root containing exactly the string. <!-- mem_167 -->
 ⚠️ [visioner] **GOAL**: Deterministically create containing exactly the string. <!-- mem_207 -->
-⚠️ [visioner] **GOAL**: Create the file with the exact text content. <!-- mem_459 -->
-⚠️ [visioner] **GOAL**: Create the file containing exactly the string. <!-- mem_460 -->
-⚠️ [visioner] **GOAL**: Deterministically create containing exactly the string. <!-- mem_461 -->
-⚠️ [visioner] **GOAL**: Create a file named in the project root containing exactly the string. <!-- mem_462 -->
 ⚠️ [visioner] **GOAL**: Create the file `/tmp/forge-ok.txt` with the exact text content `Forge pipeline works`.
 **ACCEPTANCE CRITERIA**: The file exists at `/tmp/forge-ok.txt` and its exact string content matches t... <!-- mem_093 -->
 ⚠️ [visioner] **GOAL**: Create the file `/tmp/forge-ok.txt` containing exactly the string `Forge pipeline works`.
@@ -38,6 +34,8 @@ OUTPUT:
 📌 [visioner] **EMOTION TARGET**: The awe of discovering a classified technical manual for a perfect machine. The reader should feel they've uncovered documentation from a secret military-grade fabrication facility... <!-- mem_278 -->
 📌 [visioner] **EMOTION TARGET**: The breathless awe of standing in a cathedral of industry watching a perfect machine awaken. The reader should feel the heat of transformation—seeing raw chaos (unstructured ideas)... <!-- mem_291 -->
 📌 [visioner] **EMOTION TARGET**: "Sterile Luxury" — the immediate sensation of entering a Swiss medical suite with Turkish hospitality warmth. The user should feel their smile is entering VIP treatment, not a clin... <!-- mem_324 -->
+📌 [visioner] This showcase must physically manifest that philosophy: the website IS the machine. We're building a digital forge where users witness raw chaos (entropy) being hammered into crystalline structure (co... <!-- mem_475 -->
+📌 [visioner] **EMOTION TARGET**: Controlled Combustion. The viewer should feel the raw power of industrial machinery perfectly tamed by surgical precision—like standing in a crucible where liquid metal flows with ... <!-- mem_497 -->
 📌 [visioner] **EMOTION TARGET**: "Trusted Prestige" — The immediate feeling of walking into a five-star hotel that happens to be a world-class dental facility. The user should feel: "This is where important people... <!-- mem_345 -->
 📌 [visioner] **EMOTION TARGET**: "Sterile Awe" — The immediate sensation of walking into a state-of-the-art facility where every surface is pristine and every technology is bleeding-edge. Not cold—*precise*. The u... <!-- mem_355 -->
 📌 [visioner] **EMOTION TARGET**: "Swiss Clinic at Golden Hour" — The user should feel they've entered a space where medical precision meets luxury hospitality. Not "hospital sterile" (anxiety), not "spa fluffy" (u... <!-- mem_425 -->
@@ -45,13 +43,13 @@ OUTPUT:
 📌 [visioner] must be purely functional, parseable data. <!-- mem_091 -->
 📌 Block 1/1: Create the complete file conta — 1 atoms completed `foreman` `pipeline` `block_1` <!-- mem_429 -->
 📌 [visioner] **GOAL**: Enhance with mechanical precision—optimize rendering pipeline, animation physics, and mobile stability while preserving 100% of existing visual structure, content, a... <!-- mem_445 -->
-📌 Block 1/2: Implement Performance & Stability Foundation inforemanpipelineblock_1` `foreman` `pipeline` `block_1` <!-- mem_452 -->
-📌 Block 2/2: Implement Animation Physics & UX Sequencing inforemanpipelineblock_2` `foreman` `pipeline` `block_2` <!-- mem_458 -->
-📌 [visioner] must be purely functional, parseable data. <!-- mem_463 -->
-📌 [visioner] **GOAL**: Create a file named in the project root containing exactly an heading and 3 random software development tips. <!-- mem_464 -->
-📌 [visioner] **EMOTION TARGET**: Industrial awe, relentless precision, and unstoppable automated power. The reader should feel they have just discovered military-grade or heavy-industrial orchestration software. <!-- mem_465 -->
+📌 Block 1/2: Implement Performance & Stability Foundation inforemanpipelineblock_1foremanpipelineblock_1foremanpipelineblock_1foremanpipelineblock_1` `foreman` `pipeline` `block_1` <!-- mem_452 -->
+📌 Block 2/2: Implement Animation Physics & UX Sequencing inforemanpipelineblock_2foremanpipelineblock_2foremanpipelineblock_2foremanpipelineblock_2` `foreman` `pipeline` `block_2` <!-- mem_458 -->
+📌 Block 1/1: Create the complete as a self- — 1 atoms completed `foreman` `pipeline` `block_1` <!-- mem_480 -->
+📌 Block 1/1: Create the completeforemanpipelineblock_1` `foreman` `pipeline` `block_1` <!-- mem_527 -->
 📌 [visioner] **EMOTION TARGET**: Architectural Revelation. The reader must experience the quiet awe of lifting the hood on a Formula 1 engine—every component visible, every tolerance purposeful, every connection l... <!-- mem_213 -->
 📌 [visioner] **EMOTION TARGET**: The awe of discovering a master craftsman's workshop manual—equal parts industrial precision and artistic passion. The reader should feel like they're reading a classified technica... <!-- mem_286 -->
+📌 [visioner] **EMOTION TARGET**: Industrial Transcendence. The viewer should feel the overwhelming heat and weight of a working steel forge merged with the surgical precision of Swiss watchmaking. It must evoke th... <!-- mem_522 -->
 📌 Block 1/6: Create the Opening Forge Ignition sequence (12 frames) with  — 4 atoms completed `foreman` `pipeline` `block_1` <!-- mem_299 -->
 📌 Block 2/6: Create the Pipeline Flow Architecture animation (8 frames) s — 4 atoms completed `foreman` `pipeline` `block_2` <!-- mem_306 -->
 📌 Block 3/6: Create Personnel File character cards for the 5 core compone — 3 atoms completed `foreman` `pipeline` `block_3` <!-- mem_312 -->
@@ -60,6 +58,8 @@ OUTPUT:
 📌 Block 1/8: Foundation Layer — Create the HTML5 boilerplate with viewpor — 4 atoms completed `foreman` `pipeline` `block_1` <!-- mem_332 -->
 📌 Block 1/6: Foundation & Premium Design System. Establish the HTML5 skel — 2 atoms completed `foreman` `pipeline` `block_1` <!-- mem_351 -->
 📌 Block 3/6: Implement Kinetic Typography & Content Hierarchy—Program cha — 4 atoms completed `foreman` `pipeline` `block_3` <!-- mem_423 -->
+📌 Block 1/2: Create the WebGL foundation at ./foreman-showcase/index.html — 1 atoms completed `foreman` `pipeline` `block_1` <!-- mem_502 -->
+📌 Block 2/2: Enhance ./foreman-showcase/index.html with the terminal boot — 1 atoms completed `foreman` `pipeline` `block_2` <!-- mem_505 -->
 
 ## Patterns
 
@@ -89,6 +89,7 @@ OUTPUT:
 📌 [strategist] 1. Foundation Layer — Create the HTML5 boilerplate with viewport meta, Tailwind CDN, Google Fonts (Playfair Display + Inter), and CSS custom properties for the exact color palette (#0d9488 teal, #f59e... <!-- mem_325 -->
 📌 [strategist] 1. Create the directory `eyrice-hero/` in the project root to establish the deployment workspace. [Acceptance Criteria: Directory exists at path `./eyrice-hero` and permits file creation]
 2. Write `ey... <!-- mem_358 -->
+📌 [strategist] 1. Create the WebGL foundation at ./foreman-showcase/index.html containing the Three.js importmap, liquid metal fragment shader background, and 5000-particle instanced mesh system that forms "FORGE" t... <!-- mem_498 -->
 📌 [strategist] 1. Append industrial section break (═══════════════════════) and "Forge in Action" section header with 2-3 lines of narrative framing text describing the facility's cold-start sequence, using industri... <!-- mem_319 -->
 📌 [strategist] 1. Establish the Design System Foundation—Create HTML5 skeleton with CSS custom properties for Porcelain White (#F8F6F3), Liquid Gold (#C9A961), and Deep Teal (#0A3A4A); implement 8px grid system; loa... <!-- mem_402 -->
 📌 [strategist] 1. Create the 15-line ASCII header banner featuring the massive central anvil with frozen hammer-strike moment and radial spark explosion using only ASCII characters (* + ^ ~ ⚡ as bright clusters, ` a... <!-- mem_202 -->
@@ -123,7 +124,12 @@ OUTPUT:
 📌 [strategist] 1. Replace synchronous GSAP script tags in with dynamic import strategy: Remove the two synchronous tag... <!-- mem_450 -->
 📌 [strategist] 1. Refactor all GSAP timeline configurations in to implement medical-device precision physics: Convert all existing tweens to with explicit start/end states; update... <!-- mem_454 -->
 📌 [strategist] 1. Implement intro scroll lock in: Locate the existing hero intro GSAP timeline (approximately lines 1240-1260), add `onStart: () => { document.body.style.overflow = 'hidden';... <!-- mem_456 -->
-📌 [strategist] 1. Create the directory in the project root to establish the deployment workspace. [Acceptance Criteria: Directory exists at path and permits file creation] <!-- mem_466 -->
+📌 [strategist] 1. Create the complete as a self-contained, single-file masterpiece containing all CSS and JS. Implement: (1) WebGL/Three.js hero with liquid metal distortion shader (30f... <!-- mem_476 -->
+📌 [strategist] 1. Create the complete self-contained masterpiece file at containing: (a) HTML5 boilerplate with viewport meta and inline CSS/JS, (b) Three.js WebGL hero implementing a l... <!-- mem_478 -->
+📌 [strategist] 1. Create the complete self-contained WebGL foundation file at containing: (a) HTML5 boilerplate with viewport meta, charset, and full-screen canvas container with Cruc... <!-- mem_500 -->
+📌 [strategist] 1. Enhance the existing file by injecting the complete interaction layer: (a) Terminal boot sequence DOM element positioned absolutely over the canvas with CSS phosphor... <!-- mem_504 -->
+📌 [strategist] 1. Create the complete file containing the theatrical 3.5-second holographic terminal boot sequence ("WAKE UP, FOREMAN."), liquid WebGL ... <!-- mem_523 -->
+📌 [strategist] 1. Create the complete self-contained showcase file at containing: HTML5 boilerplate with viewport meta and inline CSS/JS (no external d... <!-- mem_525 -->
 📌 [strategist] 1. Create the 12-line FIGlet-style "FOREMAN" title banner using block characters (▀▄█▌▐) with metallic gradient shading, establishing the ASCII shading strategy (heavy blocks █ for structure, ▓▒░ for ... <!-- mem_287 -->
 
 ## Lessons Learned
@@ -147,9 +153,6 @@ OUTPUT:
 ⚠️ [worker] Hero Layout CSS successfully appended to the design system. The file now contains: <!-- mem_372 -->
 ⚠️ [worker] Atom 1/4 complete. The directory has been created and populated with containing the exact HTML5 skeleton required. All acceptance criteria verified: directory exists, ... <!-- mem_405 -->
 ⚠️ [worker] Atom 2/4 complete. CSS custom properties successfully injected into. All three brand colors (#F8F6F3, #C9A961, #0A3A4A) match Vision Document exactly. 8px grid system esta... <!-- mem_406 -->
-⚠️ [worker] Task completed successfully. The file now contains all required elements: <!-- mem_467 -->
-⚠️ [worker] Design system CSS successfully injected into the style tag. All required components are present: <!-- mem_468 -->
-⚠️ [worker] Hero Layout CSS successfully appended to the design system. The file now contains: <!-- mem_469 -->
 ⚠️ [worker] The synchronous filesystem strike is complete. The vault has locked into place. The artifact is precisely stamped with zero reverberation, fulfilling the block's objective without requiring any asynch... <!-- mem_085 -->
 ⚠️ [worker] Executed the strict, synchronous filesystem strike using native Node.js as directed. The vault has locked into place. The operation produced zero noise, adhering to the absolute constraints of the vis... <!-- mem_100 -->
 ⚠️ [worker] Deterministic state verification is complete. The byte-count validation has been issued to confirm structural integrity of the artifact. The execution trace mathematically proves the exact payload siz... <!-- mem_118 -->
@@ -179,6 +182,7 @@ OUTPUT:
 📌 [worker] Successfully optimized GSAP animations for medical-device aesthetic:
 - Converted 3 separate .from()/.to() chains to explicit .fromTo() to prevent animation state conflicts
 - Increased stagger delay fr... <!-- mem_455 -->
+📌 [worker] Successfully created the Foreman showcase landing page as a single-file solution. The page demonstrates the 4-layer architecture concept through its visual design and boot sequence narrative. All anim... <!-- mem_479 -->
 📌 [worker] Successfully implemented performance optimizations: lazy loading on 3 below-fold images, CSS containment on 4 section containers, and accessibility support for reduced motion. The hero image correctly... <!-- mem_449 -->
 📌 [worker] Successfully initialized with the industrial section break and frames 1-4 of the spark ignition sequence. The file shows progressive scatter density from F... <!-- mem_295 -->
 📌 [worker] Successfully appended frames 5-8 to. Hydraulic pressure build-up sequence now shows progressive mechanical compression from 25% to 75% fill using █ blocks.... <!-- mem_296 -->
@@ -193,12 +197,11 @@ OUTPUT:
 📌 [worker] Atom 3/5 complete. Successfully appended CSS rules to the design system. The class provides an abstract crystalline background using three layered radial-gradients with brand colors at... <!-- mem_414 -->
 📌 [worker] Atom 3/4 complete. Successfully appended kinetic animation CSS to the block. The file now contains the keyframes (opacity 0→1, translateY 20px→0 over 0.6s ea... <!-- mem_420 -->
 📌 [worker] Successfully created standalone Turkish dental hospital landing page at. Deliverable includes 5 fully styled sections with GSAP animations (hero text stagger, scroll reve... <!-- mem_428 -->
-📌 BLOCK RE-DECOMPOSED (Block 1): "Implement Performance & Stability Foundation inforemanpipelinere_decomposeblock_1` `foreman` `pipeline` `re_decompose` `block_1` <!-- mem_451 -->
-📌 BLOCK RE-DECOMPOSED (Block 2): "Implement Animation Physics & UX Sequencing inforemanpipelinere_decomposeblock_2` `foreman` `pipeline` `re_decompose` `block_2` <!-- mem_457 -->
-📌 [worker] Successfully appended CLI initialization code example to. Content includes: <!-- mem_470 -->
-📌 [worker] Atom 2/4 complete. Typography hierarchy CSS successfully appended to the block. All five CSS selectors defined with exact specifications: <!-- mem_471 -->
+📌 BLOCK RE-DECOMPOSED (Block 1): "Implement Performance & Stability Foundation inforemanpipelinere_decomposeblock_1foremanpipelinere_decomposeblock_1foremanpipelinere_decomposeblock_1foremanpipelinere_decomposeblock_1` `foreman` `pipeline` `re_decompose` `block_1` <!-- mem_451 -->
+📌 BLOCK RE-DECOMPOSED (Block 2): "Implement Animation Physics & UX Sequencing inforemanpipelinere_decomposeblock_2foremanpipelinere_decomposeblock_2foremanpipelinere_decomposeblock_2foremanpipelinere_decomposeblock_2` `foreman` `pipeline` `re_decompose` `block_2` <!-- mem_457 -->
 📌 [worker] Successfully optimized GSAP animations for medical-device aesthetic: <!-- mem_472 -->
-📌 [worker] Summary <!-- mem_473 -->
+📌 [worker] Successfully created - a standalone, self-contained visual showcase of the 4-layer Foreman architecture. The file uses Three.js via CDN to render an interactive 3D visu... <!-- mem_501 -->
+📌 [worker] Successfully created with self-contained animation showcase. File includes: (1) Three.js WebGL wireframe background with auto-rotation, ... <!-- mem_526 -->
 📌 [worker] Summary
 
 Since I don't have actual files to read (this appears to be a new file creation or content generation task), I need to state that in STEP1.
@@ -249,10 +252,13 @@ Let me think about the ASCII art itself. I need to... <!-- mem_290 -->
 
 **1) Breathing Gradient Mesh (CSS-Only Implemen... <!-- mem_424 -->
 📌 [researcher] **Single-File Atomic Architecture**: Project memory explicitly demonstrates that incremental "append" or "update" operations on CSS blocks fail due to "Atom Task Disobedience" and hallucinated file st... <!-- mem_427 -->
+📌 [researcher] **Particle System Architecture**: 5,000 particles is achievable using THREE.BufferGeometry with Float32Array positions. For text formation, render "FORGE" to HTML5 Canvas 2D context at 200pt, sample p... <!-- mem_477 -->
+📌 [researcher] **Terminal Boot Architecture**: Implement a Promise-based typewriter using async/await with 50ms delays (const TYPE_SPEED = 50) to avoid main-thread blocking while maintaining precise timing. Apply ph... <!-- mem_503 -->
+📌 [researcher] Single-file Three.js architecture requires solving the FontLoader dependency for 3D text geometry without external HTTP requests; the optimal approach is inlining a Typeface.js JSON subset containing ... <!-- mem_524 -->
 📌 [researcher] ASCII personnel file cards using box-drawing characters (┌─┐│└┘) are the standard for "technical blueprint" aesthetics in terminal interfaces, directly aligning with Fallout Pip-Boy and NASA Mission C... <!-- mem_307 -->
 📌 [researcher] For a single-file "Trusted Prestige" architecture, the optimal approach combines aggressive performance optimization with luxury aesthetic execution. **Google Fonts Loading**: Use `<link rel="preconne... <!-- mem_347 -->
 📌 [researcher] For a premium medical aesthetic foundation in a single HTML file, implement these technical specifications: **1) CSS Custom Properties Architecture**: Define exact Vision Document colors in :root with... <!-- mem_403 -->
 📌 [researcher] 1. **Optimal Directory Tree Structure**: Heavy box-drawing characters (┏ ┓ ┗ ┛ ━ ┃ ┣ ┫) provide the mathematically correct "steel blueprint" aesthetic for representing the src/, memory/, sessions/, ta... <!-- mem_313 -->
 📌 [researcher] Native lazy loading via achieves 95%+ global support but must exclude Largest Contentful Paint (LCP) candidates—typically the hero/first viewport image—to prevent Lighthouse Performan... <!-- mem_447 -->
 📌 [researcher] GSAP animation physics for medical-device precision requires strict adherence to tweens for all scroll-linked elements—this ensures deterministic reverse playback during scroll-up operation... <!-- mem_453 -->
-📌 [researcher] For a premium medical aesthetic implementing "Atmospheric Motion Systems" in a single-file deployment, the following technical architecture is optimal: <!-- mem_474 -->
+📌 [researcher] **Three.js Importmap Strategy**: Use modern ES modules via to import Three.js from CDN (esm.sh or unpkg) without bundling. This satisfies the "single file" constraint while... <!-- mem_499 -->

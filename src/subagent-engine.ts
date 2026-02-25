@@ -92,16 +92,39 @@ export interface TeamPlan {
 
 // ─── SUB-AGENT ENGINE ────────────────────────────────────────
 
+import { AgentRegistry } from "./agent-mesh/agent-registry.js";
+import type { AgentRole } from "./agent-mesh/types.js";
+
 export class SubAgentEngine extends EventEmitter {
   private agents = new Map<string, SubAgent>();
   private maxConcurrent: number;
   private activeCount = 0;
   private pendingQueue: Array<{ agent: SubAgent; config: SubAgentConfig }> = [];
   private executors = new Map<string, (agent: SubAgent, config: SubAgentConfig) => Promise<SubAgentResult>>();
+  
+  // AGENT MESH INTEGRATION (Phase 1)
+  private registry: AgentRegistry;
+  private enableMesh: boolean;
 
-  constructor(options?: { maxConcurrent?: number }) {
+  constructor(options?: { maxConcurrent?: number; enableMesh?: boolean }) {
     super();
     this.maxConcurrent = options?.maxConcurrent ?? 3;
+    this.enableMesh = options?.enableMesh ?? true;
+    this.registry = new AgentRegistry();
+    
+    // Forward registry events
+    this.setupRegistryEventForwarding();
+  }
+  
+  private setupRegistryEventForwarding(): void {
+    if (!this.enableMesh) return;
+    
+    this.registry.on("agent.registered", (e) => this.emit("mesh:registered", e));
+    this.registry.on("agent.state.changed", (e) => this.emit("mesh:stateChanged", e));
+    this.registry.on("agent.heartbeat", (e) => this.emit("mesh:heartbeat", e));
+    this.registry.on("agent.blocked", (e) => this.emit("mesh:blocked", e));
+    this.registry.on("agent.completed", (e) => this.emit("mesh:completed", e));
+    this.registry.on("agent.failed", (e) => this.emit("mesh:failed", e));
   }
 
   /**
@@ -132,6 +155,13 @@ export class SubAgentEngine extends EventEmitter {
     };
 
     this.agents.set(agent.id, agent);
+    
+    // AGENT MESH: Register in registry (Phase 1)
+    if (this.enableMesh) {
+      const role = (config.role?.toUpperCase() as AgentRole) || "WORKER";
+      this.registry.registerFromSubAgent(agent.id, config.task, role, parentId);
+      this.registry.updateState(agent.id, { status: "REGISTERED" });
+    }
 
     // Link to parent
     if (parentId) {
@@ -238,6 +268,12 @@ export class SubAgentEngine extends EventEmitter {
     agent.status = "killed";
     agent.finishedAt = Date.now();
     this.activeCount = Math.max(0, this.activeCount - 1);
+    
+    // AGENT MESH: Update registry
+    if (this.enableMesh) {
+      this.registry.terminate(agentId, "Killed by orchestrator");
+    }
+    
     this.emit("killed", agent);
     this.drainQueue();
     return true;
@@ -248,6 +284,37 @@ export class SubAgentEngine extends EventEmitter {
    */
   get(agentId: string): SubAgent | undefined {
     return this.agents.get(agentId);
+  }
+  
+  /**
+   * AGENT MESH: Get underlying registry for advanced operations.
+   */
+  getRegistry(): AgentRegistry | undefined {
+    return this.enableMesh ? this.registry : undefined;
+  }
+  
+  /**
+   * AGENT MESH: Get global metrics across all agents.
+   */
+  getMeshMetrics() {
+    if (!this.enableMesh) return null;
+    return this.registry.getGlobalMetrics();
+  }
+  
+  /**
+   * AGENT MESH: Get healthy agents (health score >= 70).
+   */
+  getHealthyAgents() {
+    if (!this.enableMesh) return [];
+    return this.registry.getHealthy();
+  }
+  
+  /**
+   * AGENT MESH: Send heartbeat for an agent (for external health checks).
+   */
+  heartbeat(agentId: string, updates?: { progress?: number; healthScore?: number }): void {
+    if (!this.enableMesh) return;
+    this.registry.heartbeat(agentId, updates);
   }
 
   /**
@@ -366,6 +433,14 @@ export class SubAgentEngine extends EventEmitter {
     agent.status = "running";
     this.activeCount++;
     this.emit("started", agent);
+    
+    // AGENT MESH: Update registry status
+    if (this.enableMesh) {
+      this.registry.updateState(agent.id, { 
+        status: "BUSY",
+        startedAt: new Date()
+      });
+    }
 
     // Set timeout
     const timeoutMs = config.timeoutMs ?? 300_000;
@@ -376,6 +451,15 @@ export class SubAgentEngine extends EventEmitter {
         agent.error = `Timed out after ${timeoutMs}ms`;
         this.activeCount = Math.max(0, this.activeCount - 1);
         this.emit("timeout", agent);
+        
+        // AGENT MESH: Update registry
+        if (this.enableMesh) {
+          this.registry.updateState(agent.id, { 
+            status: "FAILED",
+            blockedReason: `Timeout after ${timeoutMs}ms`
+          });
+        }
+        
         this.drainQueue();
       }
     }, timeoutMs);
@@ -390,12 +474,49 @@ export class SubAgentEngine extends EventEmitter {
       agent.result = result;
       agent.status = result.success ? "completed" : "failed";
       agent.finishedAt = Date.now();
+      
+      // AGENT MESH: Update registry with completion
+      if (this.enableMesh) {
+        this.registry.updateState(agent.id, { 
+          status: result.success ? "COMPLETED" : "FAILED",
+          progress: result.success ? 100 : agent.state?.progress || 0,
+          tokensUsed: result.tokensUsed
+        });
+        
+        if (result.success) {
+          this.registry.emit("agent.completed", { 
+            agentId: agent.id, 
+            output: {
+              files: [...result.filesCreated, ...result.filesModified],
+              summary: result.output,
+              artifacts: {},
+              metrics: {
+                totalOperations: result.thoughtCount,
+                successfulOperations: result.success ? result.thoughtCount : 0,
+                failedOperations: result.success ? 0 : result.thoughtCount,
+                averageOperationDuration: result.duration / Math.max(1, result.thoughtCount),
+                totalDuration: result.duration
+              }
+            }
+          });
+        }
+      }
+      
       this.emit(result.success ? "completed" : "failed", agent);
     } catch (err) {
       clearTimeout(timer);
       agent.status = "failed";
       agent.error = err instanceof Error ? err.message : String(err);
       agent.finishedAt = Date.now();
+      
+      // AGENT MESH: Update registry with failure
+      if (this.enableMesh) {
+        this.registry.updateState(agent.id, { 
+          status: "FAILED",
+          blockedReason: agent.error
+        });
+      }
+      
       this.emit("failed", agent);
     }
 
