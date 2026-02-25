@@ -523,8 +523,34 @@ export class MessagingGateway {
     } catch (err) {
       console.error(`[gateway] LLM error:`, err);
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("rate limit") || msg.includes("429")) {
-        return { text: "⏳ Rate limit reached. Please wait a moment." };
+      if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded")) {
+        // Retry once after 10s cooldown instead of giving up
+        console.log(`[gateway] Rate limited, retrying in 10s...`);
+        await new Promise(r => setTimeout(r, 10_000));
+        try {
+          const retryResult = await this.provider!.streamChatWithTools!(
+            [
+              { role: "system", content: await this.buildSystemPrompt() },
+              ...conversationMessages,
+            ],
+            modelId,
+            (token: string) => { responseText = token; },
+            () => {},
+            () => {},
+            32768,
+            100,
+            this.toolExecutor,
+          );
+          conversation.totalTokens += retryResult.inputTokens + retryResult.outputTokens;
+          const retryText = responseText.trim() || retryResult.text.trim();
+          if (retryText) {
+            console.log(`[gateway] Retry succeeded: ${retryText.length} chars`);
+            return { text: retryText, parseMode: "markdown" };
+          }
+        } catch (retryErr) {
+          console.error(`[gateway] Retry also failed:`, retryErr);
+        }
+        return { text: "⏳ API yoğun, biraz sonra tekrar dene." };
       }
       return { text: `❌ LLM error: ${msg.slice(0, 200)}` };
     }
