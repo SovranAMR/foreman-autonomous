@@ -404,7 +404,24 @@ export class Orchestrator {
 
     const decomposeResult = await this.engine.stepWithPhase(
       visionChain.id,
-      `Based on this VISION DOCUMENT, break the project into 5-8 implementable blocks.\n\nRules:\n- Each block must serve the vision's EMOTION TARGET\n- Each block must respect the FORBIDDEN list\n- Order blocks by dependency AND by visual importance (focal point first)\n- Each block needs clear acceptance criteria derived from the vision\n\nVISION DOCUMENT:\n${visionOutput}`,
+      `Based on this VISION DOCUMENT, break the project into implementable blocks.
+
+CRITICAL SIZING RULES:
+- Single-file tasks (1 output file) → 1-2 blocks MAX
+- Small tasks (2-5 files) → 2-3 blocks MAX
+- Medium tasks (5-15 files) → 3-5 blocks MAX
+- Large tasks (15+ files) → 5-8 blocks MAX
+- NEVER over-decompose. Fewer, larger blocks = less overhead, faster execution.
+- A single HTML file with CSS and JS is ONE block, not five.
+
+Rules:
+- Each block must serve the vision's EMOTION TARGET
+- Each block must respect the FORBIDDEN list
+- Order blocks by dependency AND by visual importance (focal point first)
+- Each block needs clear acceptance criteria derived from the vision
+
+VISION DOCUMENT:
+${visionOutput}`,
       "strategist",
       "decompose",
       [visionResult.thought.id],
@@ -615,7 +632,28 @@ export class Orchestrator {
 
       const atomizeResult = await this.engine.stepWithPhase(
         visionChain.id,
-        `Break this block into 3-6 atomic tasks. Each atom must be independently executable and verifiable.\n\nRules:\n- Each atom must be specific enough that a Worker can execute it WITHOUT guessing\n- Include file paths, component names, or specific targets when possible\n- Order atoms by dependency (what must exist before the next step)\n- Each atom description should include acceptance criteria\n\nBlock: ${block}\n\nResearch findings:\n${findings.slice(0, 800)}\n\nVISION DOCUMENT (pinned — atoms must respect ALL constraints):\n${visionOutput}`,
+        `Break this block into atomic tasks. Each atom must be independently executable and verifiable.
+
+CRITICAL SIZING RULES:
+- If the block is a single file → 1-2 atoms MAX (one atom can write the entire file)
+- If the block has 2-5 files → 2-4 atoms MAX
+- If the block has 5+ files → 3-6 atoms MAX
+- A single atom CAN create a complete file with all its content. Don't split one file into multiple atoms.
+- FEWER atoms = LESS overhead. One big atom is better than five tiny ones.
+
+Rules:
+- Each atom must be specific enough that a Worker can execute it WITHOUT guessing
+- Include file paths, component names, or specific targets when possible
+- Order atoms by dependency (what must exist before the next step)
+- Each atom description should include acceptance criteria
+
+Block: ${block}
+
+Research findings:
+${findings.slice(0, 800)}
+
+VISION DOCUMENT (pinned — atoms must respect ALL constraints):
+${visionOutput}`,
         "strategist",
         "atomize",
         [researchResult.thought.id],
