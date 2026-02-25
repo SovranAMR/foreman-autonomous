@@ -14,7 +14,8 @@
     "test:parser": "npx tsx src/parser.test.ts",
     "test:engine": "npx tsx src/engine.test.ts",
     "test:orchestrator": "npx tsx src/orchestrator.test.ts",
-    "test:enforce": "npx tsx src/enforce.test.ts"
+    "test:enforce": "npx tsx src/enforce.test.ts",
+    "web": "npx tsx src/web-server.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foreman — AI Forge</title>
+  <meta name="description" content="Foreman AI Agent — Atomic thought chains with vision, research, and tactical reasoning">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚒️</text></svg>">
+</head>
+<body>
+  <div class="app">
+    <!-- ─── Sidebar: Pipeline Monitor ─── -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">⚒️</span>
+        <div>
+          <h1>Foreman</h1>
+        </div>
+        <span class="version">v0.1</span>
+      </div>
+
+      <div class="pipeline-section">
+        <h3>Pipeline Progress</h3>
+        <div class="phase-list" id="phaseList">
+          <div class="phase-item pending" data-phase="vision">
+            <span class="phase-icon">👁️</span>
+            <span class="phase-name">Vision</span>
+            <span class="phase-status" id="phaseStatusVision">—</span>
+          </div>
+          <div class="phase-item pending" data-phase="decompose">
+            <span class="phase-icon">🔪</span>
+            <span class="phase-name">Decompose</span>
+            <span class="phase-status" id="phaseStatusDecompose">—</span>
+          </div>
+          <div class="phase-item pending" data-phase="research">
+            <span class="phase-icon">🔍</span>
+            <span class="phase-name">Research</span>
+            <span class="phase-status" id="phaseStatusResearch">—</span>
+          </div>
+          <div class="phase-item pending" data-phase="atomize">
+            <span class="phase-icon">⚛️</span>
+            <span class="phase-name">Atomize</span>
+            <span class="phase-status" id="phaseStatusAtomize">—</span>
+          </div>
+          <div class="phase-item pending" data-phase="execute">
+            <span class="phase-icon">⚡</span>
+            <span class="phase-name">Execute</span>
+            <span class="phase-status" id="phaseStatusExecute">—</span>
+          </div>
+          <div class="phase-item pending" data-phase="verify">
+            <span class="phase-icon">✅</span>
+            <span class="phase-name">Verify</span>
+            <span class="phase-status" id="phaseStatusVerify">—</span>
+          </div>
+          <div class="phase-item pending" data-phase="reflect">
+            <span class="phase-icon">🪞</span>
+            <span class="phase-name">Reflect</span>
+            <span class="phase-status" id="phaseStatusReflect">—</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px;">
+          <h3>Atoms</h3>
+          <div id="atomList" class="pipeline-events" style="max-height: 200px; overflow-y: auto;"></div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Tokens</span>
+          <span class="stat-value" id="statTokens">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Time</span>
+          <span class="stat-value" id="statTime">0s</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Tools</span>
+          <span class="stat-value" id="statTools">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Errors</span>
+          <span class="stat-value" id="statErrors">0</span>
+        </div>
+      </div>
+
+      <div class="connection">
+        <span class="connection-dot" id="connectionDot"></span>
+        <span id="connectionText">Disconnected</span>
+      </div>
+    </aside>
+
+    <!-- ─── Main: Chat Area ─── -->
+    <main class="main">
+      <header class="main-header">
+        <span>📂</span>
+        <span class="project-name" id="projectName">Foreman</span>
+        <span class="project-path" id="projectPath">~/projects/foreman</span>
+      </header>
+
+      <div class="messages" id="messages">
+        <div class="welcome" id="welcome">
+          <div class="welcome-icon">⚒️</div>
+          <h2>The Forge Awaits</h2>
+          <p>Ask anything or launch the Forge Pipeline to build, fix, or refactor your project.</p>
+          <div class="welcome-actions">
+            <button class="welcome-action" onclick="setInput('Explain the project structure')">📁 Explain project</button>
+            <button class="welcome-action" onclick="setInput('/forge Build a beautiful landing page')">⚒️ Forge pipeline</button>
+            <button class="welcome-action" onclick="setInput('Find and fix bugs')">🐛 Find bugs</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-row">
+          <button class="btn btn-forge" id="forgeBtn" onclick="toggleForge()" title="Toggle Forge Pipeline mode">⚒️</button>
+          <div class="input-wrapper">
+            <textarea id="chatInput" rows="1" placeholder="Message Foreman... (Shift+Enter for newline)" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          </div>
+          <button class="btn btn-send" id="sendBtn" onclick="sendMessage()" title="Send">➤</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
