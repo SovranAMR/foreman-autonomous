@@ -1298,8 +1298,8 @@ export class Engine {
           (call: ToolCall) => {
             options?.onToolCall?.(call);
           },
-          (toolResult: ToolResult) => {
-            options?.onToolResult?.(toolResult);
+          (toolResult: { name: string; content: string; isError?: boolean }) => {
+            options?.onToolResult?.({ ...toolResult, isError: toolResult.isError ?? false });
           },
           maxTokens,
           maxIterations,

@@ -102,7 +102,7 @@ export class Orchestrator {
         strictMode: true,
         injectContext: true,
         onViolation: (message, severity) => {
-          this.emit({ type: "hallucination", message, severity });
+          this.emit({ type: "error", message: `[hallucination-guard] ${message} (${severity})` });
         },
       }
     );
@@ -687,6 +687,7 @@ ${visionOutput}`,
       // ── 3c. EXECUTE EACH ATOM ──
       let blockPassedAtoms = 0;
       let blockFailedAtoms = 0;
+      const atomFailureReasons: Array<{ atom: string; reason: string }> = []; // F-7: track per-atom failures
       const blockStartTime = Date.now();
       for (let j = 0; j < atoms.length; j++) {
         const atom = atoms[j];
@@ -1223,6 +1224,7 @@ ${visionOutput}`,
           });
           this.engine.streaming.error(`❌ Atom ${j + 1} failed after ${this.MAX_ATOM_RETRIES} retries — skipping`);
           blockFailedAtoms++;
+          atomFailureReasons.push({ atom, reason: lastRejectionFeedback }); // F-7: collect failure
           continue; // skip to next atom in outer loop
         }
 
@@ -1533,114 +1535,134 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
           detail: `Block ${i + 1}: ${blockPassedAtoms}/${atoms.length} atoms passed`,
         });
 
+        // ─── F-3: Skip re-decompose for model-level failures (429/rate-limit) ───
+        const isModelError = atomFailureReasons.length > 0 && atomFailureReasons.every(f =>
+          /429|rate.?limit|too.?many|timeout|overload|ECONNRESET|terminated/i.test(f.reason)
+        );
+        if (isModelError) {
+          this.engine.streaming.warning(`Block ${i + 1} failed due to model rate limits — skipping re-decompose`);
+        }
+
         // ─── AUTO RE-DECOMPOSE: Strategist re-atomizes with failure context ───
-        // Don't just flag — actually re-decompose and re-execute failed atoms
-        this.engine.streaming.phaseStart("re_decompose", `Re-atomizing block ${i + 1} with failure context`);
-        try {
-          const failedAtomList = atoms
-            .filter((_, idx) => idx >= blockPassedAtoms) // simplified: failed atoms are after passed ones
-            .map((a, idx) => `- Failed atom: ${a.slice(0, 80)}`)
-            .join("\n");
+        if (!isModelError) {
+          this.engine.streaming.phaseStart("re_decompose", `Re-atomizing block ${i + 1} with failure context`);
+          try {
+            // F-7: Use actual failure records instead of sequential assumption
+            const failedAtomList = atomFailureReasons
+              .map(f => `- Failed atom: ${f.atom.slice(0, 80)}\n  Reason: ${f.reason.slice(0, 150)}`)
+              .join("\n");
 
-          const reAtomizeResult = await this.engine.stepWithPhase(
-            visionChain.id,
-            `The following block PARTIALLY FAILED. ${blockFailedAtoms}/${atoms.length} atoms could not be completed.\n\n` +
-            `BLOCK: ${block}\n\n` +
-            `FAILED ATOMS:\n${failedAtomList}\n\n` +
-            `FAILURE REASONS:\nUnknown\n\n` +
-            `Re-decompose ONLY the failed work into 2-4 SMALLER, more specific atoms.\n` +
-            `- Make each atom simpler than before\n` +
-            `- Include more specific file paths and line numbers\n` +
-            `- Add explicit acceptance criteria\n` +
-            `- Avoid the patterns that caused failures\n\n` +
-            `VISION DOCUMENT (pinned):\n${visionOutput}`,
-            "strategist",
-            "atomize",
-          );
-          totalThoughts++;
+            const reAtomizeResult = await this.engine.stepWithPhase(
+              visionChain.id,
+              `The following block PARTIALLY FAILED. ${blockFailedAtoms}/${atoms.length} atoms could not be completed.\n\n` +
+              `BLOCK: ${block}\n\n` +
+              `FAILED ATOMS WITH REASONS:\n${failedAtomList}\n\n` +
+              `Re-decompose ONLY the failed work into 2-4 SMALLER, more specific atoms.\n` +
+              `- Make each atom simpler than before\n` +
+              `- Include more specific file paths and line numbers\n` +
+              `- Add explicit acceptance criteria\n` +
+              `- Avoid the patterns that caused failures\n\n` +
+              `VISION DOCUMENT (pinned):\n${visionOutput}`,
+              "strategist",
+              "atomize",
+            );
+            totalThoughts++;
 
-          const reAtoms: string[] = reAtomizeResult.parsed?.atoms
-            ?? this.fallbackParseBlocks(reAtomizeResult.thought.output);
+            const reAtoms: string[] = reAtomizeResult.parsed?.atoms
+              ?? this.fallbackParseBlocks(reAtomizeResult.thought.output);
 
-          if (reAtoms.length > 0) {
-            this.engine.streaming.phaseEnd("re_decompose", `${reAtoms.length} new atoms`);
+            if (reAtoms.length > 0) {
+              this.engine.streaming.phaseEnd("re_decompose", `${reAtoms.length} new atoms`);
 
-            // Execute re-decomposed atoms with the same full pipeline
-            for (let rj = 0; rj < reAtoms.length; rj++) {
-              const reAtom = reAtoms[rj];
-              this.engine.streaming.atomStart(rj, reAtoms.length, `[RE] ${reAtom.slice(0, 40)}`);
+              // Execute re-decomposed atoms with the same full pipeline
+              for (let rj = 0; rj < reAtoms.length; rj++) {
+                const reAtom = reAtoms[rj];
+                this.engine.streaming.atomStart(rj, reAtoms.length, `[RE] ${reAtom.slice(0, 40)}`);
 
-              // Pre-atom checkpoint
-              try {
-                this.engine.rollback.createPoint("atom", `Re-atom ${rj + 1}: ${reAtom.slice(0, 40)}`, {
-                  atomIndex: rj, blockIndex: i,
-                });
-              } catch { /* best-effort */ }
+                // Pre-atom checkpoint
+                try {
+                  this.engine.rollback.createPoint("atom", `Re-atom ${rj + 1}: ${reAtom.slice(0, 40)}`, {
+                    atomIndex: rj, blockIndex: i,
+                  });
+                } catch { /* best-effort */ }
 
-              // Pre-read files for re-atom
-              let rePreRead = "";
-              try {
-                const fileMatches = reAtom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g);
-                if (fileMatches) {
-                  const uniqueFiles = [...new Set(fileMatches)].slice(0, 3);
-                  const parts: string[] = [];
-                  for (const fp of uniqueFiles) {
-                    try {
-                      const { readFileSync } = await import("node:fs");
-                      const content = readFileSync(`${this.engine.config.projectRoot}/${fp}`, "utf-8");
-                      const lines = content.split("\n");
-                      parts.push(`[FILE: ${fp}] (${lines.length} lines)\n${lines.slice(0, 50).join("\n")}`);
-                    } catch { /* file not found */ }
+                // Pre-read files for re-atom
+                let rePreRead = "";
+                try {
+                  const fileMatches = reAtom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g);
+                  if (fileMatches) {
+                    const uniqueFiles = [...new Set(fileMatches)].slice(0, 3);
+                    const parts: string[] = [];
+                    for (const fp of uniqueFiles) {
+                      try {
+                        const { readFileSync } = await import("node:fs");
+                        const content = readFileSync(`${this.engine.config.projectRoot}/${fp}`, "utf-8");
+                        const lines = content.split("\n");
+                        parts.push(`[FILE: ${fp}] (${lines.length} lines)\n${lines.slice(0, 50).join("\n")}`);
+                      } catch { /* file not found */ }
+                    }
+                    if (parts.length > 0) rePreRead = `PRE-READ FILES:\n${parts.join("\n\n")}`;
                   }
-                  if (parts.length > 0) rePreRead = `PRE-READ FILES:\n${parts.join("\n\n")}`;
+                } catch { /* best-effort */ }
+
+                // F-2: Pass real failure context to re-atoms
+                const relevantFailure = atomFailureReasons[rj];
+                const reContext = [
+                  `YOUR TASK (Re-atom ${rj + 1}/${reAtoms.length}): ${reAtom}`,
+                  `⚠️ This is a RE-DECOMPOSED atom. The original atom FAILED. Be more careful.`,
+                  relevantFailure ? `PREVIOUS FAILURE REASON: ${relevantFailure.reason.slice(0, 300)}` : "",
+                  rePreRead,
+                  `BLOCK: ${block}`,
+                  `VISION DOCUMENT (pinned):\n${visionOutput}`,
+                ].filter(Boolean).join("\n\n---\n\n");
+
+                // F-1: Respect FOREMAN_TOOL_MODE — default to stepWithPhase like normal atoms
+                const useToolModeForReAtom = process.env.FOREMAN_TOOL_MODE === "1";
+                try {
+                  if (useToolModeForReAtom) {
+                    const toolExecutor = createEngineToolExecutor(
+                      this.engine.config.projectRoot,
+                      this.engine.exec,
+                      this.engine.editEngine,
+                      this.engine.git,
+                      this.engine.linkIntelligence,
+                      this.engine.hooks,
+                    );
+                    await this.engine.callLLMWithTools(
+                      getWorkerPromptForToolMode(),
+                      reContext,
+                      "worker",
+                      async (call: ToolCall) => toolExecutor(call),
+                      { maxIterations: 100, onToken: () => { }, onToolCall: () => { }, onToolResult: () => { } },
+                    );
+                  } else {
+                    await this.engine.stepWithPhase(
+                      visionChain.id,
+                      reContext,
+                      "worker",
+                      "execute",
+                    );
+                  }
+                  totalThoughts++;
+                  atomCount++;
+
+                  this.engine.streaming.atomEnd(rj, 0);
+                } catch {
+                  this.engine.streaming.error(`Re-atom ${rj + 1} failed`);
                 }
-              } catch { /* best-effort */ }
-
-              const reContext = [
-                `YOUR TASK (Re-atom ${rj + 1}/${reAtoms.length}): ${reAtom}`,
-                `⚠️ This is a RE-DECOMPOSED atom. The original atom FAILED. Be more careful.`,
-                `PREVIOUS FAILURE: Unknown`,
-                rePreRead,
-                `BLOCK: ${block}`,
-                `VISION DOCUMENT (pinned):\n${visionOutput}`,
-              ].filter(Boolean).join("\n\n---\n\n");
-
-              try {
-                const toolExecutor = createEngineToolExecutor(
-                  this.engine.config.projectRoot,
-                  this.engine.exec,
-                  this.engine.editEngine,
-                  this.engine.git,
-                  this.engine.linkIntelligence,
-                  this.engine.hooks, // Hook support for hallucination guard
-                );
-
-                const reResult = await this.engine.callLLMWithTools(
-                  getWorkerPromptForToolMode(),
-                  reContext,
-                  "worker",
-                  async (call: ToolCall) => toolExecutor(call),
-                  { maxIterations: 100, onToken: () => { }, onToolCall: () => { }, onToolResult: () => { } },
-                );
-                totalThoughts++;
-                atomCount++;
-
-                this.engine.streaming.atomEnd(rj, 0);
-              } catch {
-                this.engine.streaming.error(`Re-atom ${rj + 1} failed`);
               }
             }
+          } catch {
+            // Re-decompose is best-effort
           }
-        } catch {
-          // Re-decompose is best-effort
-        }
+        } // end if (!isModelError)
 
         // Save failure context for learning
         try {
           this.engine.memory.create({
-            content: `BLOCK RE-DECOMPOSED (Block ${i + 1}): "${block.slice(0, 60)}" — original had ${blockFailedAtoms}/${atoms.length} failures. Re-atomized and re-executed.`,
+            content: `BLOCK ${isModelError ? 'RATE-LIMITED' : 'RE-DECOMPOSED'} (Block ${i + 1}): "${block.slice(0, 60)}" — ${blockFailedAtoms}/${atoms.length} failures.${isModelError ? ' Model rate limit — re-decompose skipped.' : ' Re-atomized and re-executed.'}`,
             category: "lesson",
-            tags: ["foreman", "pipeline", "re_decompose", `block_${i + 1}`],
+            tags: ["foreman", "pipeline", isModelError ? "rate_limit" : "re_decompose", `block_${i + 1}`],
             source: { type: "reflection" },
             projectId: this.engine.state.snapshot().projectName,
           });

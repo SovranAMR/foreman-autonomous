@@ -176,19 +176,24 @@ export function quickReviewCheck(protocol: WorkerProtocol, visionDocument: strin
       .map(l => l.replace(/^[-*]\s*/, "").trim())
       .filter(l => l.length > 3);
 
-    const allWorkerText = Object.values(protocol).join(" ").toLowerCase();
+    // F-5: Exclude step1_read and step2_context from FORBIDDEN matching
+    // Worker often quotes vision FORBIDDEN rules in these steps as reference
+    const executionText = [
+      protocol.step4_decide, protocol.step5_predict,
+      protocol.step6_execute, protocol.step7_verify, protocol.step8_report,
+    ].join(" ").toLowerCase();
 
     for (const forbidden of forbiddenItems) {
       const keywords = forbidden.toLowerCase().split(/\s+/).filter(w => w.length > 3);
       // Need at least 2 keywords to trigger
       if (keywords.length < 2) {
         // Single word forbidden - exact match required
-        if (keywords.length === 1 && allWorkerText.includes(keywords[0]!)) {
+        if (keywords.length === 1 && executionText.includes(keywords[0]!)) {
           violations.push(`FORBIDDEN violation: "${forbidden}" — exact match`);
         }
         continue;
       }
-      const matched = keywords.filter(kw => allWorkerText.includes(kw));
+      const matched = keywords.filter(kw => executionText.includes(kw));
       const matchRatio = matched.length / keywords.length;
       if (matchRatio >= 0.6 && matched.length >= 2) {
         violations.push(`FORBIDDEN violation: "${forbidden}" — matched keywords: ${matched.join(", ")}`);
@@ -196,15 +201,15 @@ export function quickReviewCheck(protocol: WorkerProtocol, visionDocument: strin
     }
   }
 
-  // Check for trivial verify step
+  // F-12: Align with validators.ts (min 10 chars, not 15)
   const verifyLen = protocol.step7_verify.trim().length;
-  if (verifyLen < 15) {
+  if (verifyLen < 10) {
     violations.push(`STEP7_VERIFY too short (${verifyLen} chars) — must contain build/test evidence`);
   }
 
-  // Check for hallucinated file reads
+  // F-4: Add write-oriented patterns to avoid false positives on documentation/creative tasks
   if (/read the file|checked the code|looked at/i.test(protocol.step1_read) &&
-      !/line \d|lines?\b|\d+ LOC|import|export|function|const |class /i.test(protocol.step1_read)) {
+    !/line \d|lines?\b|\d+ LOC|import|export|function|const |class |created|wrote|appended|bytes|chars|\d+\s*lines|wc|mkdir|touch/i.test(protocol.step1_read)) {
     violations.push("STEP1_READ appears to be hallucinated — no specific file content referenced");
   }
 

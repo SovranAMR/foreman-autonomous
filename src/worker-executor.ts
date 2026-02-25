@@ -89,7 +89,7 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
   const allText = [
     protocol.step4_decide,
     protocol.step6_execute,
-    protocol.step7_verify, // Worker may include verification commands
+    // step7_verify excluded — verification commands should not be executed as real operations
   ].join("\n");
 
   // 1. Extract file writes: ```filepath\ncontent\n```
@@ -265,7 +265,7 @@ export async function executeOperations(
     try {
       // ─── HOOKS: before_tool ───
       if (options?.hooks) {
-        const hookResult = await options.hooks.run("before_tool", {
+        const hookResult = await options.hooks.run("before_tool_call", {
           tool: op.type,
           path: op.path,
           command: op.command,
@@ -293,7 +293,7 @@ export async function executeOperations(
 
           // ─── HOOKS: before_file ───
           if (options?.hooks) {
-            const hookResult = await options.hooks.run("before_file", {
+            const hookResult = await options.hooks.run("before_file_write", {
               action: "write",
               path: op.path,
               size: op.content.length,
@@ -350,12 +350,16 @@ export async function executeOperations(
             results.push({ operation: op, success: false, error: "Missing path, oldText, or newText" });
             break;
           }
-          const editResult = editEngine.edit(op.path, op.oldText, op.newText);
+          const editResult = editEngine.edit({
+            filePath: op.path,
+            oldText: op.oldText,
+            newText: op.newText,
+          });
           results.push({
             operation: op,
             success: editResult.success,
             output: editResult.success ? `Edited ${op.path}` : undefined,
-            error: editResult.error,
+            error: editResult.success ? undefined : editResult.message,
           });
           break;
         }
@@ -372,6 +376,7 @@ export async function executeOperations(
               type: "run_command",
               description: `Worker command: ${op.command.slice(0, 80)}`,
               target: op.command,
+              risk: "medium",
             });
             if (riskLevel === "critical") {
               results.push({
@@ -402,7 +407,7 @@ export async function executeOperations(
 
           // ─── HOOKS: before_file ───
           if (options?.hooks) {
-            const hookResult = await options.hooks.run("before_file", {
+            const hookResult = await options.hooks.run("before_file_write", {
               action: "delete",
               path: op.path,
             });
