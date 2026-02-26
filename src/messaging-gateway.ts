@@ -42,7 +42,7 @@ import {
   type ConversationMessage,
   type SummarizeFunction,
 } from "./compaction-engine.js";
-import { HallucinationGuard } from "./hallucination-guard.js";
+import { ResponseGuard } from "./response-guard.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 
@@ -482,8 +482,8 @@ export class MessagingGateway {
     let responseText = "";
 
     // ─── HALLUCINATION GUARD — track actual tool calls ──────
-    const hallucinationGuard = new HallucinationGuard();
-    hallucinationGuard.startTurn();
+    const responseGuard = new ResponseGuard();
+    responseGuard.startTurn();
 
     try {
       const result = await this.provider!.streamChatWithTools!(
@@ -496,7 +496,7 @@ export class MessagingGateway {
         // onToolCall — log + record for guard
         (call: ToolCall) => {
           console.log(`[gateway] Tool: ${call.name} ${JSON.stringify(call.args).slice(0, 80)}`);
-          hallucinationGuard.recordToolCall(call.name, call.args, true); // recorded before result
+          responseGuard.recordToolCall(call.name, call.args, true); // recorded before result
         },
         // onToolResult — log + update guard record
         (result: ToolResult) => {
@@ -504,7 +504,7 @@ export class MessagingGateway {
           console.log(`[gateway] Result: ${result.name} → ${result.isError ? "❌" : "✔"} ${preview}`);
           if (result.isError) {
             // Update the last recorded call to mark as failed
-            hallucinationGuard.recordToolCall(result.name, {}, false);
+            responseGuard.recordToolCall(result.name, {}, false);
           }
         },
         // maxTokens
@@ -525,7 +525,7 @@ export class MessagingGateway {
       }
 
       // ─── HALLUCINATION GUARD — audit response ────────────
-      const guardResult = hallucinationGuard.audit(text);
+      const guardResult = responseGuard.audit(text);
       if (guardResult.detected) {
         console.warn(`[gateway] 🚨 HALLUCINATION GUARD: ${guardResult.summary}`);
         for (const v of guardResult.violations) {

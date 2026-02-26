@@ -3,13 +3,13 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { HallucinationGuard, auditResponse } from "./hallucination-guard.js";
+import { ResponseGuard, auditResponse } from "./response-guard.js";
 
-describe("HallucinationGuard", () => {
-  let guard: HallucinationGuard;
+describe("ResponseGuard", () => {
+  let guard: ResponseGuard;
 
   beforeEach(() => {
-    guard = new HallucinationGuard();
+    guard = new ResponseGuard();
     guard.startTurn();
   });
 
