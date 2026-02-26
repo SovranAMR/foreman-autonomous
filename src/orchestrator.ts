@@ -1574,81 +1574,324 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
             if (reAtoms.length > 0) {
               this.engine.streaming.phaseEnd("re_decompose", `${reAtoms.length} new atoms`);
 
-              // Execute re-decomposed atoms with the same full pipeline
+              // Execute re-decomposed atoms with FULL QA pipeline (same rigor as primary atoms)
               for (let rj = 0; rj < reAtoms.length; rj++) {
                 const reAtom = reAtoms[rj];
                 this.engine.streaming.atomStart(rj, reAtoms.length, `[RE] ${reAtom.slice(0, 40)}`);
+                this.observer.onAtomStart(`[RE] Atom ${rj + 1}/${reAtoms.length}: ${reAtom.slice(0, 100)}`);
 
-                // Pre-atom checkpoint
-                try {
-                  this.engine.rollback.createPoint("atom", `Re-atom ${rj + 1}: ${reAtom.slice(0, 40)}`, {
-                    atomIndex: rj, blockIndex: i,
-                  });
-                } catch { /* best-effort */ }
+                // ─── RE-ATOM RETRY LOOP (mirrors primary atom retry) ───
+                let reAtomPassed = false;
+                let reLastRejection = "";
+                let reExecResult: StepResult | undefined;
+                let reToolCallCount = 0;
+                const reAtomStartTime = Date.now();
 
-                // Pre-read files for re-atom
-                let rePreRead = "";
-                try {
-                  const fileMatches = reAtom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g);
-                  if (fileMatches) {
-                    const uniqueFiles = [...new Set(fileMatches)].slice(0, 3);
-                    const parts: string[] = [];
-                    for (const fp of uniqueFiles) {
-                      try {
-                        const { readFileSync } = await import("node:fs");
-                        const content = readFileSync(`${this.engine.config.projectRoot}/${fp}`, "utf-8");
-                        const lines = content.split("\n");
-                        parts.push(`[FILE: ${fp}] (${lines.length} lines)\n${lines.slice(0, 50).join("\n")}`);
-                      } catch { /* file not found */ }
+                for (let reAttempt = 0; reAttempt < this.MAX_ATOM_RETRIES; reAttempt++) {
+                  if (reAttempt > 0) {
+                    this.engine.streaming.toolCall("re_atom_retry", `[RE] Attempt ${reAttempt + 1}/${this.MAX_ATOM_RETRIES}: ${reAtom.slice(0, 40)}`);
+                  }
+
+                  // Pre-atom checkpoint
+                  try {
+                    this.engine.rollback.createPoint("atom", `Re-atom ${rj + 1}: ${reAtom.slice(0, 40)}`, {
+                      atomIndex: rj, blockIndex: i,
+                    });
+                  } catch { /* best-effort */ }
+
+                  // Pre-read files for re-atom
+                  let rePreRead = "";
+                  try {
+                    const fileMatches = reAtom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g);
+                    if (fileMatches) {
+                      const uniqueFiles = [...new Set(fileMatches)].slice(0, 3);
+                      const parts: string[] = [];
+                      for (const fp of uniqueFiles) {
+                        try {
+                          const { readFileSync } = await import("node:fs");
+                          const content = readFileSync(`${this.engine.config.projectRoot}/${fp}`, "utf-8");
+                          const lines = content.split("\n");
+                          const preview = lines.length > 50
+                            ? `${lines.slice(0, 50).join("\n")}\n... (${lines.length} total lines)`
+                            : content;
+                          parts.push(`[FILE: ${fp}] (${lines.length} lines)\n${preview}`);
+                        } catch { /* file not found — Worker will create it */ }
+                      }
+                      if (parts.length > 0) rePreRead = `PRE-READ FILES (real contents — do NOT hallucinate):\n${parts.join("\n\n")}`;
                     }
-                    if (parts.length > 0) rePreRead = `PRE-READ FILES:\n${parts.join("\n\n")}`;
-                  }
-                } catch { /* best-effort */ }
+                  } catch { /* best-effort */ }
 
-                // F-2: Pass real failure context to re-atoms
-                const relevantFailure = atomFailureReasons[rj];
-                const reContext = [
-                  `YOUR TASK (Re-atom ${rj + 1}/${reAtoms.length}): ${reAtom}`,
-                  `⚠️ This is a RE-DECOMPOSED atom. The original atom FAILED. Be more careful.`,
-                  relevantFailure ? `PREVIOUS FAILURE REASON: ${relevantFailure.reason.slice(0, 300)}` : "",
-                  rePreRead,
-                  `BLOCK: ${block}`,
-                  `VISION DOCUMENT (pinned):\n${visionOutput}`,
-                ].filter(Boolean).join("\n\n---\n\n");
+                  // Build full context (same structure as primary atoms)
+                  const relevantFailure = atomFailureReasons[rj];
+                  const retryFeedback = reLastRejection && reAttempt > 0
+                    ? `⚠️ PREVIOUS ATTEMPT REJECTED (attempt ${reAttempt}/${this.MAX_ATOM_RETRIES}):\n${reLastRejection}\n\nFix the issues above. Do NOT repeat the same mistakes.`
+                    : "";
+                  const reContext = [
+                    `YOUR TASK (Re-atom ${rj + 1}/${reAtoms.length}): ${reAtom}`,
+                    `⚠️ This is a RE-DECOMPOSED atom. The original atom FAILED. Be more careful.`,
+                    retryFeedback,
+                    relevantFailure ? `ORIGINAL FAILURE REASON: ${relevantFailure.reason.slice(0, 300)}` : "",
+                    rePreRead,
+                    `BLOCK: ${block}`,
+                    `VISION DOCUMENT (pinned):\n${visionOutput}`,
+                    findings ? `RESEARCH FINDINGS:\n${findings.slice(0, 800)}` : "",
+                  ].filter(Boolean).join("\n\n---\n\n");
 
-                // F-1: Respect FOREMAN_TOOL_MODE — default to stepWithPhase like normal atoms
-                const useToolModeForReAtom = process.env.FOREMAN_TOOL_MODE === "1";
-                try {
-                  if (useToolModeForReAtom) {
-                    const toolExecutor = createEngineToolExecutor(
-                      this.engine.config.projectRoot,
-                      this.engine.exec,
-                      this.engine.editEngine,
-                      this.engine.git,
-                      this.engine.linkIntelligence,
-                      this.engine.hooks,
-                    );
-                    await this.engine.callLLMWithTools(
-                      getWorkerPromptForToolMode(),
-                      reContext,
-                      "worker",
-                      async (call: ToolCall) => toolExecutor(call),
-                      { maxIterations: 100, onToken: () => { }, onToolCall: () => { }, onToolResult: () => { } },
-                    );
-                  } else {
-                    await this.engine.stepWithPhase(
-                      visionChain.id,
-                      reContext,
-                      "worker",
-                      "execute",
-                    );
+                  this.observer.onWorkerInput(reContext);
+
+                  // Execute (respects FOREMAN_TOOL_MODE)
+                  reExecResult = undefined;
+                  reToolCallCount = 0;
+                  const useToolModeForReAtom = process.env.FOREMAN_TOOL_MODE === "1";
+
+                  try {
+                    if (useToolModeForReAtom) {
+                      const toolExecutor = createEngineToolExecutor(
+                        this.engine.config.projectRoot,
+                        this.engine.exec,
+                        this.engine.editEngine,
+                        this.engine.git,
+                        this.engine.linkIntelligence,
+                        this.engine.hooks,
+                      );
+                      const toolLlmResult = await this.engine.callLLMWithTools(
+                        getWorkerPromptForToolMode(),
+                        reContext,
+                        "worker",
+                        async (call: ToolCall) => {
+                          reToolCallCount++;
+                          const result = await toolExecutor(call);
+                          return result;
+                        },
+                        { maxIterations: 100, onToken: () => { }, onToolCall: () => { }, onToolResult: () => { } },
+                      );
+                      reExecResult = await this.engine.stepWithPhase(
+                        visionChain.id,
+                        `${reAtom}\n\n[Tool execution completed: ${reToolCallCount} tool calls]\n\nLLM response:\n${toolLlmResult.text}`,
+                        "worker",
+                        "execute",
+                      );
+                    } else {
+                      reExecResult = await this.engine.stepWithPhase(
+                        visionChain.id,
+                        reContext,
+                        "worker",
+                        "execute",
+                      );
+                    }
+                  } catch (reExecErr) {
+                    this.engine.streaming.error(`[RE] Atom ${rj + 1} execution error: ${reExecErr instanceof Error ? reExecErr.message.slice(0, 80) : "unknown"}`);
+                    reLastRejection = `Execution error: ${reExecErr instanceof Error ? reExecErr.message : String(reExecErr)}`;
+                    continue; // retry
                   }
+
                   totalThoughts++;
                   atomCount++;
 
-                  this.engine.streaming.atomEnd(rj, 0);
-                } catch {
-                  this.engine.streaming.error(`Re-atom ${rj + 1} failed`);
+                  if (!reExecResult) {
+                    this.engine.streaming.error(`[RE] Atom ${rj + 1} produced no result`);
+                    reLastRejection = "Atom produced no result";
+                    continue; // retry
+                  }
+
+                  this.emit({ type: "thought_complete", thought: reExecResult.thought });
+                  this.observer.onWorkerOutput(
+                    reExecResult.thought.output.slice(0, 2000),
+                    reExecResult.thought.confidence,
+                  );
+
+                  // ─── POST-HOC EXTRACTION (same as primary atoms) ───
+                  if (reToolCallCount === 0 && reExecResult.thought.workerProtocol && reExecResult.thought.status === "done") {
+                    const reProtocol = reExecResult.thought.workerProtocol;
+                    if (needsExecution(reProtocol)) {
+                      const reOps = extractOperations(reProtocol);
+                      if (reOps.length > 0) {
+                        try {
+                          const reExecSummary = await executeOperations(
+                            reOps,
+                            this.engine.exec,
+                            this.engine.editEngine,
+                            this.engine.config.projectRoot,
+                            {
+                              hooks: this.engine.hooks,
+                              interactive: this.engine.interactive,
+                              streaming: this.engine.streaming,
+                            },
+                          );
+
+                          // Feed execution results back into thought
+                          if (reExecSummary.output) {
+                            const feedback = buildExecutionFeedback(reExecSummary);
+                            this.engine.thoughts.update(reExecResult.thought.id, {
+                              output: (reExecResult.thought.output ?? "") + "\n\n" + feedback,
+                            });
+                          }
+
+                          // Git commit if operations succeeded
+                          if (this.engine.git && reExecSummary.succeeded > 0) {
+                            try {
+                              const gitStatus = this.engine.git.executor.gitStatus();
+                              if (!gitStatus.clean) {
+                                const commitMsg = `[RE] ${reAtom.slice(0, 50)}${reExecSummary.failed > 0 ? " (partial)" : ""}`;
+                                const commitResult = this.engine.git.commitThought({
+                                  message: commitMsg,
+                                  chainId: visionChain.id,
+                                  thoughtId: reExecResult.thought.id,
+                                  layer: "worker",
+                                  atomIndex: rj + 1,
+                                  atomTotal: reAtoms.length,
+                                });
+                                if (commitResult.success) {
+                                  this.engine.streaming.toolCall("git_commit", commitResult.shortHash);
+                                }
+                              }
+                            } catch (gitErr) {
+                              console.warn(`[orchestrator] Re-atom git commit failed: ${gitErr}`);
+                            }
+                          }
+                        } catch (reExecErr) {
+                          this.emit({
+                            type: "error",
+                            message: `[RE] Execution failed for re-atom ${rj + 1}: ${reExecErr instanceof Error ? reExecErr.message : String(reExecErr)}`,
+                          });
+                        }
+                      }
+                    }
+                  }
+
+                  // ─── WORKER BLOCK CHECK ───
+                  if (reExecResult.thought.status === "blocked") {
+                    try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
+                    reLastRejection = `WORKER BLOCKED: ${reExecResult.thought.blockedReason ?? "8-step protocol incomplete"}`;
+                    this.observer.onWorkerRetry(reAttempt, reLastRejection);
+                    this.engine.streaming.error(`[RE] ⏪ Atom ${rj + 1} rolled back: ${reExecResult.thought.blockedReason?.slice(0, 60)}`);
+                    continue; // retry
+                  }
+
+                  // ─── PER-THOUGHT VALIDATION ───
+                  if (reExecResult.thought.status === "done") {
+                    const reThought = reExecResult.thought;
+                    const reValidations = [
+                      validateReasoning(reThought),
+                      validateOutput(reThought),
+                      validateConfidence(reThought),
+                    ];
+                    if (reThought.workerProtocol) {
+                      reValidations.push(validateWorkerProtocol(reThought));
+                      reValidations.push(validateProtocolSteps(reThought.workerProtocol));
+                    }
+                    const reFailures = reValidations.filter(v => !v.valid);
+                    if (reFailures.length > 0) {
+                      this.emit({
+                        type: "verification",
+                        phase: "re_atom_validation",
+                        passed: false,
+                        detail: `[RE] ${reFailures.length} validation issues: ${reFailures.map(f => f.errors.join(", ")).join("; ")}`,
+                      });
+                    }
+                  }
+
+                  // ─── REVIEWER GATE (same logic as primary atoms) ───
+                  const reHasForbidden = /^##\s*FORBIDDEN/im.test(visionOutput);
+                  const reIsSimple = visionOutput.length < 800 && !reHasForbidden;
+                  if (!reIsSimple && reExecResult.thought.status === "done" && reExecResult.thought.workerProtocol) {
+                    const reProtocol = reExecResult.thought.workerProtocol;
+
+                    // Quick local review
+                    const reQuickResult = quickReviewCheck(reProtocol, visionOutput);
+                    if (reQuickResult && reQuickResult.verdict === "REJECT") {
+                      this.engine.streaming.error(`[RE] 🔴 Quick review rejected re-atom ${rj + 1}: ${reQuickResult.violations[0]?.slice(0, 80)}`);
+                      try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
+                      reLastRejection = reQuickResult.rejectionFeedback ?? reQuickResult.violations.join("; ");
+                      continue; // retry
+                    }
+
+                    // Full LLM review (different model for bias-breaking)
+                    try {
+                      let reCodeDiff = "";
+                      try { reCodeDiff = this.engine.git.summarizeChanges() || ""; } catch { /* non-git */ }
+
+                      const reReviewPrompt = buildReviewPrompt({
+                        protocol: reProtocol,
+                        atom: reAtom,
+                        visionDocument: visionOutput,
+                        codeDiff: reCodeDiff,
+                        block,
+                      });
+
+                      const reReviewLlmResult = await this.engine.callLLM(
+                        REVIEWER_SYSTEM_PROMPT,
+                        reReviewPrompt,
+                        "researcher",
+                      );
+                      totalThoughts++;
+
+                      const reReviewResult = parseReviewResponse(reReviewLlmResult.text);
+                      this.emit({
+                        type: "verification",
+                        phase: "re_atom_reviewer_gate",
+                        passed: reReviewResult.verdict === "PASS",
+                        detail: `[RE] Reviewer: ${reReviewResult.verdict} (${(reReviewResult.confidence * 100).toFixed(0)}%) — ${reReviewResult.reasoning.slice(0, 100)}`,
+                      });
+
+                      if (reReviewResult.verdict === "REJECT") {
+                        this.engine.streaming.error(`[RE] 🔴 Reviewer REJECTED re-atom ${rj + 1}: ${reReviewResult.violations.join(", ").slice(0, 80)}`);
+                        try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
+                        reLastRejection = reReviewResult.rejectionFeedback ?? reReviewResult.violations.join("; ");
+                        continue; // retry
+                      }
+                    } catch { /* reviewer gate best-effort */ }
+                  }
+
+                  // ─── GROUND TRUTH VALIDATION ───
+                  if (reExecResult.thought.workerProtocol) {
+                    try {
+                      const reValidation = validateWorkerOutput(
+                        reExecResult.thought.workerProtocol,
+                        null,
+                        this.engine.git.executor,
+                        this.engine.config.projectRoot,
+                      );
+                      this.emit({
+                        type: "verification",
+                        phase: "re_atom_ground_truth",
+                        passed: reValidation.passed,
+                        detail: `[RE] ${reValidation.summary}`,
+                      });
+                      if (!reValidation.passed) {
+                        const reCriticalFails = reValidation.checks.filter(c => !c.passed && c.severity === "critical");
+                        this.engine.streaming.error(`[RE] 🔍 Ground truth: ${reCriticalFails.length} critical checks failed`);
+                        // Don't retry on ground truth alone — it's informational for re-atoms
+                        // But do log it for the observer
+                      } else {
+                        this.engine.streaming.toolCall("ground_truth", `[RE] ✅ ${reValidation.checks.length} checks passed`);
+                      }
+                    } catch { /* ground truth best-effort */ }
+                  }
+
+                  // ─── RE-ATOM PASSED ALL GATES ───
+                  reAtomPassed = true;
+                  break; // break retry loop
+                } // end re-atom retry loop
+
+                // ─── RE-ATOM RETRY EXHAUSTED ───
+                if (!reAtomPassed) {
+                  this.engine.streaming.error(`[RE] ❌ Re-atom ${rj + 1} failed after ${this.MAX_ATOM_RETRIES} retries — skipping`);
+                  this.emit({
+                    type: "error",
+                    message: `[RE] Re-atom ${rj + 1} failed after ${this.MAX_ATOM_RETRIES} attempts: ${reLastRejection.slice(0, 100)}`,
+                  });
+                } else {
+                  // Checkpoint + streaming for passed re-atom
+                  const reAtomDurationMs = Date.now() - reAtomStartTime;
+                  this.emit({
+                    type: "verification",
+                    phase: "re_atom_quality",
+                    passed: true,
+                    detail: `[RE] Atom ${rj + 1}: ${(reAtomDurationMs / 1000).toFixed(1)}s`,
+                  });
+                  this.engine.streaming.atomEnd(rj, reExecResult?.thought.tokenCost ?? 0);
+                  this.resume.completeAtom(i, rj, 1, reExecResult?.thought.tokenCost ?? 0);
                 }
               }
             }

@@ -483,6 +483,16 @@ async function main() {
 
     await initProvider();
 
+    server.on("error", (err: any) => {
+        if (err.code === "EADDRINUSE") {
+            console.error(`\n  ❌ Port ${PORT} is already in use.`);
+            console.error(`     Kill the old process: fuser -k ${PORT}/tcp`);
+            console.error(`     Or use a different port: FOREMAN_WEB_PORT=4568 npm run web\n`);
+            process.exit(1);
+        }
+        throw err;
+    });
+
     server.listen(PORT, () => {
         console.log("");
         console.log(`  🌐 http://localhost:${PORT}`);
