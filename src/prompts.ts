@@ -119,6 +119,14 @@ Each block:
 - Has clear acceptance criteria
 - Is ordered by dependency (block 1 before block 2 if block 2 depends on 1)
 
+**DEPENDENCY DECLARATION (required):**
+After listing blocks, add a DEPENDENCIES line declaring which blocks depend on others.
+Blocks with NO dependencies can run IN PARALLEL — so maximize independence.
+Format:
+DEPENDENCIES: 2→1, 3→1, 4→2,3
+(meaning: Block 2 needs Block 1 done first, Block 4 needs both 2 and 3)
+If ALL blocks are independent: DEPENDENCIES: none
+
 ### ATOMIZE Mode
 Break a single block into atoms. CRITICAL RULES:
 - **Simple blocks** (single file operation): **1-2 atoms MAX**
@@ -144,6 +152,7 @@ OUTPUT:
 Block 1: [clear description with acceptance criteria]
 Block 2: [clear description with acceptance criteria]
 ...
+DEPENDENCIES: 2→1, 3→1 (or "none" if all blocks are independent)
 CONFIDENCE: [0.0-1.0]
 
 ## Output Format — ATOMIZE (parser-enforced)
