@@ -220,6 +220,55 @@ export function validateWorkerOutput(
     }
   }
 
+  // ─── CHECK 7: Phantom work detection ──────────────────────
+  // Worker claims to have written/created files in step6 but
+  // extractOperations found 0 ops AND no tool calls were made.
+  // This catches the "I wrote the file" hallucination pattern.
+  if (protocol.step6_execute) {
+    const claimsWrite = /(?:created?|wrote|written|added|saved)\s+(?:the\s+)?(?:file|component|module)/i.test(protocol.step6_execute);
+    const hasCodeBlock = /```[\s\S]*?```/.test(protocol.step6_execute);
+    const hasWriteMarker = /\/\/\s*(?:Write to|Path|File):/i.test(protocol.step6_execute);
+    const hasShellCmd = /^\s*\$/m.test(protocol.step6_execute);
+
+    if (claimsWrite && !hasCodeBlock && !hasWriteMarker && !hasShellCmd) {
+      checks.push({
+        name: "phantom_work",
+        passed: false,
+        detail: `❌ PHANTOM WORK: Worker claims to have written files but STEP6 contains no code blocks, no file markers, no commands. This is a hallucination.`,
+        severity: "critical",
+      });
+    }
+
+    // Check step6 mentions files but step1_read is empty/generic
+    if (protocol.step1_read) {
+      const readIsEmpty = /^(?:N\/?A|none|nothing|n\/a|\s*)$/i.test(protocol.step1_read.trim());
+      if (readIsEmpty && (hasCodeBlock || hasWriteMarker)) {
+        checks.push({
+          name: "no_read_before_write",
+          passed: false,
+          detail: `⚠️ Worker wrote/edited files but STEP1_READ is empty — likely didn't read before writing`,
+          severity: "warning",
+        });
+      }
+    }
+  }
+
+  // ─── CHECK 8: Delete safety ───────────────────────────────
+  // Flag any file deletions — they're high-risk and should be scrutinized
+  if (execSummary) {
+    const deleteOps = execSummary.operations.filter(
+      op => op.operation.type === "delete_file"
+    );
+    for (const op of deleteOps) {
+      checks.push({
+        name: `delete_safety:${op.operation.path ?? "unknown"}`,
+        passed: op.success, // still flag it even if successful
+        detail: `⚠️ FILE DELETED: ${op.operation.path ?? "unknown"} — verify this was intentional`,
+        severity: "warning",
+      });
+    }
+  }
+
   // ─── SCORE ─────────────────────────────────────────────────
   const criticalChecks = checks.filter(c => c.severity === "critical");
   const warningChecks = checks.filter(c => c.severity === "warning");

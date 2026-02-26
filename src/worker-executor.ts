@@ -441,6 +441,24 @@ export async function executeOperations(
             break;
           }
 
+          // ─── PRE-DELETE SAFETY: read content before deleting ───
+          // Stores file content in operation metadata for potential undo.
+          // Also logs to console for audit trail.
+          try {
+            const fullPath = resolve(projectRoot, op.path);
+            if (existsSync(fullPath)) {
+              const content = readFileSync(fullPath, "utf-8");
+              const sizeBytes = Buffer.byteLength(content);
+              console.warn(
+                `[worker-executor] ⚠️ DELETE: ${op.path} (${sizeBytes} bytes). Content preserved in memory for undo.`
+              );
+              // Attach backup to operation for potential recovery
+              (op as unknown as Record<string, unknown>)._backupContent = content;
+            }
+          } catch {
+            // Non-fatal — proceed with delete even if backup fails
+          }
+
           // ─── HOOKS: before_file ───
           if (options?.hooks) {
             const hookResult = await options.hooks.run("before_file_write", {
