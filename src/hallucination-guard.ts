@@ -1,374 +1,368 @@
 /**
  * FOREMAN — Hallucination Guard
  *
- * Hook-based guardrails that prevent hallucination at multiple points
- * in the pipeline. Integrates with HooksEngine.
+ * Universal post-processing guard that detects when the LLM claims
+ * to have performed actions (file writes, commits, pushes, test runs, etc.)
+ * without actually making tool calls.
+ *
+ * This is a code-level safeguard — not a prompt-level suggestion.
+ * The guard intercepts every response before it reaches the user.
+ *
+ * Three detection modes:
+ *   1. Claim Detection — scans response for action claims (✅, YAZILDI, committed, etc.)
+ *   2. Tool Call Audit — tracks which tools were actually invoked during the turn
+ *   3. Verification Injection — if claims detected without matching tool calls,
+ *      injects a warning and optionally strips the false claims
  */
-
-import type { HookEvent, HookResult } from "./hooks-engine.js";
-import { analyzeGroundTruth, type GroundTruthReport } from "./ground-truth-engine.js";
-import { createFactChecker, type FactCheckResult } from "./fact-checker.js";
 
 // ─── TYPES ───────────────────────────────────────────────────
 
-export interface GuardConfig {
-  /** Enable ground truth analysis before pipeline */
-  enableGroundTruth: boolean;
-  /** Validate all LLM outputs */
-  validateOutputs: boolean;
-  /** Block on any fact violation */
-  strictMode: boolean;
-  /** Inject ground truth into prompts */
-  injectContext: boolean;
-  /** Callback for violations */
-  onViolation?: (message: string, severity: "warn" | "error") => void;
+export interface ToolCallRecord {
+  name: string;
+  args: Record<string, unknown>;
+  success: boolean;
+  timestamp: number;
 }
 
-export interface GuardState {
-  groundTruth: GroundTruthReport | null;
-  violationCount: number;
-  lastCheck: FactCheckResult | null;
+export interface GuardResult {
+  /** Whether hallucination was detected */
+  detected: boolean;
+  /** The (possibly modified) response text */
+  text: string;
+  /** What was detected */
+  violations: Violation[];
+  /** Summary for logging */
+  summary: string;
 }
 
-// ─── GUARD IMPLEMENTATION ──────────────────────────────────────
+export interface Violation {
+  type: ViolationType;
+  claim: string;
+  line: string;
+  severity: "warning" | "critical";
+}
+
+export type ViolationType =
+  | "file_write_claim"      // Claims to have written/created a file
+  | "file_edit_claim"       // Claims to have edited a file
+  | "commit_claim"          // Claims to have committed
+  | "push_claim"            // Claims to have pushed
+  | "test_claim"            // Claims tests passed
+  | "build_claim"           // Claims build succeeded
+  | "delete_claim"          // Claims to have deleted something
+  | "install_claim"         // Claims to have installed something
+  | "deploy_claim"          // Claims to have deployed
+  | "generic_completion"    // Generic "done/completed" without evidence
+  ;
+
+// ─── CLAIM PATTERNS ─────────────────────────────────────────
+
+interface ClaimPattern {
+  type: ViolationType;
+  patterns: RegExp[];
+  requiredTools: string[];  // At least one of these tools must have been called
+  severity: "warning" | "critical";
+}
+
+const CLAIM_PATTERNS: ClaimPattern[] = [
+  {
+    type: "file_write_claim",
+    patterns: [
+      /(?:✅|✔)\s*(?:dosya|file).*(?:yazıldı|yazildi|written|created|oluşturuldu|olusturuldu)/i,
+      /(?:✅|✔)\s*.*\.(?:ts|js|tsx|jsx|py|rs|go|java|c|cpp|h|css|html|md|json|yaml|yml|toml|sh)\s*(?:—|[-–])\s*(?:yazıldı|yazildi|written|created)/i,
+      /write_file.*(?:✅|✔|başarılı|basarili|success)/i,
+      /dosya(?:yı|yi|ları|lari)?\s+(?:yazdım|yazdim|oluşturdum|olusturdum|yarattım|yarattim)/i,
+      /(?:file|dosya)\s+\d+\/\d+.*(?:yazıldı|yazildi|written)/i,
+      /(?:YAZILDI|YAZILDI|CREATED|WRITTEN)\s*\(\d+\s*satır\)/i,
+    ],
+    requiredTools: ["write_file", "batch_write", "bash"],
+    severity: "critical",
+  },
+  {
+    type: "file_edit_claim",
+    patterns: [
+      /(?:✅|✔)\s*.*(?:düzenlendi|duzenlendi|edited|updated|güncellendi|guncellendi)/i,
+      /edit_file.*(?:✅|✔|başarılı|basarili|success)/i,
+      /(?:düzenledim|duzenledim|güncelledim|guncelledim|değiştirdim|degistirdim)/i,
+    ],
+    requiredTools: ["edit_file", "write_file", "bash"],
+    severity: "critical",
+  },
+  {
+    type: "commit_claim",
+    patterns: [
+      /(?:✅|✔)\s*(?:commit|COMMIT).*(?:yapıldı|yapildi|done|made|created|atıldı|atildi)/i,
+      /commit.*(?:hash|SHA|sha)?\s*:?\s*[a-f0-9]{7,40}/i,
+      /git\s+commit.*(?:✅|✔|başarılı|basarili|success)/i,
+      /(?:COMMIT YAPILDI|COMMITTED|commit attım|commit attim)/i,
+    ],
+    requiredTools: ["git_commit", "bash"],
+    severity: "critical",
+  },
+  {
+    type: "push_claim",
+    patterns: [
+      /(?:✅|✔)\s*(?:push|PUSH).*(?:yapıldı|yapildi|done|completed|tamamlandı|tamamlandi)/i,
+      /git\s+push.*(?:✅|✔|başarılı|basarili|success)/i,
+      /(?:PUSH TAMAMLANDI|PUSHED|push yaptım|push yaptim|push ettim)/i,
+      /github\.com\/.*\/commit\/[a-f0-9]+/i,
+    ],
+    requiredTools: ["bash"],  // push is always via bash
+    severity: "critical",
+  },
+  {
+    type: "test_claim",
+    patterns: [
+      /(?:✅|✔)\s*(?:test|TEST).*(?:geçti|gecti|passed|başarılı|basarili|success)/i,
+      /\d+\/\d+\s+test.*(?:geçti|gecti|passed)/i,
+      /(?:all|tüm|hepsi).*test.*(?:geçti|gecti|passed|✅|✔)/i,
+      /test\s+(?:sonucu|result|output).*(?:✅|✔|başarılı|basarili)/i,
+    ],
+    requiredTools: ["bash"],  // tests run via bash
+    severity: "critical",
+  },
+  {
+    type: "build_claim",
+    patterns: [
+      /(?:✅|✔)\s*(?:build|BUILD|derleme).*(?:başarılı|basarili|success|passed|tamamlandı|tamamlandi)/i,
+      /(?:build|compile|derleme).*(?:✅|✔|başarılı|basarili|success)/i,
+    ],
+    requiredTools: ["bash"],
+    severity: "warning",
+  },
+  {
+    type: "delete_claim",
+    patterns: [
+      /(?:✅|✔)\s*.*(?:silindi|deleted|removed|kaldırıldı|kaldirildi)/i,
+      /(?:sildim|kaldırdım|kaldirdim|temizledim)/i,
+    ],
+    requiredTools: ["bash", "delete_file"],
+    severity: "warning",
+  },
+  {
+    type: "install_claim",
+    patterns: [
+      /(?:✅|✔)\s*.*(?:yüklendi|yuklendi|installed|kuruldu)/i,
+      /npm\s+install.*(?:✅|✔|başarılı|basarili|success)/i,
+      /(?:yükledim|yukledim|kurdum)/i,
+    ],
+    requiredTools: ["bash"],
+    severity: "warning",
+  },
+  {
+    type: "deploy_claim",
+    patterns: [
+      /(?:✅|✔)\s*.*(?:deploy|DEPLOY|yayınlandı|yayinlandi|published)/i,
+      /(?:deploy ettim|yayınladım|yayinladim|publish ettim)/i,
+    ],
+    requiredTools: ["bash"],
+    severity: "critical",
+  },
+  {
+    type: "generic_completion",
+    patterns: [
+      /toplam:\s*\d[\d,\.]*\s*satır\s*(?:yeni\s*)?kod/i,
+      /eklenen\s+dosyalar?\s*:/i,
+      /(?:✅|✔)\s*(?:tamamlandı|tamamlandi|completed|done|bitti|finished)\s*!/i,
+    ],
+    requiredTools: ["write_file", "edit_file", "bash", "batch_write", "git_commit"],
+    severity: "warning",
+  },
+];
+
+// ─── STATUS EMOJI PATTERNS ──────────────────────────────────
+// Lines that look like status reports but have no backing tool call
+
+const STATUS_LINE_PATTERN = /^[✅✔☑️]\s+(?:Dosya|File|DOSYA|Commit|COMMIT|Push|PUSH|Test|TEST|Build|BUILD|Deploy|DEPLOY)\s+\d+/im;
+
+// ─── GUARD CLASS ─────────────────────────────────────────────
 
 export class HallucinationGuard {
-  private projectRoot: string;
-  private config: GuardConfig;
-  private state: GuardState;
+  private toolCalls: ToolCallRecord[] = [];
+  private turnStartTime = 0;
 
-  constructor(projectRoot: string, config?: Partial<GuardConfig>) {
-    this.projectRoot = projectRoot;
-    this.config = {
-      enableGroundTruth: true,
-      validateOutputs: true,
-      strictMode: true,
-      injectContext: true,
-      ...config,
-    };
-    this.state = {
-      groundTruth: null,
-      violationCount: 0,
-      lastCheck: null,
-    };
+  /**
+   * Start a new turn. Resets tool call tracking.
+   */
+  startTurn(): void {
+    this.toolCalls = [];
+    this.turnStartTime = Date.now();
   }
 
   /**
-   * Initialize the guard - call before pipeline starts.
+   * Record a tool call that was actually executed.
    */
-  async initialize(): Promise<void> {
-    if (this.config.enableGroundTruth) {
-      this.state.groundTruth = await analyzeGroundTruth(this.projectRoot);
-    }
-  }
-
-  /**
-   * Hook: before_pipeline
-   * Injects ground truth context into the task.
-   */
-  async beforePipeline(event: HookEvent): Promise<HookResult> {
-    if (!this.config.injectContext || !this.state.groundTruth) {
-      return {};
-    }
-
-    const task = event.data.task as string;
-    if (!task) return {};
-
-    // Modify task to include ground truth context
-    const contextString = this.generateGroundTruthContext();
-    const enhancedTask = `${task}\n\n${contextString}`;
-
-    return {
-      modifiedData: { task: enhancedTask },
-    };
-  }
-
-  /**
-   * Hook: after_thought
-   * Validates LLM output against ground truth.
-   * Vision layer gets relaxed checking — it's exploratory, not assertive.
-   */
-  async afterThought(event: HookEvent): Promise<HookResult> {
-    if (!this.config.validateOutputs || !this.state.groundTruth) {
-      return {};
-    }
-
-    const data = event.data as { layer?: string; input?: string; output?: string; reasoning?: string };
-    const content = `${data.output || ""}\n${data.reasoning || ""}`;
-
-    if (!content.trim()) return {};
-
-    // Vision layer is exploratory — do NOT fact-check or block
-    // Vision creates plans, describes architecture, estimates scope
-    // All assertions are aspirational, not factual claims
-    // Real validation happens at worker/reviewer level
-    const isVisionLayer = data.layer === "visioner" || data.layer === "vision";
-    if (isVisionLayer) {
-      return {};
-    }
-
-    const isResearchLayer = data.layer === "researcher" || data.layer === "research";
-
-    const checker = createFactChecker(this.state.groundTruth, {
-      strictCommands: this.config.strictMode,
-      strictFiles: this.config.strictMode,
-      strictMetrics: this.config.strictMode && !isResearchLayer,
-      strictLinks: this.config.strictMode,
+  recordToolCall(name: string, args: Record<string, unknown>, success: boolean): void {
+    this.toolCalls.push({
+      name,
+      args,
+      success,
+      timestamp: Date.now(),
     });
-
-    const result = checker.check(content);
-    this.state.lastCheck = result;
-
-    if (!result.valid) {
-      this.state.violationCount += result.violations.length;
-
-      if (this.config.strictMode) {
-        // Generate feedback for retry
-        const feedback = checker.generateFeedback(result);
-        this.config.onViolation?.(`${data.layer} hallucination: ${result.violations[0].reason}`, "error");
-
-        return {
-          block: true,
-          blockReason: `Hallucination detected in ${data.layer} output. ${result.violations.length} fact violations found.`,
-          modifiedData: {
-            // Attach feedback for retry mechanism
-            _hallucinationFeedback: feedback,
-            _violations: result.violations,
-          },
-        };
-      }
-    }
-
-    return {};
   }
 
   /**
-   * Hook: before_file_write
-   * Validates file content before writing.
+   * Get the list of tool names that were called this turn.
    */
-  async beforeFileWrite(event: HookEvent): Promise<HookResult> {
-    if (!this.config.validateOutputs || !this.state.groundTruth) {
-      return {};
-    }
-
-    const data = event.data as { path?: string; content?: string };
-    const filePath = data.path || "";
-    const content = data.content || "";
-
-    // Only check markdown/documentation files
-    if (!filePath.endsWith(".md") && !filePath.endsWith(".MD")) {
-      return {};
-    }
-
-    const checker = createFactChecker(this.state.groundTruth);
-    const result = checker.check(content);
-
-    if (!result.valid) {
-      this.state.violationCount += result.violations.length;
-
-      if (this.config.strictMode) {
-        const feedback = checker.generateFeedback(result);
-        console.error("\n" + feedback);
-
-        return {
-          block: true,
-          blockReason: `Hallucination detected in ${filePath}. Fix the content before writing.`,
-        };
-      }
-    }
-
-    return {};
+  getCalledTools(): string[] {
+    return [...new Set(this.toolCalls.map(tc => tc.name))];
   }
 
   /**
-   * Hook: before_command
-   * Validates shell commands against ground truth.
+   * Get the count of tool calls this turn.
    */
-  async beforeCommand(event: HookEvent): Promise<HookResult> {
-    if (!this.config.strictMode || !this.state.groundTruth) {
-      return {};
-    }
+  getToolCallCount(): number {
+    return this.toolCalls.length;
+  }
 
-    const data = event.data as { command?: string };
-    const command = data.command || "";
+  /**
+   * Audit the LLM response against actual tool calls.
+   * Returns a GuardResult with violations and optionally modified text.
+   */
+  audit(responseText: string): GuardResult {
+    const violations: Violation[] = [];
+    const calledTools = this.getCalledTools();
+    const lines = responseText.split("\n");
 
-    if (!command.trim()) return {};
+    for (const pattern of CLAIM_PATTERNS) {
+      for (const regex of pattern.patterns) {
+        for (const line of lines) {
+          if (regex.test(line)) {
+            // Check if any required tool was actually called
+            const hasRequiredTool = pattern.requiredTools.some(t => calledTools.includes(t));
 
-    // Check for hallucinated commands
-    const gt = this.state.groundTruth;
-
-    // Extract command name (first word before space)
-    const cmdName = command.trim().split(/\s+/)[0];
-
-    // Check if it's a package manager command with potentially wrong package
-    if (cmdName === "npm" || cmdName === "yarn" || cmdName === "pnpm") {
-      // Check for npm install -g (common hallucination)
-      if (command.includes("install -g") || command.includes("i -g")) {
-        // Check if package is actually published
-        const match = command.match(/install\s+-g\s+(\S+)/);
-        if (match) {
-          const pkg = match[1];
-          // Check if this package exists in our dependencies
-          const deps = gt.packageJson.parsed?.dependencies || {};
-          const devDeps = gt.packageJson.parsed?.devDependencies || {};
-          const isLocalDep = Object.prototype.hasOwnProperty.call(deps, pkg);
-          const isDevDep = Object.prototype.hasOwnProperty.call(devDeps, pkg);
-
-          if (!isLocalDep && !isDevDep) {
-            this.state.violationCount++;
-            return {
-              block: true,
-              blockReason: `Potentially hallucinated global install: ${pkg}. This package is not in project dependencies. Use local install (npm install ${pkg}) or verify package exists on npm.`,
-            };
+            if (!hasRequiredTool) {
+              violations.push({
+                type: pattern.type,
+                claim: regex.source.slice(0, 60),
+                line: line.trim().slice(0, 120),
+                severity: pattern.severity,
+              });
+            }
           }
         }
       }
     }
 
-    // Check for non-existent npm scripts
-    if (command.startsWith("npm run ") || command.startsWith("yarn ")) {
-      const scriptMatch = command.match(/(?:npm run|yarn)\s+(\S+)/);
-      if (scriptMatch) {
-        const scriptName = scriptMatch[1];
-        const scriptExists = gt.availableCommands.some(c =>
-          c.name === scriptName && c.source === "package.json"
-        );
+    // Check for suspicious status lines
+    if (STATUS_LINE_PATTERN.test(responseText) && this.toolCalls.length === 0) {
+      violations.push({
+        type: "generic_completion",
+        claim: "Status-style completion lines with zero tool calls",
+        line: responseText.match(STATUS_LINE_PATTERN)?.[0]?.trim().slice(0, 120) ?? "",
+        severity: "critical",
+      });
+    }
 
-        if (!scriptExists) {
-          const availableScripts = gt.availableCommands
-            .filter(c => c.source === "package.json")
-            .map(c => c.name)
-            .join(", ");
-          this.state.violationCount++;
-          return {
-            block: true,
-            blockReason: `Hallucinated npm script: "${scriptName}" does not exist in package.json scripts. Available scripts: ${availableScripts || "none"}`,
-          };
-        }
+    // Speed check: if response claims multiple file operations but turn was < 2s
+    // and no tool calls were made, that's suspicious
+    const turnDurationMs = Date.now() - this.turnStartTime;
+    const fileClaimCount = violations.filter(v =>
+      v.type === "file_write_claim" || v.type === "file_edit_claim"
+    ).length;
+    if (fileClaimCount >= 2 && turnDurationMs < 3000 && this.toolCalls.length === 0) {
+      violations.push({
+        type: "generic_completion",
+        claim: `${fileClaimCount} file operation claims in ${turnDurationMs}ms with 0 tool calls`,
+        line: "(speed heuristic)",
+        severity: "critical",
+      });
+    }
+
+    // Deduplicate by type + line
+    const seen = new Set<string>();
+    const uniqueViolations = violations.filter(v => {
+      const key = `${v.type}:${v.line}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const criticalCount = uniqueViolations.filter(v => v.severity === "critical").length;
+    const warningCount = uniqueViolations.filter(v => v.severity === "warning").length;
+
+    if (uniqueViolations.length === 0) {
+      return {
+        detected: false,
+        text: responseText,
+        violations: [],
+        summary: `clean (${this.toolCalls.length} tool calls)`,
+      };
+    }
+
+    // Build modified response
+    const warningBlock = this.buildWarningBlock(uniqueViolations, calledTools);
+    const modifiedText = criticalCount > 0
+      ? `${warningBlock}\n\n---\n\n${responseText}`
+      : `${responseText}\n\n---\n${warningBlock}`;
+
+    return {
+      detected: true,
+      text: modifiedText,
+      violations: uniqueViolations,
+      summary: `HALLUCINATION: ${criticalCount} critical, ${warningCount} warning (${this.toolCalls.length} actual tool calls)`,
+    };
+  }
+
+  /**
+   * Build a user-visible warning block.
+   */
+  private buildWarningBlock(violations: Violation[], calledTools: string[]): string {
+    const criticals = violations.filter(v => v.severity === "critical");
+    const warnings = violations.filter(v => v.severity === "warning");
+
+    const parts: string[] = [];
+
+    if (criticals.length > 0) {
+      parts.push("⚠️ **DOĞRULAMA UYARISI**");
+      parts.push("");
+      parts.push("Bu yanıtta aşağıdaki iddialar tool çağrısı olmadan yapılmış:");
+      for (const v of criticals) {
+        const typeLabel = VIOLATION_LABELS[v.type] ?? v.type;
+        parts.push(`• ❌ ${typeLabel}: \`${v.line.slice(0, 80)}\``);
       }
+      parts.push("");
+      parts.push(`Gerçek tool çağrıları: ${calledTools.length > 0 ? calledTools.join(", ") : "HİÇBİRİ"}`);
+      parts.push("");
+      parts.push("⚠️ **Yukarıdaki iddialar doğrulanmamıştır. Lütfen manuel kontrol edin.**");
     }
 
-    return {};
-  }
-
-  /**
-   * Hook: after_pipeline
-   * Reports on hallucination statistics.
-   */
-  async afterPipeline(event: HookEvent): Promise<HookResult> {
-    if (this.state.violationCount > 0) {
-      console.log(`\n⚠️  Hallucination Guard: ${this.state.violationCount} total violations caught`);
+    if (warnings.length > 0 && criticals.length === 0) {
+      parts.push(`ℹ️ Not: ${warnings.length} doğrulanmamış iddia tespit edildi.`);
     }
-    return {};
-  }
 
-  /**
-   * Get current guard state.
-   */
-  getState(): GuardState {
-    return { ...this.state };
-  }
-
-  /**
-   * Get ground truth report.
-   */
-  getGroundTruth(): GroundTruthReport | null {
-    return this.state.groundTruth;
-  }
-
-  private generateGroundTruthContext(): string {
-    if (!this.state.groundTruth) return "";
-
-    const gt = this.state.groundTruth;
-    const lines: string[] = [];
-
-    lines.push("---");
-    lines.push("GROUND TRUTH (Verified Facts from Codebase):");
-    lines.push("");
-
-    // Installation
-    lines.push("INSTALLATION:");
-    lines.push(gt.installation.installCommand);
-    lines.push("");
-
-    // Commands
-    lines.push("COMMANDS:");
-    const realCommands = gt.availableCommands
-      .filter((c) => c.exists)
-      .slice(0, 5)
-      .map((c) => `- ${c.name}`);
-    lines.push(...realCommands);
-    lines.push("");
-
-    // Structure
-    lines.push("STRUCTURE:");
-    lines.push(`- ${gt.structure.sourceFiles} source files`);
-    lines.push(`- ${gt.structure.testFiles} test files`);
-    if (gt.structure.testPattern) {
-      lines.push(`- Test pattern: ${gt.structure.testPattern}`);
-    }
-    lines.push("");
-
-    // Constraints
-    lines.push("CONSTRAINTS:");
-    lines.push("- DO NOT suggest npm install -g (not published)");
-    lines.push("- DO NOT invent commands - use only listed ones");
-    lines.push("- DO NOT claim specific performance metrics");
-    lines.push("- DO NOT use placeholder URLs");
-    lines.push("---");
-
-    return lines.join("\n");
+    return parts.join("\n");
   }
 }
 
-// ─── HOOK REGISTRATION HELPERS ─────────────────────────────────
+// ─── LABELS ──────────────────────────────────────────────────
+
+const VIOLATION_LABELS: Record<ViolationType, string> = {
+  file_write_claim: "Dosya yazma iddiası",
+  file_edit_claim: "Dosya düzenleme iddiası",
+  commit_claim: "Git commit iddiası",
+  push_claim: "Git push iddiası",
+  test_claim: "Test sonucu iddiası",
+  build_claim: "Build sonucu iddiası",
+  delete_claim: "Silme iddiası",
+  install_claim: "Yükleme iddiası",
+  deploy_claim: "Deploy iddiası",
+  generic_completion: "Tamamlanma iddiası",
+};
+
+// ─── CONVENIENCE ─────────────────────────────────────────────
 
 /**
- * Register hallucination guard hooks with a HooksEngine.
+ * Quick one-shot audit: pass tool calls + response text, get result.
  */
-export function registerHallucinationGuard(
-  hooksEngine: { register: (hookName: import("./hooks-engine.js").HookName, handler: import("./hooks-engine.js").HookHandler, options?: { name?: string; priority?: number; catchErrors?: boolean }) => () => void },
-  projectRoot: string,
-  config?: Partial<GuardConfig>
-): HallucinationGuard {
-  const guard = new HallucinationGuard(projectRoot, config);
-
-  // Register hooks
-  hooksEngine.register("before_pipeline", guard.beforePipeline.bind(guard), {
-    name: "hallucination-guard-init",
-    priority: 100, // High priority - run early
-  });
-
-  hooksEngine.register("after_thought", guard.afterThought.bind(guard), {
-    name: "hallucination-guard-check",
-    priority: 90,
-  });
-
-  hooksEngine.register("before_file_write", guard.beforeFileWrite.bind(guard), {
-    name: "hallucination-guard-files",
-    priority: 80,
-  });
-
-  hooksEngine.register("before_command", guard.beforeCommand.bind(guard), {
-    name: "hallucination-guard-commands",
-    priority: 85,
-  });
-
-  hooksEngine.register("after_pipeline", guard.afterPipeline.bind(guard), {
-    name: "hallucination-guard-report",
-    priority: 10,
-  });
-
-  return guard;
-}
-
-// ─── STANDALONE CHECK ──────────────────────────────────────────
-
-export async function checkForHallucinations(
-  content: string,
-  projectRoot: string
-): Promise<FactCheckResult> {
-  const truth = await analyzeGroundTruth(projectRoot);
-  const checker = createFactChecker(truth);
-  return checker.check(content);
+export function auditResponse(
+  responseText: string,
+  toolCalls: Array<{ name: string; args?: Record<string, unknown>; success?: boolean }>,
+): GuardResult {
+  const guard = new HallucinationGuard();
+  guard.startTurn();
+  for (const tc of toolCalls) {
+    guard.recordToolCall(tc.name, tc.args ?? {}, tc.success ?? true);
+  }
+  return guard.audit(responseText);
 }

@@ -42,6 +42,7 @@ import {
   type ConversationMessage,
   type SummarizeFunction,
 } from "./compaction-engine.js";
+import { HallucinationGuard } from "./hallucination-guard.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 
@@ -480,6 +481,10 @@ export class MessagingGateway {
 
     let responseText = "";
 
+    // ─── HALLUCINATION GUARD — track actual tool calls ──────
+    const hallucinationGuard = new HallucinationGuard();
+    hallucinationGuard.startTurn();
+
     try {
       const result = await this.provider!.streamChatWithTools!(
         messages,
@@ -488,14 +493,19 @@ export class MessagingGateway {
         (token: string) => {
           responseText += token;
         },
-        // onToolCall — log tool usage
+        // onToolCall — log + record for guard
         (call: ToolCall) => {
           console.log(`[gateway] Tool: ${call.name} ${JSON.stringify(call.args).slice(0, 80)}`);
+          hallucinationGuard.recordToolCall(call.name, call.args, true); // recorded before result
         },
-        // onToolResult — log result
+        // onToolResult — log + update guard record
         (result: ToolResult) => {
           const preview = result.content.slice(0, 200);
           console.log(`[gateway] Result: ${result.name} → ${result.isError ? "❌" : "✔"} ${preview}`);
+          if (result.isError) {
+            // Update the last recorded call to mark as failed
+            hallucinationGuard.recordToolCall(result.name, {}, false);
+          }
         },
         // maxTokens
         32768,
@@ -508,10 +518,22 @@ export class MessagingGateway {
       conversation.totalTokens += result.inputTokens + result.outputTokens;
 
       // Use accumulated text from onToken, fallback to result.text
-      const text = responseText.trim() || result.text.trim();
+      let text = responseText.trim() || result.text.trim();
       if (!text) {
         console.warn(`[gateway] LLM returned empty response after ${result.inputTokens + result.outputTokens} tokens`);
         return { text: "⚠️ I processed your request but couldn't generate a response. Try again." };
+      }
+
+      // ─── HALLUCINATION GUARD — audit response ────────────
+      const guardResult = hallucinationGuard.audit(text);
+      if (guardResult.detected) {
+        console.warn(`[gateway] 🚨 HALLUCINATION GUARD: ${guardResult.summary}`);
+        for (const v of guardResult.violations) {
+          console.warn(`[guard]   ${v.severity}: ${v.type} — ${v.line.slice(0, 80)}`);
+        }
+        text = guardResult.text;
+      } else {
+        console.log(`[gateway] Guard: ${guardResult.summary}`);
       }
 
       console.log(`[gateway] Response ready: ${text.length} chars, ${result.inputTokens}+${result.outputTokens} tokens`);
@@ -642,6 +664,34 @@ export class MessagingGateway {
       "- Don't ask for permission on safe operations (read, search, git status)",
       "- Ask before destructive operations (delete, force push, overwrite)",
       "- Always verify your work (run build/tests after changes)",
+      "",
+      "## ANTI-HALLUCINATION PROTOCOL — ABSOLUTE RULES",
+      "These rules are enforced by code. Violations are automatically detected and flagged.",
+      "",
+      "1. **NEVER claim you wrote a file unless write_file or bash tool was called and returned success.**",
+      "   Bad: '✅ Dosya yazıldı: src/foo.ts (423 satır)' without a write_file call.",
+      "   Good: Call write_file first, THEN report the result.",
+      "",
+      "2. **NEVER claim you committed or pushed unless bash ran git commit/push and returned success.**",
+      "   Bad: '✅ COMMIT YAPILDI: abc1234' without a bash(git commit) call.",
+      "   Good: Call bash with git commit, see the output, THEN report.",
+      "",
+      "3. **NEVER claim tests passed unless bash ran the test command and returned output.**",
+      "   Bad: '✅ 15/15 test geçti' without a bash(npm test) call.",
+      "   Good: Call bash with npm test, see the output, THEN report.",
+      "",
+      "4. **NEVER fabricate commit hashes, file sizes, line counts, or status outputs.**",
+      "   Every number you report must come from a tool call's actual output.",
+      "",
+      "5. **NEVER use ✅/✔ checkmarks for actions you haven't performed.**",
+      "   Checkmarks are ONLY for verified, tool-confirmed completions.",
+      "",
+      "6. **If you're unsure whether something worked, SAY SO and verify with a tool.**",
+      "   'Kontrol edeyim...' → bash/read_file → then report.",
+      "",
+      "7. **Your responses are automatically audited against your actual tool calls.**",
+      "   If you claim an action without the matching tool call, a warning is injected",
+      "   into your response that the user will see. This is embarrassing. Don't trigger it.",
       "",
       `## Project: ${this.config.projectName}`,
       `## Working Directory: ${this.config.projectRoot}`,
