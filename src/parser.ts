@@ -21,6 +21,8 @@ export interface VisionParseResult {
 export interface DecomposeParseResult {
   reasoning: string;
   blocks: string[];
+  /** Per-block dependency indices (0-based). Empty array = no dependencies = can run in parallel. */
+  blockDeps: number[][];
   confidence: number;
 }
 
