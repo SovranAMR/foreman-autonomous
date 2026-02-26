@@ -73,6 +73,20 @@ export class Orchestrator {
   private readonly MAX_TOKENS_SESSION = 2_000_000;
   private readonly MAX_ATOM_RETRIES = 3;
 
+  // Phase-level budget caps (percentage of session budget).
+  // Prevents early phases from starving worker execution.
+  private readonly PHASE_BUDGET_PCT: Record<string, number> = {
+    vision: 0.05,     // 5% — vision should be concise
+    decompose: 0.05,  // 5% — decomposition is structural, not verbose
+    research: 0.15,   // 15% — research can be heavy but bounded
+    execute: 0.65,    // 65% — bulk of tokens go to actual work
+    reflect: 0.05,    // 5% — reflections are periodic checks
+    review: 0.05,     // 5% — reviewer gate calls
+  };
+
+  // Track per-phase token usage
+  private phaseTokens: Map<string, number> = new Map();
+
   // ─── PIPELINE METRICS ─────────────────────────────────────
   private pipelineStartTime = 0;
   private phaseTimings: Map<string, number> = new Map();
@@ -118,6 +132,12 @@ export class Orchestrator {
     }
     // Feed observer
     this.observer.onOrchestratorEvent(event);
+
+    // Auto-track phase budget on thought completion
+    if (event.type === "thought_complete" && event.thought) {
+      const phase = event.thought.layer ?? "execute";
+      this.trackPhaseTokens(phase, event.thought);
+    }
   }
 
   /**
@@ -1420,8 +1440,16 @@ ${visionOutput}`,
           } catch { /* ground truth validation best-effort */ }
         }
 
-        // ── REFLECT every 5 atoms — Visioner as Art Director ──
-        if (atomCount > 0 && atomCount % 5 === 0) {
+        // ── ADAPTIVE REFLECTION — Visioner as Art Director ──
+        // Reflection frequency adapts to block size:
+        //   1-2 atoms: reflect after last atom only
+        //   3-4 atoms: reflect every 3 atoms
+        //   5+  atoms: reflect every 4 atoms
+        // Always reflect after the final atom of a block.
+        const reflectInterval = atoms.length <= 2 ? atoms.length : atoms.length <= 4 ? 3 : 4;
+        const isLastAtom = j === atoms.length - 1;
+        const isReflectionPoint = atomCount > 0 && (atomCount % reflectInterval === 0 || isLastAtom);
+        if (isReflectionPoint) {
           this.emit({ type: "phase_start", phase: "reflect", detail: `Reflection after ${atomCount} atoms` });
           this.engine.streaming.phaseStart("reflect", `Vision drift check after ${atomCount} atoms`);
 
@@ -2538,6 +2566,40 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     }
 
     return blocks.length > 0 ? blocks : [text.trim()];
+  }
+
+  /**
+   * Check if a phase has exceeded its token budget.
+   * Returns remaining tokens for the phase, or 0 if exceeded.
+   * Non-blocking: logs a warning but does NOT stop the pipeline.
+   * The session-level budget (MAX_TOKENS_SESSION) is the hard stop.
+   */
+  private checkPhaseBudget(phase: string, tokensUsed: number): { remaining: number; exceeded: boolean } {
+    const current = (this.phaseTokens.get(phase) ?? 0) + tokensUsed;
+    this.phaseTokens.set(phase, current);
+
+    const phasePct = this.PHASE_BUDGET_PCT[phase] ?? 0.10;
+    const phaseBudget = Math.floor(this.MAX_TOKENS_SESSION * phasePct);
+    const remaining = phaseBudget - current;
+
+    if (remaining <= 0) {
+      console.warn(`[forge] Phase "${phase}" exceeded budget: ${current}/${phaseBudget} tokens (${(phasePct * 100).toFixed(0)}% of session)`);
+      return { remaining: 0, exceeded: true };
+    }
+    return { remaining, exceeded: false };
+  }
+
+  /**
+   * Track tokens for a phase after a thought completes.
+   */
+  private trackPhaseTokens(phase: string, thought: Thought): void {
+    const tokens = thought.tokenCost ?? 0;
+    if (tokens > 0) {
+      const result = this.checkPhaseBudget(phase, tokens);
+      if (result.exceeded) {
+        this.engine.streaming.warning(`⚠️ Phase "${phase}" exceeded token budget — remaining phases may be constrained`);
+      }
+    }
   }
 
   /**
