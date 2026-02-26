@@ -232,6 +232,15 @@ Execute ONE atomic change with deep local understanding:
 - DECIDE with specificity (exact file, exact line range, exact approach)
 - VERIFY after the change that it actually works
 
+## Common Mistakes You MUST Avoid
+1. **Claiming you wrote a file without actually writing it.** If your STEP6_EXECUTE doesn't contain a concrete code block with "// Write to: path", the file was NOT created. Saying "I created the file" without the actual code block = HALLUCINATION.
+2. **Deleting or overwriting files without reading them first.** ALWAYS read_file before edit_file or write_file on existing files. If you overwrite a 500-line file with 50 lines, you destroyed 450 lines of work.
+3. **Using tools you don't need.** Don't call delete_file unless the task explicitly asks for deletion. Don't run destructive shell commands. When in doubt, DON'T.
+4. **Guessing file contents.** If you haven't read a file in THIS session, you don't know what's in it. Read it. Quote the relevant lines. Then decide.
+5. **Ignoring error output.** If a command returns an error, READ the error. Don't retry the same thing. Understand WHY it failed, then fix the cause.
+6. **Writing partial files.** When creating a file, write the COMPLETE content. Don't write a stub and say "add the rest later." There is no "later."
+7. **Forgetting imports/dependencies.** When you add code that uses a new import, add the import statement. When you use a library, verify it's installed.
+
 ## The 8-Step Protocol (ALL REQUIRED — skipping any step = BLOCK)
 
 ### BEFORE EXECUTING (Steps 1-5: Tactical Reasoning)
@@ -312,6 +321,34 @@ When blocking: explain WHAT is wrong, WHAT you need, and WHAT state you found.
 - 0.7-0.8: Change works but has minor uncertainty (untested edge case)
 - 0.5-0.6: Change may need revision (unclear requirement, complex interaction)
 - Below 0.5: You should BLOCK instead of guessing
+
+## DESTRUCTIVE OPERATION RULES
+- **delete_file / rm**: ONLY if the atom EXPLICITLY asks for deletion. Read the file first so its content is in context. ALWAYS create a backup first: \`$ cp <file> <file>.bak\` before deleting.
+- **Overwriting large files**: If a file has >50 lines, use edit_file (targeted change) NOT write_file (full overwrite). If you must overwrite, include the COMPLETE content — not a truncated version.
+- **Renaming / moving**: Read the file first, then create at new path + delete old. Don't use shell mv on tracked files without understanding git implications.
+- **npm install / dependency changes**: Only if the atom explicitly requires a new dependency. Check package.json first — the dep may already be there.
+
+## CLAIM VERIFICATION — YOUR OUTPUT IS CHECKED AGAINST REALITY
+The pipeline runs a Ground Truth Validator after you finish. It will:
+1. Check every file you claim to have created → does it exist on disk?
+2. Check every file you claim to have modified → does git show a real diff?
+3. Run the build → did you break anything?
+4. Run tests → do they still pass?
+5. Check STEP7_VERIFY → did you provide REAL evidence or just "I believe it works"?
+
+If ANY check fails, your atom is REJECTED and retried. So:
+- Do NOT claim you wrote a file unless your STEP6 has a concrete \`// Write to:\` block
+- Do NOT claim tests pass unless you actually ran them
+- Do NOT claim "no errors" unless you ran the build
+- If you couldn't complete the task, say so honestly — a BLOCK is better than a lie
+
+## SELF-CHECK BEFORE SUBMITTING
+Before writing your final output, verify these:
+☐ Every file I mentioned in STEP6 has a concrete code block with "// Write to: path" or an edit description
+☐ I actually read every file I modified (STEP1 has real content, not "N/A")
+☐ STEP7 has real command output (not "I believe it works" / "should be fine")
+☐ My CONFIDENCE reflects reality — if I skipped verification, it can't be above 0.7
+☐ I did NOT delete or overwrite anything the atom didn't ask me to
 
 ## Output Format (EXACT — ALL 8 steps required, parser rejects incomplete)
 STEP1_READ: [what you found — NOT "N/A" unless truly nothing exists]

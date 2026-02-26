@@ -764,6 +764,7 @@ ${visionOutput}`,
         let toolCallCount = 0;
         const atomStartTime = Date.now();
         const toolResults: Array<{ name: string; success: boolean }> = [];
+        let lastExecSummary: import("./worker-executor.js").WorkerExecutionSummary | null = null;
 
         for (let attempt = 0; attempt < this.MAX_ATOM_RETRIES; attempt++) {
           if (attempt > 0) {
@@ -1041,7 +1042,7 @@ ${visionOutput}`,
                 });
 
                 try {
-                  const execSummary = await executeOperations(
+                  lastExecSummary = await executeOperations(
                     ops,
                     this.engine.exec,
                     this.engine.editEngine,
@@ -1056,12 +1057,12 @@ ${visionOutput}`,
                   this.emit({
                     type: "phase_end",
                     phase: "real_execute",
-                    detail: `${execSummary.succeeded}/${execSummary.totalOps} succeeded`,
+                    detail: `${lastExecSummary!.succeeded}/${lastExecSummary!.totalOps} succeeded`,
                   });
 
                   // Feed execution results back into thought for verification
-                  if (execSummary.output) {
-                    const feedback = buildExecutionFeedback(execSummary);
+                  if (lastExecSummary!.output) {
+                    const feedback = buildExecutionFeedback(lastExecSummary!);
                     // Append execution results to thought output
                     this.engine.thoughts.update(execResult?.thought.id, {
                       output: (execResult?.thought.output ?? "") + "\n\n" + feedback,
@@ -1071,13 +1072,13 @@ ${visionOutput}`,
                   // ─── AUTOMATIC COMMIT ─────────────────────────────
                   // Commitment logic moved from atom boundary to here
                   // Only commit if: Git is enabled, project has git, and operations succeeded
-                  if (this.engine.git && execSummary.succeeded > 0) {
+                  if (this.engine.git && lastExecSummary!.succeeded > 0) {
                     const git = this.engine.git;
                     try {
                       // Status check to see if there are actual changes
                       const gitStatus = git.executor.gitStatus();
                       if (!gitStatus.clean) {
-                        const commitMsg = `${atom.slice(0, 50)}${execSummary.failed > 0 ? " (partial)" : ""}`;
+                        const commitMsg = `${atom.slice(0, 50)}${lastExecSummary!.failed > 0 ? " (partial)" : ""}`;
                         const commitResult = git.commitThought({
                           message: commitMsg,
                           chainId: visionChain.id,
@@ -1099,6 +1100,19 @@ ${visionOutput}`,
                     type: "error",
                     message: `Execution failed for atom ${j + 1}: ${execErr instanceof Error ? execErr.message : String(execErr)}`,
                   });
+                }
+              } else {
+                // Worker claims execution but 0 operations extracted — likely hallucinated
+                this.engine.streaming.warning(`⚠️ Atom ${j + 1}: worker produced output but 0 extractable operations — possible hallucination`);
+                this.emit({
+                  type: "verification",
+                  phase: "extraction_empty",
+                  passed: false,
+                  detail: `Worker step6_execute has content (${protocol.step6_execute?.length ?? 0} chars) but no parseable file writes or commands`,
+                });
+                // Mark as low confidence so retry loop catches it
+                if (execResult?.thought) {
+                  execResult.thought.confidence = Math.min(execResult.thought.confidence ?? 0.5, 0.4);
                 }
               }
             }
@@ -1414,7 +1428,7 @@ ${visionOutput}`,
             const validation = validateWorkerOutput(
               execResult.thought.workerProtocol,
               // Pass execution summary if available (from extraction mode)
-              null, // execSummary already fed back above
+              lastExecSummary, // real execution results for validation
               this.engine.git.executor,
               this.engine.config.projectRoot,
             );
@@ -2727,88 +2741,87 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
 }
 
 // ─── TOOL-MODE WORKER PROMPT ─────────────────────────────────
+// ─── TOOL-MODE WORKER PROMPT ─────────────────────────────────
 
 function getWorkerPromptForToolMode(): string {
-  return `You are the WORKER of Foreman — a 4-layer AI coding agent orchestrator.
+  return `You are the WORKER layer of Foreman — an AI coding agent. You execute ONE atomic task using real tools. You are judged on RESULTS, not words.
 
-You have access to 47 real tools. Use them to complete the task.
+## PRIME DIRECTIVE
+Your output is VERIFIED against the filesystem after you finish. If you claim you wrote a file and it doesn't exist, you FAIL. If you claim tests pass and they don't, you FAIL. The pipeline checks every claim. Do not lie. Do not hallucinate. Do not skip.
 
-## File Operations
-- read_file: Read file contents (ALWAYS read before editing)
-- write_file: Write/create files
-- edit_file: Edit existing files (find & replace)
-- edit_range: Edit specific line range in a file
-- edit_undo: Undo last edit to a file
-- batch_write: Write multiple files atomically
-- batch_ops: Execute multiple operations in sequence
-- delete_file: Delete a file
-- search_files: Search for patterns across files
-- search_in_files: Search file contents with regex
-- grep: Search file contents (grep-style)
-- list_dir: List directory contents
-- diff_preview: Preview unified diff before writing a file
+## TOOL DECISION TREE — Follow this EXACTLY
 
-## Shell & Process
-- bash: Run shell commands (npm, git, etc.)
-- list_processes: List running background processes
-- kill_processes: Kill running processes
-- spawn_subagent: Spawn a sub-agent for parallel work
+### "I need to understand existing code"
+→ read_file (specific file) or grep/search_in_files (find patterns across codebase)
+→ NEVER guess file contents. NEVER assume imports, exports, or function signatures.
 
-## Git Operations
-- git_status: Get git working tree status
-- git_commit: Commit staged changes
-- git_diff: Show uncommitted changes
-- git_log: Show commit history
+### "I need to create a new file"
+→ write_file (single file) or batch_write (multiple files atomically)
+→ After writing: ALWAYS read_file to confirm it exists and has correct content.
 
-## Build & Verify
-- verify_build: Run build and parse errors
-- verify_tests: Run tests and parse results
+### "I need to modify an existing file"
+→ FIRST: read_file to see current content
+→ THEN: edit_file (find & replace) for surgical changes, edit_range for line-range edits
+→ For large rewrites: diff_preview first, then write_file
+→ After editing: read_file again to confirm the change landed correctly.
+→ NEVER edit a file you haven't read in THIS session.
 
-## Web & Research
-- web_search: Search the web (Brave Search API)
-- web_fetch: Fetch and extract content from a URL
-- analyze_link: Classify and analyze a URL
-- classify_url: Classify URL type (docs, repo, etc.)
+### "I need to delete a file"
+→ FIRST: read_file to confirm it's the right file
+→ THEN: bash("cp <file> <file>.bak") to create backup
+→ THEN: delete_file
+→ NEVER delete without reading first. NEVER bulk-delete.
 
-## Browser Automation
-- browser_navigate: Navigate to URL, get page info
-- browser_screenshot: Take screenshot of a web page
-- browser_extract: Extract text, links, headings from page
-- browser_pdf: Generate PDF from web page
+### "I need to run a command"
+→ bash for shell commands (npm, tsc, test runners, etc.)
+→ ALWAYS capture and read the output — don't fire-and-forget.
 
-## Memory & Identity
-- memory_read: Read from persistent memory
-- memory_write: Write to persistent memory
-- memory_search: Search persistent memory entries
+### "I need to verify my work"
+→ verify_build (compile check) and/or verify_tests (test suite)
+→ For UI work: browser_screenshot to visually confirm
+→ If verification fails: FIX IT (up to 3 attempts), don't just report failure.
 
-## Analysis & Intelligence
-- parse_markdown: Parse markdown into structured data
-- cache_stats: Get cache hit/miss statistics
-- extract_code: Extract code blocks from text
-- semantic_search: Search with TF-IDF similarity
-- security_scan: Scan project for security issues
-- approval_audit: View command approval history
+### "I need to find something in the project"
+→ search_in_files or grep for content search
+→ search_files for filename search
+→ list_dir for directory structure
 
-## Your Protocol
-1. READ: Use read_file to understand what exists
-2. PLAN: Decide what to change (think step by step)
-3. EXECUTE: Use write_file/edit_file/bash to make changes
-4. VERIFY: Use verify_build/verify_tests to confirm it works
-5. REPORT: Summarize what you did
+### "I don't know how something works"
+→ web_search for external knowledge
+→ web_fetch for documentation pages
+→ read_file on related source files for internal understanding
 
-## Rules
-- ONE atomic task at a time
-- ALWAYS read before writing — do NOT hallucinate file contents
-- ALWAYS verify after changing
-- Use diff_preview before large file writes
-- If something fails, try to fix it (up to 3 attempts)
-- Report honestly — include failures
-- Use browser_screenshot to visually verify UI changes
-- Use memory_write to save important discoveries for future reference
+## MANDATORY WORKFLOW (every task)
+1. **ORIENT**: read_file / grep / list_dir — understand what exists RIGHT NOW
+2. **PLAN**: State exactly what you'll change, what files, what approach (2-3 sentences max)
+3. **EXECUTE**: Make the changes using the right tools from the decision tree above
+4. **CONFIRM**: read_file every file you touched — verify your changes are actually there
+5. **BUILD**: verify_build — confirm nothing is broken
+6. **REPORT**: What you did, what you confirmed, what's different now
 
-After completing all tool calls, provide your final response with:
-STEP6_EXECUTE: [what you did]
-STEP7_VERIFY: [verification results]
-STEP8_REPORT: [summary]
-CONFIDENCE: [0.0-1.0]`;
+## HARD RULES
+- You get ONE atomic task. Do it completely or BLOCK — no half-measures.
+- read_file BEFORE edit_file. ALWAYS. No exceptions.
+- read_file AFTER write_file/edit_file. Confirm it worked. Every time.
+- NEVER say "I created X" without calling read_file on X to prove it.
+- NEVER say "tests pass" without calling verify_tests or bash("npm test").
+- NEVER say "builds clean" without calling verify_build.
+- If something fails 3 times, BLOCK with a clear explanation — don't loop forever.
+- NEVER delete files without backup. NEVER rename without confirming the new path exists.
+- NEVER use node -e "require('fs')..." — use write_file/edit_file tools.
+- NEVER use git_commit — the pipeline handles commits.
+- DO NOT fabricate command output. Run the command, read the real output.
+
+## OUTPUT FORMAT
+After ALL tool calls complete, respond with:
+STEP6_EXECUTE: [exact list of tool calls you made and their results]
+STEP7_VERIFY: [real verification output — paste actual command results, not "I believe it works"]
+STEP8_REPORT: [what changed, what was confirmed, any concerns]
+CONFIDENCE: [0.0-1.0 — base this on VERIFICATION RESULTS, not vibes]
+
+## CONFIDENCE CALIBRATION
+- 0.9-1.0: Verified — build passes, tests pass, read_file confirms changes
+- 0.7-0.8: Partially verified — changes confirmed but edge cases untested
+- 0.5-0.6: Uncertain — something unexpected happened, needs human review
+- Below 0.5: BLOCK instead of guessing`;
 }
