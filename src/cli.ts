@@ -87,41 +87,107 @@ program
   .description(grad.logo("AI Agent Orchestrator — Atomic Thought Chains"))
   .version("0.1.0");
 
-// ─── DEFAULT COMMAND (REPL chat mode) ─────────────────────────
+// ─── DEFAULT COMMAND (REPL or Telegram Gateway) ─────────────────────────
 
 program.action(async () => {
-  // ── Spark rain entrance ──
-  if (process.stdout.isTTY) {
-    await animateSparkRain(60, 40);
-  }
+  // Load config module to check for Telegram settings
+  const { getTelegramToken, isTelegramEnabled } = await import("./config.js");
+  
+  // Check if Telegram token is configured via environment or config file
+  const tgToken = getTelegramToken();
+  const tgEnabled = isTelegramEnabled();
+  
+  if (tgToken && tgEnabled) {
+    // Telegram token found and enabled — start the messaging gateway automatically
+    console.log(brand.gold("  ◆ Foreman Auto-Activation\n"));
+    console.log(`    ${brand.dim("Telegram token detected via FOREMAN_TELEGRAM_TOKEN")}`);
+    console.log(`    ${brand.dim("Starting messaging gateway...")}\n`);
+    
+    const { MessagingGateway } = await import("./messaging-gateway.js");
+    const projectRoot = process.cwd();
+    
+    const gateway = new MessagingGateway({
+      projectRoot,
+      projectName: "foreman",
+      channels: [{
+        type: "telegram",
+        enabled: true,
+        botToken: tgToken,
+        allowedSenders: [],
+      }],
+      maxConcurrent: 5,
+      messageTimeoutMs: 120_000,
+    });
 
-  // ── Logo ──
-  printLogo();
+    // Graceful shutdown
+    const shutdown = async () => {
+      console.log("\n  Shutting down...");
+      await gateway.stop();
+      process.exit(0);
+    };
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
 
-  // ── Dwarf strikes the anvil ──
-  if (process.stdout.isTTY) {
-    await animateDwarf(3000, 150);
-  }
-  console.log("");
+    await gateway.start();
 
-  // ── Forge divider ──
-  forgeDivider();
-  console.log("");
+    // Show live status
+    const channelCount = gateway.getActiveChannels();
+    console.log(brand.gold(`\n  🔥 Gateway running — ${channelCount} channel(s) active`));
+    console.log(`  ${brand.dim(`Conversations: ${gateway.getConversationCount()} | Running: ${gateway.isRunning()}`)}`);
+    console.log(`  ${brand.dim("Press Ctrl+C to stop.\n")}`);
 
-  // ── Check credentials & start REPL ──
-  const creds = loadCredentials();
+    // Check channel health periodically
+    const healthInterval = setInterval(() => {
+      if (!gateway.isRunning()) {
+        clearInterval(healthInterval);
+        return;
+      }
+      for (const type of ["telegram"] as const) {
+        const ch = gateway.getChannel(type);
+        if (ch && !ch.isConnected()) {
+          console.log(`  ${brand.red("⚠")} ${type} channel disconnected!`);
+        }
+      }
+    }, 60_000);
+    healthInterval.unref();
 
-  if (!creds || Date.now() >= creds.expiresAt) {
-    // No credentials — still show commands for reference, then onboard via REPL
-    console.log(brand.gold("  ◆ Quick Start\n"));
-    console.log(`    ${brand.dim("$")} ${brand.cyan("foreman login")}              ${brand.dim("# one-time auth")}`);
-    console.log(`    ${brand.dim("$")} ${brand.cyan("foreman init my-project")}    ${brand.dim("# scaffold a project")}`);
-    console.log(`    ${brand.dim("$")} ${brand.cyan('foreman run "build an API"')} ${brand.dim("# fire up the forge")}`);
+    // Keep the process alive
+    await new Promise(() => {});
+  } else {
+    // No Telegram token — run the interactive REPL
+    // ── Spark rain entrance ──
+    if (process.stdout.isTTY) {
+      await animateSparkRain(60, 40);
+    }
+
+    // ── Logo ──
+    printLogo();
+
+    // ── Dwarf strikes the anvil ──
+    if (process.stdout.isTTY) {
+      await animateDwarf(3000, 150);
+    }
     console.log("");
-  }
 
-  // Start interactive REPL
-  await startRepl();
+    // ── Forge divider ──
+    forgeDivider();
+    console.log("");
+
+    // ── Check credentials & start REPL ──
+    const creds = loadCredentials();
+
+    if (!creds || Date.now() >= creds.expiresAt) {
+      // No credentials — still show commands for reference, then onboard via REPL
+      console.log(brand.gold("  ◆ Quick Start\n"));
+      console.log(`    ${brand.dim("$")} ${brand.cyan("foreman login")}              ${brand.dim("# one-time auth")}`);
+      console.log(`    ${brand.dim("$")} ${brand.cyan("foreman init my-project")}    ${brand.dim("# scaffold a project")}`);
+      console.log(`    ${brand.dim("$")} ${brand.cyan('foreman run "build an API"')} ${brand.dim("# fire up the forge")}`);
+      console.log("");
+    }
+
+    // Start interactive REPL
+    await startRepl();
+  }
 });
 
 // ─── SETUP ────────────────────────────────────────────────────
@@ -1154,6 +1220,57 @@ intCmd
     }
     console.log("");
     engine.shutdown();
+  });
+
+// ─── CONFIG ───────────────────────────────────────────────────
+
+program
+  .command("config")
+  .description("Manage Foreman configuration")
+  .option("--telegram-token <token>", "Set Telegram bot token")
+  .option("--telegram-enabled <bool>", "Enable/disable Telegram", "true")
+  .option("--show", "Show current configuration")
+  .action(async (opts: any) => {
+    const { loadConfig, saveConfig, getTelegramToken } = await import("./config.js");
+    
+    if (opts.show) {
+      const config = loadConfig();
+      console.log(brand.gold("\n  ◆ Foreman Configuration\n"));
+      console.log(`  Config file: ~/.foreman/config.json`);
+      console.log("");
+      console.log("  Telegram:");
+      console.log(`    Token: ${getTelegramToken() ? brand.green("✓ configured") : brand.dim("not set")}`);
+      console.log(`    Enabled: ${config.telegram?.enabled !== false ? brand.green("yes") : brand.red("no")}`);
+      console.log("");
+      console.log("  Environment variables (override config):");
+      console.log(`    FOREMAN_TELEGRAM_TOKEN: ${process.env.FOREMAN_TELEGRAM_TOKEN ? brand.green("✓ set") : brand.dim("not set")}`);
+      console.log("");
+      return;
+    }
+    
+    if (opts.telegramToken) {
+      const config = loadConfig();
+      if (!config.telegram) config.telegram = {};
+      config.telegram.botToken = opts.telegramToken;
+      config.telegram.enabled = opts.telegramEnabled !== "false";
+      
+      saveConfig(config);
+      console.log(brand.gold("\n  ◆ Configuration Updated\n"));
+      console.log(`  Telegram token saved: ${brand.green("✓")}`);
+      console.log(`  Telegram enabled: ${config.telegram.enabled ? brand.green("yes") : brand.red("no")}`);
+      console.log("");
+      console.log(`  ${brand.dim("Run 'foreman' to start with Telegram auto-activation")}`);
+      console.log("");
+      return;
+    }
+    
+    // Default: show help
+    console.log(brand.gold("\n  ◆ Foreman Config\n"));
+    console.log("  Usage:");
+    console.log(`    ${brand.cyan("foreman config --show")}                    ${brand.dim("# show current config")}`);
+    console.log(`    ${brand.cyan("foreman config --telegram-token <token>")}  ${brand.dim("# save Telegram token")}`);
+    console.log(`    ${brand.cyan("foreman config --telegram-enabled false")}  ${brand.dim("# disable Telegram")}`);
+    console.log("");
   });
 
 // ── PROCESS INSPECT ──

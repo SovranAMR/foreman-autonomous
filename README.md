@@ -94,6 +94,16 @@ npx tsx src/cli.ts serve --telegram <token> --allow <user_id>
 npx tsx src/cli.ts
 ```
 
+### Telegram Auto-Activation
+Set `FOREMAN_TELEGRAM_TOKEN` environment variable and run `foreman` (no arguments) to automatically start the Telegram bot:
+
+```bash
+export FOREMAN_TELEGRAM_TOKEN="your_bot_token"
+foreman  # Automatically starts Telegram gateway
+```
+
+See [TELEGRAM_AUTO_ACTIVATION.md](./TELEGRAM_AUTO_ACTIVATION.md) for details.
+
 ## Development
 
 ```bash

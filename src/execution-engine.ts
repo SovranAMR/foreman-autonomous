@@ -70,16 +70,35 @@ export interface ShellResult {
 }
 
 export interface AsyncShellHandle {
+  /** Session ID (for registry lookup) */
+  sessionId: string;
   /** Process ID */
   pid: number | undefined;
   /** Promise that resolves when process exits */
   promise: Promise<ShellResult>;
-  /** Kill the process */
+  /** Kill the process (graceful: SIGTERM → wait → SIGKILL) */
   kill: (signal?: NodeJS.Signals) => void;
   /** Write to stdin */
   writeStdin: (data: string) => void;
   /** Close stdin */
   closeStdin: () => void;
+}
+
+/**
+ * Result of a background exec with yieldMs.
+ * Either the command completed within yieldMs, or it was backgrounded.
+ */
+export interface BackgroundExecResult {
+  /** Whether the command completed within the yield window */
+  completed: boolean;
+  /** Shell result (only if completed=true) */
+  result?: ShellResult;
+  /** Session ID for polling (only if completed=false) */
+  sessionId?: string;
+  /** PID of the background process */
+  pid?: number;
+  /** Tail of output so far (for backgrounded processes) */
+  tail?: string;
 }
 
 export interface ProjectTree {
@@ -705,12 +724,24 @@ export class ExecutionEngine {
     });
 
     const handle: AsyncShellHandle = {
+      sessionId,
       pid: child.pid,
       promise,
       kill: (signal: NodeJS.Signals = "SIGTERM") => {
         if (!killed) {
           killed = true;
           killChild(signal);
+
+          // Graceful shutdown: if SIGTERM, escalate to SIGKILL after 3s
+          // Inspired by OpenClaw's graceful shutdown pattern
+          if (signal !== "SIGKILL") {
+            const escalation = setTimeout(() => {
+              killChild("SIGKILL");
+            }, 3000);
+            if (escalation && typeof escalation === "object" && "unref" in escalation) {
+              (escalation as NodeJS.Timeout).unref();
+            }
+          }
         }
       },
       writeStdin: (data: string) => {
@@ -747,6 +778,120 @@ export class ExecutionEngine {
     }
 
     return handle;
+  }
+
+  // ─── BACKGROUND EXEC (yieldMs pattern) ────────────────────
+
+  /**
+   * Run shell command with yieldMs pattern — inspired by OpenClaw.
+   *
+   * Instead of waiting for completion, waits up to `yieldMs` milliseconds.
+   * If the command finishes within that window → return the result.
+   * If still running → background it and return a session ID for polling.
+   *
+   * This is the key pattern that enables non-blocking command execution:
+   *   1. Agent calls bash with yieldMs=10000
+   *   2. If command finishes in <10s → immediate result
+   *   3. If command takes >10s → "backgrounded, use poll to check"
+   *
+   * @param command Shell command to execute
+   * @param options Execution options
+   * @param options.yieldMs Milliseconds to wait before backgrounding (default 10000)
+   * @param options.background If true, background immediately (yieldMs=0)
+   * @param options.timeoutMs Command timeout (default 60000)
+   * @param options.env Environment variables
+   * @param options.cwd Working directory
+   */
+  runShellBackground(
+    command: string,
+    options: {
+      yieldMs?: number;
+      background?: boolean;
+      timeoutMs?: number;
+      env?: Record<string, string>;
+      cwd?: string;
+    } = {},
+  ): Promise<BackgroundExecResult> {
+    // Calculate effective yield window
+    const yieldMs = options.background === true
+      ? 0
+      : Math.min(Math.max(options.yieldMs ?? 10_000, 10), 120_000);
+
+    // Start the async process
+    const handle = this.runShellAsync(command, {
+      timeoutMs: options.timeoutMs,
+      env: options.env,
+      cwd: options.cwd,
+    });
+
+    // If blocked by security, handle resolves immediately
+    if (!handle.pid) {
+      return handle.promise.then(result => ({
+        completed: true,
+        result,
+      }));
+    }
+
+    // Background immediately
+    if (yieldMs === 0) {
+      // Mark as backgrounded in registry
+      if (this.registry) {
+        this.registry.background(handle.sessionId);
+      }
+      return Promise.resolve({
+        completed: false,
+        sessionId: handle.sessionId,
+        pid: handle.pid,
+        tail: this.registry?.get(handle.sessionId)?.tail,
+      });
+    }
+
+    // Race: command completion vs yield timeout
+    return new Promise<BackgroundExecResult>((resolve) => {
+      let yielded = false;
+
+      const yieldTimer = setTimeout(() => {
+        if (yielded) return;
+        yielded = true;
+
+        // Mark as backgrounded in registry
+        if (this.registry) {
+          this.registry.background(handle.sessionId);
+        }
+
+        resolve({
+          completed: false,
+          sessionId: handle.sessionId,
+          pid: handle.pid,
+          tail: this.registry?.get(handle.sessionId)?.tail,
+        });
+      }, yieldMs);
+
+      // Don't let the yield timer keep the process alive
+      if (yieldTimer && typeof yieldTimer === "object" && "unref" in yieldTimer) {
+        (yieldTimer as NodeJS.Timeout).unref();
+      }
+
+      handle.promise.then((result) => {
+        if (yielded) return; // Already backgrounded
+        yielded = true;
+        clearTimeout(yieldTimer);
+        resolve({ completed: true, result });
+      }).catch(() => {
+        if (yielded) return;
+        yielded = true;
+        clearTimeout(yieldTimer);
+        resolve({
+          completed: true,
+          result: {
+            success: false,
+            stdout: "",
+            stderr: "Command failed unexpectedly",
+            exitCode: -1,
+          },
+        });
+      });
+    });
   }
 
   /**

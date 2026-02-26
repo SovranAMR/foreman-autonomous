@@ -126,6 +126,7 @@ export const MODEL_COSTS: Record<string, ModelPricing> = {
   "kimi-k2-thinking": { input: 0.80, output: 3.20, cacheRead: 0.20, cacheWrite: 0 },
   "kimi-k2-thinking-turbo": { input: 0.40, output: 1.60, cacheRead: 0.10, cacheWrite: 0 },
   "moonshot-v1-128k": { input: 0.80, output: 3.20, cacheRead: 0.20, cacheWrite: 0 },
+  // Note: kimi-k2.5-thinking does not exist; use kimi-k2-thinking for thinking capability
 
   // Free/cheap models
   "llama-3.3-70b": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },

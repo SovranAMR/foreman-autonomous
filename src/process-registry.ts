@@ -345,22 +345,78 @@ export class ProcessRegistry {
 
   /**
    * Kill a specific running session.
+   *
+   * Graceful shutdown pattern (inspired by OpenClaw):
+   *   SIGTERM → wait gracePeriodMs → SIGKILL
+   *
+   * This gives the process time to clean up (flush buffers, close connections)
+   * before forcing termination. Direct SIGKILL is available via signal override.
    */
-  kill(id: string, signal: NodeJS.Signals = "SIGTERM"): boolean {
+  kill(id: string, signal: NodeJS.Signals = "SIGTERM", gracePeriodMs: number = 3000): boolean {
     const session = this.running.get(id);
     if (!session || !session.pid) return false;
 
+    const pid = session.pid;
+
+    // If SIGKILL requested directly, skip grace period
+    if (signal === "SIGKILL") {
+      this.killProcessGroup(pid);
+      this.markExited(id, null, "SIGKILL", "killed");
+      return true;
+    }
+
+    // Graceful: SIGTERM first
     try {
-      // Kill process group (-pid)
-      process.kill(-session.pid, signal);
+      process.kill(-pid, signal);
     } catch {
       try {
-        process.kill(session.pid, signal);
+        process.kill(pid, signal);
       } catch { /* already dead */ }
     }
 
-    this.markExited(id, null, signal, "killed");
+    // Schedule SIGKILL escalation after grace period
+    if (gracePeriodMs > 0) {
+      const escalationTimer = setTimeout(() => {
+        // Only escalate if still running
+        if (this.running.has(id)) {
+          this.killProcessGroup(pid);
+          this.markExited(id, null, "SIGKILL", "killed");
+        }
+      }, gracePeriodMs);
+      // Don't let escalation timer keep the process alive
+      if (escalationTimer && typeof escalationTimer === "object" && "unref" in escalationTimer) {
+        (escalationTimer as NodeJS.Timeout).unref();
+      }
+    } else {
+      this.markExited(id, null, signal, "killed");
+    }
+
     return true;
+  }
+
+  /**
+   * Kill a process group (pid and all children).
+   * Falls back to direct kill if group kill fails.
+   */
+  private killProcessGroup(pid: number): void {
+    if (process.platform === "win32") {
+      try {
+        const { spawn } = require("node:child_process") as typeof import("node:child_process");
+        spawn("taskkill", ["/F", "/T", "/PID", String(pid)], {
+          stdio: "ignore",
+          detached: true,
+        });
+      } catch { /* ignore */ }
+      return;
+    }
+
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch {
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch { /* already dead */ }
+    }
   }
 
   /**
@@ -368,11 +424,11 @@ export class ProcessRegistry {
    * When a thought is abandoned/rolled back, its processes must die.
    * OpenClaw: no thought-scoped kill.
    */
-  killByThought(thoughtId: string, signal: NodeJS.Signals = "SIGTERM"): number {
+  killByThought(thoughtId: string, signal: NodeJS.Signals = "SIGTERM", gracePeriodMs: number = 3000): number {
     let count = 0;
     for (const session of this.running.values()) {
       if (session.thoughtId === thoughtId) {
-        this.kill(session.id, signal);
+        this.kill(session.id, signal, gracePeriodMs);
         count++;
       }
     }
@@ -384,11 +440,11 @@ export class ProcessRegistry {
    * When strategy changes, kill all researcher processes.
    * OpenClaw: no layer-scoped kill.
    */
-  killByLayer(layer: Layer, signal: NodeJS.Signals = "SIGTERM"): number {
+  killByLayer(layer: Layer, signal: NodeJS.Signals = "SIGTERM", gracePeriodMs: number = 3000): number {
     let count = 0;
     for (const session of this.running.values()) {
       if (session.layer === layer) {
-        this.kill(session.id, signal);
+        this.kill(session.id, signal, gracePeriodMs);
         count++;
       }
     }
@@ -398,16 +454,52 @@ export class ProcessRegistry {
   /**
    * Kill ALL running processes.
    */
-  killAll(signal: NodeJS.Signals = "SIGTERM"): number {
+  killAll(signal: NodeJS.Signals = "SIGTERM", gracePeriodMs: number = 3000): number {
     let count = 0;
     for (const session of this.running.values()) {
-      this.kill(session.id, signal);
+      this.kill(session.id, signal, gracePeriodMs);
       count++;
     }
     return count;
   }
 
-  // ─── STATS ─────────────────────────────────────────────────
+  /**
+   * Get log for a session (running or finished) with optional line slicing.
+   * Inspired by OpenClaw's sliceLogLines pattern.
+   */
+  getLog(id: string, options?: { offset?: number; limit?: number }): {
+    text: string;
+    totalLines: number;
+    totalChars: number;
+    status: ProcessStatus;
+    truncated: boolean;
+  } | null {
+    const running = this.running.get(id);
+    const finished = this.finished.get(id);
+    const session = running ?? finished;
+    if (!session) return null;
+
+    const fullText = "stdout" in session
+      ? (session as ProcessSession).stdout + (session as ProcessSession).stderr
+      : (session as FinishedSession).stdout + (session as FinishedSession).stderr;
+
+    const { slice, totalLines, totalChars } = sliceLogLines(fullText, options?.offset, options?.limit);
+
+    return {
+      text: slice || "(no output)",
+      totalLines,
+      totalChars,
+      status: session.status,
+      truncated: "truncated" in session ? (session as any).truncated : false,
+    };
+  }
+
+  /**
+   * Delete a finished session by ID.
+   */
+  deleteFinished(id: string): boolean {
+    return this.finished.delete(id);
+  }
 
   /**
    * Get registry statistics.
@@ -569,4 +661,46 @@ function clampTtl(value?: number): number {
  */
 export function createSessionId(): string {
   return `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Slice log text by line offset/limit.
+ * Inspired by OpenClaw's sliceLogLines in bash-tools.shared.ts.
+ *
+ * - offset: start line (0-indexed)
+ * - limit: max lines to return
+ * - If only limit given (no offset), returns last N lines (tail mode)
+ */
+export function sliceLogLines(
+  text: string,
+  offset?: number,
+  limit?: number,
+): { slice: string; totalLines: number; totalChars: number } {
+  if (!text) {
+    return { slice: "", totalLines: 0, totalChars: 0 };
+  }
+  const normalized = text.replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+  // Remove trailing empty line from split
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  const totalLines = lines.length;
+  const totalChars = text.length;
+
+  let start = typeof offset === "number" && Number.isFinite(offset)
+    ? Math.max(0, Math.floor(offset))
+    : 0;
+
+  // Tail mode: if only limit given without offset, show last N lines
+  if (limit !== undefined && offset === undefined) {
+    const tailCount = Math.max(0, Math.floor(limit));
+    start = Math.max(totalLines - tailCount, 0);
+  }
+
+  const end = typeof limit === "number" && Number.isFinite(limit)
+    ? start + Math.max(0, Math.floor(limit))
+    : undefined;
+
+  return { slice: lines.slice(start, end).join("\n"), totalLines, totalChars };
 }

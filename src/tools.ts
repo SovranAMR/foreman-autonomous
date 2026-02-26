@@ -70,7 +70,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "bash",
     description:
-      "Execute a shell command and return stdout/stderr. Use for running builds, tests, git commands, installing packages, etc. Commands run in the project root directory. Dangerous commands (rm -rf /, sudo, fork bombs) are blocked.",
+      "Execute a shell command and return stdout/stderr. Use for running builds, tests, git commands, installing packages, etc. Commands run in the project root directory. Dangerous commands (rm -rf /, sudo, fork bombs) are blocked. Supports background execution with yield_ms or background flag — long-running commands return a session ID for polling.",
     parameters: {
       type: "object",
       properties: {
@@ -82,6 +82,14 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         timeout_ms: {
           type: "number",
           description: "Timeout in milliseconds. Default 30000 (30 seconds).",
+        },
+        yield_ms: {
+          type: "number",
+          description: "Milliseconds to wait before backgrounding (default 10000). If the command doesn't finish within this window, it runs in the background and returns a session ID for polling.",
+        },
+        background: {
+          type: "boolean",
+          description: "If true, immediately background the command and return a session ID.",
         },
       },
       required: ["command"],
@@ -364,11 +372,68 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "list_processes",
     description:
-      "List active and recently finished background processes (async shell commands).",
+      "List active and recently finished background processes (async shell commands). Shows session ID, status, PID, runtime, and tail of output.",
     parameters: {
       type: "object",
       properties: {},
       required: [],
+    },
+  },
+  {
+    name: "poll_process",
+    description:
+      "Poll a background process for new output. Returns new stdout/stderr since last poll and current status. Use after backgrounding a command via bash with yield_ms or background=true.",
+    parameters: {
+      type: "object",
+      properties: {
+        session_id: {
+          type: "string",
+          description: "Session ID from bash background execution.",
+        },
+      },
+      required: ["session_id"],
+    },
+  },
+  {
+    name: "process_log",
+    description:
+      "Get full log output from a process session (running or finished). Supports offset/limit for large outputs.",
+    parameters: {
+      type: "object",
+      properties: {
+        session_id: {
+          type: "string",
+          description: "Session ID to get log from.",
+        },
+        offset: {
+          type: "number",
+          description: "Start line (0-indexed). If omitted with limit, shows last N lines.",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of lines to return.",
+        },
+      },
+      required: ["session_id"],
+    },
+  },
+  {
+    name: "kill_process",
+    description:
+      "Kill a specific background process by session ID. Uses graceful shutdown: SIGTERM → wait 3s → SIGKILL.",
+    parameters: {
+      type: "object",
+      properties: {
+        session_id: {
+          type: "string",
+          description: "Session ID to kill.",
+        },
+        signal: {
+          type: "string",
+          description: "Signal to send. Default SIGTERM (graceful). Use SIGKILL for immediate.",
+        },
+      },
+      required: ["session_id"],
     },
   },
   {
@@ -892,7 +957,7 @@ function createToolDispatcher(
     try {
       switch (call.name) {
         case "bash":
-          result = executeBash(engine, call.args);
+          result = await executeBash(engine, call.args);
           break;
         case "read_file":
           result = executeReadFile(engine, call.args);
@@ -944,6 +1009,15 @@ function createToolDispatcher(
           break;
         case "list_processes":
           result = executeListProcesses(engine);
+          break;
+        case "poll_process":
+          result = executePollProcess(engine, call.args);
+          break;
+        case "process_log":
+          result = executeProcessLog(engine, call.args);
+          break;
+        case "kill_process":
+          result = executeKillProcess(engine, call.args);
           break;
         case "approval_audit":
           result = executeApprovalAudit(projectRoot, call.args);
@@ -1079,16 +1153,26 @@ export function executeTool(call: ToolCall): Promise<ToolResult> {
 function executeBash(
   engine: ExecutionEngine,
   args: Record<string, unknown>,
-): ToolResult {
+): ToolResult | Promise<ToolResult> {
   const command = args.command as string;
   const timeout = (args.timeout_ms as number) || 30_000;
+  const yieldMs = args.yield_ms as number | undefined;
+  const background = args.background as boolean | undefined;
 
   if (!command) {
     return { name: "bash", content: "Error: command is required", isError: true };
   }
 
-  // Delegates to ExecutionEngine — gets dangerous command blocking,
-  // timeout, output truncation, duration tracking for free
+  // If yield_ms or background is specified, use background execution
+  if (yieldMs !== undefined || background === true) {
+    return executeBashBackground(engine, command, {
+      yieldMs,
+      background,
+      timeoutMs: timeout,
+    });
+  }
+
+  // Sync execution for simple/quick commands (backward compatible)
   const result = engine.runShell(command, timeout);
 
   let output = "";
@@ -1108,6 +1192,66 @@ function executeBash(
     name: "bash",
     content: truncateMiddle(output || "(no output)"),
     isError: !result.success,
+  };
+}
+
+/**
+ * Background bash execution with yieldMs pattern.
+ * Inspired by OpenClaw's exec tool background/yieldMs support.
+ */
+async function executeBashBackground(
+  engine: ExecutionEngine,
+  command: string,
+  options: {
+    yieldMs?: number;
+    background?: boolean;
+    timeoutMs: number;
+  },
+): Promise<ToolResult> {
+  const bgResult = await engine.runShellBackground(command, {
+    yieldMs: options.yieldMs,
+    background: options.background,
+    timeoutMs: options.timeoutMs,
+  });
+
+  if (bgResult.completed && bgResult.result) {
+    // Command finished within yield window — return normal result
+    const result = bgResult.result;
+    let output = "";
+    if (result.stdout) output += result.stdout;
+    if (result.stderr) output += (output ? "\n" : "") + result.stderr;
+    if (result.exitCode !== 0) {
+      output += `\nExit code: ${result.exitCode}`;
+    }
+    if (result.timedOut) {
+      output += `\n[Timed out after ${options.timeoutMs}ms]`;
+    }
+    if (result.durationMs !== undefined) {
+      output += `\n[Duration: ${result.durationMs}ms]`;
+    }
+
+    return {
+      name: "bash",
+      content: truncateMiddle(output || "(no output)"),
+      isError: !result.success,
+    };
+  }
+
+  // Command was backgrounded
+  const lines = [
+    `Command running in background (session ${bgResult.sessionId}, pid ${bgResult.pid ?? "n/a"}).`,
+    `Use poll_process(session_id="${bgResult.sessionId}") to check output.`,
+    `Use process_log(session_id="${bgResult.sessionId}") to get full log.`,
+    `Use kill_process(session_id="${bgResult.sessionId}") to stop it.`,
+  ];
+  if (bgResult.tail) {
+    lines.push(`\nOutput so far:\n${bgResult.tail}`);
+  }
+
+  return {
+    name: "bash",
+    content: lines.join("\n"),
+    isError: false,
   };
 }
 
@@ -1642,6 +1786,33 @@ function executeParseMarkdown(args: Record<string, unknown>): ToolResult {
 
 function executeListProcesses(engine: ExecutionEngine): ToolResult {
   try {
+    // Try registry-based listing first (richer info)
+    const registry = (engine as any).registry;
+    if (registry) {
+      const running = registry.listRunning();
+      const finished = registry.listFinished();
+
+      if (running.length === 0 && finished.length === 0) {
+        return { name: "list_processes", content: "No running or recent sessions.", isError: false };
+      }
+
+      const lines: string[] = [];
+      for (const s of running) {
+        const runtime = Math.round((Date.now() - s.startedAt) / 1000);
+        const bg = s.backgrounded ? " [bg]" : "";
+        const cmd = s.command.length > 80 ? s.command.slice(0, 77) + "..." : s.command;
+        lines.push(`${s.id} running  ${runtime}s${bg} :: ${cmd}`);
+      }
+      for (const s of finished) {
+        const duration = Math.round(s.durationMs / 1000);
+        const cmd = s.command.length > 80 ? s.command.slice(0, 77) + "..." : s.command;
+        lines.push(`${s.id} ${s.status.padEnd(9)} ${duration}s :: ${cmd}`);
+      }
+
+      return { name: "list_processes", content: lines.join("\n"), isError: false };
+    }
+
+    // Fallback to basic listing
     const processes = engine.listProcesses();
     if (processes.length === 0) {
       return { name: "list_processes", content: "No active processes.", isError: false };
@@ -1651,6 +1822,107 @@ function executeListProcesses(engine: ExecutionEngine): ToolResult {
   } catch {
     return { name: "list_processes", content: "Process listing unavailable.", isError: true };
   }
+}
+
+/**
+ * Poll a background process for new output.
+ * Inspired by OpenClaw's process tool "poll" action.
+ */
+function executePollProcess(engine: ExecutionEngine, args: Record<string, unknown>): ToolResult {
+  const sessionId = args.session_id as string;
+  if (!sessionId) {
+    return { name: "poll_process", content: "Error: session_id is required", isError: true };
+  }
+
+  const registry = (engine as any).registry;
+  if (!registry) {
+    return { name: "poll_process", content: "Process registry not available.", isError: true };
+  }
+
+  const pollResult = registry.poll(sessionId);
+  if (!pollResult) {
+    return { name: "poll_process", content: `No session found for ${sessionId}`, isError: true };
+  }
+
+  const output = [pollResult.stdout, pollResult.stderr].filter(Boolean).join("\n").trim();
+  const isExited = pollResult.status !== "running";
+
+  let content = output || "(no new output)";
+  if (isExited) {
+    const exitInfo = pollResult.exitCode !== undefined
+      ? `code ${pollResult.exitCode}`
+      : `status ${pollResult.status}`;
+    content += `\n\nProcess exited with ${exitInfo}.`;
+  } else {
+    content += "\n\nProcess still running.";
+  }
+
+  return {
+    name: "poll_process",
+    content,
+    isError: isExited && pollResult.exitCode !== 0,
+  };
+}
+
+/**
+ * Get full log from a process session.
+ * Inspired by OpenClaw's process tool "log" action.
+ */
+function executeProcessLog(engine: ExecutionEngine, args: Record<string, unknown>): ToolResult {
+  const sessionId = args.session_id as string;
+  if (!sessionId) {
+    return { name: "process_log", content: "Error: session_id is required", isError: true };
+  }
+
+  const registry = (engine as any).registry;
+  if (!registry) {
+    return { name: "process_log", content: "Process registry not available.", isError: true };
+  }
+
+  const logResult = registry.getLog(sessionId, {
+    offset: args.offset as number | undefined,
+    limit: args.limit as number | undefined,
+  });
+
+  if (!logResult) {
+    return { name: "process_log", content: `No session found for ${sessionId}`, isError: true };
+  }
+
+  return {
+    name: "process_log",
+    content: `${logResult.text}\n\n[${logResult.totalLines} lines, ${logResult.totalChars} chars, status: ${logResult.status}${logResult.truncated ? ", truncated" : ""}]`,
+    isError: false,
+  };
+}
+
+/**
+ * Kill a specific background process.
+ * Uses graceful shutdown: SIGTERM → wait → SIGKILL.
+ * Inspired by OpenClaw's process tool "kill" action.
+ */
+function executeKillProcess(engine: ExecutionEngine, args: Record<string, unknown>): ToolResult {
+  const sessionId = args.session_id as string;
+  if (!sessionId) {
+    return { name: "kill_process", content: "Error: session_id is required", isError: true };
+  }
+
+  const registry = (engine as any).registry;
+  if (!registry) {
+    return { name: "kill_process", content: "Process registry not available.", isError: true };
+  }
+
+  const signal = (args.signal as string as NodeJS.Signals) || "SIGTERM";
+  const killed = registry.kill(sessionId, signal);
+
+  if (!killed) {
+    return { name: "kill_process", content: `No active session found for ${sessionId}`, isError: true };
+  }
+
+  return {
+    name: "kill_process",
+    content: `Sent ${signal} to session ${sessionId}. ${signal === "SIGKILL" ? "Process killed immediately." : "Process will be killed (SIGKILL) if it doesn't exit within 3 seconds."}`,
+    isError: false,
+  };
 }
 
 function executeApprovalAudit(projectRoot: string, args: Record<string, unknown>): ToolResult {

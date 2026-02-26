@@ -43,6 +43,7 @@ export const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   "kimi-k2-thinking": 131_072,
   "kimi-k2-thinking-turbo": 131_072,
   "moonshot-v1-128k": 131_072,
+  // Note: kimi-k2.5-thinking does not exist; use kimi-k2-thinking for thinking capability
 };
 
 const DEFAULT_CONTEXT_WINDOW = 128_000;
