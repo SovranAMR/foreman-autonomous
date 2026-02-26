@@ -97,11 +97,15 @@ program.action(async () => {
   const tgToken = getTelegramToken();
   const tgEnabled = isTelegramEnabled();
   
+  // ─── TELEGRAM AUTO-ACTIVATION (Production Mode) ──────────────────────
+  // When FOREMAN_TELEGRAM_TOKEN is set, automatically start Telegram gateway
+  // No onboarding prompts - assumes already configured
+  
   if (tgToken && tgEnabled) {
     // Telegram token found and enabled — start the messaging gateway automatically
-    console.log(brand.gold("  ◆ Foreman Auto-Activation\n"));
-    console.log(`    ${brand.dim("Telegram token detected via FOREMAN_TELEGRAM_TOKEN")}`);
-    console.log(`    ${brand.dim("Starting messaging gateway...")}\n`);
+    console.log(brand.gold("  ◆ Foreman Telegram Gateway\n"));
+    console.log(`    ${brand.dim("✓ Token detected from environment or config")}`);
+    console.log(`    ${brand.dim("✓ Auto-starting gateway...")}\n`);
     
     const { MessagingGateway } = await import("./messaging-gateway.js");
     const projectRoot = process.cwd();
