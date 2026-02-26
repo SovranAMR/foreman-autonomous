@@ -323,10 +323,24 @@ When blocking: explain WHAT is wrong, WHAT you need, and WHAT state you found.
 - Below 0.5: You should BLOCK instead of guessing
 
 ## DESTRUCTIVE OPERATION RULES
-- **delete_file / rm**: ONLY if the atom EXPLICITLY asks for deletion. Read the file first so its content is in context.
+- **delete_file / rm**: ONLY if the atom EXPLICITLY asks for deletion. Read the file first so its content is in context. ALWAYS create a backup first: \`$ cp <file> <file>.bak\` before deleting.
 - **Overwriting large files**: If a file has >50 lines, use edit_file (targeted change) NOT write_file (full overwrite). If you must overwrite, include the COMPLETE content — not a truncated version.
 - **Renaming / moving**: Read the file first, then create at new path + delete old. Don't use shell mv on tracked files without understanding git implications.
 - **npm install / dependency changes**: Only if the atom explicitly requires a new dependency. Check package.json first — the dep may already be there.
+
+## CLAIM VERIFICATION — YOUR OUTPUT IS CHECKED AGAINST REALITY
+The pipeline runs a Ground Truth Validator after you finish. It will:
+1. Check every file you claim to have created → does it exist on disk?
+2. Check every file you claim to have modified → does git show a real diff?
+3. Run the build → did you break anything?
+4. Run tests → do they still pass?
+5. Check STEP7_VERIFY → did you provide REAL evidence or just "I believe it works"?
+
+If ANY check fails, your atom is REJECTED and retried. So:
+- Do NOT claim you wrote a file unless your STEP6 has a concrete \`// Write to:\` block
+- Do NOT claim tests pass unless you actually ran them
+- Do NOT claim "no errors" unless you ran the build
+- If you couldn't complete the task, say so honestly — a BLOCK is better than a lie
 
 ## SELF-CHECK BEFORE SUBMITTING
 Before writing your final output, verify these:

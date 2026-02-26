@@ -441,16 +441,18 @@ export async function executeOperations(
             break;
           }
 
-          // ─── PRE-DELETE SAFETY: read content before deleting ───
-          // Stores file content in operation metadata for potential undo.
-          // Also logs to console for audit trail.
+          // ─── PRE-DELETE SAFETY: backup file before deleting ───
+          // Creates physical .bak file + stores content in memory for undo.
           try {
             const fullPath = resolve(projectRoot, op.path);
             if (existsSync(fullPath)) {
               const content = readFileSync(fullPath, "utf-8");
               const sizeBytes = Buffer.byteLength(content);
+              // Physical backup — survives crashes
+              const { writeFileSync } = await import("node:fs");
+              writeFileSync(fullPath + ".bak", content);
               console.warn(
-                `[worker-executor] ⚠️ DELETE: ${op.path} (${sizeBytes} bytes). Content preserved in memory for undo.`
+                `[worker-executor] ⚠️ DELETE: ${op.path} (${sizeBytes} bytes). Backup saved to ${op.path}.bak`
               );
               // Attach backup to operation for potential recovery
               (op as unknown as Record<string, unknown>)._backupContent = content;
