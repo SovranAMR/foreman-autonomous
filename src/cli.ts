@@ -92,71 +92,94 @@ program
 program.action(async () => {
   // Load config module to check for Telegram settings
   const { getTelegramToken, isTelegramEnabled } = await import("./config.js");
-  
+
   // Check if Telegram token is configured via environment or config file
   const tgToken = getTelegramToken();
   const tgEnabled = isTelegramEnabled();
-  
+
   // ─── TELEGRAM AUTO-ACTIVATION (Production Mode) ──────────────────────
   // When FOREMAN_TELEGRAM_TOKEN is set, automatically start Telegram gateway
   // No onboarding prompts - assumes already configured
-  
+
   if (tgToken && tgEnabled) {
-    // Telegram token found and enabled — start the messaging gateway automatically
+    // Telegram token found and enabled — try to start the messaging gateway
     console.log(brand.gold("  ◆ Foreman Telegram Gateway\n"));
     console.log(`    ${brand.dim("✓ Token detected from environment or config")}`);
     console.log(`    ${brand.dim("✓ Auto-starting gateway...")}\n`);
-    
-    const { MessagingGateway } = await import("./messaging-gateway.js");
-    const projectRoot = process.cwd();
-    
-    const gateway = new MessagingGateway({
-      projectRoot,
-      projectName: "foreman",
-      channels: [{
-        type: "telegram",
-        enabled: true,
-        botToken: tgToken,
-        allowedSenders: [],
-      }],
-      maxConcurrent: 5,
-      messageTimeoutMs: 120_000,
-    });
 
-    // Graceful shutdown
-    const shutdown = async () => {
-      console.log("\n  Shutting down...");
-      await gateway.stop();
-      process.exit(0);
-    };
-    process.on("SIGINT", shutdown);
-    process.on("SIGTERM", shutdown);
+    let gatewayStarted = false;
+    try {
+      const { MessagingGateway } = await import("./messaging-gateway.js");
+      const projectRoot = process.cwd();
 
-    await gateway.start();
+      const gateway = new MessagingGateway({
+        projectRoot,
+        projectName: "foreman",
+        channels: [{
+          type: "telegram",
+          enabled: true,
+          botToken: tgToken,
+          allowedSenders: [],
+        }],
+        maxConcurrent: 5,
+        messageTimeoutMs: 120_000,
+      });
 
-    // Show live status
-    const channelCount = gateway.getActiveChannels();
-    console.log(brand.gold(`\n  🔥 Gateway running — ${channelCount} channel(s) active`));
-    console.log(`  ${brand.dim(`Conversations: ${gateway.getConversationCount()} | Running: ${gateway.isRunning()}`)}`);
-    console.log(`  ${brand.dim("Press Ctrl+C to stop.\n")}`);
+      // Graceful shutdown
+      const shutdown = async () => {
+        console.log("\n  Shutting down...");
+        await gateway.stop();
+        process.exit(0);
+      };
+      process.on("SIGINT", shutdown);
+      process.on("SIGTERM", shutdown);
 
-    // Check channel health periodically
-    const healthInterval = setInterval(() => {
-      if (!gateway.isRunning()) {
-        clearInterval(healthInterval);
-        return;
+      await gateway.start();
+
+      // Verify at least one channel actually connected
+      const channelCount = gateway.getActiveChannels();
+      if (channelCount === 0 || !gateway.isRunning()) {
+        throw new Error("No channels connected after gateway start");
       }
-      for (const type of ["telegram"] as const) {
-        const ch = gateway.getChannel(type);
-        if (ch && !ch.isConnected()) {
-          console.log(`  ${brand.red("⚠")} ${type} channel disconnected!`);
+
+      gatewayStarted = true;
+
+      // Show live status
+      console.log(brand.gold(`\n  🔥 Gateway running — ${channelCount} channel(s) active`));
+      console.log(`  ${brand.dim(`Conversations: ${gateway.getConversationCount()} | Running: ${gateway.isRunning()}`)}`);
+      console.log(`  ${brand.dim("Press Ctrl+C to stop.\n")}`);
+
+      // Check channel health periodically
+      const healthInterval = setInterval(() => {
+        if (!gateway.isRunning()) {
+          clearInterval(healthInterval);
+          return;
         }
-      }
-    }, 60_000);
-    healthInterval.unref();
+        for (const type of ["telegram"] as const) {
+          const ch = gateway.getChannel(type);
+          if (ch && !ch.isConnected()) {
+            console.log(`  ${brand.red("⚠")} ${type} channel disconnected!`);
+          }
+        }
+      }, 60_000);
+      healthInterval.unref();
 
-    // Keep the process alive
-    await new Promise(() => {});
+      // Keep the process alive
+      await new Promise(() => { });
+    } catch (err: any) {
+      console.log(`    ${icon.fail} ${brand.red("Telegram gateway failed:")} ${brand.dim(err.message ?? String(err))}`);
+      console.log(`    ${brand.dim("Falling back to interactive REPL...")}\n`);
+      gatewayStarted = false;
+    }
+
+    // If gateway failed, fall through to REPL
+    if (!gatewayStarted) {
+      printLogo();
+      forgeDivider();
+      console.log("");
+      await startRepl();
+      return;
+    }
   } else {
     // No Telegram token — run the interactive REPL
     // ── Spark rain entrance ──
@@ -890,8 +913,8 @@ program
 
       for (const t of tasks) {
         const prioMark = t.priority === "critical" ? brand.red("▲▲") :
-                         t.priority === "high" ? brand.gold("▲ ") :
-                         t.priority === "medium" ? brand.cyan("● ") : brand.dim("○ ");
+          t.priority === "high" ? brand.gold("▲ ") :
+            t.priority === "medium" ? brand.cyan("● ") : brand.dim("○ ");
         const effort = t.effort ? brand.dim(` ${t.effort}pt`) : "";
         console.log(`  ${prioMark} ${brand.bold(t.id)} ${t.title}${effort}`);
 
@@ -900,7 +923,7 @@ program
           const sub = tm.get(subId);
           if (sub) {
             const subIcon = sub.status === "done" ? icon.done :
-                           sub.status === "blocked" ? icon.block : icon.pending;
+              sub.status === "blocked" ? icon.block : icon.pending;
             console.log(`     ${brand.dim("└")} ${subIcon} ${brand.dim(sub.title)}`);
           }
         }
@@ -955,7 +978,7 @@ intCmd
     for (const t of list) {
       const statusIcon = t.status === "done" ? icon.done
         : t.status === "blocked" ? icon.block
-        : icon.pending;
+          : icon.pending;
       const layerIcon = icon[t.layer as keyof typeof icon] ?? "•";
       const conf = t.confidence > 0
         ? brand.dim(` ${(t.confidence * 100).toFixed(0)}%`)
@@ -987,7 +1010,7 @@ intCmd
     for (const c of list) {
       const statusIcon = c.status === "completed" ? icon.done
         : c.status === "blocked" ? icon.block
-        : icon.active;
+          : icon.active;
 
       console.log(`  ${statusIcon} ${brand.bold(c.id.padEnd(25))} ${brand.gold(c.name)}`);
       console.log(`     ${brand.dim(`${c.thoughts.length} thoughts`)} ${icon.arrow} ${brand.dim(c.goal.slice(0, 40))}`);
@@ -1094,7 +1117,7 @@ intCmd
     console.log(brand.gold(`\n  ◆ Sessions (${list.length})\n`));
     for (const s of list) {
       const si = s.status === "active" ? brand.green("●") :
-                 s.status === "completed" ? icon.done : brand.dim("○");
+        s.status === "completed" ? icon.done : brand.dim("○");
       const dur = s.endedAt
         ? brand.dim(` ${Math.round((new Date(s.endedAt).getTime() - new Date(s.startedAt).getTime()) / 60000)}min`)
         : brand.green(" active");
@@ -1133,7 +1156,7 @@ intCmd
     console.log(`  Hits:    ${brand.bold(String(s.totalHits))}`);
     console.log(`  ${icon.token} Saved:  ${brand.green(String(s.totalTokensSaved))} tokens`);
     if (Object.keys(s.byLayer).length > 0) {
-      console.log(`  ${brand.dim("By layer:")} ${Object.entries(s.byLayer).map(([k,v]) => `${k}(${v})`).join(", ")}`);
+      console.log(`  ${brand.dim("By layer:")} ${Object.entries(s.byLayer).map(([k, v]) => `${k}(${v})`).join(", ")}`);
     }
     console.log("");
   });
@@ -1236,7 +1259,7 @@ program
   .option("--show", "Show current configuration")
   .action(async (opts: any) => {
     const { loadConfig, saveConfig, getTelegramToken } = await import("./config.js");
-    
+
     if (opts.show) {
       const config = loadConfig();
       console.log(brand.gold("\n  ◆ Foreman Configuration\n"));
@@ -1251,13 +1274,13 @@ program
       console.log("");
       return;
     }
-    
+
     if (opts.telegramToken) {
       const config = loadConfig();
       if (!config.telegram) config.telegram = {};
       config.telegram.botToken = opts.telegramToken;
       config.telegram.enabled = opts.telegramEnabled !== "false";
-      
+
       saveConfig(config);
       console.log(brand.gold("\n  ◆ Configuration Updated\n"));
       console.log(`  Telegram token saved: ${brand.green("✓")}`);
@@ -1267,7 +1290,7 @@ program
       console.log("");
       return;
     }
-    
+
     // Default: show help
     console.log(brand.gold("\n  ◆ Foreman Config\n"));
     console.log("  Usage:");
@@ -1674,8 +1697,8 @@ program
       console.log("");
       for (const f of result.findings.slice(0, 25)) {
         const sev = f.severity === "critical" ? brand.red(`[${f.severity.toUpperCase()}]`) :
-                    f.severity === "high" ? brand.red(`[${f.severity.toUpperCase()}]`) :
-                    brand.dim(`[${f.severity.toUpperCase()}]`);
+          f.severity === "high" ? brand.red(`[${f.severity.toUpperCase()}]`) :
+            brand.dim(`[${f.severity.toUpperCase()}]`);
         console.log(`  ${sev} ${f.title}${f.file ? brand.dim(` — ${f.file}:${f.line ?? ""}`) : ""}`);
         if (f.suggestion) console.log(`    ${brand.dim("→")} ${f.suggestion}`);
       }
