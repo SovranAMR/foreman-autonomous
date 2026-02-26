@@ -162,14 +162,90 @@ export function parseDecomposeResponse(text: string): { ok: true; data: Decompos
     blocks.length = 8;
   }
 
+  // Parse per-block dependencies from DEPENDENCIES field or inline markers.
+  // Supported formats:
+  //   DEPENDENCIES: 2→1, 3→1,2, 4→3   (block N depends on listed blocks)
+  //   Block 2: ... [depends: 1]
+  //   Block 3 (after 1, 2): ...
+  const blockDeps = parseBlockDependencies(outputRaw!, blocks.length);
+
   return {
     ok: true,
     data: {
       reasoning: reasoning!,
       blocks,
+      blockDeps,
       confidence: confidence ?? 0.7,
     },
   };
+}
+
+/**
+ * Parse block dependency info.
+ * Returns array of arrays: blockDeps[i] = indices this block depends on (0-based).
+ *
+ * Tries two strategies:
+ * 1. Explicit DEPENDENCIES field: "2→1, 3→1,2"
+ * 2. Inline markers in block text: "[depends: 1]", "(after 1, 2)", "requires block 1"
+ *
+ * If no dependency info found, returns empty arrays (all blocks independent = fully parallel).
+ */
+function parseBlockDependencies(text: string, blockCount: number): number[][] {
+  const deps: number[][] = Array.from({ length: blockCount }, () => []);
+
+  // Strategy 1: Explicit DEPENDENCIES field
+  const depsField = extractField(text, "DEPENDENCIES", ["CONFIDENCE", "NEEDS_RESEARCH"]);
+  if (depsField) {
+    // Parse "2→1", "3→1,2", "Block 4 → Block 1, Block 3"
+    const entries = depsField.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+    for (const entry of entries) {
+      const match = entry.match(/(?:block\s*)?(\d+)\s*(?:→|->|depends\s*(?:on)?:?\s*)\s*(.+)/i);
+      if (match) {
+        const blockNum = parseInt(match[1], 10);
+        const depNums = match[2].match(/\d+/g)?.map(n => parseInt(n, 10)) ?? [];
+        if (blockNum >= 1 && blockNum <= blockCount) {
+          for (const dep of depNums) {
+            if (dep >= 1 && dep <= blockCount && dep !== blockNum) {
+              deps[blockNum - 1].push(dep - 1); // convert to 0-based
+            }
+          }
+        }
+      }
+    }
+    // Deduplicate
+    for (let i = 0; i < deps.length; i++) {
+      deps[i] = [...new Set(deps[i])];
+    }
+    return deps;
+  }
+
+  // Strategy 2: Inline markers in block descriptions
+  const lines = text.split("\n");
+  let currentBlock = -1;
+  for (const line of lines) {
+    const blockMatch = line.match(/^(?:Block\s*)?(\d+)[.:)\s]/i);
+    if (blockMatch) {
+      currentBlock = parseInt(blockMatch[1], 10) - 1;
+    }
+    if (currentBlock >= 0 && currentBlock < blockCount) {
+      // [depends: 1, 2] or (after 1, 2) or (requires block 1)
+      const depMatch = line.match(/(?:\[depends?:?\s*|(?:after|requires?\s*(?:blocks?)?)\s*[:(]?\s*)([\d,\s]+)/i);
+      if (depMatch) {
+        const depNums = depMatch[1].match(/\d+/g)?.map(n => parseInt(n, 10)) ?? [];
+        for (const dep of depNums) {
+          if (dep >= 1 && dep <= blockCount && dep !== currentBlock + 1) {
+            deps[currentBlock].push(dep - 1);
+          }
+        }
+      }
+    }
+  }
+
+  // Deduplicate
+  for (let i = 0; i < deps.length; i++) {
+    deps[i] = [...new Set(deps[i])];
+  }
+  return deps;
 }
 
 /**
@@ -332,6 +408,7 @@ OUTPUT:
 1. [Block description]
 2. [Block description]
 ...
+DEPENDENCIES: 2→1, 3→1 (or "none" if all blocks are independent)
 CONFIDENCE: [0.0-1.0]`,
 
     research: `Respond with EXACTLY this format:

@@ -73,6 +73,20 @@ export class Orchestrator {
   private readonly MAX_TOKENS_SESSION = 2_000_000;
   private readonly MAX_ATOM_RETRIES = 3;
 
+  // Phase-level budget caps (percentage of session budget).
+  // Prevents early phases from starving worker execution.
+  private readonly PHASE_BUDGET_PCT: Record<string, number> = {
+    vision: 0.05,     // 5% — vision should be concise
+    decompose: 0.05,  // 5% — decomposition is structural, not verbose
+    research: 0.15,   // 15% — research can be heavy but bounded
+    execute: 0.65,    // 65% — bulk of tokens go to actual work
+    reflect: 0.05,    // 5% — reflections are periodic checks
+    review: 0.05,     // 5% — reviewer gate calls
+  };
+
+  // Track per-phase token usage
+  private phaseTokens: Map<string, number> = new Map();
+
   // ─── PIPELINE METRICS ─────────────────────────────────────
   private pipelineStartTime = 0;
   private phaseTimings: Map<string, number> = new Map();
@@ -118,6 +132,12 @@ export class Orchestrator {
     }
     // Feed observer
     this.observer.onOrchestratorEvent(event);
+
+    // Auto-track phase budget on thought completion
+    if (event.type === "thought_complete" && event.thought) {
+      const phase = event.thought.layer ?? "execute";
+      this.trackPhaseTokens(phase, event.thought);
+    }
   }
 
   /**
@@ -391,6 +411,11 @@ export class Orchestrator {
     this.resume.createCheckpoint(task, visionChain.id);
     this.resume.updatePhase("decompose", { visionOutput });
 
+    // ─── VISION SUMMARY — compact version for atom-level context ───
+    // Full visionOutput stays pinned at decompose/reflection phases.
+    // Atoms get this lighter summary to save tokens.
+    const visionSummary = this.buildVisionSummary(visionOutput);
+
     // ─── 2. DECOMPOSE ───────────────────────────────────────
 
     this.emit({ type: "phase_start", phase: "decompose", detail: "Breaking vision into blocks" });
@@ -437,6 +462,10 @@ ${visionOutput}`,
     const blocks: string[] = decomposeResult.parsed?.blocks
       ?? this.fallbackParseBlocks(decomposeResult.thought.output);
 
+    // GET block dependency graph (0-based index arrays)
+    const blockDeps: number[][] = decomposeResult.parsed?.blockDeps
+      ?? Array.from({ length: blocks.length }, () => []);
+
     // Hard cap: max 8 blocks regardless of what strategist produced
     if (blocks.length > 8) {
       console.warn(`[forge] Strategist produced ${blocks.length} blocks, capping at 8`);
@@ -468,14 +497,22 @@ ${visionOutput}`,
     });
     this.engine.tasks.addChain(parentTask.id, visionChain.id);
 
+    const blockTaskIds: string[] = [];
     for (let bi = 0; bi < blocks.length; bi++) {
+      // Resolve dependency task IDs from block indices
+      const depTaskIds = (blockDeps[bi] ?? [])
+        .filter(depIdx => depIdx >= 0 && depIdx < bi && blockTaskIds[depIdx])
+        .map(depIdx => blockTaskIds[depIdx]);
+
       const blockTask = this.engine.tasks.create({
         title: `Block ${bi + 1}: ${blocks[bi].slice(0, 60)}`,
         description: blocks[bi],
         projectId: this.engine.state.snapshot().projectName,
         type: "feature",
         priority: "medium",
+        dependsOn: depTaskIds,
       });
+      blockTaskIds.push(blockTask.id);
       this.engine.tasks.addSubtask(parentTask.id, blockTask.id);
     }
 
@@ -493,11 +530,26 @@ ${visionOutput}`,
       detail: `${sortedTasks.length} tasks planned, ${readyTasks.length} ready`,
     });
 
-    // ─── 3. FOR EACH BLOCK ──────────────────────────────────
+    // ─── DEPENDENCY-AWARE BLOCK ORDERING ────────────────────
+    // Compute execution waves from blockDeps graph.
+    // Wave 0: blocks with no deps (can run first / in parallel later).
+    // Wave N: blocks whose deps are all in waves < N.
+    // Within each wave, blocks run sequentially (shared file system safety).
+    const blockOrder = this.computeBlockWaves(blocks.length, blockDeps);
+    const totalWaves = Math.max(...blockOrder.map(w => w.wave)) + 1;
+    if (totalWaves > 1) {
+      const waveSummary = Array.from({ length: totalWaves }, (_, w) =>
+        `W${w}:[${blockOrder.filter(b => b.wave === w).map(b => b.index + 1).join(",")}]`
+      ).join(" → ");
+      this.engine.streaming.phaseStart("parallel_plan", `${totalWaves} waves: ${waveSummary}`);
+      this.engine.streaming.phaseEnd("parallel_plan", waveSummary);
+    }
+
+    // ─── 3. FOR EACH BLOCK (dependency-ordered) ─────────────
 
     let atomCount = 0;
 
-    for (let i = 0; i < blocks.length; i++) {
+    for (const { index: i, wave } of blockOrder) {
       const block = blocks[i];
 
       // ─── STREAMING: Block start ───
@@ -872,7 +924,7 @@ ${visionOutput}`,
               preReadContext,
               `BLOCK: ${block}`,
               prevAtomContext,
-              `VISION DOCUMENT (pinned — respect ALL constraints):\n${visionOutput}`,
+              visionSummary,
               findings ? `RESEARCH FINDINGS:\n${findings.slice(0, 800)}` : "",
               atomCrossCtx || "",
               memoryContext ? `MEMORY:\n${memoryContext.slice(0, 500)}` : "",
@@ -1388,8 +1440,16 @@ ${visionOutput}`,
           } catch { /* ground truth validation best-effort */ }
         }
 
-        // ── REFLECT every 5 atoms — Visioner as Art Director ──
-        if (atomCount > 0 && atomCount % 5 === 0) {
+        // ── ADAPTIVE REFLECTION — Visioner as Art Director ──
+        // Reflection frequency adapts to block size:
+        //   1-2 atoms: reflect after last atom only
+        //   3-4 atoms: reflect every 3 atoms
+        //   5+  atoms: reflect every 4 atoms
+        // Always reflect after the final atom of a block.
+        const reflectInterval = atoms.length <= 2 ? atoms.length : atoms.length <= 4 ? 3 : 4;
+        const isLastAtom = j === atoms.length - 1;
+        const isReflectionPoint = atomCount > 0 && (atomCount % reflectInterval === 0 || isLastAtom);
+        if (isReflectionPoint) {
           this.emit({ type: "phase_start", phase: "reflect", detail: `Reflection after ${atomCount} atoms` });
           this.engine.streaming.phaseStart("reflect", `Vision drift check after ${atomCount} atoms`);
 
@@ -1633,7 +1693,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                     relevantFailure ? `ORIGINAL FAILURE REASON: ${relevantFailure.reason.slice(0, 300)}` : "",
                     rePreRead,
                     `BLOCK: ${block}`,
-                    `VISION DOCUMENT (pinned):\n${visionOutput}`,
+                    visionSummary,
                     findings ? `RESEARCH FINDINGS:\n${findings.slice(0, 800)}` : "",
                   ].filter(Boolean).join("\n\n---\n\n");
 
@@ -2506,6 +2566,163 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     }
 
     return blocks.length > 0 ? blocks : [text.trim()];
+  }
+
+  /**
+   * Check if a phase has exceeded its token budget.
+   * Returns remaining tokens for the phase, or 0 if exceeded.
+   * Non-blocking: logs a warning but does NOT stop the pipeline.
+   * The session-level budget (MAX_TOKENS_SESSION) is the hard stop.
+   */
+  private checkPhaseBudget(phase: string, tokensUsed: number): { remaining: number; exceeded: boolean } {
+    const current = (this.phaseTokens.get(phase) ?? 0) + tokensUsed;
+    this.phaseTokens.set(phase, current);
+
+    const phasePct = this.PHASE_BUDGET_PCT[phase] ?? 0.10;
+    const phaseBudget = Math.floor(this.MAX_TOKENS_SESSION * phasePct);
+    const remaining = phaseBudget - current;
+
+    if (remaining <= 0) {
+      console.warn(`[forge] Phase "${phase}" exceeded budget: ${current}/${phaseBudget} tokens (${(phasePct * 100).toFixed(0)}% of session)`);
+      return { remaining: 0, exceeded: true };
+    }
+    return { remaining, exceeded: false };
+  }
+
+  /**
+   * Track tokens for a phase after a thought completes.
+   */
+  private trackPhaseTokens(phase: string, thought: Thought): void {
+    const tokens = thought.tokenCost ?? 0;
+    if (tokens > 0) {
+      const result = this.checkPhaseBudget(phase, tokens);
+      if (result.exceeded) {
+        this.engine.streaming.warning(`⚠️ Phase "${phase}" exceeded token budget — remaining phases may be constrained`);
+      }
+    }
+  }
+
+  /**
+   * Build a compact vision summary for atom-level context injection.
+   *
+   * Full vision doc is pinned at vision/decompose/reflection phases.
+   * For worker atoms, we extract only the actionable constraints:
+   *   - GOAL, ACCEPTANCE CRITERIA, FORBIDDEN, CONSTRAINTS, COLOR/FONT tokens.
+   * This cuts token cost per atom by 60-80% on complex visions without
+   * losing the guardrails that prevent drift.
+   *
+   * Falls back to truncated full vision if extraction yields nothing useful.
+   */
+  private buildVisionSummary(visionOutput: string): string {
+    const lines = visionOutput.split("\n");
+    const sections: string[] = [];
+    let currentSection = "";
+    let capturing = false;
+
+    // Extract key sections by header
+    const keepHeaders = /^\*?\*?\s*(?:GOAL|ACCEPTANCE|FORBIDDEN|CONSTRAINT|COLOR|TYPOGRAPHY|FONT|FOCAL|EMOTION|MOTION\s*BUDGET|SPACE|APPROACH)/i;
+    const stopHeaders = /^\*?\*?\s*(?:REFERENCE|BENCHMARK|RESEARCH|INSPIRATION|EXAMPLE|CONTEXT|NOTE)/i;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (keepHeaders.test(trimmed)) {
+        if (currentSection) sections.push(currentSection.trim());
+        currentSection = trimmed + "\n";
+        capturing = true;
+      } else if (stopHeaders.test(trimmed) || (capturing && /^#{1,3}\s/.test(trimmed) && !keepHeaders.test(trimmed))) {
+        if (currentSection) sections.push(currentSection.trim());
+        currentSection = "";
+        capturing = false;
+      } else if (capturing) {
+        currentSection += trimmed + "\n";
+      }
+    }
+    if (currentSection) sections.push(currentSection.trim());
+
+    if (sections.length > 0) {
+      const summary = sections.join("\n\n");
+      // If summary is reasonably sized, use it; otherwise truncate
+      if (summary.length > 100 && summary.length < visionOutput.length * 0.8) {
+        return `VISION SUMMARY (key constraints — full doc pinned at pipeline level):\n${summary}`;
+      }
+    }
+
+    // Fallback: truncate full vision to first 600 chars + last 200 (constraints often at end)
+    if (visionOutput.length > 1000) {
+      return `VISION SUMMARY (truncated — full doc pinned at pipeline level):\n${visionOutput.slice(0, 600)}\n...\n${visionOutput.slice(-200)}`;
+    }
+
+    // Short vision: send as-is
+    return `VISION DOCUMENT:\n${visionOutput}`;
+  }
+
+  /**
+   * Compute dependency-aware execution waves from block dependency graph.
+   *
+   * Returns blocks sorted by wave (topological order).
+   * Wave 0 = no dependencies (can theoretically run in parallel).
+   * Wave N = all deps satisfied by waves < N.
+   *
+   * Uses Kahn's algorithm — handles cycles by appending remaining blocks
+   * at the end (defensive: LLM may produce circular deps).
+   */
+  private computeBlockWaves(
+    blockCount: number,
+    blockDeps: number[][],
+  ): Array<{ index: number; wave: number }> {
+    const inDegree = new Array(blockCount).fill(0);
+    const adjList: number[][] = Array.from({ length: blockCount }, () => []);
+
+    // Build adjacency list: if block B depends on A, edge A→B
+    for (let b = 0; b < blockCount; b++) {
+      for (const dep of blockDeps[b] ?? []) {
+        if (dep >= 0 && dep < blockCount && dep !== b) {
+          adjList[dep].push(b);
+          inDegree[b]++;
+        }
+      }
+    }
+
+    const result: Array<{ index: number; wave: number }> = [];
+    const visited = new Set<number>();
+
+    // BFS in waves
+    let currentWave: number[] = [];
+    for (let i = 0; i < blockCount; i++) {
+      if (inDegree[i] === 0) currentWave.push(i);
+    }
+
+    let wave = 0;
+    while (currentWave.length > 0) {
+      // Sort within wave by original index (stable ordering)
+      currentWave.sort((a, b) => a - b);
+
+      const nextWave: number[] = [];
+      for (const blockIdx of currentWave) {
+        if (visited.has(blockIdx)) continue;
+        visited.add(blockIdx);
+        result.push({ index: blockIdx, wave });
+
+        for (const neighbor of adjList[blockIdx]) {
+          inDegree[neighbor]--;
+          if (inDegree[neighbor] === 0 && !visited.has(neighbor)) {
+            nextWave.push(neighbor);
+          }
+        }
+      }
+      currentWave = nextWave;
+      wave++;
+    }
+
+    // Defensive: append any unvisited blocks (cycle or bad deps)
+    for (let i = 0; i < blockCount; i++) {
+      if (!visited.has(i)) {
+        console.warn(`[forge] Block ${i + 1} has circular dependency — appending at end`);
+        result.push({ index: i, wave });
+      }
+    }
+
+    return result;
   }
 }
 

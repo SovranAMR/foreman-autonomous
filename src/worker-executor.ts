@@ -199,6 +199,42 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
     }
   }
 
+  // 9. Last-resort fallback: ANY code fence with substantial content (>5 lines)
+  // that hasn't been captured yet. Useful when LLM uses non-standard formatting.
+  if (ops.length === 0) {
+    const anyFenceRx = /```[a-z]*\s*\n([\s\S]*?)```/gi;
+    const fences: string[] = [];
+    while ((match = anyFenceRx.exec(allText)) !== null) {
+      const content = match[1].trim();
+      if (content.split("\n").length >= 5) {
+        fences.push(content);
+      }
+    }
+    // If there's exactly 1 substantial code fence and step6 mentions a file path,
+    // treat it as a write_file op
+    if (fences.length === 1) {
+      const pathHint = allText.match(/(?:file|path|create|write|save)(?:\s+to)?[:\s]+[`"']?([\w./-]+\.(?:tsx?|jsx?|css|json|md|html|vue|svelte|yaml|toml|py))[`"']?/i);
+      if (pathHint) {
+        ops.push({
+          type: "write_file",
+          path: pathHint[1].trim(),
+          content: fences[0],
+        });
+      }
+    }
+
+    // Diagnostic: log extraction failure details for debugging
+    if (ops.length === 0 && allText.length > 100) {
+      const hasFences = /```/.test(allText);
+      const hasFilePaths = /[\w./-]+\.(?:tsx?|jsx?|css|json|md|html)/i.test(allText);
+      console.warn(
+        `[worker-executor] extractOperations returned 0 ops from ${allText.length} chars. ` +
+        `fences=${hasFences}, filePaths=${hasFilePaths}, ` +
+        `step4_len=${protocol.step4_decide?.length ?? 0}, step6_len=${protocol.step6_execute?.length ?? 0}`
+      );
+    }
+  }
+
   return ops;
 }
 
