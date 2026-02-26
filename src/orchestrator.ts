@@ -437,6 +437,10 @@ ${visionOutput}`,
     const blocks: string[] = decomposeResult.parsed?.blocks
       ?? this.fallbackParseBlocks(decomposeResult.thought.output);
 
+    // GET block dependency graph (0-based index arrays)
+    const blockDeps: number[][] = decomposeResult.parsed?.blockDeps
+      ?? Array.from({ length: blocks.length }, () => []);
+
     // Hard cap: max 8 blocks regardless of what strategist produced
     if (blocks.length > 8) {
       console.warn(`[forge] Strategist produced ${blocks.length} blocks, capping at 8`);
@@ -468,14 +472,22 @@ ${visionOutput}`,
     });
     this.engine.tasks.addChain(parentTask.id, visionChain.id);
 
+    const blockTaskIds: string[] = [];
     for (let bi = 0; bi < blocks.length; bi++) {
+      // Resolve dependency task IDs from block indices
+      const depTaskIds = (blockDeps[bi] ?? [])
+        .filter(depIdx => depIdx >= 0 && depIdx < bi && blockTaskIds[depIdx])
+        .map(depIdx => blockTaskIds[depIdx]);
+
       const blockTask = this.engine.tasks.create({
         title: `Block ${bi + 1}: ${blocks[bi].slice(0, 60)}`,
         description: blocks[bi],
         projectId: this.engine.state.snapshot().projectName,
         type: "feature",
         priority: "medium",
+        dependsOn: depTaskIds,
       });
+      blockTaskIds.push(blockTask.id);
       this.engine.tasks.addSubtask(parentTask.id, blockTask.id);
     }
 
@@ -493,11 +505,26 @@ ${visionOutput}`,
       detail: `${sortedTasks.length} tasks planned, ${readyTasks.length} ready`,
     });
 
-    // ─── 3. FOR EACH BLOCK ──────────────────────────────────
+    // ─── DEPENDENCY-AWARE BLOCK ORDERING ────────────────────
+    // Compute execution waves from blockDeps graph.
+    // Wave 0: blocks with no deps (can run first / in parallel later).
+    // Wave N: blocks whose deps are all in waves < N.
+    // Within each wave, blocks run sequentially (shared file system safety).
+    const blockOrder = this.computeBlockWaves(blocks.length, blockDeps);
+    const totalWaves = Math.max(...blockOrder.map(w => w.wave)) + 1;
+    if (totalWaves > 1) {
+      const waveSummary = Array.from({ length: totalWaves }, (_, w) =>
+        `W${w}:[${blockOrder.filter(b => b.wave === w).map(b => b.index + 1).join(",")}]`
+      ).join(" → ");
+      this.engine.streaming.phaseStart("parallel_plan", `${totalWaves} waves: ${waveSummary}`);
+      this.engine.streaming.phaseEnd("parallel_plan", waveSummary);
+    }
+
+    // ─── 3. FOR EACH BLOCK (dependency-ordered) ─────────────
 
     let atomCount = 0;
 
-    for (let i = 0; i < blocks.length; i++) {
+    for (const { index: i, wave } of blockOrder) {
       const block = blocks[i];
 
       // ─── STREAMING: Block start ───
@@ -2506,6 +2533,75 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     }
 
     return blocks.length > 0 ? blocks : [text.trim()];
+  }
+
+  /**
+   * Compute dependency-aware execution waves from block dependency graph.
+   *
+   * Returns blocks sorted by wave (topological order).
+   * Wave 0 = no dependencies (can theoretically run in parallel).
+   * Wave N = all deps satisfied by waves < N.
+   *
+   * Uses Kahn's algorithm — handles cycles by appending remaining blocks
+   * at the end (defensive: LLM may produce circular deps).
+   */
+  private computeBlockWaves(
+    blockCount: number,
+    blockDeps: number[][],
+  ): Array<{ index: number; wave: number }> {
+    const inDegree = new Array(blockCount).fill(0);
+    const adjList: number[][] = Array.from({ length: blockCount }, () => []);
+
+    // Build adjacency list: if block B depends on A, edge A→B
+    for (let b = 0; b < blockCount; b++) {
+      for (const dep of blockDeps[b] ?? []) {
+        if (dep >= 0 && dep < blockCount && dep !== b) {
+          adjList[dep].push(b);
+          inDegree[b]++;
+        }
+      }
+    }
+
+    const result: Array<{ index: number; wave: number }> = [];
+    const visited = new Set<number>();
+
+    // BFS in waves
+    let currentWave: number[] = [];
+    for (let i = 0; i < blockCount; i++) {
+      if (inDegree[i] === 0) currentWave.push(i);
+    }
+
+    let wave = 0;
+    while (currentWave.length > 0) {
+      // Sort within wave by original index (stable ordering)
+      currentWave.sort((a, b) => a - b);
+
+      const nextWave: number[] = [];
+      for (const blockIdx of currentWave) {
+        if (visited.has(blockIdx)) continue;
+        visited.add(blockIdx);
+        result.push({ index: blockIdx, wave });
+
+        for (const neighbor of adjList[blockIdx]) {
+          inDegree[neighbor]--;
+          if (inDegree[neighbor] === 0 && !visited.has(neighbor)) {
+            nextWave.push(neighbor);
+          }
+        }
+      }
+      currentWave = nextWave;
+      wave++;
+    }
+
+    // Defensive: append any unvisited blocks (cycle or bad deps)
+    for (let i = 0; i < blockCount; i++) {
+      if (!visited.has(i)) {
+        console.warn(`[forge] Block ${i + 1} has circular dependency — appending at end`);
+        result.push({ index: i, wave });
+      }
+    }
+
+    return result;
   }
 }
 
