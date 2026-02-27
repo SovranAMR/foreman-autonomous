@@ -29,6 +29,7 @@ import type {
 import { Engine } from "./engine.js";
 import { Orchestrator } from "./orchestrator.js";
 import { AntigravityProvider, loadCredentials, getChatModels } from "./antigravity-provider.js";
+import { DEFAULT_KIMI_MODEL } from "./kimi-provider.js";
 import type { LLMProvider } from "./provider.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
@@ -420,7 +421,7 @@ export class MessagingGateway {
 
         const result = await this.provider.streamChatWithTools(
           messages,
-          "kimi-k2.5",
+          DEFAULT_KIMI_MODEL,
           // onToken — collect response text
           (token: string) => {
             responseText += token;
@@ -469,7 +470,7 @@ export class MessagingGateway {
       // ─── FALLBACK: provider.generate (text-only, no tools) ───
       const result = await this.provider.generate(
         messages as any,
-        { model: "kimi-k2.5", maxTokens: 32768, temperature: 0.7 },
+        { model: DEFAULT_KIMI_MODEL, maxTokens: 32768, temperature: 0.7 },
       );
 
       const responseText = result.text?.trim() ?? "";
@@ -499,7 +500,7 @@ export class MessagingGateway {
                 { role: "system", content: systemPrompt },
                 ...conversation.messages.map(m => ({ role: m.role, content: m.content })),
               ],
-              "kimi-k2.5",
+              DEFAULT_KIMI_MODEL,
               (token: string) => { retryText += token; },
               () => { },
               () => { },
