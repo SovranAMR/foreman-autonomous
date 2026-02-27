@@ -92,7 +92,7 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
     // step7_verify excluded — verification commands should not be executed as real operations
   ].join("\n");
 
-  // 1. Extract file writes: ```filepath\ncontent\n```
+  // 1. Extract file writes: ```filepath\ncontent\n``` (with File:/Path:/Write to: prefix)
   const fileWriteRx = /```[a-z]*\s*\n\/\/ (?:File|Path|Write to): (.+)\n([\s\S]*?)```/gi;
   let match: RegExpExecArray | null;
   while ((match = fileWriteRx.exec(allText)) !== null) {
@@ -101,6 +101,20 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
       path: match[1].trim(),
       content: match[2].trimEnd(),
     });
+  }
+
+  // 1.5 Comment-style path: ```lang\n// src/path.ts\ncontent\n```
+  // Kimi and other LLMs often use this format without any prefix keyword
+  const commentPathRx = /```[a-z]*\s*\n\/\/ ([\w./-]+\.(?:tsx?|jsx?|css|json|md|html|vue|svelte|yaml|toml|py|sh))\n([\s\S]*?)```/gi;
+  while ((match = commentPathRx.exec(allText)) !== null) {
+    const path = match[1].trim();
+    if (!ops.some(o => o.path === path)) {
+      ops.push({
+        type: "write_file",
+        path,
+        content: match[2].trimEnd(),
+      });
+    }
   }
 
   // 2. Alternative: "Write to `path`:" or "Create file `path`:" followed by code block
@@ -210,16 +224,35 @@ export function extractOperations(protocol: WorkerProtocol): ExtractedOperation[
         fences.push(content);
       }
     }
-    // If there's exactly 1 substantial code fence and step6 mentions a file path,
-    // treat it as a write_file op
-    if (fences.length === 1) {
-      const pathHint = allText.match(/(?:file|path|create|write|save)(?:\s+to)?[:\s]+[`"']?([\w./-]+\.(?:tsx?|jsx?|css|json|md|html|vue|svelte|yaml|toml|py))[`"']?/i);
-      if (pathHint) {
-        ops.push({
-          type: "write_file",
-          path: pathHint[1].trim(),
-          content: fences[0],
-        });
+
+    // Try to pair each fence with a file path mentioned nearby in the text
+    // This handles cases where the LLM mentions a path before or after the code block
+    const pathRx = /[`"']?([\w./-]+\.(?:tsx?|jsx?|css|json|md|html|vue|svelte|yaml|toml|py))[`"']?/gi;
+    const allPaths: string[] = [];
+    while ((match = pathRx.exec(allText)) !== null) {
+      const p = match[1].trim();
+      if (!allPaths.includes(p) && p.includes("/")) {
+        allPaths.push(p);
+      }
+    }
+
+    if (fences.length === 1 && allPaths.length >= 1) {
+      // Single fence, pick the first file path
+      ops.push({
+        type: "write_file",
+        path: allPaths[0],
+        content: fences[0],
+      });
+    } else if (fences.length > 1 && allPaths.length >= fences.length) {
+      // Multiple fences, try 1:1 pairing with paths in order
+      for (let i = 0; i < fences.length && i < allPaths.length; i++) {
+        if (!ops.some(o => o.path === allPaths[i])) {
+          ops.push({
+            type: "write_file",
+            path: allPaths[i],
+            content: fences[i],
+          });
+        }
       }
     }
 

@@ -102,6 +102,16 @@ program.action(async () => {
   // No onboarding prompts - assumes already configured
 
   if (tgToken && tgEnabled) {
+    // Validate Telegram token format: must be "digits:alphanumeric"
+    const isValidTokenFormat = /^\d+:[A-Za-z0-9_-]{30,}$/.test(tgToken);
+    if (!isValidTokenFormat) {
+      console.log(brand.red(`  ⚠ Invalid Telegram token format — skipping gateway`));
+      console.log(`    ${brand.dim("Token must be in format: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ")}`);
+      console.log(`    ${brand.dim("Falling back to interactive REPL...\n")}`);
+      const { startRepl } = await import("./repl.js");
+      return startRepl();
+    }
+
     // Telegram token found and enabled — try to start the messaging gateway
     console.log(brand.gold("  ◆ Foreman Telegram Gateway\n"));
     console.log(`    ${brand.dim("✓ Token detected from environment or config")}`);

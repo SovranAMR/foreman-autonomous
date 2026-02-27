@@ -27,6 +27,7 @@ import type {
   WhatsAppChannelConfig,
 } from "./channel.js";
 import { Engine } from "./engine.js";
+import { Orchestrator } from "./orchestrator.js";
 import { AntigravityProvider, loadCredentials, getChatModels } from "./antigravity-provider.js";
 import type { LLMProvider } from "./provider.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
@@ -35,14 +36,6 @@ import { EditEngine } from "./edit-engine.js";
 import { GitEngine } from "./git-engine.js";
 import { LinkIntelligence } from "./link-intelligence.js";
 import type { ToolCall, ToolResult } from "./tools.js";
-import {
-  shouldCompact,
-  compactWithLlm,
-  compactLocal,
-  type ConversationMessage,
-  type SummarizeFunction,
-} from "./compaction-engine.js";
-import { ResponseGuard } from "./response-guard.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 
@@ -64,6 +57,7 @@ export class MessagingGateway {
   private channels: Map<ChannelType, Channel> = new Map();
   private conversations: Map<string, ConversationState> = new Map();
   private engine: Engine;
+  private orchestrator: Orchestrator | null = null;
   private provider: LLMProvider | null = null;
   private toolExecutor: ((call: ToolCall) => Promise<ToolResult>) | null = null;
   private processing: Set<string> = new Set(); // active chat IDs
@@ -82,6 +76,7 @@ export class MessagingGateway {
       projectRoot: config.projectRoot,
       projectName: config.projectName,
     });
+    this.orchestrator = new Orchestrator(this.engine);
     this.CONVERSATIONS_DIR = join(config.projectRoot, ".foreman", "conversations");
 
     // Load persisted conversations from disk
@@ -363,9 +358,9 @@ export class MessagingGateway {
     // /cancel, /cost, /rollback etc. still handled via ForgeGatewayBridge
     // /forge is no longer a command — LLM decides when to use forge_pipeline tool
     if (text === "/cancel" || text === "/iptal" ||
-        text === "/cost" || text === "/maliyet" || text === "/project" || text === "/proje" ||
-        text === "/rollback" || text === "/geri" || text === "/identity" || text === "/kimlik" ||
-        text === "/agents" || text === "/ajanlar" || text === "/sessions" || text === "/oturumlar") {
+      text === "/cost" || text === "/maliyet" || text === "/project" || text === "/proje" ||
+      text === "/rollback" || text === "/geri" || text === "/identity" || text === "/kimlik" ||
+      text === "/agents" || text === "/ajanlar" || text === "/sessions" || text === "/oturumlar") {
       try {
         const { ForgeGatewayBridge } = await import("./forge-gateway.js");
         const { Engine } = await import("./engine.js");
@@ -381,10 +376,10 @@ export class MessagingGateway {
         const channel = this.channels.get(message.channel);
         const sender = {
           send: async (text: string) => {
-            await channel?.send(message.chatId, text);
+            await channel?.send(message.chatId, { text });
           },
           editLast: async (text: string) => {
-            await channel?.send(message.chatId, text);
+            await channel?.send(message.chatId, { text });
           },
         };
 
@@ -406,167 +401,61 @@ export class MessagingGateway {
       return { text: "❌ Provider not initialized. Run: foreman login" };
     }
 
-    const models = getChatModels();
-    const kimiDefault = this.provider?.name === "kimi" ? "kimi-k2.5" : null;
-    const modelId = kimiDefault ?? models[0]?.id ?? "claude-sonnet";
-
-    // Build system prompt
-    const systemPrompt = await this.buildSystemPrompt();
-
-    // ─── COMPACTION — compress long conversations ───────────
-    let conversationMessages = conversation.messages;
-
-    const compactionMessages: ConversationMessage[] = conversationMessages.map(m => ({
-      role: m.role as "user" | "assistant" | "system",
-      content: m.content,
-    }));
-
-    // Compact earlier — 40K tokens instead of 80K to prevent context bloat
-    // from many tool call rounds (each tool call = 2 messages)
-    if (shouldCompact(compactionMessages, { maxTokens: 40_000 })) {
-      try {
-        // Build summarize function using the provider
-        const summarize: SummarizeFunction = async (sysPrompt, userPrompt, model) => {
-          const summaryModel = model ?? modelId;
-          const result = await this.provider!.streamChatWithTools!(
-            [
-              { role: "system", content: sysPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            summaryModel,
-            () => {},
-            () => {},
-            () => {},
-            1024,
-            1,
-            this.toolExecutor!,
-          );
-          return result.text;
-        };
-
-        const compacted = await compactWithLlm(compactionMessages, summarize, {
-          maxTokens: 40_000,
-          recentKeepCount: 10,
-          summaryModel: modelId,
-        });
-
-        if (compacted.usedLlm) {
-          console.log(
-            `[gateway] Compacted: ${compacted.summarizedCount} messages → summary (${compacted.estimatedTokens} tokens)`,
-          );
-        }
-
-        // Replace conversation messages with compacted version
-        conversation.messages = compacted.messages.map(m => ({
-          role: m.role,
-          content: m.content,
-        }));
-        conversationMessages = conversation.messages;
-      } catch (err) {
-        console.warn(`[gateway] Compaction failed, using local fallback:`, err);
-        const local = compactLocal(compactionMessages, { maxTokens: 40_000, recentKeepCount: 10 });
-        conversation.messages = local.messages.map(m => ({
-          role: m.role,
-          content: m.content,
-        }));
-        conversationMessages = conversation.messages;
-      }
-    }
-    // ─────────────────────────────────────────────────────────
-
-    const messages = [
-      { role: "system", content: systemPrompt },
-      ...conversationMessages,
-    ];
-
-    let responseText = "";
-
-    // ─── HALLUCINATION GUARD — track actual tool calls ──────
-    const responseGuard = new ResponseGuard();
-    responseGuard.startTurn();
-
     try {
-      const result = await this.provider!.streamChatWithTools!(
-        messages,
-        modelId,
-        // onToken — accumulate response
-        (token: string) => {
-          responseText += token;
-        },
-        // onToolCall — log + record for guard
-        (call: ToolCall) => {
-          console.log(`[gateway] Tool: ${call.name} ${JSON.stringify(call.args).slice(0, 80)}`);
-          responseGuard.recordToolCall(call.name, call.args, true); // recorded before result
-        },
-        // onToolResult — log + update guard record
-        (result: ToolResult) => {
-          const preview = result.content.slice(0, 200);
-          console.log(`[gateway] Result: ${result.name} → ${result.isError ? "❌" : "✔"} ${preview}`);
-          if (result.isError) {
-            // Update the last recorded call to mark as failed
-            responseGuard.recordToolCall(result.name, {}, false);
-          }
-        },
-        // maxTokens
-        32768,
-        // maxIterations — complex tasks need many tool calls
-        100,
-        // toolExecutor
-        this.toolExecutor,
-      );
+      const systemPrompt = await this.buildSystemPrompt();
 
-      conversation.totalTokens += result.inputTokens + result.outputTokens;
+      // Build messages for the provider
+      const messages = [
+        { role: "system" as const, content: systemPrompt },
+        ...conversation.messages.map(m => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+      ];
 
-      // Use accumulated text from onToken, fallback to result.text
-      let text = responseText.trim() || result.text.trim();
-      if (!text) {
-        console.warn(`[gateway] LLM returned empty response after ${result.inputTokens + result.outputTokens} tokens`);
-        return { text: "⚠️ I processed your request but couldn't generate a response. Try again." };
+      // Use provider.generate for simple single-turn response
+      const result = await this.provider.generate(messages, {
+        model: "kimi-k2.5",
+        maxTokens: 32768,
+        temperature: 0.7,
+      });
+
+      const responseText = result.text?.trim() ?? "";
+
+      // Track tokens
+      conversation.totalTokens += result.tokenUsage?.total ?? 0;
+
+      if (!responseText) {
+        return { text: "🤔 (boş yanıt — tekrar dene)" };
       }
-
-      // ─── HALLUCINATION GUARD — audit response ────────────
-      const guardResult = responseGuard.audit(text);
-      if (guardResult.detected) {
-        console.warn(`[gateway] 🚨 HALLUCINATION GUARD: ${guardResult.summary}`);
-        for (const v of guardResult.violations) {
-          console.warn(`[guard]   ${v.severity}: ${v.type} — ${v.line.slice(0, 80)}`);
-        }
-        text = guardResult.text;
-      } else {
-        console.log(`[gateway] Guard: ${guardResult.summary}`);
-      }
-
-      console.log(`[gateway] Response ready: ${text.length} chars, ${result.inputTokens}+${result.outputTokens} tokens`);
 
       return {
-        text,
+        text: responseText,
         parseMode: "markdown",
       };
     } catch (err) {
       console.error(`[gateway] LLM error:`, err);
       const msg = err instanceof Error ? err.message : String(err);
+
       if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded")) {
-        // Retry once after 10s cooldown instead of giving up
+        // Retry once after 10s cooldown
         console.log(`[gateway] Rate limited, retrying in 10s...`);
         await new Promise(r => setTimeout(r, 10_000));
         try {
-          const retryResult = await this.provider!.streamChatWithTools!(
+          const systemPrompt = await this.buildSystemPrompt();
+          const retryResult = await this.provider!.generate(
             [
-              { role: "system", content: await this.buildSystemPrompt() },
-              ...conversationMessages,
+              { role: "system", content: systemPrompt },
+              ...conversation.messages.map(m => ({
+                role: m.role as "user" | "assistant",
+                content: m.content,
+              })),
             ],
-            modelId,
-            (token: string) => { responseText = token; },
-            () => {},
-            () => {},
-            32768,
-            100,
-            this.toolExecutor,
+            { model: "kimi-k2.5", maxTokens: 32768, temperature: 0.7 },
           );
-          conversation.totalTokens += retryResult.inputTokens + retryResult.outputTokens;
-          const retryText = responseText.trim() || retryResult.text.trim();
+          const retryText = retryResult.text?.trim();
           if (retryText) {
-            console.log(`[gateway] Retry succeeded: ${retryText.length} chars`);
+            conversation.totalTokens += retryResult.tokenUsage?.total ?? 0;
             return { text: retryText, parseMode: "markdown" };
           }
         } catch (retryErr) {
@@ -692,6 +581,11 @@ export class MessagingGateway {
       "7. **Your responses are automatically audited against your actual tool calls.**",
       "   If you claim an action without the matching tool call, a warning is injected",
       "   into your response that the user will see. This is embarrassing. Don't trigger it.",
+      "",
+      "## CRITICAL: DO NOT OVERWRITE CONFIG FILES",
+      "- NEVER write to ~/.foreman/config.json unless explicitly asked by the user",
+      "- NEVER create Telegram bot tokens or gateway configurations on your own",
+      "- If Telegram is not configured, tell the user to run `foreman setup` — do NOT auto-configure it",
       "",
       `## Project: ${this.config.projectName}`,
       `## Working Directory: ${this.config.projectRoot}`,
@@ -898,3 +792,4 @@ export class MessagingGateway {
     return this.channels.get(type);
   }
 }
+
