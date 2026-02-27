@@ -405,24 +405,74 @@ export class MessagingGateway {
       const systemPrompt = await this.buildSystemPrompt();
 
       // Build messages for the provider
-      const messages = [
-        { role: "system" as const, content: systemPrompt },
+      const messages: Array<{ role: string; content: string | any[] }> = [
+        { role: "system", content: systemPrompt },
         ...conversation.messages.map(m => ({
-          role: m.role as "user" | "assistant",
+          role: m.role,
           content: m.content,
         })),
       ];
 
-      // Use provider.generate for simple single-turn response
-      const result = await this.provider.generate(messages, {
-        model: "kimi-k2.5",
-        maxTokens: 32768,
-        temperature: 0.7,
-      });
+      // ─── USE streamChatWithTools (same as REPL) for full tool parity ───
+      if (this.provider.streamChatWithTools) {
+        let responseText = "";
+        const toolLog: string[] = [];
+
+        const result = await this.provider.streamChatWithTools(
+          messages,
+          "kimi-k2.5",
+          // onToken — collect response text
+          (token: string) => {
+            responseText += token;
+          },
+          // onToolCall — log tool usage
+          (call: { name: string; args: Record<string, any> }) => {
+            const argsPreview = call.args.command ?? call.args.path ?? call.args.pattern ?? call.args.directory ?? ".";
+            toolLog.push(`⚙ ${call.name} ${String(argsPreview).slice(0, 60)}`);
+          },
+          // onToolResult — log tool results
+          (result: { name: string; content: string; isError?: boolean }) => {
+            const icon = result.isError ? "✘" : "✔";
+            const preview = result.content.split("\n").slice(0, 3).join("\n  ");
+            toolLog.push(`  ${icon} ${preview.slice(0, 200)}`);
+          },
+          32768,  // maxTokens
+          25,     // maxIterations — same as REPL
+          this.toolExecutor,
+        );
+
+        // Track tokens
+        conversation.totalTokens += (result.inputTokens ?? 0) + (result.outputTokens ?? 0);
+
+        // Build Telegram response with tool log
+        const parts: string[] = [];
+        if (toolLog.length > 0) {
+          parts.push(toolLog.join("\n"));
+          parts.push(""); // separator
+        }
+        const text = responseText.trim() || result.text?.trim() || "";
+        if (text) {
+          parts.push(text);
+        }
+
+        const finalText = parts.join("\n").trim();
+        if (!finalText) {
+          return { text: "🤔 (boş yanıt — tekrar dene)" };
+        }
+
+        return {
+          text: finalText,
+          parseMode: "markdown",
+        };
+      }
+
+      // ─── FALLBACK: provider.generate (text-only, no tools) ───
+      const result = await this.provider.generate(
+        messages as any,
+        { model: "kimi-k2.5", maxTokens: 32768, temperature: 0.7 },
+      );
 
       const responseText = result.text?.trim() ?? "";
-
-      // Track tokens
       conversation.totalTokens += result.tokenUsage?.total ?? 0;
 
       if (!responseText) {
@@ -438,25 +488,30 @@ export class MessagingGateway {
       const msg = err instanceof Error ? err.message : String(err);
 
       if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded")) {
-        // Retry once after 10s cooldown
         console.log(`[gateway] Rate limited, retrying in 10s...`);
         await new Promise(r => setTimeout(r, 10_000));
         try {
           const systemPrompt = await this.buildSystemPrompt();
-          const retryResult = await this.provider!.generate(
-            [
-              { role: "system", content: systemPrompt },
-              ...conversation.messages.map(m => ({
-                role: m.role as "user" | "assistant",
-                content: m.content,
-              })),
-            ],
-            { model: "kimi-k2.5", maxTokens: 32768, temperature: 0.7 },
-          );
-          const retryText = retryResult.text?.trim();
-          if (retryText) {
-            conversation.totalTokens += retryResult.tokenUsage?.total ?? 0;
-            return { text: retryText, parseMode: "markdown" };
+          if (this.provider!.streamChatWithTools) {
+            let retryText = "";
+            const retryResult = await this.provider!.streamChatWithTools(
+              [
+                { role: "system", content: systemPrompt },
+                ...conversation.messages.map(m => ({ role: m.role, content: m.content })),
+              ],
+              "kimi-k2.5",
+              (token: string) => { retryText += token; },
+              () => { },
+              () => { },
+              32768,
+              25,
+              this.toolExecutor!,
+            );
+            const text = retryText.trim() || retryResult.text?.trim();
+            if (text) {
+              conversation.totalTokens += (retryResult.inputTokens ?? 0) + (retryResult.outputTokens ?? 0);
+              return { text, parseMode: "markdown" };
+            }
           }
         } catch (retryErr) {
           console.error(`[gateway] Retry also failed:`, retryErr);

@@ -106,125 +106,94 @@ program.action(async () => {
     const isValidTokenFormat = /^\d+:[A-Za-z0-9_-]{30,}$/.test(tgToken);
     if (!isValidTokenFormat) {
       console.log(brand.red(`  ⚠ Invalid Telegram token format — skipping gateway`));
-      console.log(`    ${brand.dim("Token must be in format: 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ")}`);
-      console.log(`    ${brand.dim("Falling back to interactive REPL...\n")}`);
-      const { startRepl } = await import("./repl.js");
-      return startRepl();
-    }
+      console.log(`    ${brand.dim("Continuing with REPL only...\n")}`);
+    } else {
+      // ─── Start Telegram gateway in background ─────────────────────
+      try {
+        const { MessagingGateway } = await import("./messaging-gateway.js");
+        const projectRoot = process.cwd();
 
-    // Telegram token found and enabled — try to start the messaging gateway
-    console.log(brand.gold("  ◆ Foreman Telegram Gateway\n"));
-    console.log(`    ${brand.dim("✓ Token detected from environment or config")}`);
-    console.log(`    ${brand.dim("✓ Auto-starting gateway...")}\n`);
+        const gateway = new MessagingGateway({
+          projectRoot,
+          projectName: "foreman",
+          channels: [{
+            type: "telegram",
+            enabled: true,
+            botToken: tgToken,
+            allowedSenders: [],
+          }],
+          maxConcurrent: 5,
+          messageTimeoutMs: 120_000,
+        });
 
-    let gatewayStarted = false;
-    try {
-      const { MessagingGateway } = await import("./messaging-gateway.js");
-      const projectRoot = process.cwd();
+        await gateway.start();
 
-      const gateway = new MessagingGateway({
-        projectRoot,
-        projectName: "foreman",
-        channels: [{
-          type: "telegram",
-          enabled: true,
-          botToken: tgToken,
-          allowedSenders: [],
-        }],
-        maxConcurrent: 5,
-        messageTimeoutMs: 120_000,
-      });
-
-      // Graceful shutdown
-      const shutdown = async () => {
-        console.log("\n  Shutting down...");
-        await gateway.stop();
-        process.exit(0);
-      };
-      process.on("SIGINT", shutdown);
-      process.on("SIGTERM", shutdown);
-
-      await gateway.start();
-
-      // Verify at least one channel actually connected
-      const channelCount = gateway.getActiveChannels();
-      if (channelCount === 0 || !gateway.isRunning()) {
-        throw new Error("No channels connected after gateway start");
-      }
-
-      gatewayStarted = true;
-
-      // Show live status
-      console.log(brand.gold(`\n  🔥 Gateway running — ${channelCount} channel(s) active`));
-      console.log(`  ${brand.dim(`Conversations: ${gateway.getConversationCount()} | Running: ${gateway.isRunning()}`)}`);
-      console.log(`  ${brand.dim("Press Ctrl+C to stop.\n")}`);
-
-      // Check channel health periodically
-      const healthInterval = setInterval(() => {
-        if (!gateway.isRunning()) {
-          clearInterval(healthInterval);
-          return;
+        const channelCount = gateway.getActiveChannels();
+        if (channelCount > 0 && gateway.isRunning()) {
+          console.log(brand.gold(`  ◆ Telegram Gateway active — ${channelCount} channel(s)`));
+          console.log(`  ${brand.dim("Telegram + Terminal REPL running simultaneously")}\n`);
         }
-        for (const type of ["telegram"] as const) {
-          const ch = gateway.getChannel(type);
-          if (ch && !ch.isConnected()) {
-            console.log(`  ${brand.red("⚠")} ${type} channel disconnected!`);
+
+        // Health check (background, unref'd)
+        const healthInterval = setInterval(() => {
+          if (!gateway.isRunning()) { clearInterval(healthInterval); return; }
+          for (const type of ["telegram"] as const) {
+            const ch = gateway.getChannel(type);
+            if (ch && !ch.isConnected()) {
+              console.log(`  ${brand.red("⚠")} ${type} disconnected!`);
+            }
           }
-        }
-      }, 60_000);
-      healthInterval.unref();
+        }, 60_000);
+        healthInterval.unref();
 
-      // Keep the process alive
-      await new Promise(() => { });
-    } catch (err: any) {
-      console.log(`    ${icon.fail} ${brand.red("Telegram gateway failed:")} ${brand.dim(err.message ?? String(err))}`);
-      console.log(`    ${brand.dim("Falling back to interactive REPL...")}\n`);
-      gatewayStarted = false;
+        // Clean shutdown on exit
+        const stopGateway = async () => {
+          if (gateway.isRunning()) await gateway.stop();
+        };
+        process.on("beforeExit", stopGateway);
+        process.on("SIGINT", async () => { await stopGateway(); process.exit(0); });
+        process.on("SIGTERM", async () => { await stopGateway(); process.exit(0); });
+
+      } catch (err: any) {
+        console.log(`  ${icon.fail} ${brand.red("Telegram gateway error:")} ${brand.dim(err.message ?? String(err))}`);
+        console.log(`  ${brand.dim("Continuing with REPL only...\n")}`);
+      }
     }
-
-    // If gateway failed, fall through to REPL
-    if (!gatewayStarted) {
-      printLogo();
-      forgeDivider();
-      console.log("");
-      await startRepl();
-      return;
-    }
-  } else {
-    // No Telegram token — run the interactive REPL
-    // ── Spark rain entrance ──
-    if (process.stdout.isTTY) {
-      await animateSparkRain(60, 40);
-    }
-
-    // ── Logo ──
-    printLogo();
-
-    // ── Dwarf strikes the anvil ──
-    if (process.stdout.isTTY) {
-      await animateDwarf(3000, 150);
-    }
-    console.log("");
-
-    // ── Forge divider ──
-    forgeDivider();
-    console.log("");
-
-    // ── Check credentials & start REPL ──
-    const creds = loadCredentials();
-
-    if (!creds || Date.now() >= creds.expiresAt) {
-      // No credentials — still show commands for reference, then onboard via REPL
-      console.log(brand.gold("  ◆ Quick Start\n"));
-      console.log(`    ${brand.dim("$")} ${brand.cyan("foreman login")}              ${brand.dim("# one-time auth")}`);
-      console.log(`    ${brand.dim("$")} ${brand.cyan("foreman init my-project")}    ${brand.dim("# scaffold a project")}`);
-      console.log(`    ${brand.dim("$")} ${brand.cyan('foreman run "build an API"')} ${brand.dim("# fire up the forge")}`);
-      console.log("");
-    }
-
-    // Start interactive REPL
-    await startRepl();
   }
+
+  // ─── REPL (always starts) ──────────────────────────────────────
+
+  // ── Spark rain entrance ──
+  if (process.stdout.isTTY) {
+    await animateSparkRain(60, 40);
+  }
+
+  // ── Logo ──
+  printLogo();
+
+  // ── Dwarf strikes the anvil ──
+  if (process.stdout.isTTY) {
+    await animateDwarf(3000, 150);
+  }
+  console.log("");
+
+  // ── Forge divider ──
+  forgeDivider();
+  console.log("");
+
+  // ── Check credentials & start REPL ──
+  const creds = loadCredentials();
+
+  if (!creds || Date.now() >= creds.expiresAt) {
+    console.log(brand.gold("  ◆ Quick Start\n"));
+    console.log(`    ${brand.dim("$")} ${brand.cyan("foreman login")}              ${brand.dim("# one-time auth")}`);
+    console.log(`    ${brand.dim("$")} ${brand.cyan("foreman init my-project")}    ${brand.dim("# scaffold a project")}`);
+    console.log(`    ${brand.dim("$")} ${brand.cyan('foreman run "build an API"')} ${brand.dim("# fire up the forge")}`);
+    console.log("");
+  }
+
+  // Start interactive REPL
+  await startRepl();
 });
 
 // ─── SETUP ────────────────────────────────────────────────────
