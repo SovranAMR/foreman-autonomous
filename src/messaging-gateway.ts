@@ -29,7 +29,6 @@ import type {
 import { Engine } from "./engine.js";
 import { Orchestrator } from "./orchestrator.js";
 import { AntigravityProvider, loadCredentials, getChatModels } from "./antigravity-provider.js";
-import { DEFAULT_KIMI_MODEL } from "./kimi-provider.js";
 import type { LLMProvider } from "./provider.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
@@ -60,6 +59,7 @@ export class MessagingGateway {
   private engine: Engine;
   private orchestrator: Orchestrator | null = null;
   private provider: LLMProvider | null = null;
+  private activeModel: string = "claude-opus-4-6-thinking";
   private toolExecutor: ((call: ToolCall) => Promise<ToolResult>) | null = null;
   private processing: Set<string> = new Set(); // active chat IDs
   private messageQueue: Map<string, InboundMessage[]> = new Map(); // queued messages per chat
@@ -92,19 +92,22 @@ export class MessagingGateway {
   async start(): Promise<void> {
     console.log(`[gateway] Starting Foreman Messaging Gateway...`);
 
-    // Initialize provider — prefer Kimi, fallback to Antigravity
-    const { KimiProvider, loadKimiKey } = await import("./kimi-provider.js");
-    const kimiKey = loadKimiKey();
-    if (kimiKey) {
-      this.provider = new KimiProvider(kimiKey);
-      console.log(`[gateway] Using Kimi provider`);
-    } else {
-      const creds = loadCredentials();
-      if (!creds) {
-        throw new Error("No API credentials. Set Kimi key or run: foreman login");
-      }
+    // Initialize provider — Antigravity (Opus) first for smart tool calling, Kimi fallback
+    const creds = loadCredentials();
+    if (creds) {
       this.provider = new AntigravityProvider(creds);
-      console.log(`[gateway] Using Antigravity provider`);
+      this.activeModel = "claude-opus-4-6-thinking";
+      console.log(`[gateway] Using Antigravity provider (Opus 4.6-thinking)`);
+    } else {
+      const { KimiProvider, loadKimiKey } = await import("./kimi-provider.js");
+      const kimiKey = loadKimiKey();
+      if (kimiKey) {
+        this.provider = new KimiProvider(kimiKey);
+        this.activeModel = "kimi-k2-thinking";
+        console.log(`[gateway] Using Kimi provider (fallback)`);
+      } else {
+        throw new Error("No API credentials. Run: foreman login");
+      }
     }
 
     // Initialize tool executor with Engine subsystems
@@ -416,7 +419,7 @@ export class MessagingGateway {
 
       // ─── USE streamChatWithTools (same as REPL) for full tool parity ───
       const hasToolSupport = typeof this.provider.streamChatWithTools === "function";
-      console.log(`[gateway] processWithLLM: hasToolSupport=${hasToolSupport}, model=${DEFAULT_KIMI_MODEL}, messages=${messages.length}`);
+      console.log(`[gateway] processWithLLM: hasToolSupport=${hasToolSupport}, model=${this.activeModel}, messages=${messages.length}`);
 
       if (hasToolSupport) {
         console.log(`[gateway] Using streamChatWithTools path (with tools)`);
@@ -425,7 +428,7 @@ export class MessagingGateway {
 
         const result = await this.provider.streamChatWithTools!(
           messages,
-          DEFAULT_KIMI_MODEL,
+          this.activeModel,
           // onToken — collect response text
           (token: string) => {
             responseText += token;
@@ -476,7 +479,7 @@ export class MessagingGateway {
       console.log(`[gateway] FALLBACK to provider.generate (no tool support)`);
       const result = await this.provider.generate(
         messages as any,
-        { model: DEFAULT_KIMI_MODEL, maxTokens: 32768, temperature: 0.7 },
+        { model: this.activeModel, maxTokens: 32768, temperature: 0.7 },
       );
 
       const responseText = result.text?.trim() ?? "";
@@ -506,7 +509,7 @@ export class MessagingGateway {
                 { role: "system", content: systemPrompt },
                 ...conversation.messages.map(m => ({ role: m.role, content: m.content })),
               ],
-              DEFAULT_KIMI_MODEL,
+              this.activeModel,
               (token: string) => { retryText += token; },
               () => { },
               () => { },

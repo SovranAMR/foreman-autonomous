@@ -637,32 +637,37 @@ export async function startRepl(): Promise<void> {
     creds = loadCredentials();
   }
 
-  // Create provider — Kimi first (if key exists), then Antigravity fallback
+  // Create provider — Antigravity (Opus) first for smart tool calling, Kimi as fallback
   let provider: AntigravityProvider | KimiProvider | null = null;
   let activeModel = DEFAULT_CHAT_MODEL;
   let activeModelList = CHAT_MODELS;
 
-  const kimiKey = loadKimiKey();
-  if (kimiKey) {
+  // Priority 1: Antigravity (Opus 4.6-thinking) — best for conversation + tool calling
+  if (creds) {
     try {
-      provider = new KimiProvider(kimiKey);
-      activeModel = DEFAULT_KIMI_MODEL;
-      activeModelList = KIMI_MODELS.map(m => ({ ...m }));
-      // Replace CHAT_MODELS with Kimi models for the fallback system
-      CHAT_MODELS.splice(0, CHAT_MODELS.length, ...KIMI_MODELS.map(m => ({ ...m })));
-      console.log(`    ${icon.done} ${brand.gold("Kimi K2.5 API key loaded — forge powered by Moonshot AI")}`);
+      provider = new AntigravityProvider(creds);
+      activeModel = "claude-opus-4-6-thinking";
+      // Discover models from API in background (non-blocking)
+      refreshChatModels(creds).catch(() => {/* silent */ });
+      console.log(`    ${icon.done} ${brand.gold("Opus 4.6-thinking loaded — powered by Antigravity")}`);
     } catch (err: any) {
-      console.log(`    ${icon.fail} ${brand.red("Kimi key invalid:")} ${brand.dim(err.message)}`);
+      console.log(`    ${icon.fail} ${brand.red("Antigravity provider failed:")} ${brand.dim(err.message)}`);
     }
   }
 
-  if (!provider && creds) {
-    try {
-      provider = new AntigravityProvider(creds);
-      // Discover models from API in background (non-blocking)
-      refreshChatModels(creds).catch(() => {/* silent */ });
-    } catch (err: any) {
-      console.log(`    ${icon.fail} ${brand.red("Failed to initialize provider:")} ${brand.dim(err.message)}`);
+  // Priority 2: Kimi K2 — fallback if no Antigravity credentials
+  if (!provider) {
+    const kimiKey = loadKimiKey();
+    if (kimiKey) {
+      try {
+        provider = new KimiProvider(kimiKey);
+        activeModel = DEFAULT_KIMI_MODEL;
+        activeModelList = KIMI_MODELS.map(m => ({ ...m }));
+        CHAT_MODELS.splice(0, CHAT_MODELS.length, ...KIMI_MODELS.map(m => ({ ...m })));
+        console.log(`    ${icon.done} ${brand.gold("Kimi K2 loaded (fallback) — forge powered by Moonshot AI")}`);
+      } catch (err: any) {
+        console.log(`    ${icon.fail} ${brand.red("Kimi key invalid:")} ${brand.dim(err.message)}`);
+      }
     }
   }
 
