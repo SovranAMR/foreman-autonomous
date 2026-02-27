@@ -415,11 +415,15 @@ export class MessagingGateway {
       ];
 
       // ─── USE streamChatWithTools (same as REPL) for full tool parity ───
-      if (this.provider.streamChatWithTools) {
+      const hasToolSupport = typeof this.provider.streamChatWithTools === "function";
+      console.log(`[gateway] processWithLLM: hasToolSupport=${hasToolSupport}, model=${DEFAULT_KIMI_MODEL}, messages=${messages.length}`);
+
+      if (hasToolSupport) {
+        console.log(`[gateway] Using streamChatWithTools path (with tools)`);
         let responseText = "";
         const toolLog: string[] = [];
 
-        const result = await this.provider.streamChatWithTools(
+        const result = await this.provider.streamChatWithTools!(
           messages,
           DEFAULT_KIMI_MODEL,
           // onToken — collect response text
@@ -443,6 +447,7 @@ export class MessagingGateway {
         );
 
         // Track tokens
+        console.log(`[gateway] streamChatWithTools done: toolCalls=${toolLog.length}, responseLen=${responseText.length}, tokens=${(result.inputTokens ?? 0) + (result.outputTokens ?? 0)}`);
         conversation.totalTokens += (result.inputTokens ?? 0) + (result.outputTokens ?? 0);
 
         // Build Telegram response with tool log
@@ -468,6 +473,7 @@ export class MessagingGateway {
       }
 
       // ─── FALLBACK: provider.generate (text-only, no tools) ───
+      console.log(`[gateway] FALLBACK to provider.generate (no tool support)`);
       const result = await this.provider.generate(
         messages as any,
         { model: DEFAULT_KIMI_MODEL, maxTokens: 32768, temperature: 0.7 },
