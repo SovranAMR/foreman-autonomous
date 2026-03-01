@@ -1,752 +1,747 @@
 <p align="center">
-  <br />
-  <br />
+  <img src="https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js">
+  <img src="https://img.shields.io/badge/Tests-654_Passing-22C55E?style=flat-square" alt="Tests">
+  <img src="https://img.shields.io/badge/LOC-57K-F5A623?style=flat-square" alt="LOC">
+  <img src="https://img.shields.io/badge/License-Private-EF4444?style=flat-square" alt="License">
 </p>
 
-<h1 align="center">
-<pre>
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║   ███████╗ ██████╗ ██████╗ ███████╗███╗   ███╗ █████╗ ███╗   ║
-║   ██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗ ████║██╔══██╗████╗  ║
-║   █████╗  ██║   ██║██████╔╝█████╗  ██╔████╔██║███████║██╔██╗ ║
-║   ██╔══╝  ██║   ██║██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══██║██║╚██║║
-║   ██║     ╚██████╔╝██║  ██║███████╗██║ ╚═╝ ██║██║  ██║██║ ║██║
-║   ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝ ╚═╝
-║                                                               ║
-║           THE   AUTONOMOUS   CODING   AGENT                  ║
-║                                                               ║
-╚═══════════════════════════════════════════════════════════════╝
-</pre>
-</h1>
+<br>
+
+```
+    ███████╗ ██████╗ ██████╗ ███████╗███╗   ███╗ █████╗ ███╗   ██╗
+    ██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗ ████║██╔══██╗████╗  ██║
+    █████╗  ██║   ██║██████╔╝█████╗  ██╔████╔██║███████║██╔██╗ ██║
+    ██╔══╝  ██║   ██║██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══██║██║╚██╗██║
+    ██║     ╚██████╔╝██║  ██║███████╗██║ ╚═╝ ██║██║  ██║██║ ╚████║
+    ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝
+```
+
+<h3 align="center">The AI That Doesn't Just Write Code — It <em>Thinks</em> Before It Writes</h3>
 
 <p align="center">
-  <strong>Multi-agent thought-chain orchestrator that doesn't just plan — it builds.</strong>
-  <br />
-  <em>4-layer cognitive pipeline · 52 LLM tools · 22 engines · Zero hallucination architecture</em>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/TypeScript-ESM_Strict-3178C6?style=flat-square&logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=nodedotjs" alt="Node.js" />
-  <img src="https://img.shields.io/badge/Tests-654_passing-22C55E?style=flat-square" alt="Tests" />
-  <img src="https://img.shields.io/badge/LOC-57K-F5A623?style=flat-square" alt="Lines of Code" />
-  <img src="https://img.shields.io/badge/Engines-22-A855F7?style=flat-square" alt="Engines" />
-  <img src="https://img.shields.io/badge/License-Private-EF4444?style=flat-square" alt="License" />
+  <strong>4-layer cognitive pipeline · 52 tools · 22 engines · Built-in hallucination guard</strong>
 </p>
 
 ---
 
-## What is Foreman?
+## What Is Foreman?
 
-Most AI coding tools are glorified autocomplete. You type, they guess. You prompt, they hallucinate. You hope for the best.
+Foreman is an **autonomous AI software engineer** that decomposes complex tasks through a 4-layer cognitive pipeline, executes them with real tools, verifies results against ground truth, and rolls back failures automatically.
 
-**Foreman doesn't guess. Foreman thinks.**
+It doesn't paste code and hope for the best. It **thinks in layers**, **verifies against reality**, and **catches its own hallucinations** before they reach your codebase.
 
-It takes a task — "add dark mode to the React app" — and runs it through a 4-layer cognitive pipeline where each layer has a different job, a different perspective, and real tools to verify its own work. When it writes code, it runs the build. When the build fails, it reads the errors, fixes them, and tries again. When it's done, a separate AI model reviews the output against the original vision. If it doesn't pass, it goes back.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         YOUR TASK                               │
+│              "Add dark mode with system preference sync"        │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  🔮 VISIONER                                                     │
+│  ─────────────────────────────────────────────────────────────── │
+│  Defines the soul of the change. Not features — the FEELING.     │
+│  Emotion target, focal point, color philosophy, forbidden list.  │
+│  Budget: 5% of token window · Confidence threshold: 0.4+        │
+└──────────────────────────────┬───────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  ⚒️  STRATEGIST                                                   │
+│  ─────────────────────────────────────────────────────────────── │
+│  Decomposes vision into execution blocks and atomic tasks.       │
+│  Each block is a milestone. Each atom is one verifiable change.  │
+│  Budget: 10% of token window · Confidence threshold: 0.3+       │
+└──────────────────────────────┬───────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  🔍 RESEARCHER                                                   │
+│  ─────────────────────────────────────────────────────────────── │
+│  Gathers context. Reads files, greps code, searches the web.     │
+│  Builds a knowledge base for the worker to act on.               │
+│  Budget: 15% of token window · Confidence threshold: 0.2+       │
+└──────────────────────────────┬───────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  🔨 WORKER                                                       │
+│  ─────────────────────────────────────────────────────────────── │
+│  Executes via 8-step protocol:                                   │
+│  read → context → impact → decide → predict → execute → verify  │
+│  → report                                                        │
+│  Budget: 8K tokens/atom · Max 20 operations/atom                 │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  🔬 REVIEWER (Independent Tribunal)                         │ │
+│  │  Different model reviews worker's output against vision.    │ │
+│  │  Verdicts: PASS · REJECT · NEEDS_REVISION                  │ │
+│  │  Worker can't grade its own homework.                       │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-No copy-paste. No "here's what you should do." It does it.
+---
+
+## Why Foreman?
+
+Most AI coding tools operate as **single-turn autocomplete** — you ask, they answer, you fix their mistakes.
+
+Foreman operates as a **multi-turn autonomous engineer**:
+
+| Traditional AI Coding | Foreman |
+|:---|:---|
+| Single LLM call → paste code | 4-layer pipeline → verified output |
+| No verification | Build/test parsing with regression detection |
+| Hallucinated imports, fake APIs | Ground truth engine + fact checker |
+| Manual rollback | Automatic git-based rollback (atom/block/pipeline) |
+| One model, pray it works | Multi-provider routing with instant failover |
+| No cost awareness | Per-model, per-phase cost tracking with budget alerts |
+| Context overflow = garbage | Layer-aware token budgets with progressive compression |
 
 ---
 
 ## Architecture
 
 ```
-                          ┌─────────────────────┐
-                          │     USER  TASK       │
-                          │  "Add dark mode..."  │
-                          └──────────┬──────────┘
-                                     │
-                    ┌────────────────▼────────────────┐
-                    │         🔮  VISIONER             │
-                    │                                  │
-                    │  Defines the soul of the task.   │
-                    │  Emotion target, focal point,    │
-                    │  color philosophy, constraints.  │
-                    │  Scales depth to complexity:     │
-                    │  simple → 2 lines                │
-                    │  complex → full creative brief   │
-                    └────────────────┬────────────────┘
-                                     │
-                    ┌────────────────▼────────────────┐
-                    │       ⚒️   STRATEGIST            │
-                    │                                  │
-                    │  Decomposes vision into blocks   │
-                    │  and atoms. Each atom is a       │
-                    │  single, verifiable unit of      │
-                    │  work. Sends BLOCK signal up     │
-                    │  if vision is inconsistent.      │
-                    └────────────────┬────────────────┘
-                                     │
-                    ┌────────────────▼────────────────┐
-                    │        🔍  RESEARCHER            │
-                    │                                  │
-                    │  Gathers context. Reads files,   │
-                    │  greps codebase, searches web,   │
-                    │  fetches docs. Builds the        │
-                    │  knowledge base the Worker       │
-                    │  needs to execute.               │
-                    └────────────────┬────────────────┘
-                                     │
-                    ┌────────────────▼────────────────┐
-                    │         🔨  WORKER               │
-                    │                                  │
-                    │  Executes via 8-step protocol:   │
-                    │  read → context → impact →       │
-                    │  decide → predict → execute →    │
-                    │  verify → report                 │
-                    │                                  │
-                    │  Real tools. Real file writes.   │
-                    │  Real shell commands.            │
-                    └────────────────┬────────────────┘
-                                     │
-                    ┌────────────────▼────────────────┐
-                    │        🔬  REVIEWER              │
-                    │                                  │
-                    │  Independent quality tribunal.   │
-                    │  Uses a DIFFERENT LLM model to   │
-                    │  avoid echo chamber bias.        │
-                    │  Verdicts: PASS / REJECT /       │
-                    │  NEEDS_REVISION                  │
-                    └────────────────┬────────────────┘
-                                     │
-                               ┌─────▼─────┐
-                               │  ✅ DONE   │
-                               └───────────┘
+                    ┌──────────────────────────┐
+                    │     Messaging Gateway     │
+                    │   Telegram · WhatsApp     │
+                    └────────────┬─────────────┘
+                                 │
+                    ┌────────────▼─────────────┐
+                    │      Orchestrator         │
+                    │   Pipeline Coordinator    │
+                    └────────────┬─────────────┘
+                                 │
+          ┌──────────────────────┼──────────────────────┐
+          │                      │                      │
+   ┌──────▼──────┐       ┌──────▼──────┐       ┌──────▼──────┐
+   │   Engine     │       │  Cognitive   │       │  Pipeline    │
+   │  30+ subsys  │       │   Router     │       │  Observer    │
+   │  coordinated │       │ Multi-prov   │       │  Full trace  │
+   └──────┬──────┘       │  load bal.   │       │  JSONL logs  │
+          │               └─────────────┘       └─────────────┘
+          │
+    ┌─────┼─────┬─────────┬──────────┬──────────┬──────────┐
+    │     │     │         │          │          │          │
+    ▼     ▼     ▼         ▼          ▼          ▼          ▼
+  Exec  Edit  Git     Rollback  Security  Halluc.    Cost
+  Eng.  Eng.  Eng.    Engine    Scanner   Guard     Tracker
+    │     │     │         │          │          │          │
+    ▼     ▼     ▼         ▼          ▼          ▼          ▼
+  Shell  File  Commit  Revert    Scan for   Ground    Track
+  Cmds   Edits Diff    Changes   Secrets    Truth     $/token
+         Range Branch  on Fail   Vulns      Facts
 ```
-
-### Why 4 Layers?
-
-Single-shot LLM calls fail at complex tasks because they try to understand, plan, research, and execute simultaneously. Foreman separates concerns:
-
-| Layer | Thinks About | Token Budget | Confidence Threshold |
-|-------|-------------|-------------|---------------------|
-| **Visioner** | *Why* does this exist? | 5% of session | warn: 0.6 / block: 0.4 |
-| **Strategist** | *How* to organize the work? | 10% of session | warn: 0.5 / block: 0.3 |
-| **Researcher** | *What* context is needed? | 15% of session | warn: 0.4 / block: 0.2 |
-| **Worker** | *What* to do right now? | 70% of session | warn: 0.6 / block: 0.35 |
-
-Each layer can send a **BLOCK signal** up the chain if something doesn't make sense. Vision is inconsistent? Block. Strategy can't decompose? Block. Research finds contradictions? Block. This prevents the system from confidently building the wrong thing.
-
----
-
-## The 52 Tools
-
-Foreman's Worker doesn't just generate text — it has 52 real tools for interacting with the filesystem, shell, git, web, and browser:
-
-### 🔧 Filesystem & Code
-
-| Tool | Description |
-|------|-------------|
-| `bash` | Shell execution with timeout, background mode, session polling |
-| `read_file` | Read files with line-range support |
-| `write_file` | Create or overwrite files |
-| `edit_file` | Surgical text replacement via EditEngine |
-| `edit_range` | Edit specific line ranges |
-| `edit_undo` | Undo last edit operation |
-| `batch_write` | Atomic multi-file writes with rollback |
-| `batch_ops` | Batch file operations (create, delete, rename) |
-| `delete_file` | Safe file deletion |
-| `search_files` | Find files by name/glob pattern |
-| `grep` | Content search with regex support |
-| `search_in_files` | Advanced multi-file content search |
-| `list_dir` | Directory listing with metadata |
-| `diff_preview` | Preview changes before applying |
-
-### 🔀 Git
-
-| Tool | Description |
-|------|-------------|
-| `git_status` | Repository status via GitEngine |
-| `git_commit` | Commit changes with message |
-| `git_diff` | View diffs (staged, unstaged, between refs) |
-| `git_log` | Commit history with filtering |
-
-### 🔬 Verification & Security
-
-| Tool | Description |
-|------|-------------|
-| `verify_build` | Parse build output — extract errors with file:line, classify error types (syntax, type, import, runtime), suggest fixes |
-| `verify_tests` | Parse test output from any runner (Jest, Vitest, node:test, Mocha, pytest) — extract pass/fail/skip, detect regressions |
-| `security_scan` | Project-level security scan — secret leak detection, dependency audit, .gitignore validation, hardcoded value detection |
-| `approval_audit` | Review pending dangerous command approvals |
-
-### 🌐 Web & Research
-
-| Tool | Description |
-|------|-------------|
-| `web_search` | Brave Search API integration |
-| `web_fetch` | Fetch and extract readable content from URLs |
-| `analyze_link` | Classify and fetch URL metadata |
-| `classify_url` | URL type classification |
-| `download_file` | Download files from URLs |
-
-### 🖥️ Browser
-
-| Tool | Description |
-|------|-------------|
-| `browser_navigate` | Navigate to URLs in headless Chrome |
-| `browser_screenshot` | Full-page or element screenshots → base64 for LLM vision |
-| `browser_extract` | Extract page content (text, HTML, accessibility tree) |
-| `browser_pdf` | Generate PDFs from web pages |
-
-### 📝 Intelligence
-
-| Tool | Description |
-|------|-------------|
-| `parse_markdown` | Extract code fences, tables, sections, lists, frontmatter |
-| `extract_code` | Extract code blocks from markdown |
-| `semantic_search` | Embedding-based semantic code search |
-
-### 🧠 Memory & Sessions
-
-| Tool | Description |
-|------|-------------|
-| `memory_read` | Read persistent memory entries |
-| `memory_write` | Write to persistent memory |
-| `memory_search` | Search memory by content |
-| `session_list` | List active sessions |
-| `session_spawn` | Spawn isolated sub-agent sessions |
-| `spawn_subagent` | Spawn forge-pipeline sub-agents with team coordination |
-
-### ⚙️ Process & System
-
-| Tool | Description |
-|------|-------------|
-| `list_processes` | List background processes |
-| `poll_process` | Check process status |
-| `process_log` | Read process output logs |
-| `kill_process` | Terminate a process |
-| `kill_processes` | Bulk process termination |
-| `analyze_media` | Media file analysis |
-| `cache_stats` | View cache statistics |
-
-### ⏰ Scheduling
-
-| Tool | Description |
-|------|-------------|
-| `cron_list` | List scheduled jobs |
-| `cron_add` | Add cron jobs |
-| `cron_remove` | Remove cron jobs |
-
-### 🔥 Pipeline
-
-| Tool | Description |
-|------|-------------|
-| `forge_pipeline` | Trigger a full forge pipeline from within a pipeline (recursive orchestration) |
 
 ---
 
 ## The 22 Engines
 
-Every capability is a dedicated engine — modular, testable, replaceable:
+Every engine is a standalone module with its own types, tests, and responsibility boundary.
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        FOREMAN ENGINE MAP                            │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
-│  │ ExecutionEngine  │  │   EditEngine     │  │  BatchFileEngine │     │
-│  │                  │  │                  │  │                  │     │
-│  │ Shell commands,  │  │ Surgical text    │  │ Atomic multi-    │     │
-│  │ process mgmt,   │  │ replacements,    │  │ file writes      │     │
-│  │ security checks  │  │ range edits,     │  │ with rollback    │     │
-│  │                  │  │ undo history     │  │                  │     │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
-│                                                                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
-│  │   GitEngine      │  │VerificationEng  │  │ SecurityScanner  │     │
-│  │                  │  │                  │  │                  │     │
-│  │ Commits, diffs,  │  │ Build output     │  │ Secret leaks,    │     │
-│  │ branches,        │  │ parsing, test    │  │ dependency       │     │
-│  │ history          │  │ results,         │  │ audit,           │     │
-│  │                  │  │ regression       │  │ .gitignore,      │     │
-│  │                  │  │ detection        │  │ hardcoded values │     │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
-│                                                                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
-│  │ RollbackEngine   │  │ ApprovalEngine   │  │HallucinationGrd │     │
-│  │                  │  │                  │  │                  │     │
-│  │ Git-based undo   │  │ Human-in-the-    │  │ Ground truth     │     │
-│  │ at atom, block,  │  │ loop gates for   │  │ analysis →       │     │
-│  │ or pipeline      │  │ destructive      │  │ fact checking →  │     │
-│  │ level. Stash     │  │ operations.      │  │ violation        │     │
-│  │ guard included.  │  │ Audit trail.     │  │ blocking.        │     │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
-│                                                                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
-│  │  CostTracker     │  │PipelineObserver  │  │CognitiveRouter   │     │
-│  │                  │  │                  │  │                  │     │
-│  │ Per-model, per-  │  │ Full pipeline    │  │ Multi-provider   │     │
-│  │ phase cost       │  │ observability.   │  │ load balancing.  │     │
-│  │ tracking with    │  │ JSONL logs +     │  │ Zero-downtime    │     │
-│  │ budget alerts.   │  │ markdown         │  │ failover on 429. │     │
-│  │                  │  │ summaries.       │  │ Round-robin.     │     │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
-│                                                                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
-│  │  BrowserEngine   │  │ SubAgentEngine   │  │ StreamingPipe    │     │
-│  │                  │  │                  │  │                  │     │
-│  │ Headless Chrome  │  │ Spawn parallel   │  │ Real-time phase/ │     │
-│  │ control.         │  │ forge pipelines. │  │ block/atom       │     │
-│  │ Navigate,        │  │ Parent-child     │  │ progress.        │     │
-│  │ screenshot,      │  │ linking, shared  │  │ Token-by-token   │     │
-│  │ extract, PDF.    │  │ memory, result   │  │ LLM output.      │     │
-│  │ Vision→LLM.     │  │ aggregation.     │  │ Multi-target.    │     │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
-│                                                                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
-│  │ ContextIntel     │  │  EmbeddingEng    │  │ IdentityEngine   │     │
-│  │                  │  │                  │  │                  │     │
-│  │ Layer-aware      │  │ Vector-based     │  │ Project & user   │     │
-│  │ context budgets. │  │ semantic search  │  │ identity         │     │
-│  │ Relevance-based  │  │ across codebase. │  │ management.      │     │
-│  │ retention, not   │  │                  │  │                  │     │
-│  │ FIFO. Decision   │  │                  │  │                  │     │
-│  │ anchoring.       │  │                  │  │                  │     │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘     │
-│                                                                      │
-│  ┌─────────────────┐                                                 │
-│  │  MediaEngine     │                                                 │
-│  │                  │                                                 │
-│  │ Media file       │                                                 │
-│  │ analysis and     │                                                 │
-│  │ processing.      │                                                 │
-│  └─────────────────┘                                                 │
-│                                                                      │
-└──────────────────────────────────────────────────────────────────────┘
+ ENGINE                     │ WHAT IT DOES
+════════════════════════════╪══════════════════════════════════════════════════
+ ExecutionEngine            │ Shell commands with security filtering, timeouts,
+                            │ background execution, process tracking
+────────────────────────────┼──────────────────────────────────────────────────
+ EditEngine                 │ Surgical text replacements with context-aware
+                            │ matching, undo history, range edits
+────────────────────────────┼──────────────────────────────────────────────────
+ GitEngine                  │ Commits, branches, diffs, history, merge
+                            │ conflict detection, stash management
+────────────────────────────┼──────────────────────────────────────────────────
+ VerificationEngine         │ Parse build/test output from ANY runner (Jest,
+                            │ Vitest, node:test, Mocha, pytest). Extract errors
+                            │ with file:line. Detect regressions across runs.
+────────────────────────────┼──────────────────────────────────────────────────
+ RollbackEngine             │ Git-based undo at atom, block, or pipeline level.
+                            │ Stash guard saves WIP before rollback. Full
+                            │ rollback history with preview before execution.
+────────────────────────────┼──────────────────────────────────────────────────
+ SecurityScanner            │ 5-capability project scanner: secret leak
+                            │ detection (AWS, GitHub, Stripe, etc.), dependency
+                            │ audit, .gitignore validation, hardcoded values,
+                            │ file permission checks.
+────────────────────────────┼──────────────────────────────────────────────────
+ HallucinationGuard         │ Hook-based guardrails integrated with
+                            │ GroundTruthEngine + FactChecker. Blocks
+                            │ fabricated commands, files, and links BEFORE
+                            │ they reach the codebase.
+────────────────────────────┼──────────────────────────────────────────────────
+ GroundTruthEngine          │ Extracts VERIFIED facts from the project:
+                            │ package.json, entry points, available commands,
+                            │ file structure. Zero guessing.
+────────────────────────────┼──────────────────────────────────────────────────
+ FactChecker                │ Validates LLM output against ground truth.
+                            │ Catches hallucinated npm packages, fake CLI
+                            │ commands, non-existent files. Strict mode
+                            │ blocks on ANY violation.
+────────────────────────────┼──────────────────────────────────────────────────
+ CognitiveLoadBalancer      │ Multi-provider LLM router. When Provider A
+                            │ hits rate limits (429), instantly routes to
+                            │ Provider B. Zero downtime. RPM tracking per
+                            │ endpoint with cooldown windows.
+────────────────────────────┼──────────────────────────────────────────────────
+ CostTracker                │ Per-model pricing (input/output/cache tokens),
+                            │ phase-level cost breakdown, session-level
+                            │ cumulative tracking, budget alerts.
+────────────────────────────┼──────────────────────────────────────────────────
+ PipelineObserver           │ Full pipeline observability: every phase, block,
+                            │ atom tracked with timing. Every tool call logged.
+                            │ JSONL files for post-mortem. Human-readable
+                            │ summary generation.
+────────────────────────────┼──────────────────────────────────────────────────
+ ContextIntelligence        │ Layer-aware token budgets (Visioner 40%,
+                            │ Worker 20%). Relevance-based thought retention.
+                            │ 3-tier progressive summarization (full →
+                            │ condensed → headline). Decision anchoring:
+                            │ high-confidence thoughts never dropped.
+────────────────────────────┼──────────────────────────────────────────────────
+ ReviewerGate               │ Independent quality tribunal. DIFFERENT model
+                            │ reviews the Worker's output against the Vision
+                            │ document. Verdicts: PASS / REJECT /
+                            │ NEEDS_REVISION. Breaks echo chamber bias.
+────────────────────────────┼──────────────────────────────────────────────────
+ BrowserEngine              │ Headless Chrome/Firefox via Playwright.
+                            │ Navigate, screenshot, extract content, interact
+                            │ with elements. Screenshot → base64 for LLM
+                            │ vision analysis. PDF generation.
+────────────────────────────┼──────────────────────────────────────────────────
+ SubAgentEngine             │ Spawn isolated sub-agents with their own forge
+                            │ pipelines. Parent-child linking, concurrent
+                            │ execution, inter-agent messaging, shared memory,
+                            │ result aggregation, timeout + auto-kill.
+────────────────────────────┼──────────────────────────────────────────────────
+ AgentRegistry (Mesh)       │ Central agent lifecycle: registration, state
+                            │ transitions, heartbeat monitoring, health
+                            │ scoring, event-driven coordination.
+────────────────────────────┼──────────────────────────────────────────────────
+ StreamingPipeline          │ Real-time pipeline output: phase/block/atom
+                            │ events, tool call streaming, token-by-token LLM
+                            │ output, cost updates, multiple output targets.
+────────────────────────────┼──────────────────────────────────────────────────
+ ApprovalEngine             │ Human-in-the-loop for destructive operations.
+                            │ Gates dangerous shell commands, maintains audit
+                            │ log of approved/denied operations.
+────────────────────────────┼──────────────────────────────────────────────────
+ CompactionEngine           │ Context window management. When thought chains
+                            │ fill up: summarize via LLM, write to
+                            │ chain.contextSummary, use summary instead of
+                            │ full history.
+────────────────────────────┼──────────────────────────────────────────────────
+ BatchFileEngine            │ Atomic multi-file writes with rollback.
+                            │ Write 10 files at once — if any fails, ALL
+                            │ revert. Used by Worker for multi-file changes.
+────────────────────────────┼──────────────────────────────────────────────────
+ MediaEngine                │ Media file analysis: images, screenshots,
+                            │ documents. Integrates with LLM vision models
+                            │ for visual QA.
+────────────────────────────┴──────────────────────────────────────────────────
 ```
 
 ---
 
-## Zero Hallucination Architecture
+## The 52 Tools
 
-Foreman has a 3-layer anti-hallucination system that no other coding agent implements:
+Every tool the LLM can invoke during execution. Each tool delegates to an engine for security and consistency.
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                                                          │
-│  Layer 1: GROUND TRUTH ENGINE                            │
-│  ─────────────────────────────                           │
-│  Before the pipeline even starts, scans the project:     │
-│  • package.json → verified commands, entry points        │
-│  • File tree → actual structure (not assumed)             │
-│  • Dependencies → real versions (not guessed)             │
-│  • Binary existence → verified, not hallucinated          │
-│  Injects verified facts into every prompt.                │
-│                                                          │
-│  Layer 2: FACT CHECKER                                    │
-│  ────────────────────                                    │
-│  Every LLM output is validated against ground truth:      │
-│  • Does that command actually exist?                      │
-│  • Does that file path resolve?                           │
-│  • Is that metric real or fabricated?                     │
-│  • Is that URL a placeholder or real?                     │
-│  Violations → blocked in strict mode.                    │
-│                                                          │
-│  Layer 3: HALLUCINATION GUARD                             │
-│  ────────────────────────────                            │
-│  Hook-based guardrails at every pipeline stage:           │
-│  • before_pipeline: inject ground truth context           │
-│  • after_vision: validate vision against project reality  │
-│  • after_worker: validate code changes against facts      │
-│  • before_commit: final fact check before any git commit  │
-│  Violation count tracked. Strict mode = zero tolerance.   │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
+ CATEGORY          │ TOOLS
+═══════════════════╪═══════════════════════════════════════════════════════════
+                   │
+ 🖥️  Shell          │ bash (async, timeout, background, yield_ms)
+                   │ list_processes · poll_process · process_log
+                   │ kill_process · kill_processes
+                   │
+ 📁 Filesystem     │ read_file (line-range) · write_file · edit_file
+                   │ edit_range · edit_undo · delete_file · list_dir
+                   │ search_files · grep · search_in_files
+                   │ batch_write (atomic multi-file) · batch_ops
+                   │
+ 🔀 Git            │ git_status · git_commit · git_diff · git_log
+                   │
+ 🔒 Security       │ security_scan
+                   │
+ ✅ Verification    │ verify_build · verify_tests
+                   │
+ 🌐 Web            │ web_search (Brave API) · web_fetch
+                   │ analyze_link · classify_url
+                   │
+ 📝 Markdown       │ parse_markdown · extract_code
+                   │
+ 📊 Analysis       │ diff_preview · semantic_search
+                   │
+ 💾 Memory         │ memory_read · memory_write · memory_search
+                   │
+ ⏰ Scheduling     │ cron_list · cron_add · cron_remove
+                   │
+ 🧑‍💻 Sessions       │ session_list · session_spawn · spawn_subagent
+                   │
+ 🌍 Browser        │ browser_navigate · browser_screenshot
+                   │ browser_extract · browser_pdf
+                   │
+ 📦 Media          │ analyze_media · download_file
+                   │
+ 📈 System         │ cache_stats · approval_audit
+                   │
+ 🔥 Pipeline       │ forge_pipeline (recursive — pipeline within pipeline)
+                   │
+```
+
+---
+
+## Safety Systems
+
+Foreman doesn't trust itself. Multiple independent systems prevent damage:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    SAFETY STACK                          │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ Layer 1: DANGEROUS COMMAND FILTER                 │  │
+│  │ Blocks: rm -rf /, sudo, fork bombs, npm publish,  │  │
+│  │ git push --force, reverse shells, disk wipes       │  │
+│  │ 20+ regex patterns · Zero false negatives          │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ Layer 2: APPROVAL ENGINE                          │  │
+│  │ Human-in-the-loop for destructive operations.      │  │
+│  │ Full audit trail of every approved/denied command.  │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ Layer 3: HALLUCINATION GUARD                      │  │
+│  │ Ground truth extraction → fact checking → block.   │  │
+│  │ Catches fake packages, non-existent commands,      │  │
+│  │ hallucinated file paths. Strict mode = zero        │  │
+│  │ tolerance.                                         │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ Layer 4: VERIFICATION ENGINE                      │  │
+│  │ Parses real build/test output. Detects regressions │  │
+│  │ by comparing against previous runs. Fails the atom │  │
+│  │ if tests break.                                    │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ Layer 5: REVIEWER GATE                            │  │
+│  │ Independent LLM (different model) reviews output   │  │
+│  │ against vision. Worker can't grade its own work.   │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ Layer 6: ROLLBACK ENGINE                          │  │
+│  │ If verification fails → automatic git revert.      │  │
+│  │ Atom-level, block-level, or full pipeline revert.  │  │
+│  │ Stash guard preserves WIP. Full rollback history.  │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ Layer 7: SECURITY SCANNER                         │  │
+│  │ Scans for leaked secrets (AWS, GitHub, Stripe),    │  │
+│  │ vulnerable deps, missing .gitignore entries,       │  │
+│  │ hardcoded values, bad file permissions.             │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Context Intelligence
 
-Foreman doesn't do dumb FIFO context window management. It uses **5 strategies** that understand what matters:
-
-### 1. Layer-Aware Budgets
-Each cognitive layer gets a different share of the context window:
-- **Visioner**: 40% (needs the full picture)
-- **Strategist**: 25% (needs structure)
-- **Researcher**: 15% (needs facts)
-- **Worker**: 20% (tactical, focused)
-
-### 2. Relevance-Based Retention
-Not first-in-first-out. A thought about "TypeScript types" stays in context when working on types, even if it's old. Uses the SimilarityEngine for scoring.
-
-### 3. Progressive Summarization
-As chains grow, earlier thoughts get compressed in 3 tiers:
-- **Full** (recent): complete thought with reasoning
-- **Condensed** (medium): input + output only
-- **Headline** (old): one-line summary
-
-### 4. Decision Anchoring
-High-confidence decisions are **never dropped** from context regardless of age. They anchor the entire chain.
-
-### 5. Cross-Chain Context
-When a Worker chain needs context from the parent Strategist chain, it gets the relevant parts only — not the entire parent history.
-
----
-
-## Cognitive Load Balancer
-
-When you're running a 4-layer pipeline with 52 tools making concurrent LLM calls, a single provider = rate limit wall.
+Most AI tools dump the entire chat history into the context window until it overflows. Foreman has a 5-tier system:
 
 ```
-Engine.callLLM()
-       │
-       ▼
-CognitiveLoadBalancer.route()
-       │
-       ├──→ Provider A (Kimi K2.5)        ← preferred
-       │         │
-       │     [429 Rate Limit]
-       │         │
-       ├──→ Provider B (Gemini 3.1 Pro)   ← instant failover
-       │         │
-       │     [429 Rate Limit]
-       │         │
-       └──→ Provider C (Antigravity)      ← zero downtime
-```
-
-- **Zero sleep.** No exponential backoff on 429. Instant switch to next provider.
-- **Priority-based routing.** Lower priority = preferred. Same priority = round-robin.
-- **Automatic cooldown.** Failed providers get cooldown periods, re-enabled automatically.
-- **Per-endpoint RPM tracking.** Sliding window rate limiting per provider.
-
----
-
-## Safety & Rollback
-
-### Dangerous Command Blocking
-```
- ┌────────────────────────────────────────────┐
- │  BLOCKED COMMANDS (SecurityScanner)         │
- ├────────────────────────────────────────────┤
- │  rm -rf /           ✗ System destruction   │
- │  sudo *             ✗ Privilege escalation  │
- │  curl | bash        ✗ Remote code execution │
- │  npm publish        ✗ Package publishing    │
- │  git push --force   ✗ History rewriting     │
- │  dd if=             ✗ Disk operations       │
- │  chmod -R 777 /     ✗ Permission nuke       │
- │  python -c socket   ✗ Reverse shell         │
- │  + 11 more patterns                        │
- └────────────────────────────────────────────┘
-```
-
-### Approval Engine
-Dangerous operations require explicit human approval. Full audit trail of every approved/denied command.
-
-### 3-Level Rollback
-```
-Atom failed?    → RollbackEngine.rollbackAtom()    → Undo last atom's changes
-Block failed?   → RollbackEngine.rollbackBlock()   → Undo all atoms in block
-Pipeline failed? → RollbackEngine.rollbackPipeline() → Undo entire forge run
-
-Stash guard: saves WIP before rollback, restores after.
-Selective: undo specific atoms by ID.
-Preview: see what will be undone before doing it.
+┌─────────────────────────────────────────────────────────────┐
+│  CONTEXT INTELLIGENCE — 5-TIER SYSTEM                       │
+│                                                             │
+│  1. LAYER-AWARE BUDGETS                                     │
+│     Visioner gets 40% (needs full picture)                  │
+│     Strategist gets 25%                                     │
+│     Researcher gets 15%                                     │
+│     Worker gets 20% (tactical, focused)                     │
+│                                                             │
+│  2. RELEVANCE-BASED RETENTION                               │
+│     Not FIFO. A thought about "TypeScript types" stays      │
+│     when working on types, drops when working on CSS.       │
+│     Similarity engine scores every thought.                 │
+│                                                             │
+│  3. PROGRESSIVE SUMMARIZATION (3 tiers)                     │
+│     ┌────────────┐  ┌────────────┐  ┌────────────┐         │
+│     │   FULL     │  │ CONDENSED  │  │  HEADLINE  │         │
+│     │  Recent    │→ │  Medium    │→ │   Old      │         │
+│     │  Complete  │  │ Input+Out  │  │  One-line  │         │
+│     └────────────┘  └────────────┘  └────────────┘         │
+│                                                             │
+│  4. DECISION ANCHORING                                      │
+│     High-confidence decisions are PINNED — never dropped    │
+│     regardless of age. They anchor the entire chain.        │
+│                                                             │
+│  5. CROSS-CHAIN CONTEXT                                     │
+│     Worker chains get relevant parts from parent            │
+│     strategist chains. Not everything — just what matters.  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Worker Protocol
-
-Every Worker atom follows an **8-step protocol**. No shortcuts:
+## Multi-Provider LLM Routing
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    WORKER 8-STEP PROTOCOL                     │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  step1_read       What does the current code look like?      │
-│       │                                                      │
-│       ▼                                                      │
-│  step2_context    What patterns exist? What's the style?     │
-│       │                                                      │
-│       ▼                                                      │
-│  step3_impact     What will this change affect?              │
-│       │                                                      │
-│       ▼                                                      │
-│  step4_decide     Exactly what changes will I make?          │
-│       │                                                      │
-│       ▼                                                      │
-│  step5_predict    What should happen after my changes?       │
-│       │                                                      │
-│       ▼                                                      │
-│  step6_execute    Make the changes. Write the code.          │
-│       │                                                      │
-│       ▼                                                      │
-│  step7_verify     Run build/tests. Did it work?              │
-│       │                                                      │
-│       ▼                                                      │
-│  step8_report     Document what was done and why.            │
-│                                                              │
-│  If protocol is incomplete → retry (max 3)                   │
-│  If retry fails → BLOCK                                      │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
+                  Engine.callLLM()
+                        │
+                        ▼
+              ┌─────────────────┐
+              │   Cognitive      │
+              │   Load Balancer  │
+              └────────┬────────┘
+                       │
+         ┌─────────────┼─────────────┐
+         │             │             │
+    ┌────▼────┐   ┌────▼────┐   ┌────▼────┐
+    │ Kimi    │   │ Gemini  │   │Anthropic│
+    │ K2.5    │   │ 3.1 Pro │   │ Claude  │
+    └────┬────┘   └────┬────┘   └────┬────┘
+         │             │             │
+         │  HTTP 429?  │             │
+         │─────────────▶             │
+         │             │  HTTP 429?  │
+         │             │─────────────▶
+         │             │             │
+    Zero sleep. Zero downtime. Instant failover.
 ```
+
+**Supported providers:** Kimi (Moonshot K2.5), Gemini (3.1 Pro), Anthropic (Claude), OpenAI (GPT-4o), Antigravity (Google)
+
+**Per-layer model preferences:** Each pipeline layer can use a different default model with its own fallback chain.
+
+---
+
+## The Worker's 8-Step Protocol
+
+Every atomic task follows this protocol — no exceptions:
+
+```
+  ┌─── STEP 1: READ ──────────────────────────────────────────┐
+  │  Read the relevant files. Know what exists.                │
+  └────────────────────────────────────────────────────────────┘
+                            │
+  ┌─── STEP 2: CONTEXT ───────────────────────────────────────┐
+  │  Understand HOW this fits into the larger codebase.        │
+  └────────────────────────────────────────────────────────────┘
+                            │
+  ┌─── STEP 3: IMPACT ────────────────────────────────────────┐
+  │  What will break? What depends on what I'm changing?       │
+  └────────────────────────────────────────────────────────────┘
+                            │
+  ┌─── STEP 4: DECIDE ────────────────────────────────────────┐
+  │  Choose the approach. State what I WILL and WON'T do.      │
+  └────────────────────────────────────────────────────────────┘
+                            │
+  ┌─── STEP 5: PREDICT ───────────────────────────────────────┐
+  │  What should the output look like? Predict before doing.   │
+  └────────────────────────────────────────────────────────────┘
+                            │
+  ┌─── STEP 6: EXECUTE ───────────────────────────────────────┐
+  │  Write code, run commands. Through ExecutionEngine only.   │
+  └────────────────────────────────────────────────────────────┘
+                            │
+  ┌─── STEP 7: VERIFY ────────────────────────────────────────┐
+  │  Did it work? Run tests. Parse build output. Check diff.   │
+  └────────────────────────────────────────────────────────────┘
+                            │
+  ┌─── STEP 8: REPORT ────────────────────────────────────────┐
+  │  Summary of what changed, what was verified, confidence.   │
+  └────────────────────────────────────────────────────────────┘
+```
+
+If any step is incomplete → retry. If retry fails → BLOCK signal propagates up.
 
 ---
 
 ## Pipeline Observability
 
-Every forge run is fully observable:
+Every forge run produces full observability:
 
 ```
 .foreman/observer/
-├── pipeline-2026-03-01T19-30-00.jsonl    ← Every event, timestamped
-├── pipeline-2026-03-01T19-30-00.md       ← Human-readable summary
+├── pipeline-2026-03-01T19-30-00.jsonl    # Every event, timestamped
+├── pipeline-2026-03-01T19-30-00.md       # Human-readable summary
 └── ...
+
+Summary includes:
+  ✦ Total phases, blocks, atoms executed
+  ✦ Per-atom: duration, attempts, tool calls, operations, confidence
+  ✦ Per-phase: token cost, elapsed time
+  ✦ Total pipeline cost in USD
+  ✦ Rejection feedback from Reviewer
+  ✦ Rollback events (if any)
 ```
-
-The **PipelineObserver** tracks:
-- Every phase start/end with timing
-- Every block and atom with status (passed/failed/skipped)
-- Every worker input/output
-- Every tool call with arguments and results
-- Every review verdict with reasoning
-- Token costs per phase
-- Total pipeline duration and cost
-
-Real-time streaming to Telegram — watch your pipeline execute live.
 
 ---
 
-## Model Fallback Chain
+## CLI
 
-When an LLM call fails, Foreman doesn't crash — it classifies the error and acts:
+```bash
+# ─── User Commands ──────────────────────────────────────
+foreman                     # Start (auto-activates Telegram if configured)
+foreman setup               # Configure API keys (interactive)
+foreman init <name>         # Create a new project
+foreman status              # System health — memory, sessions, cache, providers
+foreman run <task>          # Run a task through the full forge pipeline
+foreman task add            # Add a task to the board
+foreman task list           # List tasks
+foreman task show <id>      # Task details
+foreman task done <id>      # Mark task as done
+foreman board               # Kanban board view
+foreman doctor              # System health check
+foreman serve               # Start Telegram/WhatsApp gateway
 
-| Error Class | Action |
-|------------|--------|
-| `rate_limit` (429) | Retry with backoff → fallback to next model |
-| `quota` | Immediate fallback to next model |
-| `auth` | Skip provider, try next |
-| `timeout` | Retry once → fallback |
-| `overloaded` | Retry with delay → fallback |
-| `context_length` | Compress context → retry |
-| `fatal` | Stop, report error |
-
-Each layer has its own model preference chain. The Worker can use a different model than the Visioner.
+# ─── Internals (debug/inspect) ──────────────────────────
+foreman internals thoughts  # List all thoughts
+foreman internals chains    # List all chains
+foreman internals history   # State transition history
+foreman internals memory    # Memory entries
+foreman internals sessions  # Active sessions
+foreman internals cache     # Cache statistics
+foreman internals providers # Provider status
+```
 
 ---
 
-## Usage
+## Messaging
 
-### CLI
+Foreman runs as a Telegram bot or WhatsApp bot.
 
-```bash
-# Run a task through the full forge pipeline
-foreman run "Add authentication to the Express API"
-
-# Interactive REPL
-foreman
-
-# Project status
-foreman status
-
-# Task management
-foreman task add "Implement dark mode"
-foreman task list
-foreman board                    # Kanban view
-
-# System health
-foreman doctor
-
-# Start Telegram bot
-foreman serve --telegram <token> --allow <user_id>
-
-# Debug internals
-foreman internals thoughts
-foreman internals chains
-foreman internals providers
-```
-
-### Telegram Bot
-
-Set `FOREMAN_TELEGRAM_TOKEN` and run `foreman` — auto-activates Telegram gateway:
+The LLM decides when to use the full forge pipeline vs. direct tool calls based on task complexity. Conversation history persisted to disk with 24h TTL.
 
 ```bash
+# Start with environment variable
 export FOREMAN_TELEGRAM_TOKEN="your_bot_token"
-foreman    # Bot starts automatically
+foreman                     # Auto-starts Telegram gateway
+
+# Or via CLI
+foreman serve --telegram <token> --allow <user_id>
 ```
 
-The bot (`@Foreman_DasBot`) supports natural chat. The LLM decides when to use direct tools vs. the full forge pipeline. Conversations persist to disk with 24h TTL.
-
-### WhatsApp
-
-Multi-channel support via Baileys. Telegram + WhatsApp can run simultaneously through the MessagingGateway.
+**Security:** Sender allowlisting — only approved user IDs can interact.
 
 ---
 
 ## Project Stats
 
 ```
-┌────────────────────────────────────────────┐
-│           FOREMAN — BY THE NUMBERS          │
-├────────────────────────────────────────────┤
-│                                            │
-│  Source files ................ 99           │
-│  Test files .................. 53           │
-│  Total lines of code ........ 57,000       │
-│  Tests passing ............... 654          │
-│  LLM tools .................. 52           │
-│  CLI commands ................ 47           │
-│  Engines ..................... 22           │
-│  LLM Providers .............. 5            │
-│  Git commits ................. 348          │
-│  Cognitive layers ............ 4            │
-│  Worker protocol steps ....... 8            │
-│  Dangerous cmd patterns ...... 19           │
-│  Secret detection patterns ... 13           │
-│                                            │
-└────────────────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│          F O R E M A N   S T A T S       │
+├──────────────────┬───────────────────────┤
+│ Source files      │                   99 │
+│ Test files        │                   53 │
+│ Total LOC         │              ~57,000 │
+│ Tests passing     │                  654 │
+│ LLM tools         │                   52 │
+│ CLI commands      │                   47 │
+│ Engines           │                   22 │
+│ LLM Providers     │                    5 │
+│ Commits           │                 348+ │
+│ Language          │  TypeScript (strict) │
+│ Runtime           │        Node.js 22+  │
+│ Test framework    │  node:test + assert  │
+├──────────────────┴───────────────────────┤
+│  Built with ⚒️  by @SovranAMR            │
+└──────────────────────────────────────────┘
 ```
-
----
-
-## LLM Providers
-
-| Provider | Models | Role |
-|----------|--------|------|
-| **Kimi (Moonshot)** | K2.5 | Primary — fast, cost-effective |
-| **Google Gemini** | 3.1 Pro | Research, review tribunal |
-| **Anthropic** | Claude (Sonnet/Opus) | Complex reasoning, fallback |
-| **OpenAI** | GPT-4o | General purpose, fallback |
-| **Antigravity** | OpenClaw relay | Multi-model routing |
-
-All providers are interchangeable. The CognitiveLoadBalancer routes between them automatically.
 
 ---
 
 ## Development
 
 ```bash
-# Install
 npm install
-
-# Run all 654 tests
-npm test
-
-# Check engine status
-npx tsx src/cli.ts status
-
-# System health check
-npx tsx src/cli.ts doctor
+npm test                      # Run all 654 tests
+npx tsx src/cli.ts status     # Check engine status
+npx tsx src/cli.ts doctor     # Full system health check
 ```
 
-### Project Structure
+---
+
+## How It Thinks — A Real Example
+
+**Task:** "Add a rate limiting middleware to the Express API"
 
 ```
-src/
-├── orchestrator.ts              # 4-layer pipeline orchestrator (2,829 lines)
-├── engine.ts                    # Core engine with all 22 subsystems
-├── tools.ts                     # 52 LLM tool definitions + dispatcher
-├── worker-executor.ts           # 8-step protocol executor
-├── prompts.ts                   # Layer-specific system prompts
-├── types.ts                     # Core type system (Layer, Thought, Chain)
-├── cli.ts                       # 47 CLI commands
+Phase 1 — 🔮 Vision (5% budget)
+  "Rate limiting protects the API from abuse. Must be transparent
+   (X-RateLimit headers), configurable per-route, and fail gracefully
+   with 429 responses. No external dependencies if possible."
+
+Phase 2 — ⚒️ Strategy (10% budget)
+  Block 1: Create rate limiter module (sliding window algorithm)
+    Atom 1.1: Implement token bucket with configurable limits
+    Atom 1.2: Add per-route configuration support
+  Block 2: Integrate middleware
+    Atom 2.1: Wire into Express app with default limits
+    Atom 2.2: Add X-RateLimit-* response headers
+  Block 3: Verify
+    Atom 3.1: Write tests for edge cases (burst, reset, per-IP)
+    Atom 3.2: Run existing tests — verify zero regressions
+
+Phase 3 — 🔍 Research (15% budget)
+  Read: src/server.ts, src/middleware/, package.json
+  Grep: "rate" "limit" "throttle" across codebase
+  Web: IETF rate limiting headers spec (RFC 6585)
+
+Phase 4 — 🔨 Worker (per atom, 8-step protocol)
+  For each atom:
+    read → context → impact → decide → predict → execute → verify → report
+  
+  After each atom:
+    → VerificationEngine parses test output
+    → ReviewerGate (different model) checks against Vision
+    → If REJECT → retry with feedback
+    → If tests fail → RollbackEngine reverts to last checkpoint
+
+Result: Rate limiter added, 12 tests passing, 0 regressions, $0.03 cost
+```
+
+---
+
+## File Structure
+
+```
+foreman/
+├── src/
+│   ├── orchestrator.ts              # 4-layer pipeline coordinator
+│   ├── engine.ts                    # Core engine — 30+ subsystems
+│   ├── tools.ts                     # 52 LLM tool definitions
+│   ├── types.ts                     # Core type system
+│   ├── prompts.ts                   # Layer-specific system prompts
+│   ├── parser.ts                    # Structured output parser
+│   ├── validators.ts                # Confidence + protocol validation
+│   │
+│   ├── # ─── Execution ───────────────────────────────
+│   ├── execution-engine.ts          # Shell commands + process mgmt
+│   ├── worker-executor.ts           # 8-step protocol bridge
+│   ├── edit-engine.ts               # Surgical text edits
+│   ├── batch-file-engine.ts         # Atomic multi-file writes
+│   ├── git-engine.ts                # Git operations
+│   ├── diff-engine.ts               # Diff generation + summary
+│   │
+│   ├── # ─── Intelligence ────────────────────────────
+│   ├── cognitive-router.ts          # Multi-provider load balancer
+│   ├── context-intelligence.ts      # 5-tier context management
+│   ├── context-compression.ts       # Progressive summarization
+│   ├── context-guard.ts             # Context window enforcement
+│   ├── compaction-engine.ts         # LLM-based thought compression
+│   ├── similarity-engine.ts         # Text similarity scoring
+│   ├── embedding-engine.ts          # Embedding-based search
+│   │
+│   ├── # ─── Safety ──────────────────────────────────
+│   ├── hallucination-guard.ts       # Pipeline-integrated guard
+│   ├── ground-truth-engine.ts       # Codebase fact extraction
+│   ├── fact-checker.ts              # LLM output validation
+│   ├── ground-truth-validator.ts    # Worker output validation
+│   ├── security-scanner.ts          # Project security scan
+│   ├── verification-engine.ts       # Build/test/server parsing
+│   ├── reviewer-gate.ts             # Independent review tribunal
+│   ├── rollback-engine.ts           # Git-based undo system
+│   ├── approval-engine.ts           # Human-in-the-loop gate
+│   │
+│   ├── # ─── Observability ───────────────────────────
+│   ├── pipeline-observer.ts         # Full pipeline tracing
+│   ├── streaming-pipeline.ts        # Real-time event streaming
+│   ├── cost-tracker.ts              # Per-model cost tracking
+│   │
+│   ├── # ─── LLM Providers ──────────────────────────
+│   ├── provider.ts                  # Provider interface + registry
+│   ├── kimi-provider.ts             # Moonshot Kimi K2.5
+│   ├── gemini-provider.ts           # Google Gemini
+│   ├── anthropic-provider.ts        # Anthropic Claude
+│   ├── openai-provider.ts           # OpenAI GPT-4o
+│   ├── antigravity-provider.ts      # Google Antigravity
+│   ├── model-fallback.ts            # Error classification + fallback
+│   ├── model-discovery.ts           # Available model detection
+│   ├── retry.ts                     # Retry with backoff
+│   │
+│   ├── # ─── Multi-Agent ─────────────────────────────
+│   ├── subagent-engine.ts           # Sub-agent lifecycle
+│   ├── agent-mesh/                  # Agent registry + health
+│   │   ├── agent-registry.ts
+│   │   ├── types.ts
+│   │   └── index.ts
+│   │
+│   ├── # ─── Messaging ───────────────────────────────
+│   ├── messaging-gateway.ts         # Central message hub
+│   ├── telegram-channel.ts          # Telegram bot
+│   ├── whatsapp-channel.ts          # WhatsApp (Baileys)
+│   ├── channel.ts                   # Channel interface
+│   │
+│   ├── # ─── Web & Research ──────────────────────────
+│   ├── browser-engine.ts            # Headless Playwright
+│   ├── web-search-engine.ts         # Brave Search API
+│   ├── web-fetch-engine.ts          # URL content extraction
+│   ├── research-engine.ts           # Research coordination
+│   ├── link-intelligence.ts         # URL classification
+│   │
+│   ├── # ─── State & Memory ─────────────────────────
+│   ├── state.ts                     # State persistence
+│   ├── memory-manager.ts            # Memory CRUD
+│   ├── memory-md-bridge.ts          # Memory.md sync
+│   ├── session-manager.ts           # Session persistence
+│   ├── multi-session.ts             # Multi-chat sessions
+│   ├── session-lifecycle.ts         # Session lifecycle hooks
+│   ├── cache-manager.ts             # Response cache
+│   ├── thought-manager.ts           # Thought persistence
+│   ├── chain-manager.ts             # Chain persistence
+│   ├── chain-repair.ts              # Chain health checks
+│   │
+│   ├── # ─── Infrastructure ──────────────────────────
+│   ├── cli.ts                       # 47 CLI commands
+│   ├── config.ts                    # ~/.foreman configuration
+│   ├── theme.ts                     # Forge visual theme
+│   ├── animations.ts                # CLI animations
+│   ├── rate-limiter.ts              # Request rate limiting
+│   ├── process-registry.ts          # Background process tracking
+│   ├── command-queue.ts             # Sequential command queue
+│   ├── task-manager.ts              # Task board
+│   ├── task-scheduler.ts            # Scheduled tasks
+│   ├── cron-engine.ts               # Cron job management
+│   ├── project-detector.ts          # Project type detection
+│   ├── identity-engine.ts           # Agent identity
+│   ├── hooks-engine.ts              # Pipeline hooks
+│   ├── onboarding.ts                # First-run setup
+│   ├── errors.ts                    # Error types + helpers
+│   ├── markdown-intelligence.ts     # Markdown parsing
+│   ├── transcript-repair.ts         # Broken transcript repair
+│   ├── forge-gateway.ts             # Forge bridge
+│   ├── media-engine.ts              # Media analysis
+│   ├── message-actions.ts           # Message action handlers
+│   ├── interactive-confirm.ts       # Interactive prompts
+│   ├── pipeline-resume.ts           # Checkpoint/resume
+│   └── file-watcher.ts              # File change detection
 │
-├── hallucination-guard.ts       # Hook-based anti-hallucination
-├── ground-truth-engine.ts       # Project fact extraction
-├── fact-checker.ts              # LLM output validation
-├── ground-truth-validator.ts    # Worker output verification
+├── bin/
+│   └── foreman                      # CLI entry point
 │
-├── cognitive-router.ts          # Multi-provider load balancer
-├── model-fallback.ts            # Error classification + fallback chains
-├── retry.ts                     # Retry with exponential backoff
+├── foreman-showcase/
+│   └── index.html                   # Product showcase page
 │
-├── verification-engine.ts       # Build/test output parsing
-├── security-scanner.ts          # Secret leaks, dependency audit
-├── rollback-engine.ts           # Git-based 3-level rollback
-├── approval-engine.ts           # Human-in-the-loop gates
-│
-├── context-intelligence.ts      # Layer-aware context management
-├── context-compression.ts       # Progressive summarization
-├── compaction-engine.ts         # Context window optimization
-├── context-guard.ts             # Context window safety
-│
-├── pipeline-observer.ts         # Full pipeline observability
-├── streaming-pipeline.ts        # Real-time output streaming
-├── cost-tracker.ts              # Per-model cost tracking
-│
-├── browser-engine.ts            # Headless Chrome control
-├── subagent-engine.ts           # Multi-agent orchestration
-├── agent-mesh/                  # Agent registry + lifecycle
-│   ├── agent-registry.ts        # Central agent management
-│   ├── types.ts                 # Agent types + roles
-│   └── index.ts                 # Mesh exports
-│
-├── messaging-gateway.ts         # Telegram/WhatsApp hub
-├── telegram-channel.ts          # Telegram bot implementation
-├── whatsapp-channel.ts          # WhatsApp via Baileys
-│
-├── git-engine.ts                # Git operations
-├── edit-engine.ts               # Surgical text edits
-├── batch-file-engine.ts         # Atomic multi-file writes
-├── execution-engine.ts          # Shell execution + security
-├── diff-engine.ts               # Diff generation + analysis
-│
-├── research-engine.ts           # Web search + fetch
-├── web-search-engine.ts         # Brave Search integration
-├── web-fetch-engine.ts          # URL content extraction
-├── link-intelligence.ts         # URL classification + metadata
-├── markdown-intelligence.ts     # Markdown parsing + extraction
-│
-├── embedding-engine.ts          # Vector embeddings
-├── similarity-engine.ts         # Text similarity scoring
-├── memory-manager.ts            # Persistent memory
-├── memory-md-bridge.ts          # Memory ↔ Markdown sync
-├── session-manager.ts           # Session persistence
-├── multi-session.ts             # Multi-session coordination
-├── identity-engine.ts           # Project/user identity
-│
-├── reviewer-gate.ts             # Independent quality tribunal
-├── validators.ts                # Output validation rules
-├── parser.ts                    # Structured output parsing
-├── chain-repair.ts              # Chain health + repair
-├── transcript-repair.ts         # Transcript reconstruction
-│
-├── state.ts                     # State management
-├── thought-manager.ts           # Thought persistence
-├── chain-manager.ts             # Chain lifecycle
-├── rate-limiter.ts              # Request rate limiting
-├── cache-manager.ts             # Response caching
-├── task-manager.ts              # Task CRUD + lifecycle
-├── task-scheduler.ts            # Task scheduling
-├── cron-engine.ts               # Cron job management
-├── process-registry.ts          # Background process tracking
-├── command-queue.ts             # Command queuing
-├── file-watcher.ts              # File change detection
-├── project-detector.ts          # Project type detection
-├── project-manager.ts           # Project initialization
-│
-├── theme.ts                     # Forge visual theme (chalk + gradient)
-├── animations.ts                # CLI animations
-├── config.ts                    # Configuration management
-├── errors.ts                    # Error types + formatting
-├── setup.ts                     # First-run setup
-├── onboarding.ts                # Interactive onboarding
-├── repl.ts                      # Interactive REPL
-│
-├── provider.ts                  # LLM provider interface
-├── kimi-provider.ts             # Moonshot (Kimi K2.5)
-├── gemini-provider.ts           # Google Gemini
-├── anthropic-provider.ts        # Anthropic Claude
-├── openai-provider.ts           # OpenAI GPT-4o
-├── antigravity-provider.ts      # OpenClaw Antigravity relay
-├── antigravity-oauth.ts         # OAuth flow for Antigravity
-├── provider-bootstrap.ts        # Provider auto-detection
-├── model-discovery.ts           # Available model detection
-│
-└── 53 test files                # Comprehensive test coverage
+├── package.json
+└── tsconfig.json
 ```
 
 ---
 
 <p align="center">
-  <strong>Built by <a href="https://github.com/SovranAMR">@SovranAMR</a></strong>
-  <br />
-  <em>Foreman doesn't guess. Foreman thinks.</em>
+  <strong>Built with ⚒️ by <a href="https://github.com/SovranAMR">@SovranAMR</a></strong>
+</p>
+
+<p align="center">
+  <em>"It doesn't just write code. It thinks, verifies, and takes responsibility."</em>
 </p>
