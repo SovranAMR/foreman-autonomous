@@ -584,6 +584,8 @@ WORKFLOW — Think atomically, act precisely:
 
 RULES:
 - ALWAYS use write_file or edit_file to create/modify files. NEVER print code for the user to copy.
+- ALWAYS use bash tool to run commands. NEVER write commands as text for the user to run manually.
+- CRITICAL: You MUST use tool calls for ALL actions. If you need to run a command, call the bash tool. If you need to edit a file, call edit_file. NEVER describe what you would do — actually DO it with tools.
 - Be concise in text responses. Let your tool actions do the talking.
 - When editing, read the file first so you know the exact content to replace.
 - After making changes, verify by running relevant commands (build, test, lint).
