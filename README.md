@@ -571,6 +571,346 @@ npx tsx src/cli.ts doctor     # Full system health check
 
 ---
 
+## The Forge Pipeline — Deep Dive
+
+This is the heart of Foreman. Not a wrapper around an LLM — a **cognitive execution engine** with 2,830 lines of orchestration logic that turns a single task into verified, committed code.
+
+```
+                         ┌───────────────────┐
+                         │    "Add OAuth2     │
+                         │   to the API"      │
+                         └─────────┬─────────┘
+                                   │
+          ┌────────────────────────┼────────────────────────┐
+          │                        │                        │
+          ▼                        ▼                        ▼
+   ┌─────────────┐        ┌──────────────┐         ┌──────────────┐
+   │ Hallucination│        │   Ground     │         │   Rollback   │
+   │ Guard Init   │        │   Truth      │         │  Checkpoint  │
+   │ (strict mode)│        │  Extraction  │         │  (pipeline)  │
+   └──────┬──────┘        └──────┬───────┘         └──────┬───────┘
+          │                      │                        │
+          └──────────────────────┼────────────────────────┘
+                                 │
+                                 ▼
+                    ┌────────────────────────┐
+                    │  🔮 PHASE 1: VISION     │
+                    │  Budget: 5% of tokens   │
+                    │  Confidence min: 0.4     │
+                    ├─────────────────────────┤
+                    │  + Project context       │
+                    │  + Identity context      │
+                    │  + Memory recall         │
+                    │                          │
+                    │  ┌────────────────────┐  │
+                    │  │ HUMAN CHECKPOINT   │  │
+                    │  │ (interactive mode)  │  │
+                    │  │ Approve / Revise /  │  │
+                    │  │ Abort the vision    │  │
+                    │  └────────────────────┘  │
+                    └────────────┬─────────────┘
+                                 │
+                                 ▼
+                    ┌────────────────────────┐
+                    │  ⚒️ PHASE 2: DECOMPOSE  │
+                    │  Budget: 5% of tokens   │
+                    ├─────────────────────────┤
+                    │  Sizing rules enforced:  │
+                    │  1 file → 1-2 blocks     │
+                    │  2-5 files → 2-3 blocks  │
+                    │  5-15 files → 3-5 blocks │
+                    │  Hard cap: 8 blocks max  │
+                    │                          │
+                    │  Dependency graph built   │
+                    │  → topological sort       │
+                    │  → execution waves        │
+                    └────────────┬─────────────┘
+                                 │
+         ┌───────────────────────┼──── FOR EACH BLOCK ────┐
+         │                       │        (wave-ordered)   │
+         │              ┌────────▼────────┐               │
+         │              │ 🔍 RESEARCH      │               │
+         │              │ Budget: 15%      │               │
+         │              ├──────────────────┤               │
+         │              │ • Hot memories   │               │
+         │              │ • Warm memories  │               │
+         │              │ • Semantic recall│               │
+         │              │ • Embedding srch │               │
+         │              │ • Cross-chain ctx│               │
+         │              │ • Web search     │               │
+         │              └────────┬────────┘               │
+         │                       │                         │
+         │              ┌────────▼────────┐               │
+         │              │ ⚛️ ATOMIZE       │               │
+         │              │ (per block)      │               │
+         │              ├──────────────────┤               │
+         │              │ 1 file → 1-2     │               │
+         │              │ 2-5 files → 2-4  │               │
+         │              │ Hard cap: 6/block│               │
+         │              └────────┬────────┘               │
+         │                       │                         │
+         │     ┌─────────────────┼──── FOR EACH ATOM ──┐  │
+         │     │                 │    (max 3 retries)   │  │
+         │     │        ┌────────▼────────┐            │  │
+         │     │        │ 🔨 EXECUTE       │            │  │
+         │     │        │ Budget: 65%      │            │  │
+         │     │        │ 8K tokens/atom   │            │  │
+         │     │        │ 20 ops max/atom  │            │  │
+         │     │        ├──────────────────┤            │  │
+         │     │        │                  │            │  │
+         │     │        │ TWO MODES:       │            │  │
+         │     │        │                  │            │  │
+         │     │        │ A) Tool Mode     │            │  │
+         │     │        │    LLM calls 52  │            │  │
+         │     │        │    tools live    │            │  │
+         │     │        │    (real-time)    │            │  │
+         │     │        │                  │            │  │
+         │     │        │ B) Extraction    │            │  │
+         │     │        │    1 LLM call →  │            │  │
+         │     │        │    post-hoc parse │            │  │
+         │     │        │    + execute      │            │  │
+         │     │        │                  │            │  │
+         │     │        │ Pre-reads files  │            │  │
+         │     │        │ from atom desc   │            │  │
+         │     │        │ (zero halluc.)   │            │  │
+         │     │        └────────┬────────┘            │  │
+         │     │                 │                      │  │
+         │     │        ┌────────▼────────┐            │  │
+         │     │        │ 🔬 VERIFY        │            │  │
+         │     │        ├──────────────────┤            │  │
+         │     │        │ Build output     │            │  │
+         │     │        │ parsing (Jest,   │            │  │
+         │     │        │ Vitest, pytest)  │            │  │
+         │     │        │ Regression check │            │  │
+         │     │        │ Code fence scan  │            │  │
+         │     │        │ Pattern analysis │            │  │
+         │     │        └────────┬────────┘            │  │
+         │     │                 │                      │  │
+         │     │        ┌────────▼────────┐            │  │
+         │     │        │ ⚖️ REVIEWER GATE │            │  │
+         │     │        ├──────────────────┤            │  │
+         │     │        │ Phase 1: Quick   │            │  │
+         │     │        │ local check (no  │            │  │
+         │     │        │ LLM cost)        │            │  │
+         │     │        │                  │            │  │
+         │     │        │ Phase 2: Full    │            │  │
+         │     │        │ LLM review       │            │  │
+         │     │        │ (DIFFERENT model) │            │  │
+         │     │        │                  │            │  │
+         │     │        │ PASS → commit    │            │  │
+         │     │        │ REJECT → rollback│            │  │
+         │     │        │  + retry w/      │            │  │
+         │     │        │  feedback        │            │  │
+         │     │        └────────┬────────┘            │  │
+         │     │                 │                      │  │
+         │     │        ┌────────▼────────┐            │  │
+         │     │        │ ✅ AUTO-COMMIT   │            │  │
+         │     │        │ Git commit with  │            │  │
+         │     │        │ chain/thought    │            │  │
+         │     │        │ metadata         │            │  │
+         │     │        └─────────────────┘            │  │
+         │     │                                       │  │
+         │     │  ┌──────────────────────────────────┐ │  │
+         │     │  │ ON FAILURE:                      │ │  │
+         │     │  │ • Git rollback to last atom      │ │  │
+         │     │  │ • Inject rejection feedback      │ │  │
+         │     │  │ • Retry (max 3 attempts)         │ │  │
+         │     │  │ • 50%+ atoms fail → abandon block│ │  │
+         │     │  └──────────────────────────────────┘ │  │
+         │     └───────────────────────────────────────┘  │
+         │                                                │
+         │  ┌──────────────────────────────────────────┐  │
+         │  │ 🪞 REFLECTION (every 5 atoms)             │  │
+         │  │ Vision drift check — are we still         │  │
+         │  │ building what we said we would?            │  │
+         │  └──────────────────────────────────────────┘  │
+         └────────────────────────────────────────────────┘
+                                 │
+                    ┌────────────▼─────────────┐
+                    │  📊 PIPELINE COMPLETE     │
+                    │                           │
+                    │  • Observer summary (MD)   │
+                    │  • JSONL event log         │
+                    │  • Cost report             │
+                    │  • Memory persistence      │
+                    │  • Session close           │
+                    │  • Git stash restore       │
+                    │  • Forge bridge notify     │
+                    └───────────────────────────┘
+```
+
+### What Happens Under the Hood
+
+Every forge run triggers **17 coordinated subsystems** before a single line of code is written:
+
+```
+ STEP │ SUBSYSTEM               │ WHAT HAPPENS
+══════╪═════════════════════════╪════════════════════════════════════════
+  1   │ HallucinationGuard      │ Scans project, builds ground truth map
+  2   │ HooksEngine             │ Fires before_pipeline — can BLOCK
+  3   │ RollbackEngine          │ Creates pipeline-level git checkpoint
+  4   │ SessionManager          │ Auto-starts session (user never deals with this)
+  5   │ MultiSessionManager     │ Creates named forge session for context
+  6   │ SessionLifecycle        │ Registers session with slug identifier
+  7   │ IdentityEngine          │ Loads identity context from memory
+  8   │ PipelineResumeEngine    │ Clears stale checkpoints from crashed runs
+  9   │ StateManager            │ Resets activeChainId, transitions to idle
+ 10   │ MemoryManager           │ Cleans up expired/cold memories
+ 11   │ CacheManager            │ Purges expired cache entries
+ 12   │ GitEngine               │ Stash guard — saves uncommitted work
+ 13   │ GitEngine               │ Creates isolated task branch
+ 14   │ StreamingPipeline       │ Announces pipeline start to all targets
+ 15   │ ForgeBridge             │ Notifies gateway about pipeline start
+ 16   │ PipelineObserver        │ Starts JSONL event logging
+ 17   │ CostTracker             │ Initializes per-phase cost tracking
+```
+
+### Token Budget Enforcement
+
+The pipeline doesn't let any phase eat the budget. Hard limits enforced at runtime:
+
+```
+ PHASE        │ BUDGET  │ PURPOSE
+══════════════╪═════════╪═══════════════════════════════════════
+ Vision       │   5%    │ Define the soul — must be concise
+ Decompose    │   5%    │ Structural, not verbose
+ Research     │  15%    │ Heavy but bounded context gathering
+ Execute      │  65%    │ Bulk of tokens for actual work
+ Reflect      │   5%    │ Periodic vision drift checks
+ Review       │   5%    │ Independent tribunal calls
+══════════════╪═════════╪═══════════════════════════════════════
+ Session max  │   2M    │ Hard ceiling — pipeline stops if hit
+ Per atom     │   8K    │ Forces focused, atomic changes
+ Per block    │  40K    │ Prevents block sprawl
+```
+
+### The Retry-Rollback-Feedback Loop
+
+When an atom fails, Foreman doesn't just retry blindly. It **rolls back, explains why it failed, and retries with that context**:
+
+```
+  Atom Attempt 1
+       │
+       ▼
+  Worker writes code ──→ Reviewer REJECTS
+       │                 "Vision says no external deps,
+       │                  you imported lodash"
+       │
+       ▼
+  ⏪ Git rollback to pre-atom state
+       │
+       ▼
+  Atom Attempt 2
+  (injected context):
+  "⚠️ PREVIOUS ATTEMPT REJECTED:
+   Vision says no external deps,
+   you imported lodash.
+   Fix this. Do NOT repeat."
+       │
+       ▼
+  Worker writes code ──→ Reviewer PASSES ✅
+       │
+       ▼
+  Auto-commit with metadata
+```
+
+After 3 failed attempts → atom is skipped. If 50%+ atoms in a block fail → entire block is abandoned.
+
+### Two Execution Modes
+
+```
+ MODE A: TOOL MODE (FOREMAN_TOOL_MODE=1)
+ ═══════════════════════════════════════════
+ LLM calls tools in real-time. Multiple API round-trips per atom.
+ More powerful — LLM can read a file, decide, write, verify, iterate.
+ Higher cost, rate-limit sensitive.
+
+   LLM ──call──→ read_file("src/auth.ts")
+   LLM ←─result── (file contents)
+   LLM ──call──→ edit_file("src/auth.ts", ...)
+   LLM ←─result── (success)
+   LLM ──call──→ bash("npm test")
+   LLM ←─result── (12 passing)
+   LLM ──call──→ git_commit("add OAuth2 middleware")
+   LLM ←─result── (abc1234)
+
+ MODE B: EXTRACTION MODE (default)
+ ═══════════════════════════════════════════
+ Single LLM call. Foreman parses the response post-hoc,
+ extracts file writes and shell commands, executes them
+ through ExecutionEngine.
+
+   LLM ──single call──→ (full 8-step protocol response)
+         │
+         ▼
+   WorkerExecutor.extractOperations()
+   ├── write_file: src/auth.ts (detected)
+   ├── edit_file: src/server.ts (detected)
+   └── bash: npm test (detected)
+         │
+         ▼
+   ExecutionEngine runs each operation
+   SecurityScanner blocks dangerous commands
+   ApprovalEngine gates destructive ops
+```
+
+### Pre-Execution File Analysis
+
+Before the Worker touches anything, Foreman **pre-reads the files** mentioned in the atom description:
+
+```
+  Atom: "Add rate limiting to src/middleware/auth.ts"
+                    │
+                    ▼
+  Regex extracts: ["src/middleware/auth.ts"]
+                    │
+                    ▼
+  Reads actual file contents (max 3 files, 50 lines preview)
+                    │
+                    ▼
+  Injects into Worker context:
+  "PRE-READ FILES (real contents — do NOT hallucinate):
+   [FILE: src/middleware/auth.ts] (127 lines)
+   import { verify } from 'jsonwebtoken';
+   ..."
+```
+
+The Worker sees **real code**, not imagined code. This is why Foreman's edits actually work.
+
+### Research Phase Intelligence
+
+Each block gets 6 layers of context before execution:
+
+```
+ SOURCE                │ HOW IT WORKS
+═══════════════════════╪════════════════════════════════════════
+ Hot Memories          │ Recent, frequently accessed — FIFO top 3
+ Warm Memories         │ Tag-matched to block keywords
+ Semantic Recall       │ Similarity engine scores past thoughts
+ Embedding Search      │ Vector search over project codebase
+ Cross-Chain Context   │ Relevant insights from parallel chains
+ Web Search            │ Brave API — best practices for the task
+```
+
+### Dependency-Aware Block Ordering
+
+Blocks aren't executed linearly. The Strategist produces a dependency graph, and Foreman computes **execution waves**:
+
+```
+  Block 1: Database schema        ─┐
+  Block 2: API routes             ─┤──→ Wave 0 (parallel-safe)
+  Block 3: Auth middleware        ─┘
+  Block 4: API integration tests  ──→ Wave 1 (depends on 1,2,3)
+  Block 5: Frontend components    ──→ Wave 1 (depends on 2)
+  Block 6: E2E tests              ──→ Wave 2 (depends on 4,5)
+
+  Execution: W0:[1,2,3] → W1:[4,5] → W2:[6]
+```
+
+Within each wave, blocks run sequentially (shared filesystem safety). Future: parallel execution within waves.
+
+---
+
 ## How It Thinks — A Real Example
 
 **Task:** "Add a rate limiting middleware to the Express API"
