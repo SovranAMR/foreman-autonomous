@@ -85,14 +85,12 @@ export async function senseSystem(): Promise<SensorReading[]> {
 // ═══════════════════════════════════════════
 
 const WATCHED_SERVICES = [
-  'gcloud-cca-gateway',
   'docker',
-  'ssh',
 ];
 
 const WATCHED_PROCESSES = [
   'foreman',
-  'openclaw',
+  'openclaw-gateway',
 ];
 
 export async function senseServices(): Promise<SensorReading[]> {

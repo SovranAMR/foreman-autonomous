@@ -120,7 +120,7 @@ program.action(async () => {
             type: "telegram" as const,
             enabled: true,
             botToken: tgToken,
-            allowedSenders: [],
+            allowedSenders: ["8325347046"],
           } as import("./channel.js").TelegramChannelConfig],
           maxConcurrent: 5,
           messageTimeoutMs: 120_000,

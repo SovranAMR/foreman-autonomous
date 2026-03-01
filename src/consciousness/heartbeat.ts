@@ -179,6 +179,31 @@ export async function heartbeatCycle(
   }
 
   await saveState(state);
+  // ─── Periyodik Durum Raporu (her 6 beat = ~30dk) ───
+  if (state.heartbeatCount % 6 === 0 && config.notifyChatId) {
+    const readings = await Promise.all(
+      config.enabledSensors.map(async s => {
+        const fn = SENSOR_MAP[s];
+        if (!fn) return [];
+        try { return await fn(); } catch { return []; }
+      })
+    ).then(arrs => arrs.flat());
+
+    const diskR = readings.find(r => r.sensor === 'system' && r.title.includes('Disk'));
+    const ramR = readings.find(r => r.sensor === 'system' && r.title.includes('RAM'));
+    const loadR = readings.find(r => r.sensor === 'system' && r.title.includes('Load'));
+
+    const statusMsg = [
+      `📊 *Durum Raporu* (#${state.heartbeatCount})`,
+      `💾 Disk: %${diskR?.value ?? '?'} | 🧠 RAM: %${ramR?.value ?? '?'} | ⚡ Load: ${loadR?.value ?? '?'}`,
+      `🔔 Bugün ${state.notificationsToday} bildirim`,
+      allThoughts.length > 0 ? `💭 Bu döngüde ${allThoughts.length} düşünce` : '✅ Her şey normal',
+    ].join('\n');
+
+    await sendTelegramNotification(statusMsg, config.notifyChatId);
+    state.notificationsToday++;
+  }
+
   await appendLog(
     `[heartbeat #${state.heartbeatCount}] Tamamlandı. ${allThoughts.length} düşünce üretildi.`
   );
@@ -197,6 +222,14 @@ export function startHeartbeatLoop(config: HeartbeatConfig = DEFAULT_HEARTBEAT_C
   }
 
   console.log(`[consciousness] 🫀 Heartbeat başlatıldı (${config.intervalMs / 1000}s aralık)`);
+
+  // İlk başlatmada "Ben buradayım" bildirimi gönder
+  if (config.notifyChatId) {
+    sendTelegramNotification(
+      `🫀 *Foreman Consciousness aktif*\nHeartbeat: ${config.intervalMs / 1000}s aralık\nSensörler: ${config.enabledSensors.join(', ')}`,
+      config.notifyChatId,
+    ).catch(() => {});
+  }
 
   // İlk beat hemen
   heartbeatCycle(config).catch(e => console.error('[consciousness] İlk beat hatası:', e));
