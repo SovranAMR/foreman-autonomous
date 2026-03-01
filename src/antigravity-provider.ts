@@ -64,7 +64,20 @@ async function fetchWithRetry(
 ): Promise<Response> {
   let lastResponse: Response | null = null;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const response = await fetch(url, init);
+    // 5 minute timeout per request — prevents infinite hangs on stalled connections
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 300_000);
+    let response: Response;
+    try {
+      response = await fetch(url, { ...init, signal: controller.signal });
+    } catch (err: any) {
+      clearTimeout(fetchTimeout);
+      if (err.name === "AbortError") {
+        throw new Error(`Request timeout (300s) for ${label}`);
+      }
+      throw err;
+    }
+    clearTimeout(fetchTimeout);
 
     if (response.status !== 429 && response.status !== 503) {
       return response;
@@ -843,7 +856,7 @@ export class AntigravityProvider implements LLMProvider {
           // Add 120s timeout to prevent hanging on incomplete streams
           const bodyPromise = response.text();
           const timeoutPromise = new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error("Response read timeout (180s)")), 180_000),
+            setTimeout(() => reject(new Error("Response read timeout (300s)")), 300_000),
 
           );
           const body = await Promise.race([bodyPromise, timeoutPromise]);
