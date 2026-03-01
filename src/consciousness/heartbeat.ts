@@ -52,11 +52,22 @@ async function appendLog(msg: string): Promise<void> {
 
 // ─── Notification ───
 
+function getTelegramToken(): string | undefined {
+  // 1. Environment variable
+  if (process.env.FOREMAN_TELEGRAM_TOKEN) return process.env.FOREMAN_TELEGRAM_TOKEN;
+  // 2. Config file
+  try {
+    const { readFileSync } = require('fs');
+    const cfg = JSON.parse(readFileSync('/home/sovranamr/.foreman/config.json', 'utf-8'));
+    return cfg.telegram?.botToken;
+  } catch { return undefined; }
+}
+
 async function sendTelegramNotification(
   message: string,
   chatId?: string,
 ): Promise<boolean> {
-  const token = process.env.FOREMAN_TELEGRAM_TOKEN;
+  const token = getTelegramToken();
   if (!token || !chatId) return false;
 
   try {
