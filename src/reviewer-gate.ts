@@ -201,9 +201,9 @@ export function quickReviewCheck(protocol: WorkerProtocol, visionDocument: strin
     }
   }
 
-  // F-12: Align with validators.ts (min 10 chars, not 15)
+  // F-12: Align with validators.ts — verify needs real evidence, not just "Looks good"
   const verifyLen = protocol.step7_verify.trim().length;
-  if (verifyLen < 10) {
+  if (verifyLen < 20) {
     violations.push(`STEP7_VERIFY too short (${verifyLen} chars) — must contain build/test evidence`);
   }
 

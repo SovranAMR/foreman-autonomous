@@ -16,12 +16,13 @@ describe('WorkerExecutor Robustness', () => {
   });
 
   describe('extractOperations Edge Cases', () => {
-    it('should extract from step7_verify if it contains commands', () => {
+    it('should NOT extract from step7_verify (verify commands are not real operations)', () => {
       const protocol = mockProtocol('', 'No commands here');
       protocol.step7_verify = 'Testing the fix:\n```bash\nnpx tsx src/main.ts\n```';
       
       const ops = extractOperations(protocol);
-      assert.ok(ops.some(op => op.type === 'run_command' && op.command === 'npx tsx src/main.ts'));
+      // step7_verify commands should be excluded — they are verification, not execution
+      assert.ok(!ops.some(op => op.type === 'run_command' && op.command === 'npx tsx src/main.ts'));
     });
 
     it('should extract unlabeled code blocks with $ prefix as commands', () => {

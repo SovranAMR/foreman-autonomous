@@ -12,8 +12,8 @@ describe('Orchestrator Edge Cases (Robustness)', () => {
     // Minimal mock for Engine
     engine = {
       config: { projectRoot: '/tmp/foreman' },
-      projectInfo: { 
-        name: 'test-project', 
+      projectInfo: {
+        name: 'test-project',
         language: 'typescript',
         languages: ['typescript'],
         frameworks: [],
@@ -30,37 +30,37 @@ describe('Orchestrator Edge Cases (Robustness)', () => {
       state: {
         snapshot: () => ({ projectName: 'test-project', totalTokens: 0 }),
         canTransition: () => true,
-        transition: () => {}
+        transition: () => { }
       },
       sessions: {
         start: () => ({ id: 's1' }),
-        end: () => {},
+        end: () => { },
         getActive: () => ({ id: 's1' }),
-        addCompletedTask: () => {},
+        addCompletedTask: () => { },
         getRecentSummaries: () => []
       },
       sessionLifecycle: {
         create: () => ({ slug: 'test-slug', id: 'sl1' }),
-        transition: () => {},
-        setMemory: () => {},
+        transition: () => { },
+        setMemory: () => { },
         memory: new Map()
       },
       identity: {
-        reload: () => {},
+        reload: () => { },
         buildContextInjection: () => '',
-        updateMemory: () => {}
+        updateMemory: () => { }
       },
       memory: {
-        cleanup: () => {},
+        cleanup: () => { },
         getHotMemories: () => [],
         getWarmMemories: () => [],
-        create: () => {},
+        create: () => { },
         list: () => [],
-        consolidate: () => {},
+        consolidate: () => { },
         listRecent: () => []
       },
       cache: {
-        purgeExpired: () => {},
+        purgeExpired: () => { },
         getTtlForLayer: () => 60000
       },
       git: {
@@ -74,39 +74,39 @@ describe('Orchestrator Edge Cases (Robustness)', () => {
       },
       hooks: {
         run: async () => ({ block: false }),
-        register: () => () => {}
+        register: () => () => { }
       },
       rollback: {
-        createPoint: () => {},
+        createPoint: () => { },
         rollbackLastAtom: () => ({ success: true }),
         rollbackBlock: () => ({ success: true }),
-        clear: () => {}
+        clear: () => { }
       },
       streaming: {
-        pipelineStart: () => {},
-        pipelineEnd: () => {},
-        phaseStart: () => {},
-        phaseEnd: () => {},
-        warning: () => {},
-        error: () => {},
-        blockStart: () => {},
-        blockEnd: () => {},
-        atomStart: () => {},
-        atomEnd: () => {},
-        toolCall: () => {},
-        on: () => {}
+        pipelineStart: () => { },
+        pipelineEnd: () => { },
+        phaseStart: () => { },
+        phaseEnd: () => { },
+        warning: () => { },
+        error: () => { },
+        blockStart: () => { },
+        blockEnd: () => { },
+        atomStart: () => { },
+        atomEnd: () => { },
+        toolCall: () => { },
+        on: () => { }
       },
       chains: {
         create: () => ({ id: 'c1' }),
-        updateStatus: () => {},
-        updateSummary: () => {},
+        updateStatus: () => { },
+        updateSummary: () => { },
         list: () => [],
         get: () => ({ id: 'c1', thoughts: [] })
       },
       tasks: {
         create: () => ({ id: 't1' }),
-        addChain: () => {},
-        addSubtask: () => {},
+        addChain: () => { },
+        addSubtask: () => { },
         topologicalSort: () => [],
         getReadyTasks: () => []
       },
@@ -126,18 +126,18 @@ describe('Orchestrator Edge Cases (Robustness)', () => {
         retryCount: 0
       }),
       repairChain: () => ({ healthy: true, repaired: 0, details: '' }),
-      syncMemory: () => {},
+      syncMemory: () => { },
       processRegistry: {
         listRunning: () => [],
         listFinished: () => [],
-        killAll: () => {}
+        killAll: () => { }
       },
       subAgents: {
         list: () => [],
-        kill: () => {}
+        kill: () => { }
       },
       commandQueue: {
-        drainAll: async () => {}
+        drainAll: async () => { }
       },
       approvalEngine: {
         getAllowlist: () => [],
@@ -151,18 +151,18 @@ describe('Orchestrator Edge Cases (Robustness)', () => {
         formatReport: () => 'Cost: $0.00'
       },
       scheduler: {
-        fireEvent: () => {}
+        fireEvent: () => { }
       },
       cronEngine: {
-        addJob: () => {}
+        addJob: () => { }
       },
       forgeBridge: {
-        notifyPipelineStart: () => {},
-        notifyPipelineEnd: () => {}
+        notifyPipelineStart: () => { },
+        notifyPipelineEnd: () => { }
       },
       thoughts: {
         get: () => null,
-        update: () => {}
+        update: () => { }
       },
       browser: {
         checkAvailability: () => false
@@ -177,9 +177,9 @@ describe('Orchestrator Edge Cases (Robustness)', () => {
     let budgetCallCount = 0;
     engine.state.snapshot = () => {
       budgetCallCount++;
-      return { 
-        projectName: 'test-project', 
-        totalTokens: budgetCallCount > 5 ? 1000000 : 0 // Exceed 500k limit after some calls
+      return {
+        projectName: 'test-project',
+        totalTokens: budgetCallCount > 5 ? 3_000_000 : 0 // Exceed 2M session limit after some calls
       };
     };
 
@@ -224,24 +224,24 @@ describe('Orchestrator Edge Cases (Robustness)', () => {
   it('should handle context window pressure with compaction', async () => {
     // Mock context window pressure
     engine.evaluateContext = () => ({ isSafe: false });
-    
+
     // Track if compact was called (we check it via side effect in the orchestrator if we can)
     // Here we just ensure it doesn't crash
-    
+
     engine.stepWithPhase = async (cid: string, input: string, layer: string) => {
-        if (layer === 'visioner') return { thought: { id: 'v1', status: 'done', output: 'Detailed vision document with enough length', layer: 'visioner', confidence: 0.9 }, formatValid: true };
-        if (layer === 'strategist' && input.includes('blocks')) return { thought: { id: 'd1', status: 'done', output: 'Block 1: Test', layer: 'strategist', confidence: 0.9 }, formatValid: true, parsed: { blocks: ['Block 1'] } };
-        if (layer === 'researcher') return { thought: { id: 'r1', status: 'done', output: 'Findings', layer: 'researcher', confidence: 0.9 }, formatValid: true };
-        if (layer === 'strategist' && input.includes('atomic tasks')) return { thought: { id: 'a1', status: 'done', output: 'Atom 1: Test', layer: 'strategist', confidence: 0.9 }, formatValid: true, parsed: { atoms: ['Atom 1'] } };
-        // Break after first atom to finish test
-        budgetCallCount = 100; 
-        return { thought: { id: 'th', status: 'done', output: 'done', layer: 'worker', confidence: 0.9 }, formatValid: true };
+      if (layer === 'visioner') return { thought: { id: 'v1', status: 'done', output: 'Detailed vision document with enough length', layer: 'visioner', confidence: 0.9 }, formatValid: true };
+      if (layer === 'strategist' && input.includes('blocks')) return { thought: { id: 'd1', status: 'done', output: 'Block 1: Test', layer: 'strategist', confidence: 0.9 }, formatValid: true, parsed: { blocks: ['Block 1'] } };
+      if (layer === 'researcher') return { thought: { id: 'r1', status: 'done', output: 'Findings', layer: 'researcher', confidence: 0.9 }, formatValid: true };
+      if (layer === 'strategist' && input.includes('atomic tasks')) return { thought: { id: 'a1', status: 'done', output: 'Atom 1: Test', layer: 'strategist', confidence: 0.9 }, formatValid: true, parsed: { atoms: ['Atom 1'] } };
+      // Break after first atom to finish test
+      budgetCallCount = 100;
+      return { thought: { id: 'th', status: 'done', output: 'done', layer: 'worker', confidence: 0.9 }, formatValid: true };
     };
 
     let budgetCallCount = 0;
     engine.state.snapshot = () => {
-        budgetCallCount++;
-        return { projectName: 'test-project', totalTokens: budgetCallCount > 10 ? 1000000 : 0 };
+      budgetCallCount++;
+      return { projectName: 'test-project', totalTokens: budgetCallCount > 10 ? 1000000 : 0 };
     };
 
     await orchestrator.run('test task');

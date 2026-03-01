@@ -458,18 +458,37 @@ export class MessagingGateway {
         console.log(`[gateway] streamChatWithTools done: toolCalls=${toolLog.length}, responseLen=${responseText.length}, tokens=${(result.inputTokens ?? 0) + (result.outputTokens ?? 0)}`);
         conversation.totalTokens += (result.inputTokens ?? 0) + (result.outputTokens ?? 0);
 
-        // Build Telegram response with tool log
-        const parts: string[] = [];
-        if (toolLog.length > 0) {
-          parts.push(toolLog.join("\n"));
-          parts.push(""); // separator
-        }
+        // Build Telegram response — filter out raw tool logs
+        // Only show the LLM's actual text response, not internal tool call/result noise
         const text = responseText.trim() || result.text?.trim() || "";
-        if (text) {
-          parts.push(text);
+
+        // Create a compact tool summary (not raw logs)
+        let toolSummary = "";
+        if (toolLog.length > 0) {
+          // Count unique tool calls (lines starting with ⚙)
+          const calls = toolLog.filter(l => l.startsWith("⚙"));
+          const errors = toolLog.filter(l => l.includes("✘"));
+          if (calls.length > 0) {
+            const names = calls.map(c => {
+              const match = c.match(/⚙\s+(\S+)/);
+              return match ? match[1] : "tool";
+            });
+            // Deduplicate and count
+            const counts = new Map<string, number>();
+            for (const n of names) counts.set(n, (counts.get(n) ?? 0) + 1);
+            const summary = [...counts.entries()]
+              .map(([name, count]) => count > 1 ? `${name}×${count}` : name)
+              .join(", ");
+            toolSummary = `🔧 ${summary}`;
+            if (errors.length > 0) toolSummary += ` (${errors.length} error)`;
+          }
         }
 
-        const finalText = parts.join("\n").trim();
+        const parts: string[] = [];
+        if (toolSummary) parts.push(toolSummary);
+        if (text) parts.push(text);
+
+        const finalText = parts.join("\n\n").trim();
         if (!finalText) {
           return { text: "🤔 (boş yanıt — tekrar dene)" };
         }
@@ -502,8 +521,9 @@ export class MessagingGateway {
       console.error(`[gateway] LLM error:`, err);
       const msg = err instanceof Error ? err.message : String(err);
 
-      if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded")) {
-        console.log(`[gateway] Rate limited, retrying in 10s...`);
+      // Handle 503 (capacity) same as rate limit — retry
+      if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded") || msg.includes("503") || msg.includes("UNAVAILABLE") || msg.includes("No capacity")) {
+        console.log(`[gateway] Rate limited / no capacity, retrying in 10s...`);
         await new Promise(r => setTimeout(r, 10_000));
         try {
           const systemPrompt = await this.buildSystemPrompt();
@@ -533,7 +553,14 @@ export class MessagingGateway {
         }
         return { text: "⏳ API yoğun, biraz sonra tekrar dene." };
       }
-      return { text: `❌ LLM error: ${msg.slice(0, 200)}` };
+      // Clean error message — don't send raw JSON to user
+      let cleanError = msg;
+      if (msg.includes("Antigravity API error")) {
+        const codeMatch = msg.match(/error (\d+)/);
+        const code = codeMatch ? codeMatch[1] : "unknown";
+        cleanError = `API hatası (${code})`;
+      }
+      return { text: `❌ ${cleanError.slice(0, 150)}` };
     }
   }
 
