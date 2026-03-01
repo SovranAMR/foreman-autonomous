@@ -843,7 +843,8 @@ export class AntigravityProvider implements LLMProvider {
           // Add 120s timeout to prevent hanging on incomplete streams
           const bodyPromise = response.text();
           const timeoutPromise = new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error("Response read timeout (60s)")), 60_000),
+            setTimeout(() => reject(new Error("Response read timeout (180s)")), 180_000),
+
           );
           const body = await Promise.race([bodyPromise, timeoutPromise]);
           console.log(`[provider] Response received: ${body.length} chars, iteration ${iteration + 1}`);
