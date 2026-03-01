@@ -143,6 +143,20 @@ export class MessagingGateway {
     // Periodic cleanup of stale conversations
     this.startCleanupTimer();
 
+    // ─── Start Consciousness Heartbeat ───
+    try {
+      const { startHeartbeatLoop, DEFAULT_HEARTBEAT_CONFIG } = await import('./consciousness/index.js');
+      const telegramChannel = this.config.channels.find(c => c.type === 'telegram' && c.enabled);
+      const chatId = telegramChannel?.allowedSenders?.[0]; // Primary user
+      startHeartbeatLoop({
+        ...DEFAULT_HEARTBEAT_CONFIG,
+        notifyChatId: chatId,
+      });
+      console.log(`[gateway] 🫀 Consciousness heartbeat started (notify: ${chatId ?? 'none'})`);
+    } catch (err) {
+      console.error(`[gateway] Consciousness heartbeat failed to start:`, err);
+    }
+
     console.log(`[gateway] Gateway running — ${this.channels.size} channel(s) active`);
   }
 
@@ -152,6 +166,12 @@ export class MessagingGateway {
   async stop(): Promise<void> {
     console.log(`[gateway] Shutting down...`);
     this.running = false;
+
+    // Stop consciousness heartbeat
+    try {
+      const { stopHeartbeatLoop } = await import('./consciousness/index.js');
+      stopHeartbeatLoop();
+    } catch {}
 
     // Clear cleanup timer
     if (this.cleanupTimer) {
