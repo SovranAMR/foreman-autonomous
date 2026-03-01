@@ -1,114 +1,264 @@
 /**
  * FOREMAN — Consciousness Layer Types
- * Faz 1: Heartbeat + Proactive Agency
+ * 
+ * Yaşayan bir sistemin tüm veri yapıları.
+ * Bir kalp atışı değil — bir bilinç akışı.
  */
 
-// ─── Sensor Types ───
+// ═══════════════════════════════════════════
+// SENSOR TYPES
+// ═══════════════════════════════════════════
 
-export type SensorType = 
-  | 'system'      // CPU, RAM, Disk
-  | 'service'     // systemd services, docker containers
-  | 'git'         // repo changes, stale branches
-  | 'test'        // test failures
-  | 'log'         // error patterns in logs
-  | 'cron'        // scheduled job failures
-  | 'network';    // connectivity, port checks
+export type SensorType =
+  | 'system'      // CPU, RAM, Disk, uptime
+  | 'service'     // systemd, docker, key processes
+  | 'git'         // repo state, uncommitted changes
+  | 'test'        // test suite health
+  | 'log'         // journalctl / app log errors
+  | 'network'     // connectivity, DNS, port checks
+  | 'cron'        // scheduled job health
+  | 'self';       // Foreman's own health — meta-awareness
+
+export type Severity = 'info' | 'warning' | 'critical';
 
 export interface SensorReading {
   sensor: SensorType;
   timestamp: number;
-  severity: 'info' | 'warning' | 'critical';
+  severity: Severity;
   title: string;
   detail: string;
-  /** Metric value if applicable (e.g., disk usage %) */
   value?: number;
-  /** Should this trigger a notification? */
   actionable: boolean;
+  /** Metric key for trend tracking */
+  metricKey?: string;
 }
 
-// ─── Thought Types ───
+// ═══════════════════════════════════════════
+// MOOD & EMOTION
+// ═══════════════════════════════════════════
+
+/**
+ * Mood — Foreman'ın genel ruh hali.
+ * Sensör verileri + geçmiş deneyimlerden türetilir.
+ */
+export type Mood =
+  | 'serene'       // Her şey yolunda, sistem sakin
+  | 'alert'        // Bir şeyler dikkat istiyor
+  | 'stressed'     // Birden fazla sorun var
+  | 'critical'     // Acil durum
+  | 'curious'      // Boşta, keşfetme modunda
+  | 'productive'   // Aktif çalışma var, projeler ilerliyor
+  | 'reflective';  // Gece, sakin düşünme zamanı
+
+export interface EmotionalState {
+  mood: Mood;
+  intensity: number;      // 0-100
+  since: number;          // timestamp — bu mood ne zamandan beri
+  trigger?: string;       // bu mood'u tetikleyen olay
+}
+
+// ═══════════════════════════════════════════
+// THOUGHT & INNER MONOLOGUE
+// ═══════════════════════════════════════════
 
 export type ThoughtPriority = 'low' | 'medium' | 'high' | 'critical';
+
+export type ThoughtActionType =
+  | 'notify'        // Kullanıcıya mesaj at
+  | 'auto_fix'      // Otomatik düzelt
+  | 'suppress'      // Sessizce yut
+  | 'defer'         // Sonraya ertele
+  | 'reflect'       // İç diyalogda düşün, aksiyon alma
+  | 'learn';        // Bir şey öğren, memory'ye yaz
+
+export interface ThoughtAction {
+  type: ThoughtActionType;
+  message?: string;
+  command?: string;
+  result?: string;
+  reason?: string;
+  until?: number;
+  memoryKey?: string;
+  memoryValue?: string;
+}
 
 export interface Thought {
   id: string;
   timestamp: number;
-  source: SensorType;
+  source: SensorType | 'inner_monologue' | 'dream';
   priority: ThoughtPriority;
   summary: string;
   readings: SensorReading[];
-  /** Action taken or suggested */
   action?: ThoughtAction;
-  /** Was the user notified? */
   notified: boolean;
-  /** Was this auto-resolved? */
   autoResolved: boolean;
+  /** Emotional impact of this thought on mood */
+  moodImpact?: Mood;
 }
 
-export type ThoughtAction = 
-  | { type: 'notify'; message: string }
-  | { type: 'auto_fix'; command: string; result?: string }
-  | { type: 'suppress'; reason: string }
-  | { type: 'defer'; until: number };
+// ═══════════════════════════════════════════
+// MEMORY & LEARNING
+// ═══════════════════════════════════════════
 
-// ─── Heartbeat Config ───
-
-export interface HeartbeatConfig {
-  /** Interval between heartbeats in ms (default: 5min = 300000) */
-  intervalMs: number;
-  /** Quiet hours — no notifications (e.g., 23:00-08:00) */
-  quietHoursStart: number;  // hour 0-23
-  quietHoursEnd: number;    // hour 0-23
-  /** Max notifications per day */
-  maxDailyNotifications: number;
-  /** Sensors to run */
-  enabledSensors: SensorType[];
-  /** Auto-fix enabled? */
-  autoFixEnabled: boolean;
-  /** Telegram chat ID to notify */
-  notifyChatId?: string;
-  /** Cooldown per sensor type in ms (prevent spam) */
-  sensorCooldownMs: number;
+/**
+ * Bir deneyim kaydı — Foreman ne gördü, ne yaptı, ne öğrendi
+ */
+export interface Experience {
+  id: string;
+  timestamp: number;
+  category: 'incident' | 'fix' | 'observation' | 'pattern' | 'user_preference';
+  summary: string;
+  detail: string;
+  /** İlişkili düşünce ID'leri */
+  relatedThoughts: string[];
+  /** Kaç kez benzer olay yaşandı */
+  occurrenceCount: number;
+  /** Son yaşandığı zaman */
+  lastSeen: number;
 }
 
-export const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {
-  intervalMs: 5 * 60 * 1000,        // 5 minutes
-  quietHoursStart: 23,
-  quietHoursEnd: 8,
-  maxDailyNotifications: 10,
-  enabledSensors: ['system', 'service', 'git', 'test', 'log'],
-  autoFixEnabled: true,
-  notifyChatId: undefined,
-  sensorCooldownMs: 30 * 60 * 1000, // 30 min cooldown per sensor
-};
+/**
+ * Trend — Bir metriğin zaman içindeki değişimi
+ */
+export interface MetricTrend {
+  key: string;           // e.g. "disk_usage", "ram_usage"
+  values: { ts: number; value: number }[];
+  direction: 'rising' | 'falling' | 'stable' | 'volatile';
+  prediction?: string;   // "Disk 3 gün içinde %95'e ulaşacak"
+}
 
-// ─── Consciousness State ───
+// ═══════════════════════════════════════════
+// DAILY JOURNAL
+// ═══════════════════════════════════════════
+
+export interface DailyJournal {
+  date: string;          // YYYY-MM-DD
+  mood: Mood;
+  summary: string;       // Günün özeti
+  incidents: string[];   // Yaşanan sorunlar
+  fixes: string[];       // Yapılan düzeltmeler
+  observations: string[];// Gözlemler
+  metrics: {
+    avgCpu: number;
+    avgRam: number;
+    avgDisk: number;
+    totalThoughts: number;
+    totalNotifications: number;
+    totalAutoFixes: number;
+  };
+}
+
+// ═══════════════════════════════════════════
+// CONSCIOUSNESS STATE
+// ═══════════════════════════════════════════
 
 export interface ConsciousnessState {
-  /** When the heartbeat loop started */
+  // ─── Identity ───
   startedAt: number;
-  /** Total heartbeats completed */
+  uptimeMs: number;
+
+  // ─── Heartbeat ───
   heartbeatCount: number;
-  /** All thoughts generated */
-  thoughts: Thought[];
-  /** Notification count today */
-  notificationsToday: number;
-  /** Last notification reset date (YYYY-MM-DD) */
-  lastResetDate: string;
-  /** Last sensor run timestamps (for cooldown) */
-  lastSensorRun: Partial<Record<SensorType, number>>;
-  /** Is the loop currently running? */
+  lastBeatAt: number;
   alive: boolean;
+
+  // ─── Emotional ───
+  emotion: EmotionalState;
+
+  // ─── Thoughts ───
+  thoughts: Thought[];
+  recentThoughts: Thought[];  // Son 1 saatin düşünceleri
+
+  // ─── Notifications ───
+  notificationsToday: number;
+  lastResetDate: string;
+
+  // ─── Sensors ───
+  lastSensorRun: Partial<Record<SensorType, number>>;
+  sensorHealth: Partial<Record<SensorType, 'healthy' | 'degraded' | 'failing'>>;
+
+  // ─── Trends ───
+  trends: MetricTrend[];
+
+  // ─── Experiences ───
+  experiences: Experience[];
+
+  // ─── Journal ───
+  journals: DailyJournal[];
+
+  // ─── Inner Voice ───
+  lastInnerMonologue: string;
+  lastInnerMonologueAt: number;
 }
 
 export function createInitialState(): ConsciousnessState {
+  const now = Date.now();
   return {
-    startedAt: Date.now(),
+    startedAt: now,
+    uptimeMs: 0,
     heartbeatCount: 0,
+    lastBeatAt: 0,
+    alive: false,
+    emotion: {
+      mood: 'serene',
+      intensity: 50,
+      since: now,
+    },
     thoughts: [],
+    recentThoughts: [],
     notificationsToday: 0,
     lastResetDate: new Date().toISOString().split('T')[0],
     lastSensorRun: {},
-    alive: false,
+    sensorHealth: {},
+    trends: [],
+    experiences: [],
+    journals: [],
+    lastInnerMonologue: '',
+    lastInnerMonologueAt: 0,
   };
 }
+
+// ═══════════════════════════════════════════
+// HEARTBEAT CONFIG
+// ═══════════════════════════════════════════
+
+export interface HeartbeatConfig {
+  /** Ana döngü aralığı (ms) */
+  intervalMs: number;
+  /** Sessiz saatler */
+  quietHoursStart: number;
+  quietHoursEnd: number;
+  /** Günlük max bildirim */
+  maxDailyNotifications: number;
+  /** Aktif sensörler */
+  enabledSensors: SensorType[];
+  /** Otomatik fix aktif mi */
+  autoFixEnabled: boolean;
+  /** Telegram chat ID */
+  notifyChatId?: string;
+  /** Sensör cooldown (ms) */
+  sensorCooldownMs: number;
+  /** İç diyalog aralığı — her N beat'te bir iç diyalog yap */
+  innerMonologueEvery: number;
+  /** Durum raporu aralığı — her N beat'te bir rapor gönder */
+  statusReportEvery: number;
+  /** Günlük journal saati (0-23) */
+  journalHour: number;
+  /** Trend takibi aktif mi */
+  trendTrackingEnabled: boolean;
+}
+
+export const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {
+  intervalMs: 5 * 60 * 1000,          // 5 dakika
+  quietHoursStart: 2,                  // Gece 2
+  quietHoursEnd: 7,                    // Sabah 7
+  maxDailyNotifications: 20,
+  enabledSensors: ['system', 'service', 'git', 'test', 'log', 'self'],
+  autoFixEnabled: true,
+  notifyChatId: undefined,
+  sensorCooldownMs: 15 * 60 * 1000,   // 15 dakika (30 çok uzundu)
+  innerMonologueEvery: 12,             // Her 1 saatte bir iç diyalog
+  statusReportEvery: 36,               // Her 3 saatte bir durum raporu
+  journalHour: 23,                     // Gece 23'te günlük journal
+  trendTrackingEnabled: true,
+};

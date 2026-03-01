@@ -1,12 +1,20 @@
 /**
  * FOREMAN — Consciousness Heartbeat Loop
- * Sürekli çalışan ana döngü: Sense → Think → Act
+ * 
+ * Ana bilinç döngüsü. Her beat'te:
+ * 1. SENSE — Dış dünyayı algıla
+ * 2. FEEL  — Duygu durumunu güncelle
+ * 3. THINK — Düşünce üret, karar ver
+ * 4. TRACK — Trend'leri takip et
+ * 5. ACT   — Bildirim gönder veya otomatik düzelt
+ * 6. REFLECT — İç diyalog yap, deneyimlerden öğren
+ * 7. JOURNAL — Gün sonunda özet yaz
  */
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { writeFile, readFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { writeFile, readFile, mkdir, appendFile } from 'fs/promises';
+import { existsSync, readFileSync } from 'fs';
 import {
   ConsciousnessState,
   HeartbeatConfig,
@@ -17,78 +25,85 @@ import {
   createInitialState,
 } from './types.js';
 import { SENSOR_MAP } from './sensors.js';
-import { processReadings, formatThoughtForHuman } from './thinker.js';
+import {
+  processReadings,
+  formatThoughtForHuman,
+  formatStatusReport,
+  formatJournalForHuman,
+  deriveMood,
+  updateTrends,
+  recordExperience,
+  generateInnerMonologue,
+  generateDailyJournal,
+} from './thinker.js';
 
 const run = promisify(exec);
 
-const STATE_FILE = '/home/sovranamr/.foreman/consciousness-state.json';
-const LOG_FILE = '/home/sovranamr/.foreman/consciousness.log';
+const STATE_DIR = '/home/sovranamr/.foreman';
+const STATE_FILE = `${STATE_DIR}/consciousness-state.json`;
+const LOG_FILE = `${STATE_DIR}/consciousness.log`;
 
-// ─── State Persistence ───
+// ─── Helpers ───
+
+async function ensureDir(): Promise<void> {
+  if (!existsSync(STATE_DIR)) await mkdir(STATE_DIR, { recursive: true });
+}
 
 async function loadState(): Promise<ConsciousnessState> {
   try {
     const data = await readFile(STATE_FILE, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    // Migrate eski state'i yeni yapıya
+    return {
+      ...createInitialState(),
+      ...parsed,
+      emotion: parsed.emotion ?? createInitialState().emotion,
+      trends: parsed.trends ?? [],
+      experiences: parsed.experiences ?? [],
+      journals: parsed.journals ?? [],
+      recentThoughts: parsed.recentThoughts ?? [],
+      sensorHealth: parsed.sensorHealth ?? {},
+    };
   } catch {
     return createInitialState();
   }
 }
 
 async function saveState(state: ConsciousnessState): Promise<void> {
-  const dir = STATE_FILE.replace(/\/[^/]+$/, '');
-  if (!existsSync(dir)) await mkdir(dir, { recursive: true });
+  await ensureDir();
   await writeFile(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
-async function appendLog(msg: string): Promise<void> {
-  const dir = LOG_FILE.replace(/\/[^/]+$/, '');
-  if (!existsSync(dir)) await mkdir(dir, { recursive: true });
+async function log(msg: string): Promise<void> {
+  await ensureDir();
   const ts = new Date().toISOString();
-  const line = `[${ts}] ${msg}\n`;
-  const { appendFile } = await import('fs/promises');
-  await appendFile(LOG_FILE, line);
+  await appendFile(LOG_FILE, `[${ts}] ${msg}\n`);
 }
 
-// ─── Notification ───
-
 function getTelegramToken(): string | undefined {
-  // 1. Environment variable
   if (process.env.FOREMAN_TELEGRAM_TOKEN) return process.env.FOREMAN_TELEGRAM_TOKEN;
-  // 2. Config file
   try {
-    const { readFileSync } = require('fs');
     const cfg = JSON.parse(readFileSync('/home/sovranamr/.foreman/config.json', 'utf-8'));
     return cfg.telegram?.botToken;
   } catch { return undefined; }
 }
 
-async function sendTelegramNotification(
-  message: string,
-  chatId?: string,
-): Promise<boolean> {
+async function sendTelegram(message: string, chatId: string): Promise<boolean> {
   const token = getTelegramToken();
-  if (!token || !chatId) return false;
+  if (!token) return false;
 
   try {
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    const resp = await fetch(url, {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'Markdown',
-      }),
+      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' }),
     });
     return resp.ok;
   } catch (e: any) {
-    await appendLog(`[notify-error] ${e.message}`);
+    await log(`[telegram-error] ${e.message}`);
     return false;
   }
 }
-
-// ─── Auto-Fix Executor ───
 
 async function executeAutoFix(command: string): Promise<string> {
   try {
@@ -99,7 +114,9 @@ async function executeAutoFix(command: string): Promise<string> {
   }
 }
 
-// ─── Single Heartbeat Cycle ───
+// ═══════════════════════════════════════════
+// HEARTBEAT CYCLE — Tek Bir Bilinç Döngüsü
+// ═══════════════════════════════════════════
 
 export async function heartbeatCycle(
   config: HeartbeatConfig = DEFAULT_HEARTBEAT_CONFIG,
@@ -107,122 +124,154 @@ export async function heartbeatCycle(
   const state = await loadState();
   state.alive = true;
   state.heartbeatCount++;
+  state.lastBeatAt = Date.now();
+  state.uptimeMs = Date.now() - state.startedAt;
 
   const allThoughts: Thought[] = [];
+  const allReadings: SensorReading[] = [];
 
-  await appendLog(`[heartbeat #${state.heartbeatCount}] Başlıyor...`);
+  await log(`[beat #${state.heartbeatCount}] Başlıyor...`);
 
-  // ─── SENSE: Her sensörü çalıştır ───
+  // ─── 1. SENSE ───
   for (const sensorType of config.enabledSensors) {
     const sensorFn = SENSOR_MAP[sensorType];
     if (!sensorFn) continue;
 
-    // Cooldown check (critical hariç, thinker'da da var ama erken çık)
-    const lastRun = state.lastSensorRun[sensorType];
-    if (lastRun && Date.now() - lastRun < config.sensorCooldownMs) {
-      continue; // Skip — çok yakın zamanda çalıştı
-    }
-
-    let readings: SensorReading[] = [];
     try {
-      readings = await sensorFn();
+      const readings = await sensorFn();
+      allReadings.push(...readings);
+      state.lastSensorRun[sensorType] = Date.now();
+      state.sensorHealth[sensorType] = 'healthy';
     } catch (e: any) {
-      await appendLog(`[sensor-error] ${sensorType}: ${e.message}`);
-      continue;
-    }
-
-    state.lastSensorRun[sensorType] = Date.now();
-
-    if (readings.length === 0) continue;
-
-    // ─── THINK: Okumayı düşünceye çevir ───
-    const thought = processReadings(readings, state, config);
-    if (!thought) continue;
-
-    allThoughts.push(thought);
-    state.thoughts.push(thought);
-
-    await appendLog(`[thought] ${thought.priority}: ${thought.summary}`);
-
-    // ─── ACT: Düşünceye göre hareket et ───
-    if (thought.action) {
-      switch (thought.action.type) {
-        case 'auto_fix': {
-          await appendLog(`[auto-fix] Çalıştırılıyor: ${thought.action.command}`);
-          const result = await executeAutoFix(thought.action.command);
-          thought.action.result = result;
-          thought.autoResolved = true;
-          await appendLog(`[auto-fix] Sonuç: ${result}`);
-
-          // Fix sonrası da bildir
-          if (config.notifyChatId) {
-            const msg = formatThoughtForHuman(thought);
-            await sendTelegramNotification(msg, config.notifyChatId);
-            state.notificationsToday++;
-          }
-          break;
-        }
-
-        case 'notify': {
-          if (config.notifyChatId) {
-            const msg = formatThoughtForHuman(thought);
-            const sent = await sendTelegramNotification(msg, config.notifyChatId);
-            if (sent) state.notificationsToday++;
-            await appendLog(`[notify] ${sent ? 'Gönderildi' : 'BAŞARISIZ'}: ${thought.summary}`);
-          }
-          break;
-        }
-
-        case 'suppress':
-          await appendLog(`[suppress] ${thought.action.reason}: ${thought.summary}`);
-          break;
-
-        case 'defer':
-          await appendLog(`[defer] ${thought.summary} → ${new Date(thought.action.until).toISOString()}`);
-          break;
-      }
+      await log(`[sensor-error] ${sensorType}: ${e.message}`);
+      state.sensorHealth[sensorType] = 'failing';
     }
   }
 
-  // Eski düşünceleri temizle (max 100 tut)
-  if (state.thoughts.length > 100) {
-    state.thoughts = state.thoughts.slice(-100);
+  // ─── 2. FEEL ───
+  state.emotion = deriveMood(allReadings, state, config);
+
+  // ─── 3. TRACK ───
+  if (config.trendTrackingEnabled) {
+    state.trends = updateTrends(state.trends, allReadings);
+  }
+
+  // ─── 4. THINK ───
+  // Sensörleri grupla ve her grup için düşünce üret
+  const sensorGroups = new Map<SensorType, SensorReading[]>();
+  for (const r of allReadings) {
+    const group = sensorGroups.get(r.sensor) ?? [];
+    group.push(r);
+    sensorGroups.set(r.sensor, group);
+  }
+
+  for (const [, readings] of sensorGroups) {
+    const thought = processReadings(readings, state, config);
+    if (thought) {
+      allThoughts.push(thought);
+      state.thoughts.push(thought);
+    }
+  }
+
+  // ─── 5. ACT ───
+  for (const thought of allThoughts) {
+    if (!thought.action) continue;
+
+    switch (thought.action.type) {
+      case 'auto_fix': {
+        const result = await executeAutoFix(thought.action.command!);
+        thought.action.result = result;
+        thought.autoResolved = !result.startsWith('HATA');
+        await log(`[auto-fix] ${thought.action.command} → ${result}`);
+
+        if (config.notifyChatId) {
+          await sendTelegram(formatThoughtForHuman(thought), config.notifyChatId);
+          state.notificationsToday++;
+        }
+        break;
+      }
+
+      case 'notify': {
+        if (config.notifyChatId) {
+          const sent = await sendTelegram(formatThoughtForHuman(thought), config.notifyChatId);
+          if (sent) state.notificationsToday++;
+          await log(`[notify] ${sent ? '✓' : '✗'}: ${thought.summary}`);
+        }
+        break;
+      }
+
+      case 'suppress':
+        await log(`[suppress] ${thought.action.reason}: ${thought.summary}`);
+        break;
+
+      case 'defer':
+        await log(`[defer] ${thought.summary}`);
+        break;
+    }
+
+    // Deneyimden öğren
+    state.experiences = recordExperience(state.experiences, thought);
+  }
+
+  // ─── 6. REFLECT — İç Diyalog ───
+  if (state.heartbeatCount % config.innerMonologueEvery === 0) {
+    const monologue = generateInnerMonologue(state);
+    state.lastInnerMonologue = monologue;
+    state.lastInnerMonologueAt = Date.now();
+    await log(`[inner-voice]\n${monologue}`);
+  }
+
+  // ─── 7. STATUS REPORT ───
+  if (state.heartbeatCount % config.statusReportEvery === 0 && config.notifyChatId) {
+    const report = formatStatusReport(state);
+    await sendTelegram(report, config.notifyChatId);
+    state.notificationsToday++;
+    await log(`[status-report] Gönderildi`);
+  }
+
+  // ─── 8. DAILY JOURNAL ───
+  const hour = new Date().getHours();
+  const today = new Date().toISOString().split('T')[0];
+  const hasJournalToday = state.journals.some(j => j.date === today);
+  if (hour === config.journalHour && !hasJournalToday) {
+    const journal = generateDailyJournal(state);
+    state.journals.push(journal);
+
+    // Max 30 gün tut
+    if (state.journals.length > 30) {
+      state.journals = state.journals.slice(-30);
+    }
+
+    if (config.notifyChatId) {
+      await sendTelegram(formatJournalForHuman(journal), config.notifyChatId);
+      state.notificationsToday++;
+    }
+    await log(`[journal] Günlük yazıldı: ${journal.summary}`);
+  }
+
+  // ─── Cleanup ───
+  // Recent thoughts: son 1 saat
+  state.recentThoughts = state.thoughts.filter(
+    t => Date.now() - t.timestamp < 3600000
+  );
+
+  // Max 500 thought tut
+  if (state.thoughts.length > 500) {
+    state.thoughts = state.thoughts.slice(-500);
   }
 
   await saveState(state);
-  // ─── Periyodik Durum Raporu (her 6 beat = ~30dk) ───
-  if (state.heartbeatCount % 6 === 0 && config.notifyChatId) {
-    const readings = await Promise.all(
-      config.enabledSensors.map(async s => {
-        const fn = SENSOR_MAP[s];
-        if (!fn) return [];
-        try { return await fn(); } catch { return []; }
-      })
-    ).then(arrs => arrs.flat());
-
-    const diskR = readings.find(r => r.sensor === 'system' && r.title.includes('Disk'));
-    const ramR = readings.find(r => r.sensor === 'system' && r.title.includes('RAM'));
-    const loadR = readings.find(r => r.sensor === 'system' && r.title.includes('Load'));
-
-    const statusMsg = [
-      `📊 *Durum Raporu* (#${state.heartbeatCount})`,
-      `💾 Disk: %${diskR?.value ?? '?'} | 🧠 RAM: %${ramR?.value ?? '?'} | ⚡ Load: ${loadR?.value ?? '?'}`,
-      `🔔 Bugün ${state.notificationsToday} bildirim`,
-      allThoughts.length > 0 ? `💭 Bu döngüde ${allThoughts.length} düşünce` : '✅ Her şey normal',
-    ].join('\n');
-
-    await sendTelegramNotification(statusMsg, config.notifyChatId);
-    state.notificationsToday++;
-  }
-
-  await appendLog(
-    `[heartbeat #${state.heartbeatCount}] Tamamlandı. ${allThoughts.length} düşünce üretildi.`
+  await log(
+    `[beat #${state.heartbeatCount}] ${state.emotion.mood} | ` +
+    `${allThoughts.length} düşünce | ${allReadings.length} okuma`
   );
 
   return { thoughts: allThoughts, state };
 }
 
-// ─── Continuous Loop ───
+// ═══════════════════════════════════════════
+// CONTINUOUS LOOP
+// ═══════════════════════════════════════════
 
 let loopTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -232,12 +281,12 @@ export function startHeartbeatLoop(config: HeartbeatConfig = DEFAULT_HEARTBEAT_C
     return;
   }
 
-  console.log(`[consciousness] 🫀 Heartbeat başlatıldı (${config.intervalMs / 1000}s aralık)`);
+  console.log(`[consciousness] 🫀 Bilinç aktif (${config.intervalMs / 1000}s aralık)`);
 
-  // İlk başlatmada "Ben buradayım" bildirimi gönder
+  // Başlangıç bildirimi
   if (config.notifyChatId) {
-    sendTelegramNotification(
-      `🫀 *Foreman Consciousness aktif*\nHeartbeat: ${config.intervalMs / 1000}s aralık\nSensörler: ${config.enabledSensors.join(', ')}`,
+    sendTelegram(
+      `🫀 *Foreman uyanıyor...*\nSensörler: ${config.enabledSensors.join(', ')}\nAralık: ${config.intervalMs / 1000}s`,
       config.notifyChatId,
     ).catch(() => {});
   }
@@ -245,7 +294,7 @@ export function startHeartbeatLoop(config: HeartbeatConfig = DEFAULT_HEARTBEAT_C
   // İlk beat hemen
   heartbeatCycle(config).catch(e => console.error('[consciousness] İlk beat hatası:', e));
 
-  // Sonraki beatler interval ile
+  // Sonraki beatler
   loopTimer = setInterval(() => {
     heartbeatCycle(config).catch(e => console.error('[consciousness] Beat hatası:', e));
   }, config.intervalMs);
@@ -255,7 +304,7 @@ export function stopHeartbeatLoop(): void {
   if (loopTimer) {
     clearInterval(loopTimer);
     loopTimer = null;
-    console.log('[consciousness] 💤 Heartbeat durduruldu');
+    console.log('[consciousness] 💤 Bilinç durdu');
   }
 }
 
@@ -264,11 +313,10 @@ export function isHeartbeatRunning(): boolean {
 }
 
 // ─── CLI Entry Point ───
-
 if (process.argv[1]?.includes('heartbeat') && process.argv.includes('--once')) {
-  // Tek seferlik çalıştır (test/debug için)
-  heartbeatCycle().then(({ thoughts }) => {
-    console.log(`\n🫀 Heartbeat tamamlandı. ${thoughts.length} düşünce:`);
+  heartbeatCycle().then(({ thoughts, state }) => {
+    console.log(`\n🫀 Beat tamamlandı. Mood: ${state.emotion.mood}`);
+    console.log(`   ${thoughts.length} düşünce, ${state.trends.length} trend`);
     for (const t of thoughts) {
       console.log(`  ${formatThoughtForHuman(t)}`);
     }
