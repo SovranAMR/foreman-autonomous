@@ -833,6 +833,9 @@ export class AntigravityProvider implements LLMProvider {
 
           let iterText = "";
           const functionCalls: Array<{ name: string; args: Record<string, any> }> = [];
+          // Keep raw functionCall parts — they may contain proxy-added fields
+          // like tool_use.id that Claude requires for matching
+          const rawFunctionCallParts: any[] = [];
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -856,12 +859,14 @@ export class AntigravityProvider implements LLMProvider {
                         onToken(part.text);
                       }
 
-                      // Track function calls for execution
+                      // Track function calls — keep raw part for echo-back
                       if (part.functionCall) {
                         functionCalls.push({
                           name: part.functionCall.name,
                           args: part.functionCall.args,
                         });
+                        // Preserve ENTIRE raw part (may contain id, thoughtSignature, etc.)
+                        rawFunctionCallParts.push(part);
                       }
                     }
                   }
@@ -879,17 +884,15 @@ export class AntigravityProvider implements LLMProvider {
 
           // If there are function calls, execute them and loop
           if (functionCalls.length > 0) {
-            // Build CLEAN model echo-back parts — no Gemini-specific fields.
-            // The Antigravity proxy converts Gemini→Claude format, and extra
-            // fields like thoughtSignature cause "text.text: Field required" errors.
-            const cleanModelParts: any[] = [];
+            // Echo-back model parts:
+            // - Text: build clean { text } part (no Gemini-specific fields)
+            // - FunctionCall: use RAW parts to preserve proxy fields (id, etc.)
+            const modelParts: any[] = [];
             if (iterText) {
-              cleanModelParts.push({ text: iterText });
+              modelParts.push({ text: iterText });
             }
-            for (const fc of functionCalls) {
-              cleanModelParts.push({ functionCall: { name: fc.name, args: fc.args } });
-            }
-            conversationMessages.push({ role: "model", content: cleanModelParts });
+            modelParts.push(...rawFunctionCallParts);
+            conversationMessages.push({ role: "model", content: modelParts });
 
             // Execute each tool and build properly structured functionResponse parts
             const toolResultParts: any[] = [];
