@@ -521,35 +521,46 @@ export class MessagingGateway {
       console.error(`[gateway] LLM error:`, err);
       const msg = err instanceof Error ? err.message : String(err);
 
-      // Handle 503 (capacity) same as rate limit — retry
+      // Handle 503 (capacity) same as rate limit — retry loop
       if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded") || msg.includes("503") || msg.includes("UNAVAILABLE") || msg.includes("No capacity")) {
-        console.log(`[gateway] Rate limited / no capacity, retrying in 10s...`);
-        await new Promise(r => setTimeout(r, 10_000));
-        try {
-          const systemPrompt = await this.buildSystemPrompt();
-          if (this.provider!.streamChatWithTools) {
-            let retryText = "";
-            const retryResult = await this.provider!.streamChatWithTools(
-              [
-                { role: "system", content: systemPrompt },
-                ...conversation.messages.map(m => ({ role: m.role, content: m.content })),
-              ],
-              this.activeModel,
-              (token: string) => { retryText += token; },
-              () => { },
-              () => { },
-              32768,
-              25,
-              this.toolExecutor!,
-            );
-            const text = retryText.trim() || retryResult.text?.trim();
-            if (text) {
-              conversation.totalTokens += (retryResult.inputTokens ?? 0) + (retryResult.outputTokens ?? 0);
-              return { text, parseMode: "markdown" };
+        const delays = [10, 15, 20, 30, 45, 60, 90, 120]; // seconds
+        for (let attempt = 0; attempt < delays.length; attempt++) {
+          const delaySec = delays[attempt];
+          console.log(`[gateway] Rate limited / no capacity — retry ${attempt + 1}/${delays.length} in ${delaySec}s...`);
+          await new Promise(r => setTimeout(r, delaySec * 1000));
+          try {
+            const systemPrompt = await this.buildSystemPrompt();
+            if (this.provider!.streamChatWithTools) {
+              let retryText = "";
+              const retryResult = await this.provider!.streamChatWithTools(
+                [
+                  { role: "system", content: systemPrompt },
+                  ...conversation.messages.map(m => ({ role: m.role, content: m.content })),
+                ],
+                this.activeModel,
+                (token: string) => { retryText += token; },
+                () => { },
+                () => { },
+                32768,
+                25,
+                this.toolExecutor!,
+              );
+              const text = retryText.trim() || retryResult.text?.trim();
+              if (text) {
+                conversation.totalTokens += (retryResult.inputTokens ?? 0) + (retryResult.outputTokens ?? 0);
+                return { text, parseMode: "markdown" };
+              }
             }
+            break; // success — exit retry loop
+          } catch (retryErr) {
+            const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+            const isRetryable = retryMsg.includes("503") || retryMsg.includes("429") || retryMsg.includes("rate limit") || retryMsg.includes("UNAVAILABLE") || retryMsg.includes("No capacity");
+            if (!isRetryable || attempt === delays.length - 1) {
+              console.error(`[gateway] Retry ${attempt + 1} failed (non-retryable or max retries):`, retryMsg.slice(0, 200));
+              break;
+            }
+            console.log(`[gateway] Retry ${attempt + 1} failed (retryable): ${retryMsg.slice(0, 100)}`);
           }
-        } catch (retryErr) {
-          console.error(`[gateway] Retry also failed:`, retryErr);
         }
         return { text: "⏳ API yoğun, biraz sonra tekrar dene." };
       }
