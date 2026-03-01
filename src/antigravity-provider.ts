@@ -148,9 +148,11 @@ interface SSEPart {
   text?: string;
   thought?: boolean;
   thoughtSignature?: string;
+  id?: string; // Tool call ID — proxy-added for Claude compatibility
   functionCall?: {
     name: string;
     args: Record<string, any>;
+    id?: string; // Tool call ID (may be here or on parent part)
   };
 }
 
@@ -735,6 +737,22 @@ export class AntigravityProvider implements LLMProvider {
 
       const requestBody = this.buildRequestBody(conversationMessages, model, maxTokens, { tools: true });
 
+      // DEBUG: Log conversation parts to find id field leaks
+      if (iteration > 0) {
+        for (let ci = 0; ci < requestBody.request.contents.length; ci++) {
+          const c = requestBody.request.contents[ci];
+          if (c.parts) {
+            for (let pi = 0; pi < c.parts.length; pi++) {
+              const p = c.parts[pi];
+              const keys = Object.keys(p);
+              if (keys.includes('id') || keys.includes('thought') || keys.includes('thoughtSignature')) {
+                console.log(`[provider] DEBUG: contents[${ci}].parts[${pi}] has unexpected fields: ${keys.join(', ')}`);
+              }
+            }
+          }
+        }
+      }
+
       const endpoints = [DAILY_ENDPOINT, PROD_ENDPOINT];
       let lastError: Error | null = null;
       let iterationComplete = false;
@@ -833,9 +851,6 @@ export class AntigravityProvider implements LLMProvider {
 
           let iterText = "";
           const functionCalls: Array<{ name: string; args: Record<string, any> }> = [];
-          // Keep raw functionCall parts — they may contain proxy-added fields
-          // like tool_use.id that Claude requires for matching
-          const rawFunctionCallParts: any[] = [];
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -859,14 +874,18 @@ export class AntigravityProvider implements LLMProvider {
                         onToken(part.text);
                       }
 
-                      // Track function calls — keep raw part for echo-back
+                      // Track function calls
                       if (part.functionCall) {
+                        // DEBUG: Log raw SSE part to see if proxy sends IDs
+                        const rawKeys = Object.keys(part);
+                        console.log(`[provider] DEBUG raw SSE functionCall part keys: ${rawKeys.join(', ')}`);
+                        if (part.functionCall) {
+                          console.log(`[provider] DEBUG functionCall inner keys: ${Object.keys(part.functionCall).join(', ')}`);
+                        }
                         functionCalls.push({
                           name: part.functionCall.name,
                           args: part.functionCall.args,
                         });
-                        // Preserve ENTIRE raw part (may contain id, thoughtSignature, etc.)
-                        rawFunctionCallParts.push(part);
                       }
                     }
                   }
@@ -884,17 +903,18 @@ export class AntigravityProvider implements LLMProvider {
 
           // If there are function calls, execute them and loop
           if (functionCalls.length > 0) {
-            // Echo-back model parts:
-            // - Text: build clean { text } part (no Gemini-specific fields)
-            // - FunctionCall: use RAW parts to preserve proxy fields (id, etc.)
+            // Build CLEAN model echo — ONLY valid Gemini API schema fields.
+            // No id, no thoughtSignature — proxy handles format conversion.
             const modelParts: any[] = [];
             if (iterText) {
               modelParts.push({ text: iterText });
             }
-            modelParts.push(...rawFunctionCallParts);
+            for (const fc of functionCalls) {
+              modelParts.push({ functionCall: { name: fc.name, args: fc.args } });
+            }
             conversationMessages.push({ role: "model", content: modelParts });
 
-            // Execute each tool and build properly structured functionResponse parts
+            // Execute tools and build clean functionResponse parts
             const toolResultParts: any[] = [];
             for (const fc of functionCalls) {
               onToolCall(fc);
@@ -909,10 +929,11 @@ export class AntigravityProvider implements LLMProvider {
                   + `\n\n... [${content.length - MAX_TOOL_RESULT} chars truncated] ...\n\n`
                   + content.slice(-half);
               }
+              // Clean Gemini schema — no id field
               toolResultParts.push({
                 functionResponse: {
                   name: fc.name,
-                  response: { name: fc.name, content },
+                  response: { content },
                 },
               });
             }
