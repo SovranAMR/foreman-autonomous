@@ -117,11 +117,11 @@ program.action(async () => {
           projectRoot,
           projectName: "foreman",
           channels: [{
-            type: "telegram",
+            type: "telegram" as const,
             enabled: true,
             botToken: tgToken,
             allowedSenders: [],
-          }],
+          } as import("./channel.js").TelegramChannelConfig],
           maxConcurrent: 5,
           messageTimeoutMs: 120_000,
         });
@@ -430,7 +430,7 @@ program
     const taskStats = tm.stats();
     if (taskStats.total > 0) {
       console.log(brand.gold("  ◆ Tasks"));
-      console.log(`     ${taskStats.done} done, ${taskStats.inProgress} in-progress, ${taskStats.pending} pending, ${taskStats.blocked} blocked (${taskStats.total} total)`);
+      console.log(`     ${taskStats.byStatus["done"] ?? 0} done, ${taskStats.byStatus["in_progress"] ?? 0} in-progress, ${taskStats.byStatus["backlog"] ?? 0} pending, ${taskStats.byStatus["blocked"] ?? 0} blocked (${taskStats.total} total)`);
     }
 
     // Project summary
@@ -1160,7 +1160,7 @@ intCmd
       console.log(`  ${icon.pending} No approval history yet.`);
       return;
     }
-    const data = safeJsonParseOr(readFileSync(auditPath, "utf-8"), { history: [] });
+    const data = safeJsonParseOr(readFileSync(auditPath, "utf-8"), { history: [] as Array<{ decision?: string; riskScore?: number; command?: string; layer?: string }> });
     const history = (data.history ?? []).slice(-Number(opts.limit));
     console.log(brand.gold(`\n  ◆ Approval History (${history.length} entries)\n`));
     for (const h of history) {
@@ -1222,7 +1222,7 @@ intCmd
       console.log(brand.gold(`\n  ◆ Process Stats\n`));
       console.log(`  Running:  ${stats.running}`);
       console.log(`  Finished: ${stats.finished}`);
-      console.log(`  Total:    ${stats.total}`);
+      console.log(`  Total:    ${stats.totalSpawned}`);
     }
     console.log("");
     engine.shutdown();
@@ -1359,7 +1359,7 @@ intCmd
       const info = engine.getBranches();
       console.log(brand.gold(`\n  ◆ Git Branches\n`));
       console.log(`  Current: ${brand.bold(info.current)}`);
-      for (const b of info.all) {
+      for (const b of info.local) {
         const marker = b === info.current ? brand.green(" ◄") : "";
         console.log(`  • ${b}${marker}`);
       }
@@ -1708,7 +1708,7 @@ program
     for (const chain of allChains) {
       const chainThoughts = chain.thoughts
         .map((id: string) => thoughtsMgr.get(id))
-        .filter((t: any) => t !== null);
+        .filter((t: any): t is import("./types.js").Thought => t !== null);
 
       const health = checkChainHealth(chainThoughts);
       const transcript = repairTranscript(chainThoughts);
@@ -1723,7 +1723,7 @@ program
 
       if (health.issues.length > 0) {
         for (const issue of health.issues.slice(0, 5)) {
-          console.log(`    ${brand.dim("→")} ${issue.type}: ${issue.description}`);
+          console.log(`    ${brand.dim("→")} ${issue.kind}: ${issue.message}`);
         }
       }
       if (transcript.report.totalRepairs > 0) {
@@ -1749,8 +1749,8 @@ program
         const mainBranch = exec.runShell("git rev-parse --verify main 2>/dev/null").success ? "main" : "master";
         const conflicts = git.checkConflicts(mainBranch);
         if (conflicts.hasConflicts) {
-          console.log(`  ${brand.red("⚠")} ${brand.bold("Git conflicts")} with ${mainBranch}: ${conflicts.conflictingFiles.length} files`);
-          for (const f of conflicts.conflictingFiles.slice(0, 5)) {
+          console.log(`  ${brand.red("⚠")} ${brand.bold("Git conflicts")} with ${mainBranch}: ${conflicts.conflictFiles.length} files`);
+          for (const f of conflicts.conflictFiles.slice(0, 5)) {
             console.log(`    ${brand.dim("→")} ${f}`);
           }
         } else {
@@ -1812,7 +1812,7 @@ program
   .action(async (opts: any) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
     const { MessagingGateway } = await import("./messaging-gateway.js");
-    const { ChannelConfig, TelegramChannelConfig, WhatsAppChannelConfig } = await import("./channel.js");
+    // Channel configs are interfaces — used only as type annotations
 
     printLogo();
     console.log(brand.gold("\n  ◆ Foreman Messaging Gateway\n"));

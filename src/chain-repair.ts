@@ -79,12 +79,11 @@ export interface ChainRepairResult {
 
 /** Valid thought status transitions */
 const VALID_TRANSITIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
-  ["pending", new Set(["active", "blocked", "abandoned"])],
-  ["active", new Set(["done", "blocked", "abandoned", "error"])],
-  ["blocked", new Set(["active", "abandoned"])],
+  ["pending", new Set(["thinking", "blocked", "reverted"])],
+  ["thinking", new Set(["done", "blocked", "reverted"])],
+  ["blocked", new Set(["thinking", "reverted"])],
   ["done", new Set([])],  // done is terminal
-  ["abandoned", new Set([])],  // abandoned is terminal
-  ["error", new Set(["active", "abandoned"])],  // can retry from error
+  ["reverted", new Set([])],  // reverted is terminal
 ]);
 
 const VALID_LAYERS: ReadonlySet<string> = new Set(["visioner", "strategist", "researcher", "worker"]);
@@ -138,7 +137,7 @@ export function repairChain(
     }
 
     // 3. Stale thought (pending too long)
-    if (thought.status === "pending" || thought.status === "active") {
+    if (thought.status === "pending" || thought.status === "thinking") {
       const createdAt = new Date(thought.createdAt).getTime();
       if (now - createdAt > STALE_THRESHOLD_MS) {
         issues.push({
@@ -147,8 +146,8 @@ export function repairChain(
           message: `Thought has been '${thought.status}' for ${Math.round((now - createdAt) / 60_000)} minutes`,
           autoFixed: true,
         });
-        thought.status = "abandoned";
-        thought.output = (thought.output || "") + "\n[auto-abandoned: stale after 30+ minutes]";
+        thought.status = "blocked";
+        thought.output = (thought.output || "") + "\n[auto-blocked: stale after 30+ minutes]";
         fixCount++;
       }
     }
@@ -173,17 +172,17 @@ export function repairChain(
     for (let j = 0; j < i; j++) {
       const other = repaired[j];
       if (other.chainId === thought.chainId &&
-          other.input === thought.input &&
-          other.output === thought.output &&
-          other.output) {
+        other.input === thought.input &&
+        other.output === thought.output &&
+        other.output) {
         issues.push({
           kind: "duplicate",
           thoughtId: thought.id,
           message: `Duplicate of ${other.id} — same input and output`,
           autoFixed: true,
         });
-        thought.status = "abandoned";
-        thought.output = (thought.output || "") + `\n[auto-abandoned: duplicate of ${other.id}]`;
+        thought.status = "blocked";
+        thought.output = (thought.output || "") + `\n[auto-blocked: duplicate of ${other.id}]`;
         fixCount++;
         break;
       }
@@ -310,6 +309,6 @@ export function checkChainHealth(thoughts: Thought[]): {
  */
 export function getActiveThoughts(thoughts: Thought[]): Thought[] {
   return thoughts.filter(t =>
-    t.status !== "abandoned" && t.status !== "error"
+    t.status !== "blocked" && t.status !== "reverted"
   );
 }

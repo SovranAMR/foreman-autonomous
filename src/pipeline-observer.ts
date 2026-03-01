@@ -366,7 +366,7 @@ export class PipelineObserver {
 
       const b = this.currentBlock;
       this.sendTelegramThrottled(
-        `✅ Block ${b.index + 1} tamamlandı — ${b.passedAtoms}/${b.totalAtoms} atom başarılı (${formatDuration(b.durationMs)})`,
+        `✅ Block ${b.index + 1} tamamlandı — ${b.passedAtoms}/${b.totalAtoms} atom başarılı (${formatDuration(b.durationMs ?? 0)})`,
       );
     }
     this.currentBlock = null;
@@ -486,7 +486,7 @@ export class PipelineObserver {
       this.currentToolCall.result = detail.slice(0, 500);
       this.currentToolCall.success = detail.includes("✔") || !detail.includes("✖");
     }
-    this.recordEvent("tool", "result", { 
+    this.recordEvent("tool", "result", {
       detail,
       data: { success: this.currentToolCall?.success }
     });
@@ -748,7 +748,7 @@ export class PipelineObserver {
 
   private sendTelegram(text: string): void {
     if (!this.telegramCallback) return;
-    this.telegramCallback(text).catch(() => {});
+    this.telegramCallback(text).catch(() => { });
     this.lastTelegramUpdate = Date.now();
   }
 
@@ -761,7 +761,7 @@ export class PipelineObserver {
 
   private sendTelegramFinal(summary: PipelineSummary): void {
     if (!this.telegramCallback) return;
-    this.telegramCallback(this.formatTelegramSummary(summary)).catch(() => {});
+    this.telegramCallback(this.formatTelegramSummary(summary)).catch(() => { });
   }
 }
 

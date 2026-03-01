@@ -85,7 +85,7 @@ export class ForgeGatewayBridge {
         const update = progressBuffer.join("\n");
         progressBuffer = [];
         lastUpdateTime = now;
-        sender.send(update).catch(() => {});
+        sender.send(update).catch(() => { });
       }
     });
 
@@ -164,7 +164,7 @@ export class ForgeGatewayBridge {
 
       // Run async — don't block
       this.runForge(task, chatId, sender).catch(err => {
-        sender.send(`❌ Forge error: ${err}`).catch(() => {});
+        sender.send(`❌ Forge error: ${err}`).catch(() => { });
       });
 
       return null; // Will send its own messages
@@ -172,7 +172,7 @@ export class ForgeGatewayBridge {
 
     // /cancel
     if (trimmed === "/cancel" || trimmed === "/iptal") {
-      this.cancelForge(chatId, sender).catch(() => {});
+      this.cancelForge(chatId, sender).catch(() => { });
       return null;
     }
 
@@ -276,7 +276,7 @@ export class ForgeGatewayBridge {
     const icon = result.success ? "✅" : "❌";
     const status = result.success ? "Başarılı" : `Blocked: ${result.blockedAt ?? "Unknown"}`;
     const duration = this.activeRuns.size > 0
-      ? `${Math.round((Date.now() - [...this.activeRuns.values()][0]?.startedAt ?? Date.now()) / 1000)}s`
+      ? `${Math.round((Date.now() - ([...this.activeRuns.values()][0]?.startedAt ?? Date.now())) / 1000)}s`
       : "N/A";
 
     return [

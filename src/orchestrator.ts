@@ -54,7 +54,8 @@ export type OrchestratorEvent =
   | { type: "reflection"; summary: string; atomCount: number }
   | { type: "verification"; phase: string; passed: boolean; detail: string }
   | { type: "pipeline_complete"; totalThoughts: number; totalTokens: number }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string }
+  | { type: "hallucination"; message: string };
 
 export type EventListener = (event: OrchestratorEvent) => void;
 

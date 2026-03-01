@@ -12,77 +12,77 @@ import figures from "figures";
 // ─── BRAND COLORS ────────────────────────────────────────────
 
 export const brand = {
-  gold:       chalk.hex("#F5A623"),
+  gold: chalk.hex("#F5A623"),
   goldBright: chalk.hex("#FFD700"),
-  orange:     chalk.hex("#FF6B35"),
-  cyan:       chalk.hex("#00D4FF"),
-  purple:     chalk.hex("#A855F7"),
-  green:      chalk.hex("#22C55E"),
-  red:        chalk.hex("#EF4444"),
-  dim:        chalk.hex("#6B7280"),
-  ember:      chalk.hex("#FF4500"),
-  steel:      chalk.hex("#B0C4DE"),
-  white:      chalk.white,
-  bold:       chalk.bold,
-  bgGold:     chalk.bgHex("#F5A623").black,
-  bgRed:      chalk.bgHex("#EF4444").white,
-  bgGreen:    chalk.bgHex("#22C55E").black,
-  bgCyan:     chalk.bgHex("#00D4FF").black,
-  bgPurple:   chalk.bgHex("#A855F7").white,
+  orange: chalk.hex("#FF6B35"),
+  cyan: chalk.hex("#00D4FF"),
+  purple: chalk.hex("#A855F7"),
+  green: chalk.hex("#22C55E"),
+  red: chalk.hex("#EF4444"),
+  dim: chalk.hex("#6B7280"),
+  ember: chalk.hex("#FF4500"),
+  steel: chalk.hex("#B0C4DE"),
+  white: chalk.white,
+  bold: chalk.bold,
+  bgGold: chalk.bgHex("#F5A623").black,
+  bgRed: chalk.bgHex("#EF4444").white,
+  bgGreen: chalk.bgHex("#22C55E").black,
+  bgCyan: chalk.bgHex("#00D4FF").black,
+  bgPurple: chalk.bgHex("#A855F7").white,
 };
 
 // ─── GRADIENTS ───────────────────────────────────────────────
 
-export const grad = {
-  logo:   gradient(["#F5A623", "#FF6B35", "#A855F7"]),
+export const grad: Record<string, (text: string) => string> = {
+  logo: gradient(["#F5A623", "#FF6B35", "#A855F7"]),
   vision: gradient(["#FFD700", "#F5A623"]),
-  strat:  gradient(["#00D4FF", "#A855F7"]),
-  exec:   gradient(["#22C55E", "#00D4FF"]),
-  fire:   gradient(["#FF6B35", "#EF4444"]),
-  forge:  gradient(["#FF4500", "#FFD700", "#FF6B35"]),
-  steel:  gradient(["#B0C4DE", "#708090", "#B0C4DE"]),
-  ember:  gradient(["#EF4444", "#FF6B35", "#FFD700"]),
+  strat: gradient(["#00D4FF", "#A855F7"]),
+  exec: gradient(["#22C55E", "#00D4FF"]),
+  fire: gradient(["#FF6B35", "#EF4444"]),
+  forge: gradient(["#FF4500", "#FFD700", "#FF6B35"]),
+  steel: gradient(["#B0C4DE", "#708090", "#B0C4DE"]),
+  ember: gradient(["#EF4444", "#FF6B35", "#FFD700"]),
 };
 
 // ─── ICONS ───────────────────────────────────────────────────
 
 export const icon = {
   // Phases — forge theme
-  vision:    "🔮",
+  vision: "🔮",
   decompose: "⚒️",
-  research:  "🔍",
-  atomize:   "⚛️",
-  execute:   "🔨",
-  verify:    "🔬",
-  reflect:   "🪞",
-  complete:  "⚔️",
+  research: "🔍",
+  atomize: "⚛️",
+  execute: "🔨",
+  verify: "🔬",
+  reflect: "🪞",
+  complete: "⚔️",
 
   // Status
-  done:      brand.green(figures.tick),
-  fail:      brand.red(figures.cross),
-  warn:      brand.gold("⚠"),
-  block:     brand.red("🚫"),
-  pending:   brand.dim("○"),
-  active:    brand.cyan("◉"),
+  done: brand.green(figures.tick),
+  fail: brand.red(figures.cross),
+  warn: brand.gold("⚠"),
+  block: brand.red("🚫"),
+  pending: brand.dim("○"),
+  active: brand.cyan("◉"),
 
   // Thought layers
-  visioner:    "🔮",
-  strategist:  "⚒️",
-  researcher:  "🔍",
-  worker:      "🔨",
+  visioner: "🔮",
+  strategist: "⚒️",
+  researcher: "🔍",
+  worker: "🔨",
 
   // Meta
   thought: "💭",
-  chain:   "🔗",
-  token:   "🪙",
-  time:    "⏱",
-  arrow:   brand.dim("→"),
-  bar:     brand.dim("│"),
-  dash:    brand.dim("─"),
-  anvil:   "⚒️",
-  spark:   "✦",
-  flame:   "🔥",
-  shield:  "🛡️",
+  chain: "🔗",
+  token: "🪙",
+  time: "⏱",
+  arrow: brand.dim("→"),
+  bar: brand.dim("│"),
+  dash: brand.dim("─"),
+  anvil: "⚒️",
+  spark: "✦",
+  flame: "🔥",
+  shield: "🛡️",
 };
 
 // ─── ASCII ART ───────────────────────────────────────────────
@@ -273,9 +273,9 @@ export function phaseHeader(phase: string, detail: string) {
     const phaseIcon = icon[phase as keyof typeof icon] ?? "▸";
     const colorFn = phase === "vision" ? brand.goldBright
       : phase === "research" ? brand.cyan
-      : phase === "execute" ? brand.green
-      : phase === "reflect" ? brand.purple
-      : brand.white;
+        : phase === "execute" ? brand.green
+          : phase === "reflect" ? brand.purple
+            : brand.white;
 
     console.log("");
     console.log(
@@ -289,7 +289,7 @@ export function thoughtLine(id: string, layer: string, confidence: number, token
   const layerIcon = icon[layer as keyof typeof icon] ?? "•";
   const confColor = confidence >= 0.8 ? brand.green
     : confidence >= 0.5 ? brand.gold
-    : brand.red;
+      : brand.red;
   const confStr = confColor(`${(confidence * 100).toFixed(0)}%`);
   const tokenStr = tokens ? brand.dim(` ${icon.token}${tokens}`) : "";
 
@@ -297,8 +297,8 @@ export function thoughtLine(id: string, layer: string, confidence: number, token
   const sparkEffect = confidence >= 0.9
     ? ` ${brand.gold("✦")}${brand.ember("✦")}${brand.gold("✦")}`
     : confidence >= 0.8
-    ? ` ${brand.gold("✦")}`
-    : "";
+      ? ` ${brand.gold("✦")}`
+      : "";
 
   console.log(
     `    ${brand.dim(icon.bar)} ${layerIcon} ${brand.bold(id.padEnd(8))} ${confStr}${sparkEffect}${tokenStr}`
@@ -363,8 +363,8 @@ export function statusBox(data: {
 
   const stateColor = data.state === "idle" ? brand.dim
     : data.state === "complete" ? brand.green
-    : data.state === "blocked" ? brand.red
-    : brand.cyan;
+      : data.state === "blocked" ? brand.red
+        : brand.cyan;
 
   // Progress bar
   const total = data.done + data.pending + data.blocked;

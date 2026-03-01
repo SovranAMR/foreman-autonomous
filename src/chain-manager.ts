@@ -109,7 +109,7 @@ export class ChainManager {
     const chain = this.get(chainId);
     if (!chain) {
       console.warn(`[chains] Chain ${chainId} not found for status update, skipping`);
-      return { id: chainId, name: "", goal: "", layer: "worker", thoughts: [], status, contextSummary: "" } as Chain;
+      return { id: chainId, name: "", goal: "", layer: "worker", thoughts: [], status, contextSummary: "", createdAt: new Date().toISOString() } as Chain;
     }
 
     chain.status = status;
@@ -127,7 +127,7 @@ export class ChainManager {
     const chain = this.get(chainId);
     if (!chain) {
       console.warn(`[chains] Chain ${chainId} not found for summary update, skipping`);
-      return { id: chainId, name: "", goal: "", layer: "worker", thoughts: [], status: "active", contextSummary: summary } as Chain;
+      return { id: chainId, name: "", goal: "", layer: "worker", thoughts: [], status: "active", contextSummary: summary, createdAt: new Date().toISOString() } as Chain;
     }
 
     chain.contextSummary = summary;

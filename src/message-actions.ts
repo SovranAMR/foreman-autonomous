@@ -293,7 +293,7 @@ export class MessageActionsEngine {
       case "unpin":
         return this.telegramActions.unpinMessage(action.chatId, action.messageId);
       default:
-        return { success: false, error: `Unknown action type: ${action.type}` };
+        return { success: false, error: `Unknown action type: ${(action as any).type}` };
     }
   }
 

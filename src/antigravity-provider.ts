@@ -699,6 +699,30 @@ export class AntigravityProvider implements LLMProvider {
 
           if (!response.ok) {
             const errText = await response.text();
+            // 400 with tool_use_id mismatch — strip tool parts from conversation and retry
+            if (response.status === 400 && errText.includes("tool_use_id")) {
+              console.log(`[provider] tool_use_id mismatch detected — repairing conversation (stripping tool parts)`);
+              // Keep only plain text messages, remove function call/response parts
+              const repaired: typeof conversationMessages = [];
+              for (const msg of conversationMessages) {
+                if (typeof msg.content === "string") {
+                  repaired.push(msg);
+                } else if (Array.isArray(msg.content)) {
+                  // Check if it contains functionCall or functionResponse
+                  const hasToolParts = msg.content.some((p: any) => p.functionCall || p.functionResponse);
+                  if (!hasToolParts) {
+                    repaired.push(msg);
+                  }
+                  // else: skip entire message with tool parts
+                }
+              }
+              conversationMessages.length = 0;
+              conversationMessages.push(...repaired);
+              // Retry this iteration with cleaned messages
+              lastError = null;
+              iterationComplete = true;
+              break;
+            }
             lastError = new Error(`Antigravity API error ${response.status}: ${errText.slice(0, 200)}`);
             continue;
           }

@@ -408,13 +408,18 @@ export class MessagingGateway {
     try {
       const systemPrompt = await this.buildSystemPrompt();
 
-      // Build messages for the provider
+      // Build messages for the provider — only text content
+      // Tool call/result parts from previous streamChatWithTools iterations
+      // are self-contained within each call. The conversation history should
+      // only carry plain text to avoid Antigravity format mismatches.
       const messages: Array<{ role: string; content: string | any[] }> = [
         { role: "system", content: systemPrompt },
-        ...conversation.messages.map(m => ({
-          role: m.role,
-          content: m.content,
-        })),
+        ...conversation.messages
+          .filter(m => typeof m.content === "string")
+          .map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
       ];
 
       // ─── USE streamChatWithTools (same as REPL) for full tool parity ───

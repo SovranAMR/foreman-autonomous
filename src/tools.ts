@@ -1453,7 +1453,7 @@ function executeEditFileV2(editEngine: EditEngine, args: Record<string, unknown>
 
   if (!result.success) {
     let msg = result.message;
-    if (result.closestMatch) msg += `\nClosest match at line ${result.closestMatch.startLine}`;
+    if (result.closestMatch) msg += `\nClosest match at line ${result.closestMatch.line}`;
     return { name: "edit_file", content: msg, isError: true };
   }
 
@@ -1583,10 +1583,11 @@ function executeVerifyTests(args: Record<string, unknown>): ToolResult {
     `Passed: ${result.passed}, Failed: ${result.failed}, Total: ${result.total}`,
   ];
 
-  if (result.failedTests.length > 0) {
+  const failedTests = result.tests.filter(t => t.status === "fail");
+  if (failedTests.length > 0) {
     lines.push("Failed tests:");
-    for (const t of result.failedTests) {
-      lines.push(`  ✖ ${t}`);
+    for (const t of failedTests) {
+      lines.push(`  ✖ ${t.name}${t.error ? ` — ${t.error}` : ""}`);
     }
   }
 
@@ -1720,7 +1721,7 @@ function executeAnalyzeLink(linkIntel: LinkIntelligence, args: Record<string, un
 
   return {
     name: "analyze_link",
-    content: `Type: ${classification.type}\nDomain: ${classification.domain}\nURL: ${classification.url}`,
+    content: `Type: ${classification.kind}\nParts: ${JSON.stringify(classification.parts)}\nURL: ${classification.url}`,
     isError: false,
   };
 }
@@ -1757,7 +1758,7 @@ function executeParseMarkdown(args: Record<string, unknown>): ToolResult {
     const sections = extractSections(content);
     parts.push(`Sections (${sections.length}):`);
     for (const s of sections) {
-      parts.push(`  ${"#".repeat(s.level)} ${s.heading} (${s.content.length} chars)`);
+      parts.push(`  ${"#".repeat(s.level)} ${s.title} (${s.content.length} chars)`);
     }
   }
 
@@ -1770,8 +1771,8 @@ function executeParseMarkdown(args: Record<string, unknown>): ToolResult {
 
   if (extract === "frontmatter" || extract === "all") {
     const fm = parseFrontmatter(content);
-    if (fm.metadata && Object.keys(fm.metadata).length > 0) {
-      parts.push(`Frontmatter: ${JSON.stringify(fm.metadata)}`);
+    if (fm.data && Object.keys(fm.data).length > 0) {
+      parts.push(`Frontmatter: ${JSON.stringify(fm.data)}`);
     }
   }
 
@@ -2026,7 +2027,7 @@ function executeClassifyUrl(args: Record<string, unknown>): ToolResult {
   const result = classifyUrl(url);
   return {
     name: "classify_url",
-    content: `Type: ${result.kind}\nDomain: ${result.domain}\nConfidence: ${(result.confidence * 100).toFixed(0)}%`,
+    content: `Type: ${result.kind}\nParts: ${JSON.stringify(result.parts)}\nURL: ${result.url}`,
     isError: false,
   };
 }
@@ -2071,18 +2072,19 @@ function executeSearchInFiles(engine: ExecutionEngine, args: Record<string, unkn
   const pattern = args.pattern as string;
   if (!pattern) return { name: "search_in_files", content: "Error: pattern is required", isError: true };
 
-  const extensions = (args.extensions as string)?.split(",").map(s => s.trim()) ?? [];
-  const results = engine.searchInFiles(pattern, extensions.length > 0 ? extensions : undefined);
+  const extensionsStr = args.extensions as string | undefined;
+  const glob = extensionsStr ? extensionsStr.split(",").map((s: string) => s.trim()).join(",") : undefined;
+  const results = engine.searchInFiles(pattern, glob);
 
-  if (!results.success || !results.matches || results.matches.length === 0) {
+  if (results.length === 0) {
     return { name: "search_in_files", content: "No matches found.", isError: false };
   }
 
-  const lines = results.matches.slice(0, 50).map((m: any) =>
-    `${m.file}:${m.line}: ${m.content?.trim() ?? ""}`
+  const lines = results.slice(0, 50).map((m: { file: string; line: number; text: string }) =>
+    `${m.file}:${m.line}: ${m.text?.trim() ?? ""}`
   );
-  if (results.matches.length > 50) {
-    lines.push(`... and ${results.matches.length - 50} more matches`);
+  if (results.length > 50) {
+    lines.push(`... and ${results.length - 50} more matches`);
   }
   return { name: "search_in_files", content: lines.join("\n"), isError: false };
 }
@@ -2190,7 +2192,7 @@ function executeCronList(engine: any, args: Record<string, unknown>): ToolResult
     return { name: "cron_list", content: "No scheduled jobs.", isError: false };
   }
 
-  const lines = jobs.map(j => {
+  const lines = jobs.map((j: any) => {
     const nextRun = j.nextRunAt ? new Date(j.nextRunAt).toISOString() : "—";
     const status = j.enabled ? "✔" : "✖";
     return `${status} ${j.id} | ${j.name} | Next: ${nextRun} | Runs: ${j.runCount}`;
@@ -2258,7 +2260,7 @@ function executeSessionList(engine: any, args: Record<string, unknown>): ToolRes
     return { name: "session_list", content: "No sessions.", isError: false };
   }
 
-  const lines = sessions.map(s => {
+  const lines = sessions.map((s: any) => {
     const age = Math.round((Date.now() - s.createdAt) / 60_000);
     return `${s.status === "running" ? "🔥" : s.status === "completed" ? "✔" : "⏸"} ${s.id} | ${s.label} | ${s.status} | ${s.messageCount} msgs | ${age}min`;
   });
@@ -2305,7 +2307,7 @@ async function executeSemanticSearch(engine: any, args: Record<string, unknown>)
       return { name: "semantic_search", content: "No matching documents found.", isError: false };
     }
 
-    const lines = results.map(r =>
+    const lines = results.map((r: any) =>
       `[${(r.score * 100).toFixed(0)}%] ${r.id}: ${r.text.slice(0, 200)}`,
     );
     return { name: "semantic_search", content: lines.join("\n\n"), isError: false };

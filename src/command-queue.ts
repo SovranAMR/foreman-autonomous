@@ -162,11 +162,11 @@ export class CommandQueue {
     const state = this.getLaneState(lane);
 
     return new Promise<T>((resolve, reject) => {
-      const entry: QueueEntry<T> = {
-        task: task as QueueTask,
-        resolve: resolve as (value: unknown) => void,
+      const entry = {
+        task: task as unknown as QueueTask,
+        resolve: resolve as unknown as (value: unknown) => void,
         reject,
-      };
+      } satisfies QueueEntry;
 
       // Insert in priority order
       this.insertByPriority(state, entry);

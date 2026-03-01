@@ -515,11 +515,12 @@ export class ExecutionEngine {
         exitCode: -1,
       };
       return {
+        sessionId: "",
         pid: undefined,
         promise: Promise.resolve(result),
-        kill: () => {},
-        writeStdin: () => {},
-        closeStdin: () => {},
+        kill: () => { },
+        writeStdin: () => { },
+        closeStdin: () => { },
       };
     }
 
@@ -528,6 +529,7 @@ export class ExecutionEngine {
       const assessment = this.approvalEngine.assess(command, "worker");
       if (assessment.decision === "deny") {
         return {
+          sessionId: "",
           pid: undefined,
           promise: Promise.resolve({
             success: false,
@@ -535,9 +537,9 @@ export class ExecutionEngine {
             stderr: `Command denied by approval engine: ${assessment.reason} (risk: ${(assessment.riskScore * 100).toFixed(0)}%)`,
             exitCode: -1,
           }),
-          kill: () => {},
-          writeStdin: () => {},
-          closeStdin: () => {},
+          kill: () => { },
+          writeStdin: () => { },
+          closeStdin: () => { },
         };
       }
     }
@@ -547,6 +549,7 @@ export class ExecutionEngine {
       const envError = validateEnv(options.env);
       if (envError) {
         return {
+          sessionId: "",
           pid: undefined,
           promise: Promise.resolve({
             success: false,
@@ -554,9 +557,9 @@ export class ExecutionEngine {
             stderr: envError,
             exitCode: -1,
           }),
-          kill: () => {},
-          writeStdin: () => {},
-          closeStdin: () => {},
+          kill: () => { },
+          writeStdin: () => { },
+          closeStdin: () => { },
         };
       }
     }

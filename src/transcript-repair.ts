@@ -323,7 +323,10 @@ function repairLayerGaps(thoughts: Thought[]): {
         input: "[context pruned — intermediate thoughts removed during compaction]",
         output: `Gap: ${prev.layer} → ${current.layer}. Intermediate thoughts were compacted.`,
         contextRefs: [],
+        reasoning: "[auto-generated gap marker]",
         confidence: 0.5,
+        needsResearch: false,
+        needsVerification: false,
         status: "done",
         createdAt: prev.createdAt,
       };
