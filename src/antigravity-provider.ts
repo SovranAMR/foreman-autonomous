@@ -833,11 +833,6 @@ export class AntigravityProvider implements LLMProvider {
 
           let iterText = "";
           const functionCalls: Array<{ name: string; args: Record<string, any> }> = [];
-          // Collect non-thinking parts from the model response for echo-back
-          // CRITICAL: thinking parts (thought: true) must NOT be echoed back —
-          // the API sends them for display but rejects them in conversation history.
-          // We keep: functionCall parts (with thoughtSignature), text parts (with thoughtSignature)
-          let echoBackParts: any[] = [];
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -852,15 +847,8 @@ export class AntigravityProvider implements LLMProvider {
                 for (const candidate of root.candidates) {
                   if (candidate.content?.parts) {
                     for (const part of candidate.content.parts) {
-                      // Skip thinking parts — API rejects them in echo
+                      // Skip thinking parts
                       if (part.thought) continue;
-
-                      // Only keep parts with actual content (text or functionCall)
-                      // Parts with only thoughtSignature and no content cause 400 errors
-                      const hasContent = part.text || part.functionCall;
-                      if (hasContent) {
-                        echoBackParts.push(part);
-                      }
 
                       // Extract text for streaming
                       if (part.text) {
@@ -891,10 +879,17 @@ export class AntigravityProvider implements LLMProvider {
 
           // If there are function calls, execute them and loop
           if (functionCalls.length > 0) {
-            // Echo back non-thinking parts exactly as received.
-            // The Gemini API validates that functionCall parts + thoughtSignature match.
-            // Thinking parts are excluded — API rejects them in conversation history.
-            conversationMessages.push({ role: "model", content: echoBackParts });
+            // Build CLEAN model echo-back parts — no Gemini-specific fields.
+            // The Antigravity proxy converts Gemini→Claude format, and extra
+            // fields like thoughtSignature cause "text.text: Field required" errors.
+            const cleanModelParts: any[] = [];
+            if (iterText) {
+              cleanModelParts.push({ text: iterText });
+            }
+            for (const fc of functionCalls) {
+              cleanModelParts.push({ functionCall: { name: fc.name, args: fc.args } });
+            }
+            conversationMessages.push({ role: "model", content: cleanModelParts });
 
             // Execute each tool and build properly structured functionResponse parts
             const toolResultParts: any[] = [];
