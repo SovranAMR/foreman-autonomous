@@ -850,7 +850,7 @@ export class AntigravityProvider implements LLMProvider {
           const lines = body.split("\n");
 
           let iterText = "";
-          const functionCalls: Array<{ name: string; args: Record<string, any> }> = [];
+          const functionCalls: Array<{ name: string; args: Record<string, any>; id?: string }> = [];
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -874,17 +874,13 @@ export class AntigravityProvider implements LLMProvider {
                         onToken(part.text);
                       }
 
-                      // Track function calls
+                      // Track function calls — preserve id from proxy for Claude pairing
                       if (part.functionCall) {
-                        // DEBUG: Log raw SSE part to see if proxy sends IDs
-                        const rawKeys = Object.keys(part);
-                        console.log(`[provider] DEBUG raw SSE functionCall part keys: ${rawKeys.join(', ')}`);
-                        if (part.functionCall) {
-                          console.log(`[provider] DEBUG functionCall inner keys: ${Object.keys(part.functionCall).join(', ')}`);
-                        }
+                        console.log(`[provider] functionCall: ${part.functionCall.name} (id: ${part.functionCall.id || 'none'})`);
                         functionCalls.push({
                           name: part.functionCall.name,
                           args: part.functionCall.args,
+                          id: part.functionCall.id, // Proxy-generated ID for Claude tool_use matching
                         });
                       }
                     }
@@ -903,18 +899,21 @@ export class AntigravityProvider implements LLMProvider {
 
           // If there are function calls, execute them and loop
           if (functionCalls.length > 0) {
-            // Build CLEAN model echo — ONLY valid Gemini API schema fields.
-            // No id, no thoughtSignature — proxy handles format conversion.
+            // Echo back model parts with functionCall.id preserved.
+            // The proxy sends id INSIDE functionCall (not on the part) and
+            // expects it back for Claude tool_use.id matching.
             const modelParts: any[] = [];
             if (iterText) {
               modelParts.push({ text: iterText });
             }
             for (const fc of functionCalls) {
-              modelParts.push({ functionCall: { name: fc.name, args: fc.args } });
+              const fcPart: any = { functionCall: { name: fc.name, args: fc.args } };
+              if (fc.id) fcPart.functionCall.id = fc.id;
+              modelParts.push(fcPart);
             }
             conversationMessages.push({ role: "model", content: modelParts });
 
-            // Execute tools and build clean functionResponse parts
+            // Execute tools and build functionResponse with matching IDs
             const toolResultParts: any[] = [];
             for (const fc of functionCalls) {
               onToolCall(fc);
@@ -929,13 +928,15 @@ export class AntigravityProvider implements LLMProvider {
                   + `\n\n... [${content.length - MAX_TOOL_RESULT} chars truncated] ...\n\n`
                   + content.slice(-half);
               }
-              // Clean Gemini schema — no id field
-              toolResultParts.push({
+              const frPart: any = {
                 functionResponse: {
                   name: fc.name,
                   response: { content },
                 },
-              });
+              };
+              // Include matching ID for Claude tool_result.tool_use_id pairing
+              if (fc.id) frPart.functionResponse.id = fc.id;
+              toolResultParts.push(frPart);
             }
             conversationMessages.push({ role: "user", content: toolResultParts });
 
