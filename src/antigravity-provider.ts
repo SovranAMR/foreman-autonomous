@@ -855,8 +855,12 @@ export class AntigravityProvider implements LLMProvider {
                       // Skip thinking parts — API rejects them in echo
                       if (part.thought) continue;
 
-                      // Keep non-thinking parts for echo-back (preserves thoughtSignature)
-                      echoBackParts.push(part);
+                      // Only keep parts with actual content (text or functionCall)
+                      // Parts with only thoughtSignature and no content cause 400 errors
+                      const hasContent = part.text || part.functionCall;
+                      if (hasContent) {
+                        echoBackParts.push(part);
+                      }
 
                       // Extract text for streaming
                       if (part.text) {
