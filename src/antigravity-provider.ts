@@ -498,15 +498,15 @@ export class AntigravityProvider implements LLMProvider {
 
     for (const endpoint of endpoints) {
       try {
-        
-        
+
+
         let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
           method: "POST",
           headers: getHeaders(this.credentials.accessToken),
           body: JSON.stringify(requestBody),
-          
+
         });
-        
+
 
         // 401/403 → refresh token and retry
         if (response.status === 401 || response.status === 403) {
@@ -673,15 +673,15 @@ export class AntigravityProvider implements LLMProvider {
 
       for (const endpoint of endpoints) {
         try {
-          
-          
+
+
           let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
             method: "POST",
             headers: getHeaders(this.credentials.accessToken),
             body: JSON.stringify(requestBody),
-            
+
           });
-          
+
 
           if (response.status === 401 || response.status === 403) {
             const refreshed = await refreshAntigravityToken(
@@ -699,27 +699,53 @@ export class AntigravityProvider implements LLMProvider {
 
           if (!response.ok) {
             const errText = await response.text();
-            // 400 with tool_use_id mismatch — strip tool parts from conversation and retry
+            // 400 with tool_use_id mismatch — repair conversation by ensuring proper pairing
             if (response.status === 400 && errText.includes("tool_use_id")) {
-              console.log(`[provider] tool_use_id mismatch detected — repairing conversation (stripping tool parts)`);
-              // Keep only plain text messages, remove function call/response parts
+              console.log(`[provider] tool_use_id mismatch detected — repairing conversation`);
+              // Walk through messages and ensure every functionCall has a matching functionResponse
+              // and vice versa. Remove orphaned tool parts.
               const repaired: typeof conversationMessages = [];
-              for (const msg of conversationMessages) {
+              for (let i = 0; i < conversationMessages.length; i++) {
+                const msg = conversationMessages[i];
                 if (typeof msg.content === "string") {
                   repaired.push(msg);
-                } else if (Array.isArray(msg.content)) {
-                  // Check if it contains functionCall or functionResponse
-                  const hasToolParts = msg.content.some((p: any) => p.functionCall || p.functionResponse);
-                  if (!hasToolParts) {
+                  continue;
+                }
+                if (!Array.isArray(msg.content)) {
+                  repaired.push(msg);
+                  continue;
+                }
+                const hasFunctionCall = msg.content.some((p: any) => p.functionCall);
+                const hasFunctionResponse = msg.content.some((p: any) => p.functionResponse);
+
+                if (hasFunctionCall) {
+                  // Model message with function calls — only keep if the NEXT message has matching responses
+                  const next = conversationMessages[i + 1];
+                  if (next && Array.isArray(next.content) && next.content.some((p: any) => p.functionResponse)) {
                     repaired.push(msg);
+                  } else {
+                    console.log(`[provider] Stripping orphaned functionCall message at index ${i}`);
+                    // Keep text parts from the message if any
+                    const textParts = msg.content.filter((p: any) => p.text && !p.functionCall);
+                    if (textParts.length > 0) {
+                      repaired.push({ role: msg.role, content: textParts });
+                    }
                   }
-                  // else: skip entire message with tool parts
+                } else if (hasFunctionResponse) {
+                  // User message with function responses — only keep if previous was a matching call
+                  const prev = repaired[repaired.length - 1];
+                  if (prev && Array.isArray(prev.content) && prev.content.some((p: any) => p.functionCall)) {
+                    repaired.push(msg);
+                  } else {
+                    console.log(`[provider] Stripping orphaned functionResponse message at index ${i}`);
+                  }
+                } else {
+                  repaired.push(msg);
                 }
               }
               conversationMessages.length = 0;
               conversationMessages.push(...repaired);
               // Retry this iteration with cleaned messages
-              lastError = null;
               iterationComplete = true;
               break;
             }
