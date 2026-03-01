@@ -833,9 +833,11 @@ export class AntigravityProvider implements LLMProvider {
 
           let iterText = "";
           const functionCalls: Array<{ name: string; args: Record<string, any> }> = [];
-          // Collect the COMPLETE model response parts from the last candidate
-          // Using the raw parts exactly as received prevents tool_use_id mismatches
-          let lastCandidateParts: any[] = [];
+          // Collect non-thinking parts from the model response for echo-back
+          // CRITICAL: thinking parts (thought: true) must NOT be echoed back —
+          // the API sends them for display but rejects them in conversation history.
+          // We keep: functionCall parts (with thoughtSignature), text parts (with thoughtSignature)
+          let echoBackParts: any[] = [];
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -849,13 +851,15 @@ export class AntigravityProvider implements LLMProvider {
               if (root.candidates) {
                 for (const candidate of root.candidates) {
                   if (candidate.content?.parts) {
-                    // Accumulate ALL parts from the model response
-                    // Keep them exactly as-is (with thoughtSignature, etc.)
                     for (const part of candidate.content.parts) {
-                      lastCandidateParts.push(part);
+                      // Skip thinking parts — API rejects them in echo
+                      if (part.thought) continue;
 
-                      // Extract text for streaming (skip thinking parts)
-                      if (part.text && !part.thought) {
+                      // Keep non-thinking parts for echo-back (preserves thoughtSignature)
+                      echoBackParts.push(part);
+
+                      // Extract text for streaming
+                      if (part.text) {
                         iterText += part.text;
                         onToken(part.text);
                       }
@@ -883,11 +887,10 @@ export class AntigravityProvider implements LLMProvider {
 
           // If there are function calls, execute them and loop
           if (functionCalls.length > 0) {
-            // CRITICAL: Echo back the EXACT parts from the model response.
-            // The Gemini API validates that functionCall parts match between
-            // the model's response and what we echo back. Any modification
-            // (removing thoughtSignature, reordering, etc.) causes tool_use_id mismatch.
-            conversationMessages.push({ role: "model", content: lastCandidateParts });
+            // Echo back non-thinking parts exactly as received.
+            // The Gemini API validates that functionCall parts + thoughtSignature match.
+            // Thinking parts are excluded — API rejects them in conversation history.
+            conversationMessages.push({ role: "model", content: echoBackParts });
 
             // Execute each tool and build properly structured functionResponse parts
             const toolResultParts: any[] = [];
