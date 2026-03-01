@@ -47,6 +47,50 @@ function getHeaders(accessToken: string): Record<string, string> {
   };
 }
 
+// ─── RATE LIMIT RETRY ────────────────────────────────────────
+
+const MAX_RETRIES = 5;
+const BASE_DELAY_MS = 2000;
+
+/**
+ * Fetch with automatic retry on rate limit (429) and overload (503).
+ * Uses exponential backoff and respects Retry-After header.
+ * The same model stays — no switching on rate limits.
+ */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  label = "request",
+): Promise<Response> {
+  let lastResponse: Response | null = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch(url, init);
+
+    if (response.status !== 429 && response.status !== 503) {
+      return response;
+    }
+
+    // Rate limited or overloaded — retry with backoff
+    lastResponse = response;
+    if (attempt === MAX_RETRIES) break;
+
+    // Check Retry-After header (seconds or date)
+    const retryAfter = response.headers.get("Retry-After");
+    let delayMs: number;
+    if (retryAfter) {
+      const secs = parseInt(retryAfter, 10);
+      delayMs = !isNaN(secs) ? secs * 1000 : BASE_DELAY_MS * Math.pow(2, attempt);
+    } else {
+      delayMs = BASE_DELAY_MS * Math.pow(2, attempt); // 2s, 4s, 8s, 16s, 32s
+    }
+
+    console.log(`[provider] ${label}: ${response.status} rate limited — retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+
+  return lastResponse!;
+}
+
 // ─── MODEL MAPPING ───────────────────────────────────────────
 
 /** Models accessible via Antigravity */
@@ -343,11 +387,11 @@ export class AntigravityProvider implements LLMProvider {
 
     for (const endpoint of endpoints) {
       try {
-        const response = await fetch(`${endpoint}${GENERATE_PATH}`, {
+        const response = await fetchWithRetry(`${endpoint}${GENERATE_PATH}`, {
           method: "POST",
           headers: getHeaders(this.credentials.accessToken),
           body: JSON.stringify(requestBody),
-        });
+        }, `generate[${model}]`);
 
         if (!response.ok) {
           const errText = await response.text();
@@ -362,11 +406,11 @@ export class AntigravityProvider implements LLMProvider {
             saveCredentials(refreshed);
 
             // Retry with new token
-            const retryResponse = await fetch(`${endpoint}${GENERATE_PATH}`, {
+            const retryResponse = await fetchWithRetry(`${endpoint}${GENERATE_PATH}`, {
               method: "POST",
               headers: getHeaders(this.credentials.accessToken),
               body: JSON.stringify(requestBody),
-            });
+            }, `generate-retry[${model}]`);
 
             if (!retryResponse.ok) {
               lastError = new Error(`Antigravity API error ${retryResponse.status}: ${await retryResponse.text()}`);
@@ -500,12 +544,12 @@ export class AntigravityProvider implements LLMProvider {
       try {
 
 
-        let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
+        let response = await fetchWithRetry(`${endpoint}${GENERATE_PATH}`, {
           method: "POST",
           headers: getHeaders(this.credentials.accessToken),
           body: JSON.stringify(requestBody),
 
-        });
+        }, `streamChat[${model}]`);
 
 
         // 401/403 → refresh token and retry
@@ -517,11 +561,11 @@ export class AntigravityProvider implements LLMProvider {
           this.credentials = refreshed;
           saveCredentials(refreshed);
 
-          response = await fetch(`${endpoint}${GENERATE_PATH}`, {
+          response = await fetchWithRetry(`${endpoint}${GENERATE_PATH}`, {
             method: "POST",
             headers: getHeaders(this.credentials.accessToken),
             body: JSON.stringify(requestBody),
-          });
+          }, `streamChat-retry[${model}]`);
         }
 
         if (!response.ok) {
@@ -665,6 +709,30 @@ export class AntigravityProvider implements LLMProvider {
     let finalText = "";
 
     for (let iteration = 0; iteration < maxIterations; iteration++) {
+      // Pre-send validation: ensure proper functionCall→functionResponse pairing
+      // This prevents tool_use_id mismatch errors before they happen
+      for (let i = conversationMessages.length - 1; i >= 0; i--) {
+        const msg = conversationMessages[i];
+        if (!Array.isArray(msg.content)) continue;
+        const hasFunctionCall = msg.content.some((p: any) => p.functionCall);
+        const hasFunctionResponse = msg.content.some((p: any) => p.functionResponse);
+        if (hasFunctionCall) {
+          // Model message with functionCall — next must be user with functionResponse
+          const next = conversationMessages[i + 1];
+          if (!next || !Array.isArray(next.content) || !next.content.some((p: any) => p.functionResponse)) {
+            console.log(`[provider] Pre-send: removing orphaned functionCall at index ${i}`);
+            conversationMessages.splice(i, 1);
+          }
+        } else if (hasFunctionResponse) {
+          // User message with functionResponse — prev must be model with functionCall
+          const prev = conversationMessages[i - 1];
+          if (!prev || !Array.isArray(prev.content) || !prev.content.some((p: any) => p.functionCall)) {
+            console.log(`[provider] Pre-send: removing orphaned functionResponse at index ${i}`);
+            conversationMessages.splice(i, 1);
+          }
+        }
+      }
+
       const requestBody = this.buildRequestBody(conversationMessages, model, maxTokens, { tools: true });
 
       const endpoints = [DAILY_ENDPOINT, PROD_ENDPOINT];
@@ -675,12 +743,12 @@ export class AntigravityProvider implements LLMProvider {
         try {
 
 
-          let response = await fetch(`${endpoint}${GENERATE_PATH}`, {
+          let response = await fetchWithRetry(`${endpoint}${GENERATE_PATH}`, {
             method: "POST",
             headers: getHeaders(this.credentials.accessToken),
             body: JSON.stringify(requestBody),
 
-          });
+          }, `streamChatWithTools[${model}] iter${iteration}`);
 
 
           if (response.status === 401 || response.status === 403) {
@@ -690,11 +758,11 @@ export class AntigravityProvider implements LLMProvider {
             );
             this.credentials = refreshed;
             saveCredentials(refreshed);
-            response = await fetch(`${endpoint}${GENERATE_PATH}`, {
+            response = await fetchWithRetry(`${endpoint}${GENERATE_PATH}`, {
               method: "POST",
               headers: getHeaders(this.credentials.accessToken),
               body: JSON.stringify(requestBody),
-            });
+            }, `streamChatWithTools-retry[${model}]`);
           }
 
           if (!response.ok) {
@@ -765,8 +833,9 @@ export class AntigravityProvider implements LLMProvider {
 
           let iterText = "";
           const functionCalls: Array<{ name: string; args: Record<string, any> }> = [];
-          const thoughtParts: any[] = []; // Gemini thought parts with signatures
-          const rawFunctionCallParts: any[] = []; // Raw parts to echo back exactly
+          // Collect the COMPLETE model response parts from the last candidate
+          // Using the raw parts exactly as received prevents tool_use_id mismatches
+          let lastCandidateParts: any[] = [];
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -780,34 +849,23 @@ export class AntigravityProvider implements LLMProvider {
               if (root.candidates) {
                 for (const candidate of root.candidates) {
                   if (candidate.content?.parts) {
+                    // Accumulate ALL parts from the model response
+                    // Keep them exactly as-is (with thoughtSignature, etc.)
                     for (const part of candidate.content.parts) {
-                      // Thinking text (internal reasoning) — skip from output
-                      if (part.thought && part.text) {
-                        // Don't push to thoughtParts — these are pure thinking, 
-                        // not needed for echo. The thoughtSignature on function
-                        // call and text parts is what the API needs.
-                        continue;
+                      lastCandidateParts.push(part);
+
+                      // Extract text for streaming (skip thinking parts)
+                      if (part.text && !part.thought) {
+                        iterText += part.text;
+                        onToken(part.text);
                       }
 
-                      // Function call with thoughtSignature — preserve ENTIRE raw part
+                      // Track function calls for execution
                       if (part.functionCall) {
                         functionCalls.push({
                           name: part.functionCall.name,
                           args: part.functionCall.args,
                         });
-                        // Keep raw part with thoughtSignature intact
-                        rawFunctionCallParts.push(part);
-                        continue;
-                      }
-
-                      // Normal text output (may have thoughtSignature)
-                      if (part.text && !part.thought) {
-                        iterText += part.text;
-                        onToken(part.text);
-                        // Keep raw part if it has thoughtSignature
-                        if (part.thoughtSignature) {
-                          thoughtParts.push(part);
-                        }
                       }
                     }
                   }
@@ -825,30 +883,19 @@ export class AntigravityProvider implements LLMProvider {
 
           // If there are function calls, execute them and loop
           if (functionCalls.length > 0) {
-            // Add the model's response to conversation (with function calls)
-            // CRITICAL: Echo back ALL raw parts from the model response.
-            // Gemini API requires thoughtSignature on functionCall parts to be
-            // preserved exactly. We use the raw parts captured during parsing.
-            const modelParts: any[] = [
-              ...rawFunctionCallParts, // functionCall parts WITH thoughtSignature
-            ];
-            // Add text parts with thoughtSignature if any
-            if (thoughtParts.length > 0) {
-              modelParts.unshift(...thoughtParts);
-            } else if (iterText) {
-              modelParts.unshift({ text: iterText });
-            }
-            conversationMessages.push({ role: "model", content: modelParts });
+            // CRITICAL: Echo back the EXACT parts from the model response.
+            // The Gemini API validates that functionCall parts match between
+            // the model's response and what we echo back. Any modification
+            // (removing thoughtSignature, reordering, etc.) causes tool_use_id mismatch.
+            conversationMessages.push({ role: "model", content: lastCandidateParts });
 
-            // Execute each tool and add results
+            // Execute each tool and build properly structured functionResponse parts
             const toolResultParts: any[] = [];
             for (const fc of functionCalls) {
               onToolCall(fc);
               const result = await (toolExecutor ? toolExecutor(fc) : executeTool(fc));
               onToolResult(result);
               // Truncate tool results to prevent context window bloat
-              // 8K chars per tool result — enough for meaningful data,
-              // prevents 15K bash outputs from eating the entire context
               const MAX_TOOL_RESULT = 8_000;
               let content = result.content;
               if (content.length > MAX_TOOL_RESULT) {
@@ -860,7 +907,7 @@ export class AntigravityProvider implements LLMProvider {
               toolResultParts.push({
                 functionResponse: {
                   name: fc.name,
-                  response: { content },
+                  response: { name: fc.name, content },
                 },
               });
             }
@@ -904,11 +951,11 @@ export class AntigravityProvider implements LLMProvider {
         const endpoints = [DAILY_ENDPOINT, PROD_ENDPOINT];
         for (const endpoint of endpoints) {
           try {
-            const response = await fetch(`${endpoint}${GENERATE_PATH}`, {
+            const response = await fetchWithRetry(`${endpoint}${GENERATE_PATH}`, {
               method: "POST",
               headers: getHeaders(this.credentials.accessToken),
               body: JSON.stringify(forcedBody),
-            });
+            }, `forcedTextOnly[${model}]`);
             if (!response.ok) continue;
             const body = await response.text();
             for (const line of body.split("\n")) {
