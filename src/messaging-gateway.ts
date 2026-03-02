@@ -67,7 +67,7 @@ export class MessagingGateway {
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   // Conversation limits
-  private readonly MAX_HISTORY = 50;
+  private readonly MAX_HISTORY = 20; // Smaller = more focused model, less hallucination
   private readonly CONVERSATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h idle = reset
   private readonly CONVERSATIONS_DIR: string;
 
@@ -171,7 +171,7 @@ export class MessagingGateway {
     try {
       const { stopHeartbeatLoop } = await import('./consciousness/index.js');
       stopHeartbeatLoop();
-    } catch {}
+    } catch { }
 
     // Clear cleanup timer
     if (this.cleanupTimer) {
@@ -478,14 +478,29 @@ export class MessagingGateway {
         console.log(`[gateway] streamChatWithTools done: toolCalls=${toolLog.length}, responseLen=${responseText.length}, tokens=${(result.inputTokens ?? 0) + (result.outputTokens ?? 0)}`);
         conversation.totalTokens += (result.inputTokens ?? 0) + (result.outputTokens ?? 0);
 
-        // Build Telegram response — filter out raw tool logs
-        // Only show the LLM's actual text response, not internal tool call/result noise
+        // ─── HALLUCINATION DETECTION ─────────────────────────
+        // If model returns 0 tool calls but very long text, it's probably
+        // describing what it would do instead of actually doing it.
         const text = responseText.trim() || result.text?.trim() || "";
+        if (toolLog.length === 0 && text.length > 1500) {
+          console.warn(`[gateway] ⚠️ Possible hallucination: 0 tool calls, ${text.length} chars text. Injecting warning.`);
+          // Inject a persistent warning into conversation to prevent future hallucination
+          conversation.messages.push({
+            role: "assistant",
+            content: text.slice(0, 500) + "...",
+          });
+          conversation.messages.push({
+            role: "user",
+            content: "⚠️ HALÜSİNASYON UYARISI: Çok uzun metin yazdın ama hiç tool kullanmadın. Eğer bir şey yaptığını iddia ediyorsan, tool call kanıtı olmalı. Lütfen GERÇEKTEN tool kullanarak yap.",
+          });
+          // Truncate the hallucinated response
+          const truncated = text.slice(0, 800) + "\n\n⚠️ (Yanıt kısaltıldı — tool kullanılmadı)";
+          return { text: truncated, parseMode: "markdown" };
+        }
 
         // Create a compact tool summary (not raw logs)
         let toolSummary = "";
         if (toolLog.length > 0) {
-          // Count unique tool calls (lines starting with ⚙)
           const calls = toolLog.filter(l => l.startsWith("⚙"));
           const errors = toolLog.filter(l => l.includes("✘"));
           if (calls.length > 0) {
@@ -493,7 +508,6 @@ export class MessagingGateway {
               const match = c.match(/⚙\s+(\S+)/);
               return match ? match[1] : "tool";
             });
-            // Deduplicate and count
             const counts = new Map<string, number>();
             for (const n of names) counts.set(n, (counts.get(n) ?? 0) + 1);
             const summary = [...counts.entries()]
@@ -508,9 +522,14 @@ export class MessagingGateway {
         if (toolSummary) parts.push(toolSummary);
         if (text) parts.push(text);
 
-        const finalText = parts.join("\n\n").trim();
+        let finalText = parts.join("\n\n").trim();
         if (!finalText) {
           return { text: "🤔 (boş yanıt — tekrar dene)" };
+        }
+
+        // Cap response length for Telegram
+        if (finalText.length > 3000) {
+          finalText = finalText.slice(0, 2800) + "\n\n... (kısaltıldı)";
         }
 
         return {
@@ -621,38 +640,34 @@ export class MessagingGateway {
     const cwd = this.config.projectRoot;
 
     // Use EXACTLY the same prompt structure as REPL (proven to trigger tool_calls)
-    const base = `You are Foreman — an AI coding assistant that runs with full filesystem and shell access.
-You communicate through Telegram. Respond in the user's language (Turkish if they speak Turkish).
-Be concise — Telegram has character limits.
+    const base = `You are Foreman — an AI coding assistant with shell and filesystem access.
+You communicate through Telegram. User's language: Turkish.
+Be VERY concise — max 3-4 short paragraphs.
 
-TOOLS AVAILABLE:
-- bash: Run shell commands (build, test, git, install, etc.)
-- read_file: Read file contents (supports line ranges)
-- write_file: Create or overwrite files (creates directories automatically)
-- edit_file: Make targeted string replacements in existing files
-- search_files: Find files by name/glob pattern
-- grep: Search file contents for text/regex patterns
-- list_dir: List directory contents with sizes
+TOOLS:
+- bash: Run commands
+- read_file: Read files
+- write_file: Create/overwrite files
+- edit_file: String replacements
+- search_files: Find files
+- grep: Search contents
+- list_dir: List directories
 
-WORKFLOW — Think atomically, act precisely:
-1. UNDERSTAND — Read relevant files first. Never guess at file contents.
-2. PLAN — Think about the minimal set of changes needed.
-3. EXECUTE — Use tools to make changes. One focused action at a time.
-4. VERIFY — Run builds/tests after changes when possible.
-
-RULES:
-- ALWAYS use write_file or edit_file to create/modify files. NEVER print code for the user to copy.
-- ALWAYS use bash tool to run commands. NEVER write commands as text for the user to run manually.
-- CRITICAL: You MUST use tool calls for ALL actions. If you need to run a command, call the bash tool. If you need to edit a file, call edit_file. NEVER describe what you would do — actually DO it with tools.
-- Be concise in text responses. Let your tool actions do the talking.
-- When editing, read the file first so you know the exact content to replace.
-- After making changes, verify by running relevant commands (build, test, lint).
-- If a task is complex, break it into small steps and execute them one at a time.
-- NEVER write to ~/.foreman/config.json unless explicitly asked.
+⚠️ CRITICAL ANTI-HALLUCINATION RULES ⚠️
+1. NEVER claim you did something without tool call evidence. If you say "I created X" you MUST have called write_file for X.
+2. NEVER describe what you WOULD do. DO it with tools immediately.
+3. If asked to code/edit/run something, your FIRST action MUST be a tool call, not text.
+4. Keep text responses under 500 chars. Let tool actions speak.
+5. If you cannot use tools for some reason, say so honestly. Do NOT pretend you did the work.
+6. NEVER write long explanations. Act first, explain briefly after.
+7. One task at a time. Complete it fully with tools before moving to next.
+8. After changes, ALWAYS verify with bash (build, test, ls).
+9. If user says you hallucinated, STOP and re-examine what you actually did vs claimed.
+10. NEVER output code blocks for the user to copy — use write_file/edit_file.
 
 Working directory: ${cwd}
 Project: ${this.config.projectName}
-${fileTree ? `\nFiles in project:\n${fileTree}` : ""}`;
+${fileTree ? `\nProject files:\n${fileTree}` : ""}`;
 
     return identityInjection ? `${base}\n\n${identityInjection}` : base;
   }
