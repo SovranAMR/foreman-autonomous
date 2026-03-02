@@ -469,7 +469,7 @@ export class MessagingGateway {
             const preview = result.content.split("\n").slice(0, 3).join("\n  ");
             toolLog.push(`  ${icon} ${preview.slice(0, 200)}`);
           },
-          32768,  // maxTokens
+          32768,  // maxTokens — high to allow many tool iterations
           25,     // maxIterations — same as REPL
           this.toolExecutor,
         );
