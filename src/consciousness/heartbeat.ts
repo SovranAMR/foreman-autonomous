@@ -35,7 +35,32 @@ import {
   recordExperience,
   generateInnerMonologue,
   generateDailyJournal,
+  generateCuriosityThought,
 } from './thinker.js';
+import {
+  composeProactiveMessage,
+  composeMorningMessage,
+  composeNightReport,
+  composeThoughtMessage,
+} from './personality.js';
+import {
+  loadTaskQueue,
+  saveTaskQueue,
+  getNextTask,
+  getNextStep,
+  startStep,
+  completeStep,
+  failStep,
+  formatQueueStatus,
+} from './task-queue.js';
+import {
+  loadLearning,
+  saveLearning,
+  detectPatterns,
+  matchPattern,
+  decayPatterns,
+} from './learning.js';
+import { gatherAwareness, getAwarenessBrief } from './awareness.js';
 
 const run = promisify(exec);
 
@@ -63,6 +88,7 @@ async function loadState(): Promise<ConsciousnessState> {
       journals: parsed.journals ?? [],
       recentThoughts: parsed.recentThoughts ?? [],
       sensorHealth: parsed.sensorHealth ?? {},
+      proactiveMessages: parsed.proactiveMessages ?? {},
     };
   } catch {
     return createInitialState();
@@ -93,12 +119,21 @@ async function sendTelegram(message: string, chatId: string): Promise<boolean> {
   if (!token) return false;
 
   try {
+    // Önce Markdown dene, başarısızsa plain text gönder
     const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' }),
     });
-    return resp.ok;
+    if (resp.ok) return true;
+
+    // Markdown parse hatası — plain text fallback
+    const fallback = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: message }),
+    });
+    return fallback.ok;
   } catch (e: any) {
     await log(`[telegram-error] ${e.message}`);
     return false;
@@ -165,11 +200,23 @@ export async function heartbeatCycle(
     sensorGroups.set(r.sensor, group);
   }
 
-  for (const [, readings] of sensorGroups) {
+  for (const entry of Array.from(sensorGroups.entries())) {
+    const readings = entry[1];
     const thought = processReadings(readings, state, config);
     if (thought) {
       allThoughts.push(thought);
       state.thoughts.push(thought);
+    }
+  }
+
+  // ─── 4b. CURIOSITY — Merak düşünceleri ───
+  // Her 3 beat'te bir merak düşüncesi üret — sorun olmasa bile
+  if (state.heartbeatCount % 3 === 0) {
+    const curiosity = generateCuriosityThought(state, allReadings);
+    if (curiosity) {
+      allThoughts.push(curiosity);
+      state.thoughts.push(curiosity);
+      await log(`[curiosity] ${curiosity.summary}`);
     }
   }
 
@@ -213,9 +260,19 @@ export async function heartbeatCycle(
     state.experiences = recordExperience(state.experiences, thought);
   }
 
-  // ─── 6. REFLECT — İç Diyalog ───
+  // ─── 6. REFLECT — İç Diyalog + Awareness ───
   if (state.heartbeatCount % config.innerMonologueEvery === 0) {
-    const monologue = generateInnerMonologue(state);
+    // Awareness: ne konuşuldu, ne yapıldı, ne yapılacak
+    let awarenessText = '';
+    try {
+      const awareness = await gatherAwareness();
+      awarenessText = awareness.summary;
+      await log(`[awareness] ${awarenessText}`);
+    } catch (e: any) {
+      await log(`[awareness-error] ${e.message}`);
+    }
+
+    const monologue = generateInnerMonologue(state, awarenessText);
     state.lastInnerMonologue = monologue;
     state.lastInnerMonologueAt = Date.now();
     await log(`[inner-voice]\n${monologue}`);
@@ -247,6 +304,105 @@ export async function heartbeatCycle(
       state.notificationsToday++;
     }
     await log(`[journal] Günlük yazıldı: ${journal.summary}`);
+  }
+
+  // ─── 9. TASK QUEUE — Otonom görev işleme ───
+  try {
+    const taskQueue = await loadTaskQueue();
+    const nextTask = getNextTask(taskQueue);
+    if (nextTask) {
+      const step = getNextStep(nextTask);
+      if (step && step.command) {
+        const started = startStep(nextTask, step.id);
+        const idx = taskQueue.tasks.findIndex(t => t.id === started.id);
+        if (idx >= 0) taskQueue.tasks[idx] = started;
+
+        try {
+          const result = await executeAutoFix(step.command);
+          const completed = completeStep(started, step.id, result);
+          taskQueue.tasks[idx] = completed;
+          await log(`[task] ${nextTask.title} → adım "${step.description}" tamamlandı`);
+
+          // Görev bittiyse bildir
+          if (completed.status === 'done' && config.notifyChatId && !completed.notifiedCompletion) {
+            completed.notifiedCompletion = true;
+            await sendTelegram(
+              `✅ Görev tamamlandı: ${completed.title}\n${completed.steps.length} adım, ${Math.round(completed.totalTimeMs / 1000)}s`,
+              config.notifyChatId,
+            );
+          }
+        } catch (e: any) {
+          const failed = failStep(started, step.id, e.message);
+          taskQueue.tasks[idx] = failed;
+          await log(`[task] ${nextTask.title} → adım "${step.description}" BAŞARISIZ: ${e.message}`);
+        }
+
+        await saveTaskQueue(taskQueue);
+      }
+    }
+  } catch (e: any) {
+    await log(`[task-queue-error] ${e.message}`);
+  }
+
+  // ─── 10. LEARNING — Pattern öğren ───
+  try {
+    const learning = await loadLearning();
+    if (state.thoughts.length >= 10) {
+      const recentThoughts = state.thoughts.slice(-50);
+      learning.patterns = detectPatterns(recentThoughts, learning.patterns);
+      learning.patterns = decayPatterns(learning.patterns);
+      learning.lastLearnedAt = Date.now();
+      await saveLearning(learning);
+    }
+  } catch (e: any) {
+    await log(`[learning-error] ${e.message}`);
+  }
+
+  // ─── 11. PROACTIVE MESSAGING — Sabah/gece mesajları ───
+  if (config.notifyChatId) {
+    const hour = new Date().getHours();
+    const today = new Date().toISOString().split('T')[0];
+
+    // State'e proactive tracking ekle (kalıcı)
+    if (!state.proactiveMessages) {
+      state.proactiveMessages = {};
+    }
+
+    // Sabah selamlaması (1 kez/gün, saat 8-10)
+    if (hour >= 8 && hour <= 10 && state.heartbeatCount > 1) {
+      const morningKey = `morning_${today}`;
+      if (!state.proactiveMessages[morningKey]) {
+        const morning = composeMorningMessage(state);
+        if (morning) {
+          const sent = await sendTelegram(morning, config.notifyChatId);
+          if (sent) {
+            state.proactiveMessages[morningKey] = Date.now();
+            await log('[proactive] Sabah selamlaması gönderildi');
+          }
+        }
+      }
+    }
+
+    // Gece raporu (1 kez/gün, saat 23)
+    if (hour === 23) {
+      const nightKey = `night_${today}`;
+      if (!state.proactiveMessages[nightKey]) {
+        const nightReport = composeNightReport(state);
+        const sent = await sendTelegram(nightReport, config.notifyChatId);
+        if (sent) {
+          state.proactiveMessages[nightKey] = Date.now();
+          await log('[proactive] Gece raporu gönderildi');
+        }
+      }
+    }
+
+    // Eski proactive kayıtlarını temizle (3 günden eski)
+    const threeDaysAgo = Date.now() - 3 * 24 * 3600000;
+    for (const key of Object.keys(state.proactiveMessages)) {
+      if (state.proactiveMessages[key] < threeDaysAgo) {
+        delete state.proactiveMessages[key];
+      }
+    }
   }
 
   // ─── Cleanup ───

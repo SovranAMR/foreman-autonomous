@@ -5,8 +5,7 @@
  * Sensörler, Thinker, Mood, Trends, Experience, Journal, Heartbeat
  */
 
-import { describe, it, beforeEach } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, beforeEach, expect } from 'vitest';
 import {
   createInitialState,
   DEFAULT_HEARTBEAT_CONFIG,
@@ -64,17 +63,17 @@ describe('Mood Engine', () => {
     state.heartbeatCount = 5; // Avoid 0 % 12 === 0 triggering 'curious'
     const readings = [mkReading({ severity: 'info' })];
     const mood = deriveMood(readings, state, mkConfig());
-    assert.equal(mood.mood, 'serene');
-    assert.ok(mood.intensity > 0);
+    expect(mood.mood).toBe('serene');
+    expect(mood.intensity > 0).toBeTruthy();
   });
 
   it('critical on critical readings', () => {
     const state = createInitialState();
     const readings = [mkReading({ severity: 'critical', title: 'Disk full!' })];
     const mood = deriveMood(readings, state, mkConfig());
-    assert.equal(mood.mood, 'critical');
-    assert.ok(mood.intensity >= 80);
-    assert.equal(mood.trigger, 'Disk full!');
+    expect(mood.mood).toBe('critical');
+    expect(mood.intensity >= 80).toBeTruthy();
+    expect(mood.trigger).toBe('Disk full!');
   });
 
   it('stressed on multiple warnings', () => {
@@ -85,14 +84,14 @@ describe('Mood Engine', () => {
       mkReading({ severity: 'warning' }),
     ];
     const mood = deriveMood(readings, state, mkConfig());
-    assert.equal(mood.mood, 'stressed');
+    expect(mood.mood).toBe('stressed');
   });
 
   it('alert on single warning', () => {
     const state = createInitialState();
     const readings = [mkReading({ severity: 'warning' })];
     const mood = deriveMood(readings, state, mkConfig());
-    assert.equal(mood.mood, 'alert');
+    expect(mood.mood).toBe('alert');
   });
 
   it('smooths intensity when mood unchanged', () => {
@@ -101,7 +100,7 @@ describe('Mood Engine', () => {
     const readings = [mkReading({ severity: 'info' })];
     const mood = deriveMood(readings, state, mkConfig());
     // Smoothed between old and new
-    assert.ok(mood.intensity >= 10 && mood.intensity <= 60);
+    expect(mood.intensity >= 10 && mood.intensity <= 60).toBeTruthy();
   });
 });
 
@@ -113,9 +112,9 @@ describe('Trend Tracker', () => {
   it('creates new trend from reading', () => {
     const readings = [mkReading({ metricKey: 'disk_usage', value: 45 })];
     const trends = updateTrends([], readings);
-    assert.equal(trends.length, 1);
-    assert.equal(trends[0].key, 'disk_usage');
-    assert.equal(trends[0].values.length, 1);
+    expect(trends.length).toBe(1);
+    expect(trends[0].key).toBe('disk_usage');
+    expect(trends[0].values.length).toBe(1);
   });
 
   it('appends to existing trend', () => {
@@ -126,7 +125,7 @@ describe('Trend Tracker', () => {
     }];
     const readings = [mkReading({ metricKey: 'disk_usage', value: 45 })];
     const trends = updateTrends(existing, readings);
-    assert.equal(trends[0].values.length, 2);
+    expect(trends[0].values.length).toBe(2);
   });
 
   it('detects rising direction', () => {
@@ -141,7 +140,7 @@ describe('Trend Tracker', () => {
     }];
     const readings = [mkReading({ metricKey: 'disk_usage', value: 70 })];
     const trends = updateTrends(existing, readings);
-    assert.equal(trends[0].direction, 'rising');
+    expect(trends[0].direction).toBe('rising');
   });
 
   it('generates disk prediction when rising above 70%', () => {
@@ -157,14 +156,14 @@ describe('Trend Tracker', () => {
     }];
     const readings = [mkReading({ metricKey: 'disk_usage', value: 84 })];
     const trends = updateTrends(existing, readings);
-    assert.ok(trends[0].prediction, 'Should have a prediction');
-    assert.ok(trends[0].prediction!.includes('saat'));
+    expect(trends[0].prediction, 'Should have a prediction').toBeTruthy();
+    expect(trends[0].prediction!.includes('saat')).toBeTruthy();
   });
 
   it('skips readings without metricKey', () => {
     const readings = [mkReading({ value: 50 })]; // no metricKey
     const trends = updateTrends([], readings);
-    assert.equal(trends.length, 0);
+    expect(trends.length).toBe(0);
   });
 });
 
@@ -181,8 +180,8 @@ describe('Experience Tracker', () => {
       action: { type: 'notify', message: 'disk' },
     };
     const exps = recordExperience([], thought);
-    assert.equal(exps.length, 1);
-    assert.equal(exps[0].occurrenceCount, 1);
+    expect(exps.length).toBe(1);
+    expect(exps[0].occurrenceCount).toBe(1);
   });
 
   it('increments occurrence on similar experience', () => {
@@ -198,8 +197,8 @@ describe('Experience Tracker', () => {
     };
     let exps = recordExperience([], thought1);
     exps = recordExperience(exps, thought2);
-    assert.equal(exps.length, 1); // Same category, merged
-    assert.equal(exps[0].occurrenceCount, 2);
+    expect(exps.length).toBe(1); // Same category, merged
+    expect(exps[0].occurrenceCount).toBe(2);
   });
 });
 
@@ -212,16 +211,16 @@ describe('Thought Generator', () => {
     const state = createInitialState();
     const readings = [mkReading({ severity: 'info', actionable: false })];
     const thought = processReadings(readings, state, mkConfig());
-    assert.equal(thought, null);
+    expect(thought).toBe(null);
   });
 
   it('generates thought for warning', () => {
     const state = createInitialState();
     const readings = [mkReading({ severity: 'warning', actionable: true, title: 'RAM high' })];
     const thought = processReadings(readings, state, mkConfig());
-    assert.ok(thought);
-    assert.equal(thought.priority, 'high');
-    assert.ok(thought.summary.includes('RAM high'));
+    expect(thought).toBeTruthy();
+    expect(thought.priority).toBe('high');
+    expect(thought.summary.includes('RAM high')).toBeTruthy();
   });
 
   it('generates critical thought and suggests auto_fix for disk', () => {
@@ -231,10 +230,10 @@ describe('Thought Generator', () => {
       title: 'Disk: %96', metricKey: 'disk_usage', value: 96,
     })];
     const thought = processReadings(readings, state, mkConfig({ autoFixEnabled: true }));
-    assert.ok(thought);
-    assert.equal(thought.priority, 'critical');
-    assert.equal(thought.action?.type, 'auto_fix');
-    assert.ok(thought.action?.command?.includes('apt-get clean'));
+    expect(thought).toBeTruthy();
+    expect(thought.priority).toBe('critical');
+    expect(thought.action?.type).toBe('auto_fix');
+    expect(thought.action?.command?.includes('apt-get clean')).toBeTruthy();
   });
 
   it('respects cooldown for non-critical', () => {
@@ -242,7 +241,7 @@ describe('Thought Generator', () => {
     state.lastSensorRun.system = Date.now(); // Just ran
     const readings = [mkReading({ severity: 'warning', actionable: true })];
     const thought = processReadings(readings, state, mkConfig({ sensorCooldownMs: 999999 }));
-    assert.equal(thought, null); // Cooldown active
+    expect(thought).toBe(null); // Cooldown active
   });
 
   it('ignores cooldown for critical', () => {
@@ -250,7 +249,7 @@ describe('Thought Generator', () => {
     state.lastSensorRun.system = Date.now();
     const readings = [mkReading({ severity: 'critical', actionable: true })];
     const thought = processReadings(readings, state, mkConfig({ sensorCooldownMs: 999999 }));
-    assert.ok(thought); // Critical bypasses cooldown
+    expect(thought).toBeTruthy(); // Critical bypasses cooldown
   });
 });
 
@@ -262,19 +261,19 @@ describe('Notification Control', () => {
   it('quiet hours blocks notifications', () => {
     const hour = new Date().getHours();
     const config = mkConfig({ quietHoursStart: hour, quietHoursEnd: hour + 1 });
-    assert.equal(isQuietHours(config), true);
+    expect(isQuietHours(config)).toBe(true);
   });
 
   it('outside quiet hours allows notifications', () => {
     const config = mkConfig({ quietHoursStart: 99, quietHoursEnd: 99 });
-    assert.equal(isQuietHours(config), false);
+    expect(isQuietHours(config)).toBe(false);
   });
 
   it('canNotify respects daily limit', () => {
     const state = createInitialState();
     state.notificationsToday = 20;
     const config = mkConfig({ maxDailyNotifications: 20 });
-    assert.equal(canNotify(state, config), false);
+    expect(canNotify(state, config)).toBe(false);
   });
 
   it('canNotify resets on new day', () => {
@@ -282,15 +281,15 @@ describe('Notification Control', () => {
     state.notificationsToday = 99;
     state.lastResetDate = '2020-01-01';
     const config = mkConfig({ maxDailyNotifications: 20 });
-    assert.equal(canNotify(state, config), true);
-    assert.equal(state.notificationsToday, 0);
+    expect(canNotify(state, config)).toBe(true);
+    expect(state.notificationsToday).toBe(0);
   });
 
   it('cooldown detection works', () => {
     const state = createInitialState();
     state.lastSensorRun.system = Date.now();
-    assert.equal(isCoolingDown(state, 'system', 60000), true);
-    assert.equal(isCoolingDown(state, 'git', 60000), false);
+    expect(isCoolingDown(state, 'system', 60000)).toBe(true);
+    expect(isCoolingDown(state, 'git', 60000)).toBe(false);
   });
 });
 
@@ -305,9 +304,9 @@ describe('Inner Monologue', () => {
     state.emotion = { mood: 'serene', intensity: 30, since: Date.now() - 3600000 };
     state.notificationsToday = 3;
     const mono = generateInnerMonologue(state);
-    assert.ok(mono.includes('uyanığım'));
-    assert.ok(mono.includes('serene'));
-    assert.ok(mono.includes('3 bildirim'));
+    expect(mono.includes('uyanığım')).toBeTruthy();
+    expect(mono.includes('serene')).toBeTruthy();
+    expect(mono.includes('3 bildirim')).toBeTruthy();
   });
 
   it('mentions rising trends', () => {
@@ -321,8 +320,8 @@ describe('Inner Monologue', () => {
       prediction: 'Disk 48 saat içinde %95\'e ulaşabilir',
     }];
     const mono = generateInnerMonologue(state);
-    assert.ok(mono.includes('disk_usage'));
-    assert.ok(mono.includes('yükseliyor'));
+    expect(mono.includes('disk_usage')).toBeTruthy();
+    expect(mono.includes('yükseliyor')).toBeTruthy();
   });
 });
 
@@ -337,9 +336,9 @@ describe('Daily Journal', () => {
     state.thoughts = [];
     state.notificationsToday = 2;
     const journal = generateDailyJournal(state);
-    assert.equal(journal.date, new Date().toISOString().split('T')[0]);
-    assert.ok(journal.summary.includes('Sakin'));
-    assert.equal(journal.metrics.totalNotifications, 2);
+    expect(journal.date).toBe(new Date().toISOString().split('T')[0]);
+    expect(journal.summary.includes('Sakin')).toBeTruthy();
+    expect(journal.metrics.totalNotifications).toBe(2);
   });
 });
 
@@ -355,8 +354,8 @@ describe('Formatters', () => {
       readings: [], notified: true, autoResolved: false,
     };
     const msg = formatThoughtForHuman(thought);
-    assert.ok(msg.includes('🚨'));
-    assert.ok(msg.includes('Disk full!'));
+    expect(msg.includes('🚨')).toBeTruthy();
+    expect(msg.includes('Disk full!')).toBeTruthy();
   });
 
   it('formatStatusReport contains mood and metrics', () => {
@@ -369,9 +368,9 @@ describe('Formatters', () => {
       direction: 'stable',
     }];
     const report = formatStatusReport(state);
-    assert.ok(report.includes('😌'));
-    assert.ok(report.includes('Beat #10'));
-    assert.ok(report.includes('Disk'));
+    expect(report.includes('😌')).toBeTruthy();
+    expect(report.includes('Beat #10')).toBeTruthy();
+    expect(report.includes('Disk')).toBeTruthy();
   });
 
   it('formatJournalForHuman has proper structure', () => {
@@ -379,7 +378,7 @@ describe('Formatters', () => {
     state.emotion = { mood: 'serene', intensity: 30, since: Date.now() };
     const journal = generateDailyJournal(state);
     const msg = formatJournalForHuman(journal);
-    assert.ok(msg.includes('📓'));
-    assert.ok(msg.includes('Günlük'));
+    expect(msg.includes('📓')).toBeTruthy();
+    expect(msg.includes('Günlük')).toBeTruthy();
   });
 });

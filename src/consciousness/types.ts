@@ -189,6 +189,9 @@ export interface ConsciousnessState {
   // ─── Inner Voice ───
   lastInnerMonologue: string;
   lastInnerMonologueAt: number;
+
+  // ─── Proactive Messages ───
+  proactiveMessages: Record<string, number>;
 }
 
 export function createInitialState(): ConsciousnessState {
@@ -215,6 +218,7 @@ export function createInitialState(): ConsciousnessState {
     journals: [],
     lastInnerMonologue: '',
     lastInnerMonologueAt: 0,
+    proactiveMessages: {},
   };
 }
 

@@ -147,12 +147,29 @@ export class MessagingGateway {
     try {
       const { startHeartbeatLoop, DEFAULT_HEARTBEAT_CONFIG } = await import('./consciousness/index.js');
       const telegramChannel = this.config.channels.find(c => c.type === 'telegram' && c.enabled);
-      const chatId = telegramChannel?.allowedSenders?.[0]; // Primary user
-      startHeartbeatLoop({
-        ...DEFAULT_HEARTBEAT_CONFIG,
-        notifyChatId: chatId,
-      });
-      console.log(`[gateway] 🫀 Consciousness heartbeat started (notify: ${chatId ?? 'none'})`);
+      // chatId: 1) allowedSenders, 2) config dosyası, 3) env variable
+      let chatId = telegramChannel?.allowedSenders?.[0];
+      if (!chatId) {
+        try {
+          const { readFileSync } = await import('fs');
+          const cfg = JSON.parse(readFileSync('/home/sovranamr/.foreman/config.json', 'utf-8'));
+          chatId = cfg.telegram?.chatId;
+        } catch {}
+      }
+      if (!chatId) chatId = process.env.FOREMAN_CHAT_ID;
+
+      // Consciousness ayarlarını config'den oku
+      let consciousnessConfig = { ...DEFAULT_HEARTBEAT_CONFIG, notifyChatId: chatId };
+      try {
+        const { readFileSync } = await import('fs');
+        const cfg = JSON.parse(readFileSync('/home/sovranamr/.foreman/config.json', 'utf-8'));
+        if (cfg.consciousness?.intervalMs) {
+          consciousnessConfig.intervalMs = cfg.consciousness.intervalMs;
+        }
+      } catch {}
+
+      startHeartbeatLoop(consciousnessConfig);
+      console.log(`[gateway] 🫀 Consciousness heartbeat started (notify: ${chatId ?? 'none'}, interval: ${consciousnessConfig.intervalMs / 1000}s)`);
     } catch (err) {
       console.error(`[gateway] Consciousness heartbeat failed to start:`, err);
     }

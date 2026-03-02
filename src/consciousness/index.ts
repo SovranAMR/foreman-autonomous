@@ -39,6 +39,7 @@ export {
   recordExperience,
   generateInnerMonologue,
   generateDailyJournal,
+  generateCuriosityThought,
 } from './thinker.js';
 
 export {
@@ -47,3 +48,47 @@ export {
   stopHeartbeatLoop,
   isHeartbeatRunning,
 } from './heartbeat.js';
+
+export {
+  composeProactiveMessage,
+  composeMorningMessage,
+  composeNightReport,
+  composeCheckInMessage,
+  composeThoughtMessage,
+  getPersonalitySystemPrompt,
+  DEFAULT_PERSONALITY,
+} from './personality.js';
+
+export {
+  createTask,
+  addTask,
+  getNextTask,
+  getNextStep,
+  startStep,
+  completeStep,
+  failStep,
+  getQueueStats,
+  formatQueueStatus,
+  loadTaskQueue,
+  saveTaskQueue,
+  cleanupOldTasks,
+} from './task-queue.js';
+
+export {
+  detectPatterns,
+  matchPattern,
+  decayPatterns,
+  loadLearning,
+  saveLearning,
+  formatLearningSummary,
+} from './learning.js';
+
+export {
+  gatherAwareness,
+  getAwarenessBrief,
+  getLastUserMessage,
+  getOpenTasks,
+  type AwarenessContext,
+  type ConversationSummary,
+  type ChainSummary,
+} from './awareness.js';

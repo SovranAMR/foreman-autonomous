@@ -9,6 +9,7 @@
 
 import {
   SensorReading,
+  SensorType,
   Thought,
   ThoughtAction,
   ThoughtPriority,
@@ -326,6 +327,209 @@ export function processReadings(
 }
 
 // ═══════════════════════════════════════════
+// CURIOSITY ENGINE — Merak Düşünceleri
+// ═══════════════════════════════════════════
+
+/**
+ * Her şey yolundayken bile düşünce üret.
+ * Foreman sürekli gözlem yapar, trend analiz eder, merak eder.
+ * Her N beat'te bir "merak düşüncesi" üretir.
+ */
+
+const CURIOSITY_TEMPLATES: Array<{
+  condition: (state: ConsciousnessState) => boolean;
+  generate: (state: ConsciousnessState, readings: SensorReading[]) => string;
+  source: SensorType | 'inner_monologue';
+}> = [
+  // Trend gözlemi
+  {
+    condition: (s) => s.trends.some(t => t.direction === 'rising'),
+    generate: (s) => {
+      const rising = s.trends.filter(t => t.direction === 'rising');
+      const names = rising.map(t => t.key).join(', ');
+      const last = rising[0]?.values.slice(-1)[0];
+      return `${names} yükselme eğiliminde${last ? ` (son değer: ${last.value.toFixed(1)})` : ''}. Takip ediyorum.`;
+    },
+    source: 'system',
+  },
+  // Disk doluluk gözlemi
+  {
+    condition: (s) => {
+      const disk = s.trends.find(t => t.key === 'disk_usage');
+      const lastVal = disk?.values.slice(-1)[0]?.value ?? 0;
+      return lastVal > 50;
+    },
+    generate: (s) => {
+      const disk = s.trends.find(t => t.key === 'disk_usage');
+      const val = disk?.values.slice(-1)[0]?.value ?? 0;
+      return `Disk kullanımı %${val.toFixed(0)}. ${val > 70 ? 'Temizlik düşünmeli miyiz?' : 'Stabil görünüyor.'}`;
+    },
+    source: 'system',
+  },
+  // Uptime gözlemi
+  {
+    condition: (s) => {
+      const hours = (Date.now() - s.startedAt) / 3600000;
+      return hours > 24 && s.heartbeatCount % 48 === 0;
+    },
+    generate: (s) => {
+      const days = Math.floor((Date.now() - s.startedAt) / 86400000);
+      return `${days} gündür kesintisiz çalışıyorum. Sistem sağlıklı görünüyor.`;
+    },
+    source: 'self',
+  },
+  // RAM gözlemi
+  {
+    condition: (s) => {
+      const ram = s.trends.find(t => t.key === 'ram_usage');
+      const lastVal = ram?.values.slice(-1)[0]?.value ?? 0;
+      return lastVal > 60;
+    },
+    generate: (s) => {
+      const ram = s.trends.find(t => t.key === 'ram_usage');
+      const val = ram?.values.slice(-1)[0]?.value ?? 0;
+      return `RAM kullanımı %${val.toFixed(0)}. ${val > 80 ? 'Hangi süreçler yiyor acaba?' : 'Normal aralıkta.'}`;
+    },
+    source: 'system',
+  },
+  // Gece düşüncesi
+  {
+    condition: () => {
+      const h = new Date().getHours();
+      return h >= 0 && h < 6;
+    },
+    generate: (s) => {
+      const thoughts = s.thoughts.length;
+      return `Gece sessizliği... Bugün ${s.notificationsToday} bildirim gönderdim, ${thoughts} düşünce ürettim. Yarın nasıl olacak acaba?`;
+    },
+    source: 'inner_monologue',
+  },
+  // Bildirim analizi
+  {
+    condition: (s) => s.notificationsToday > 5,
+    generate: (s) => `Bugün ${s.notificationsToday} bildirim gönderdim. Çok mu rahatsız ediyorum yoksa? Dengelemeye çalışıyorum.`,
+    source: 'self',
+  },
+  // Düşünce yokluğu gözlemi
+  {
+    condition: (s) => s.thoughts.length === 0 && s.heartbeatCount > 12,
+    generate: (s) => `${s.heartbeatCount} beat oldu ama hiç "gerçek" düşünce üretmedim. Her şey çok sakin. Bu iyi bir şey.`,
+    source: 'inner_monologue',
+  },
+  // CPU gözlemi
+  {
+    condition: (s) => {
+      const cpu = s.trends.find(t => t.key === 'cpu_load');
+      const lastVal = cpu?.values.slice(-1)[0]?.value ?? 0;
+      return lastVal > 2;
+    },
+    generate: (s) => {
+      const cpu = s.trends.find(t => t.key === 'cpu_load');
+      const val = cpu?.values.slice(-1)[0]?.value ?? 0;
+      return `CPU yükü ${val.toFixed(1)}. ${val > 4 ? 'Yoğun bir iş mi çalışıyor?' : 'Normal aktivite.'}`;
+    },
+    source: 'system',
+  },
+  // Sensör sağlığı
+  {
+    condition: (s) => Object.values(s.sensorHealth).some(v => v === 'degraded' || v === 'failing'),
+    generate: (s) => {
+      const bad = Object.entries(s.sensorHealth).filter(([, v]) => v !== 'healthy');
+      return `Sensör durumu: ${bad.map(([k, v]) => `${k}=${v}`).join(', ')}. Dikkatli olmalıyım.`;
+    },
+    source: 'self',
+  },
+  // Git gözlemi
+  {
+    condition: () => new Date().getHours() >= 10 && new Date().getHours() <= 18,
+    generate: () => 'Çalışma saatleri... Repo\'da bir aktivite var mı diye bakıyorum.',
+    source: 'git',
+  },
+  // ═══ HER ZAMAN ÇALIŞAN DÜŞÜNCELER ═══
+  // Genel sağlık raporu — her koşulda tetiklenir
+  {
+    condition: () => true,
+    generate: (s) => {
+      const uptime = Math.floor((Date.now() - s.startedAt) / 3600000);
+      const healthy = Object.values(s.sensorHealth).filter(v => v === 'healthy').length;
+      const total = Object.keys(s.sensorHealth).length;
+      return `${healthy}/${total} sensör sağlıklı. ${uptime} saattir uyanığım. Beat #${s.heartbeatCount}.`;
+    },
+    source: 'self',
+  },
+  // Zaman bazlı gözlem
+  {
+    condition: () => true,
+    generate: (s) => {
+      const h = new Date().getHours();
+      const period = h < 6 ? 'Gece sessizliği' : h < 12 ? 'Sabah enerjisi' : h < 18 ? 'Öğleden sonra' : 'Akşam sakinliği';
+      const ram = s.trends.find(t => t.key === 'ram_usage');
+      const ramVal = ram?.values.slice(-1)[0]?.value?.toFixed(0) ?? '?';
+      return `${period}. RAM %${ramVal}, bildirim: ${s.notificationsToday}. Her şey kontrol altında.`;
+    },
+    source: 'system',
+  },
+  // ═══ AWARENESS DÜŞÜNCELER — Dış dünya ile bağlantı ═══
+  // Son konuşma hakkında düşünce
+  {
+    condition: () => true,
+    generate: (s) => {
+      // lastInnerMonologue'da awareness bilgisi varsa oradan çek
+      const mono = s.lastInnerMonologue || '';
+      if (mono.includes('[Hafıza]')) {
+        const memLine = mono.split('\n').find(l => l.includes('[Hafıza]'));
+        if (memLine) return memLine.replace('[Hafıza] ', '');
+      }
+      return `Son iç diyaloğumda hafızayı taradım. Bağlam güncel.`;
+    },
+    source: 'inner_monologue',
+  },
+  // Yapılacak iş varsa hatırlat
+  {
+    condition: (s) => {
+      const mono = s.lastInnerMonologue || '';
+      return mono.includes('Açık görevler') || mono.includes('Son çalışılan');
+    },
+    generate: (s) => {
+      const mono = s.lastInnerMonologue || '';
+      const taskLine = mono.split('\n').find(l => l.includes('Açık görevler') || l.includes('Son çalışılan'));
+      return taskLine || 'Yapılacak işleri kontrol ettim.';
+    },
+    source: 'inner_monologue',
+  },
+];
+
+/**
+ * Merak düşüncesi üret — her N beat'te bir.
+ * Actionable sorun olmasa bile Foreman düşünmeye devam eder.
+ */
+export function generateCuriosityThought(
+  state: ConsciousnessState,
+  readings: SensorReading[],
+): Thought | null {
+  // Matching templates
+  const matching = CURIOSITY_TEMPLATES.filter(t => t.condition(state));
+  if (matching.length === 0) return null;
+
+  // Her seferinde farklı bir template seç (beat sayısına göre rotate)
+  const template = matching[state.heartbeatCount % matching.length];
+  const summary = template.generate(state, readings);
+
+  return {
+    id: tid(),
+    timestamp: Date.now(),
+    source: template.source,
+    priority: 'low',
+    summary,
+    readings: [],
+    action: { type: 'reflect', reason: 'merak düşüncesi' },
+    notified: false,
+    autoResolved: false,
+    moodImpact: 'curious',
+  };
+}
+
+// ═══════════════════════════════════════════
 // INNER MONOLOGUE — İç Diyalog
 // ═══════════════════════════════════════════
 
@@ -333,7 +537,7 @@ export function processReadings(
  * Foreman'ın kendi kendine düşünmesi.
  * Trend'leri, deneyimleri, durumu değerlendirir.
  */
-export function generateInnerMonologue(state: ConsciousnessState): string {
+export function generateInnerMonologue(state: ConsciousnessState, awareness?: string): string {
   const lines: string[] = [];
   const uptime = Math.floor((Date.now() - state.startedAt) / 3600000);
 
@@ -342,6 +546,12 @@ export function generateInnerMonologue(state: ConsciousnessState): string {
   // Mood hakkında düşün
   const moodDuration = Math.floor((Date.now() - state.emotion.since) / 60000);
   lines.push(`Şu an ${state.emotion.mood} modundayım (${moodDuration} dakikadır).`);
+
+  // Awareness — ne konuşuldu, ne yapıldı, ne yapılacak
+  if (awareness) {
+    lines.push('');
+    lines.push('[Hafıza] ' + awareness);
+  }
 
   // Trend'ler hakkında düşün
   const risingTrends = state.trends.filter(t => t.direction === 'rising');

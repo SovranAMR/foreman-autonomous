@@ -1,0 +1,21 @@
+[Unit]
+Description=Foreman AI Assistant — Telegram Bot & Consciousness
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sovranamr
+Group=sovranamr
+WorkingDirectory=/home/sovranamr/projects/foreman
+Environment=NODE_DISABLE_COMPILE_CACHE=1
+Environment=PATH=/home/sovranamr/.nvm/versions/node/v24.13.1/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/sovranamr/projects/foreman/node_modules/.bin/tsx src/cli.ts serve --allow 8325347046
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=foreman
+
+[Install]
+WantedBy=multi-user.target

@@ -1818,11 +1818,27 @@ program
     console.log(brand.gold("\n  ◆ Foreman Messaging Gateway\n"));
 
     const channels: any[] = [];
-    const allowedSenders: string[] = opts.allow ?? [];
+    let allowedSenders: string[] = opts.allow ?? [];
 
-    // Telegram
-    const tgToken = opts.telegram ?? process.env.FOREMAN_TELEGRAM_TOKEN;
+    // Config dosyasından otomatik oku
+    let configTgToken: string | undefined;
+    let configChatId: string | undefined;
+    try {
+      const cfgPath = join(homedir(), ".foreman", "config.json");
+      if (existsSync(cfgPath)) {
+        const cfg = JSON.parse(readFileSync(cfgPath, "utf-8"));
+        if (cfg.telegram?.botToken) configTgToken = cfg.telegram.botToken;
+        if (cfg.telegram?.chatId) configChatId = cfg.telegram.chatId;
+      }
+    } catch {}
+
+    // Telegram — CLI > ENV > config.json
+    const tgToken = opts.telegram ?? process.env.FOREMAN_TELEGRAM_TOKEN ?? configTgToken;
     if (tgToken) {
+      // allowedSenders yoksa config'den chatId'yi ekle
+      if (allowedSenders.length === 0 && configChatId) {
+        allowedSenders = [configChatId];
+      }
       channels.push({
         type: "telegram",
         enabled: true,
@@ -1830,6 +1846,9 @@ program
         allowedSenders,
       });
       console.log(`  ${brand.green("✔")} Telegram channel configured`);
+      if (allowedSenders.length > 0) {
+        console.log(`  ${brand.dim("  Allowed senders: " + allowedSenders.join(", "))}`);
+      }
     }
 
     // WhatsApp
