@@ -478,25 +478,21 @@ export class MessagingGateway {
         console.log(`[gateway] streamChatWithTools done: toolCalls=${toolLog.length}, responseLen=${responseText.length}, tokens=${(result.inputTokens ?? 0) + (result.outputTokens ?? 0)}`);
         conversation.totalTokens += (result.inputTokens ?? 0) + (result.outputTokens ?? 0);
 
-        // ─── HALLUCINATION DETECTION ─────────────────────────
-        // If model returns 0 tool calls but very long text, it's probably
-        // describing what it would do instead of actually doing it.
+        // ─── HALLUCINATION GUARD ─────────────────────────────
+        // If model returns 0 tool calls but long text, it's hallucinating —
+        // describing what it would do instead of doing it. RETRY with force.
         const text = responseText.trim() || result.text?.trim() || "";
-        if (toolLog.length === 0 && text.length > 1500) {
-          console.warn(`[gateway] ⚠️ Possible hallucination: 0 tool calls, ${text.length} chars text. Injecting warning.`);
-          // Inject a persistent warning into conversation to prevent future hallucination
-          conversation.messages.push({
-            role: "assistant",
-            content: text.slice(0, 500) + "...",
-          });
-          conversation.messages.push({
-            role: "user",
-            content: "⚠️ HALÜSİNASYON UYARISI: Çok uzun metin yazdın ama hiç tool kullanmadın. Eğer bir şey yaptığını iddia ediyorsan, tool call kanıtı olmalı. Lütfen GERÇEKTEN tool kullanarak yap.",
-          });
-          // Truncate the hallucinated response
-          const truncated = text.slice(0, 800) + "\n\n⚠️ (Yanıt kısaltıldı — tool kullanılmadı)";
-          return { text: truncated, parseMode: "markdown" };
+        if (toolLog.length === 0 && text.length > 1500 && !conversation.messages.some(m => m.content === "__TOOL_RETRY__")) {
+          console.warn(`[gateway] ⚠️ Hallucination detected: 0 tool calls, ${text.length} chars. Forcing tool-usage retry.`);
+          // Add the hallucinated response + correction to conversation
+          conversation.messages.push({ role: "assistant", content: text.slice(0, 300) });
+          conversation.messages.push({ role: "user", content: "Hayır. Sadece yazı yazdın, hiçbir tool kullanmadın. Gerçekten yap — tool call kullan. Kod yaz, dosya oluştur, komut çalıştır. Metin yazma, İŞ YAP." });
+          conversation.messages.push({ role: "user", content: "__TOOL_RETRY__" }); // Prevent infinite retry
+          // Recursive retry with the corrected conversation
+          return this.processWithLLM(conversation);
         }
+        // Remove retry marker if present (so next message can trigger retry again)
+        conversation.messages = conversation.messages.filter(m => m.content !== "__TOOL_RETRY__");
 
         // Create a compact tool summary (not raw logs)
         let toolSummary = "";
