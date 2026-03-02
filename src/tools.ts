@@ -70,10 +70,14 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "bash",
     description:
-      "Execute a shell command and return stdout/stderr. Use for running builds, tests, git commands, installing packages, etc. Commands run in the project root directory. Dangerous commands (rm -rf /, sudo, fork bombs) are blocked. Supports background execution with yield_ms or background flag — long-running commands return a session ID for polling.",
+      "Execute a shell command and return stdout/stderr. ALWAYS use this tool instead of writing commands as text for the user to run manually. Use for running builds, tests, git commands, installing packages, etc. Commands run in the project root directory.",
     parameters: {
       type: "object",
       properties: {
+        explanation: {
+          type: "string",
+          description: "One sentence: why you are calling this tool and how it helps the user's goal.",
+        },
         command: {
           type: "string",
           description:
@@ -85,46 +89,54 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
         yield_ms: {
           type: "number",
-          description: "Milliseconds to wait before backgrounding (default 10000). If the command doesn't finish within this window, it runs in the background and returns a session ID for polling.",
+          description: "Milliseconds to wait before backgrounding (default 10000).",
         },
         background: {
           type: "boolean",
           description: "If true, immediately background the command and return a session ID.",
         },
       },
-      required: ["command"],
+      required: ["explanation", "command"],
     },
   },
   {
     name: "read_file",
     description:
-      "Read the contents of a file. Supports optional line range for reading specific sections. Returns line-numbered output when range is specified.",
+      "Read the contents of a file. ALWAYS read a file before editing it so you know the exact content. When in doubt, read again — partial views may miss critical code.",
     parameters: {
       type: "object",
       properties: {
+        explanation: {
+          type: "string",
+          description: "One sentence: why you are reading this file.",
+        },
         path: {
           type: "string",
           description: "Path to the file to read (relative to project root or absolute).",
         },
         start_line: {
           type: "number",
-          description: "Optional start line (1-indexed). If given, only reads from this line.",
+          description: "Optional start line (1-indexed).",
         },
         end_line: {
           type: "number",
-          description: "Optional end line (1-indexed, inclusive). If given, reads up to this line.",
+          description: "Optional end line (1-indexed, inclusive).",
         },
       },
-      required: ["path"],
+      required: ["explanation", "path"],
     },
   },
   {
     name: "write_file",
     description:
-      "Create a new file or overwrite an existing file with the given content. Creates parent directories if needed. Path security enforced — cannot write outside project root.",
+      "Create a new file or overwrite an existing file. ALWAYS use this tool instead of showing code to the user. NEVER output code blocks for the user to copy — use this tool to write the code directly.",
     parameters: {
       type: "object",
       properties: {
+        explanation: {
+          type: "string",
+          description: "One sentence: why you are creating/overwriting this file.",
+        },
         path: {
           type: "string",
           description: "Path to the file to write (relative to project root or absolute).",
@@ -134,16 +146,20 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           description: "The full content to write to the file.",
         },
       },
-      required: ["path", "content"],
+      required: ["explanation", "path", "content"],
     },
   },
   {
     name: "edit_file",
     description:
-      "Edit a file by replacing a specific string with another. Use for targeted edits without rewriting the whole file.",
+      "Edit a file by replacing a specific string with another. ALWAYS read the file first so you know the exact content to replace. NEVER show code diffs as text — use this tool to apply changes directly.",
     parameters: {
       type: "object",
       properties: {
+        explanation: {
+          type: "string",
+          description: "One sentence: what change you are making and why.",
+        },
         path: {
           type: "string",
           description: "Path to the file to edit.",
@@ -157,16 +173,20 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           description: "The replacement string.",
         },
       },
-      required: ["path", "old_string", "new_string"],
+      required: ["explanation", "path", "old_string", "new_string"],
     },
   },
   {
     name: "search_files",
     description:
-      "Search for files by name pattern using find. Returns matching file paths. Excludes node_modules and .git.",
+      "Search for files by name pattern. Use to discover project structure before making changes.",
     parameters: {
       type: "object",
       properties: {
+        explanation: {
+          type: "string",
+          description: "One sentence: what you are looking for.",
+        },
         pattern: {
           type: "string",
           description: "Glob pattern to match files (e.g. '*.ts', 'src/**/*.js').",
@@ -176,16 +196,20 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           description: "Directory to search in. Defaults to project root.",
         },
       },
-      required: ["pattern"],
+      required: ["explanation", "pattern"],
     },
   },
   {
     name: "grep",
     description:
-      "Search for a text pattern within files. Returns matching lines with file path and line number.",
+      "Search for a text pattern within files. Use to find exact matches, imports, usages, and definitions.",
     parameters: {
       type: "object",
       properties: {
+        explanation: {
+          type: "string",
+          description: "One sentence: what pattern you are searching for and why.",
+        },
         pattern: {
           type: "string",
           description: "Text or regex pattern to search for.",
@@ -196,25 +220,29 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
         include: {
           type: "string",
-          description: "File glob to include (e.g. '*.ts'). Only used when path is a directory.",
+          description: "File glob to include (e.g. '*.ts').",
         },
       },
-      required: ["pattern"],
+      required: ["explanation", "pattern"],
     },
   },
   {
     name: "list_dir",
     description:
-      "List the contents of a directory, showing files and subdirectories with sizes.",
+      "List directory contents. Use as a first step to understand project structure.",
     parameters: {
       type: "object",
       properties: {
+        explanation: {
+          type: "string",
+          description: "One sentence: why you are listing this directory.",
+        },
         path: {
           type: "string",
           description: "Directory path to list. Defaults to project root.",
         },
       },
-      required: [],
+      required: ["explanation"],
     },
   },
   {
