@@ -36,6 +36,7 @@ import { EditEngine } from "./edit-engine.js";
 import { GitEngine } from "./git-engine.js";
 import { LinkIntelligence } from "./link-intelligence.js";
 import type { ToolCall, ToolResult } from "./tools.js";
+import { WorkTracker } from "./work-tracker.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 
@@ -62,6 +63,7 @@ export class MessagingGateway {
   private activeModel: string = "claude-opus-4-6-thinking";
   private toolExecutor: ((call: ToolCall) => Promise<ToolResult>) | null = null;
   private processing: Set<string> = new Set(); // active chat IDs
+  private workTracker: WorkTracker;
   private messageQueue: Map<string, InboundMessage[]> = new Map(); // queued messages per chat
   private running = false;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
@@ -79,6 +81,7 @@ export class MessagingGateway {
     });
     this.orchestrator = new Orchestrator(this.engine);
     this.CONVERSATIONS_DIR = join(config.projectRoot, ".foreman", "conversations");
+    this.workTracker = new WorkTracker(config.projectRoot);
 
     // Load persisted conversations from disk
     this.loadConversations();
@@ -122,6 +125,7 @@ export class MessagingGateway {
       gitEngine,
       linkIntel,
       undefined, // No hooks engine in standalone mode
+      this.workTracker,
     );
 
     // Start configured channels
@@ -763,9 +767,54 @@ NEVER DO THESE:
 
 Working directory: ${cwd}
 Project: ${this.config.projectName}
-${fileTree ? `\nProject files:\n${fileTree}` : ""}`;
+${fileTree ? `\nProject files:\n${fileTree}` : ""}
 
-    return identityInjection ? `${base}\n\n${identityInjection}` : base;
+<work_tracking>
+CRITICAL — You MUST use work tracking tools for EVERY multi-step task:
+
+1. When user gives a task with 2+ steps → call work_start IMMEDIATELY with title, goal, and planned steps.
+2. After completing each step → call work_step to log what you did.
+3. When ALL steps are done → call work_finish.
+4. If you make an important decision → call work_decision to record it.
+5. If you need to change the plan → call work_replan with new steps.
+
+WHY: You lose context between tool calls. Without work tracking, you forget what you were doing,
+skip steps, and leave tasks half-finished. The <active_work> section below shows your current state.
+ALWAYS check it before starting any action — you may have unfinished work.
+
+Rules:
+- NEVER start a new work item if you have an active one (unless it's a sub-task).
+- If <active_work> shows pending steps → CONTINUE from where you left off.
+- If a step fails → log it with result:"error" and try to fix it before moving on.
+- The user should NEVER have to ask "what happened?" — your work log tells the story.
+</work_tracking>`;
+
+    // Inject work tracker state
+    let workState = "";
+    try {
+      this.workTracker.expireStale();
+      workState = this.workTracker.buildContextInjection();
+    } catch { /* work tracker may fail gracefully */ }
+
+    // Inject memory state
+    let memoryState = "";
+    try {
+      const memoryPath = join(this.config.projectRoot, ".foreman", "memory.json");
+      if (existsSync(memoryPath)) {
+        const memData = JSON.parse(readFileSync(memoryPath, "utf-8"));
+        const entries = Object.entries(memData).slice(0, 20);
+        if (entries.length > 0) {
+          memoryState = "\n## Memory\n# Memory\n" + entries.map(([k, v]) => `- **${k}:** ${typeof v === 'string' ? v : JSON.stringify(v)}`).join("\n");
+        }
+      }
+    } catch { /* memory may not exist */ }
+
+    const parts = [base];
+    if (workState) parts.push(workState);
+    if (identityInjection) parts.push(identityInjection);
+    if (memoryState) parts.push(memoryState);
+
+    return parts.join("\n\n");
   }
 
   // ─── HELPERS ──────────────────────────────────────────────

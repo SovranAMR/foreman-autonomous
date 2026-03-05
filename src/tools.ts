@@ -44,6 +44,7 @@ import { webFetch, clearFetchCache, fetchCacheStats } from "./web-fetch-engine.j
 import { LinkIntelligence, classifyUrl } from "./link-intelligence.js";
 import { extractCodeFences, extractTables, extractSections, extractLists, parseFrontmatter, extractInlineCode } from "./markdown-intelligence.js";
 import type { HooksEngine } from "./hooks-engine.js";
+import { WorkTracker } from "./work-tracker.js";
 
 // ─── TYPES ───────────────────────────────────────────────────
 
@@ -896,6 +897,158 @@ Returns a summary of what was done.`,
       required: ["task"],
     },
   },
+
+  // ─── WORK TRACKER TOOLS ────────────────────────────────────
+  {
+    name: "work_start",
+    description: "Start tracking a new multi-step task. ALWAYS call this when beginning work that has more than 1 step. This creates a persistent work item that survives across conversation turns, preventing context loss. Include ALL planned steps upfront.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: {
+          type: "string",
+          description: "Short title for the work item (e.g., 'Fix DASVision + push to GitHub')",
+        },
+        goal: {
+          type: "string",
+          description: "Full description of what needs to be accomplished",
+        },
+        steps: {
+          type: "array",
+          items: { type: "string" },
+          description: "Ordered list of steps to complete (e.g., ['Read engine.py', 'Fix NeuralEngine constructor', 'Deploy to NVIDIA PC', 'Verify bot responds'])",
+        },
+        related_files: {
+          type: "array",
+          items: { type: "string" },
+          description: "File paths relevant to this work",
+        },
+        parent_id: {
+          type: "string",
+          description: "Parent work item ID if this is a sub-task",
+        },
+      },
+      required: ["title", "goal", "steps"],
+    },
+  },
+  {
+    name: "work_step",
+    description: "Log a completed step in an active work item. Call this AFTER completing each step to maintain progress tracking. If a step fails, set result to 'error' with the error message.",
+    parameters: {
+      type: "object",
+      properties: {
+        work_id: {
+          type: "string",
+          description: "Work item ID (e.g., 'work_001')",
+        },
+        description: {
+          type: "string",
+          description: "What was done in this step",
+        },
+        result: {
+          type: "string",
+          enum: ["success", "error", "skipped"],
+          description: "Step result",
+        },
+        error: {
+          type: "string",
+          description: "Error message if result is 'error'",
+        },
+      },
+      required: ["work_id", "description", "result"],
+    },
+  },
+  {
+    name: "work_finish",
+    description: "Mark a work item as complete. Call this when ALL steps are done and verified.",
+    parameters: {
+      type: "object",
+      properties: {
+        work_id: {
+          type: "string",
+          description: "Work item ID to finish",
+        },
+        summary: {
+          type: "string",
+          description: "Brief summary of what was accomplished",
+        },
+      },
+      required: ["work_id"],
+    },
+  },
+  {
+    name: "work_decision",
+    description: "Record a key decision made during work. Use this to preserve important reasoning that affects future steps.",
+    parameters: {
+      type: "object",
+      properties: {
+        work_id: {
+          type: "string",
+          description: "Work item ID",
+        },
+        decision: {
+          type: "string",
+          description: "The decision and its reasoning (e.g., 'Using CPU-only PyTorch because CUDA drivers not installed')",
+        },
+      },
+      required: ["work_id", "decision"],
+    },
+  },
+  {
+    name: "work_pause",
+    description: "Pause an active work item because the user wants something else. The work state is preserved and can be resumed later.",
+    parameters: {
+      type: "object",
+      properties: {
+        work_id: {
+          type: "string",
+          description: "Work item ID to pause",
+        },
+      },
+      required: ["work_id"],
+    },
+  },
+  {
+    name: "work_resume",
+    description: "Resume a paused work item. Review the remaining steps and continue from where you left off.",
+    parameters: {
+      type: "object",
+      properties: {
+        work_id: {
+          type: "string",
+          description: "Work item ID to resume",
+        },
+      },
+      required: ["work_id"],
+    },
+  },
+  {
+    name: "work_list",
+    description: "List all active, paused, and blocked work items. Use this to see what's pending.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "work_replan",
+    description: "Update the planned steps for a work item. Use when you discover the original plan was wrong or incomplete.",
+    parameters: {
+      type: "object",
+      properties: {
+        work_id: {
+          type: "string",
+          description: "Work item ID",
+        },
+        new_steps: {
+          type: "array",
+          items: { type: "string" },
+          description: "New ordered list of remaining steps",
+        },
+      },
+      required: ["work_id", "new_steps"],
+    },
+  },
 ];
 
 /**
@@ -922,8 +1075,9 @@ export function createEngineToolExecutor(
   gitEngine: GitEngine,
   linkIntel: LinkIntelligence,
   hooksEngine?: HooksEngine,
+  workTracker?: WorkTracker,
 ): (call: ToolCall) => Promise<ToolResult> {
-  return createToolDispatcher(projectRoot, execEngine, editEngine, gitEngine, linkIntel, hooksEngine);
+  return createToolDispatcher(projectRoot, execEngine, editEngine, gitEngine, linkIntel, hooksEngine, workTracker);
 }
 
 function createToolDispatcher(
@@ -933,6 +1087,7 @@ function createToolDispatcher(
   gitEngine: GitEngine,
   linkIntel: LinkIntelligence,
   hooksEngine?: HooksEngine,
+  workTracker?: WorkTracker,
 ): (call: ToolCall) => Promise<ToolResult> {
   return async (call: ToolCall): Promise<ToolResult> => {
     // ─── HOOK: before_tool_call ─────────────────────────────
@@ -1141,6 +1296,32 @@ function createToolDispatcher(
         // ─── DIFF TOOLS ─────────────────────────────────────
         case "diff_preview":
           result = await executeDiffPreview(engine, call.args);
+          break;
+
+        // ─── WORK TRACKER TOOLS ──────────────────────────────
+        case "work_start":
+          result = executeWorkStart(projectRoot, call.args, workTracker);
+          break;
+        case "work_step":
+          result = executeWorkStep(projectRoot, call.args, workTracker);
+          break;
+        case "work_finish":
+          result = executeWorkFinish(projectRoot, call.args, workTracker);
+          break;
+        case "work_decision":
+          result = executeWorkDecision(projectRoot, call.args, workTracker);
+          break;
+        case "work_pause":
+          result = executeWorkPause(projectRoot, call.args, workTracker);
+          break;
+        case "work_resume":
+          result = executeWorkResume(projectRoot, call.args, workTracker);
+          break;
+        case "work_list":
+          result = executeWorkList(projectRoot, workTracker);
+          break;
+        case "work_replan":
+          result = executeWorkReplan(projectRoot, call.args, workTracker);
           break;
 
         case "forge_pipeline":
@@ -1372,6 +1553,158 @@ function executeSearchFiles(projectRoot: string, args: Record<string, unknown>):
     return { name: "search_files", content: relPaths.join("\n"), isError: false };
   } catch {
     return { name: "search_files", content: "Search failed.", isError: true };
+  }
+}
+
+// ─── WORK TRACKER TOOL HANDLERS ──────────────────────────────
+
+function getOrCreateTracker(projectRoot: string, tracker?: WorkTracker): WorkTracker {
+  return tracker ?? new WorkTracker(projectRoot);
+}
+
+function executeWorkStart(projectRoot: string, args: Record<string, unknown>, tracker?: WorkTracker): ToolResult {
+  try {
+    const wt = getOrCreateTracker(projectRoot, tracker);
+    const item = wt.startWork({
+      title: args.title as string,
+      goal: args.goal as string,
+      steps: args.steps as string[],
+      relatedFiles: args.related_files as string[] | undefined,
+      parentId: args.parent_id as string | undefined,
+    });
+    return {
+      name: "work_start",
+      content: `✅ Work item created: ${item.id} — "${item.title}"\nSteps: ${item.plannedSteps.length}\n→ Next: ${item.plannedSteps[0] ?? "none"}`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "work_start", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+function executeWorkStep(projectRoot: string, args: Record<string, unknown>, tracker?: WorkTracker): ToolResult {
+  try {
+    const wt = getOrCreateTracker(projectRoot, tracker);
+    const item = wt.completeStep(args.work_id as string, {
+      description: args.description as string,
+      result: args.result as "success" | "error" | "skipped",
+      error: args.error as string | undefined,
+    });
+    if (!item) {
+      return { name: "work_step", content: `Error: Work item ${args.work_id} not found`, isError: true };
+    }
+    const done = item.completedSteps.length;
+    const total = item.plannedSteps.length;
+    const next = done < total ? item.plannedSteps[done] : "ALL DONE";
+    return {
+      name: "work_step",
+      content: `✅ Step logged [${done}/${total}]: ${args.description}\n→ Next: ${next}`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "work_step", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+function executeWorkFinish(projectRoot: string, args: Record<string, unknown>, tracker?: WorkTracker): ToolResult {
+  try {
+    const wt = getOrCreateTracker(projectRoot, tracker);
+    const item = wt.finishWork(args.work_id as string, args.summary as string | undefined);
+    if (!item) {
+      return { name: "work_finish", content: `Error: Work item ${args.work_id} not found`, isError: true };
+    }
+    return {
+      name: "work_finish",
+      content: `✅ Work completed: "${item.title}" — ${item.completedSteps.length} steps done`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "work_finish", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+function executeWorkDecision(projectRoot: string, args: Record<string, unknown>, tracker?: WorkTracker): ToolResult {
+  try {
+    const wt = getOrCreateTracker(projectRoot, tracker);
+    const item = wt.addDecision(args.work_id as string, args.decision as string);
+    if (!item) {
+      return { name: "work_decision", content: `Error: Work item ${args.work_id} not found`, isError: true };
+    }
+    return {
+      name: "work_decision",
+      content: `📝 Decision recorded: ${args.decision}`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "work_decision", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+function executeWorkPause(projectRoot: string, args: Record<string, unknown>, tracker?: WorkTracker): ToolResult {
+  try {
+    const wt = getOrCreateTracker(projectRoot, tracker);
+    const item = wt.pauseWork(args.work_id as string);
+    if (!item) {
+      return { name: "work_pause", content: `Error: Work item ${args.work_id} not found`, isError: true };
+    }
+    return {
+      name: "work_pause",
+      content: `⏸️ Work paused: "${item.title}" — ${item.completedSteps.length}/${item.plannedSteps.length} steps done. State preserved.`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "work_pause", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+function executeWorkResume(projectRoot: string, args: Record<string, unknown>, tracker?: WorkTracker): ToolResult {
+  try {
+    const wt = getOrCreateTracker(projectRoot, tracker);
+    const item = wt.resumeWork(args.work_id as string);
+    if (!item) {
+      return { name: "work_resume", content: `Error: Work item ${args.work_id} not found`, isError: true };
+    }
+    const done = item.completedSteps.length;
+    const total = item.plannedSteps.length;
+    const next = done < total ? item.plannedSteps[done] : "ALL DONE";
+    return {
+      name: "work_resume",
+      content: `▶️ Work resumed: "${item.title}" [${done}/${total}]\n→ Next: ${next}\nRecent:\n${item.completedSteps.slice(-3).map(s => `  ${s.result === "success" ? "✅" : "❌"} ${s.description}`).join("\n")}`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "work_resume", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+function executeWorkList(projectRoot: string, tracker?: WorkTracker): ToolResult {
+  try {
+    const wt = getOrCreateTracker(projectRoot, tracker);
+    const summary = wt.buildContextInjection();
+    return {
+      name: "work_list",
+      content: summary || "No active work items.",
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "work_list", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
+  }
+}
+
+function executeWorkReplan(projectRoot: string, args: Record<string, unknown>, tracker?: WorkTracker): ToolResult {
+  try {
+    const wt = getOrCreateTracker(projectRoot, tracker);
+    const item = wt.replan(args.work_id as string, args.new_steps as string[]);
+    if (!item) {
+      return { name: "work_replan", content: `Error: Work item ${args.work_id} not found`, isError: true };
+    }
+    return {
+      name: "work_replan",
+      content: `🔄 Plan updated for "${item.title}":\n${item.plannedSteps.map((s, i) => `  ${i < item.completedSteps.length ? "✅" : i === item.completedSteps.length ? "→" : " "} ${i + 1}. ${s}`).join("\n")}`,
+      isError: false,
+    };
+  } catch (err) {
+    return { name: "work_replan", content: `Error: ${err instanceof Error ? err.message : String(err)}`, isError: true };
   }
 }
 
