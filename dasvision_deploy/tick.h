@@ -1,47 +1,53 @@
-// Insert after existing struct definitions, before TickContext
+#ifndef TICK_H
+#define TICK_H
 
-/* SynapseTable: Open addressing hash map for learned synaptic weights
- * Stores weight overrides for src->dst connections modified by STDP
- * Key packing: 14 bits for src, 14 bits for dst (supports 10K < 16384 neurons)
- */
-#define SYNAPSE_BITS_PER_ID 14
-#define SYNAPSE_MAX_NEURON_ID ((1U << SYNAPSE_BITS_PER_ID) - 1)
+#include <stdint.h>
+#include <stdbool.h>
 
-// Pack src and dst neuron IDs into uint32 key
-#define SYNAPSE_KEY_PACK(src, dst) \
-    (((uint32_t)(src) << SYNAPSE_BITS_PER_ID) | ((uint32_t)(dst) & SYNAPSE_MAX_NEURON_ID))
-
-// Extract src/dst from packed key
-#define SYNAPSE_KEY_SRC(key) ((uint32_t)(key) >> SYNAPSE_BITS_PER_ID)
-#define SYNAPSE_KEY_DST(key) ((uint32_t)(key) & SYNAPSE_MAX_NEURON_ID)
-
-// Sentinel values for empty and deleted slots in open addressing
-#define SYNAPSE_KEY_EMPTY 0xFFFFFFFFU
-#define SYNAPSE_KEY_DELETED 0xFFFFFFFEU
+#define NEURON_COUNT 10000
+#define INPUT_NEURONS 48
+#define OUTPUT_NEURONS 27
+#define MAX_SYNAPSES_PER_NEURON 128
 
 typedef struct {
-    uint32_t key;      // Packed src<<14 | dst, or SYNAPSE_KEY_EMPTY/DELETED
-    float weight;      // Learned weight override (0.0 - 1.0 range typical)
+    float potential;
+    float recovery;
+    uint32_t flags;
+    uint32_t tag;
+} Neuron;
+
+typedef struct {
+    uint32_t target;
+    float weight;
+} Synapse;
+
+typedef struct {
+    uint32_t key;
+    float weight;
 } SynapseEntry;
 
-// Ensure 8-byte alignment for cache line efficiency
-_Static_assert(sizeof(SynapseEntry) == 8, "SynapseEntry must be 8 bytes");
+#define SYNAPSE_KEY_PACK(src, dst) (((uint32_t)(src) << 14) | (uint32_t)(dst))
+#define SYNAPSE_KEY_EMPTY 0xFFFFFFFF
+#define SYNAPSE_KEY_DELETED 0xFFFFFFFE
 
-typedef struct {
-    SynapseEntry* entries;   // Pre-allocated array of size 'capacity'
-    uint32_t capacity;       // Power of 2, sized for load factor < 0.67
-    uint32_t count;          // Number of occupied slots (excluding DELETED)
-    uint32_t deleted_count;  // Number of DELETED slots (for rehash consideration)
+typedef struct SynapseTable {
+    uint32_t capacity;
+    uint32_t count;
+    uint32_t mask;
+    SynapseEntry* entries;
 } SynapseTable;
 
-// SynapseTable API
-// Initialize table with pre-allocated capacity (must be power of 2, >= 1024)
-int synapse_table_init(SynapseTable* table, uint32_t initial_capacity);
-// Free table memory
-void synapse_table_free(SynapseTable* table);
-// Get weight for src->dst. Returns 1 if found (weight written to *out_weight), 0 if not found
-int synapse_table_get(const SynapseTable* table, uint32_t src, uint32_t dst, float* out_weight);
-// Set weight for src->dst. Returns 0 on success, -1 on error (table full)
-int synapse_table_set(SynapseTable* table, uint32_t src, uint32_t dst, float weight);
-// Clear all entries (reset to empty, keep capacity)
-void synapse_table_clear(SynapseTable* table);
+typedef struct {
+    Neuron* neurons;
+    Synapse* synapses;
+    uint32_t tick_count;
+    float global_modulator;
+} TickContext;
+
+// Function declarations
+float synapse_weight_f(uint32_t src, uint32_t dst);
+void tick_init(TickContext* ctx);
+void tick_step(TickContext* ctx);
+void tick_teardown(TickContext* ctx);
+
+#endif
