@@ -1,0 +1,37 @@
+#version 450
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+
+layout(push_constant) uniform PushConstants {
+    uint neuron_count;
+    uint seed;
+    float dt;
+} push;
+
+layout(set = 0, binding = 0, scalar) readonly buffer NeuronBuffer {
+    uvec2 data[];  // Packed: x = flags|activation|threshold|ema, y = modulator|spike_time|pad
+} neurons;
+
+layout(set = 0, binding = 1, scalar) buffer CounterBuffer {
+    uint count;
+} counter;
+
+layout(set = 0, binding = 2, scalar) writeonly buffer SpikeBuffer {
+    uint ids[];
+} spikes;
+
+void main() {
+    uint id = gl_GlobalInvocationID.x;
+    if (id >= push.neuron_count) {
+        return;
+    }
+    
+    uvec2 packed = neurons.data[id];
+    uint activation = packed.x & 0xFFu;
+    uint threshold = (packed.x >> 8) & 0xFFu;
+    
+    if (activation > threshold) {
+        uint idx = atomicAdd(counter.count, 1u);
+        spikes.ids[idx] = id;
+    }
+}
