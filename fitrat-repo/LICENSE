@@ -1,0 +1,59 @@
+FITAT PROPRIETARY LICENSE
+=========================
+
+Copyright (c) 2026 SovranAMR (Sovran Amr). All rights reserved.
+
+TERMS AND CONDITIONS
+
+1. GRANT OF LICENSE
+   This software and associated documentation ("Fıtrat") is made available
+   for VIEWING, EDUCATIONAL STUDY, and NON-COMMERCIAL PERSONAL USE ONLY.
+
+2. RESTRICTIONS
+   You may NOT, without prior written permission from the copyright holder:
+   
+   a) Use this software or any derivative work for commercial purposes
+   b) Incorporate this software into any commercial product or service
+   c) Sell, sublicense, lease, or rent this software
+   d) Use this software to train, fine-tune, or augment any machine learning
+      model, AI system, or neural network intended for commercial deployment
+   e) Offer this software as a service (SaaS) or cloud-hosted solution
+   f) Use this software in any revenue-generating activity
+   g) Remove or alter any copyright notices or this license
+
+3. PERMITTED USES
+   You MAY:
+   
+   a) View and study the source code for personal education
+   b) Fork the repository for personal, non-commercial experimentation
+   c) Reference this work in academic papers (with proper citation)
+   d) Share links to the original repository
+
+4. PATENT AND INVENTION RIGHTS
+   The algorithms, architectures, and methods embodied in this software —
+   including but not limited to the spiking neural network architecture,
+   STDP learning implementation, Bloom-filtered synapse table, Morton
+   Z-order spatial encoding, sleep/dream cycles, neuronal evolution,
+   and competitive learning mechanisms — represent original inventions
+   by the copyright holder. All intellectual property rights, including
+   potential patent rights, are expressly reserved.
+
+5. NO WARRANTY
+   THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED. THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY
+   CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
+
+6. TERMINATION
+   Any violation of these terms automatically terminates your rights
+   under this license. Upon termination, you must destroy all copies
+   of this software in your possession.
+
+7. GOVERNING LAW
+   This license shall be governed by and construed in accordance with
+   the laws of the Republic of Türkiye.
+
+For commercial licensing inquiries, contact the copyright holder.
+
+---
+SovranAMR — Fıtrat: Innate Neural Intelligence
+"Not artificial. Innate."
