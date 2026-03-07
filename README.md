@@ -3,7 +3,7 @@
   <img src="https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js">
   <img src="https://img.shields.io/badge/Tests-654_Passing-22C55E?style=flat-square" alt="Tests">
   <img src="https://img.shields.io/badge/LOC-57K-F5A623?style=flat-square" alt="LOC">
-  <img src="https://img.shields.io/badge/License-Private-EF4444?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/License-Proprietary-EF4444?style=flat-square" alt="License">
 </p>
 
 <br>
