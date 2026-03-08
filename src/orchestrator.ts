@@ -1070,32 +1070,8 @@ ${visionOutput}`,
                     });
                   }
 
-                  // ─── AUTOMATIC COMMIT ─────────────────────────────
-                  // Commitment logic moved from atom boundary to here
-                  // Only commit if: Git is enabled, project has git, and operations succeeded
-                  if (this.engine.git && lastExecSummary!.succeeded > 0) {
-                    const git = this.engine.git;
-                    try {
-                      // Status check to see if there are actual changes
-                      const gitStatus = git.executor.gitStatus();
-                      if (!gitStatus.clean) {
-                        const commitMsg = `${atom.slice(0, 50)}${lastExecSummary!.failed > 0 ? " (partial)" : ""}`;
-                        const commitResult = git.commitThought({
-                          message: commitMsg,
-                          chainId: visionChain.id,
-                          thoughtId: execResult.thought.id,
-                          layer: "worker",
-                          atomIndex: j + 1,
-                          atomTotal: atoms.length,
-                        });
-                        if (commitResult.success) {
-                          this.engine.streaming.toolCall("git_commit", commitResult.shortHash);
-                        }
-                      }
-                    } catch (gitErr) {
-                      console.warn(`[orchestrator] Git commit failed: ${gitErr}`);
-                    }
-                  }
+                  // NOTE: Automatic commit moved AFTER reviewer gate (see "POST-REVIEW COMMIT" below)
+                  // so reviewer can see the actual git diff before it gets committed.
                 } catch (execErr) {
                   this.emit({
                     type: "error",
@@ -1273,6 +1249,32 @@ ${visionOutput}`,
               }
             } catch {
               // Reviewer gate is best-effort — if LLM call fails, continue
+            }
+          }
+
+          // ─── POST-REVIEW COMMIT ─────────────────────────────
+          // Commit AFTER reviewer gate passes, so reviewer sees the real git diff.
+          // Before this fix, commit happened before review → reviewer saw empty diff → always rejected.
+          if (this.engine.git && lastExecSummary && lastExecSummary.succeeded > 0) {
+            const git = this.engine.git;
+            try {
+              const gitStatus = git.executor.gitStatus();
+              if (!gitStatus.clean) {
+                const commitMsg = `${atom.slice(0, 50)}${lastExecSummary.failed > 0 ? " (partial)" : ""}`;
+                const commitResult = git.commitThought({
+                  message: commitMsg,
+                  chainId: visionChain.id,
+                  thoughtId: execResult.thought.id,
+                  layer: "worker",
+                  atomIndex: j + 1,
+                  atomTotal: atoms.length,
+                });
+                if (commitResult.success) {
+                  this.engine.streaming.toolCall("git_commit", commitResult.shortHash);
+                }
+              }
+            } catch (gitErr) {
+              console.warn(`[orchestrator] Git commit failed: ${gitErr}`);
             }
           }
 
@@ -1660,6 +1662,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                 let reLastRejection = "";
                 let reExecResult: StepResult | undefined;
                 let reToolCallCount = 0;
+                let reLastExecSummary: import("./worker-executor.js").WorkerExecutionSummary | null = null;
                 const reAtomStartTime = Date.now();
 
                 for (let reAttempt = 0; reAttempt < this.MAX_ATOM_RETRIES; reAttempt++) {
@@ -1802,28 +1805,10 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                             });
                           }
 
-                          // Git commit if operations succeeded
-                          if (this.engine.git && reExecSummary.succeeded > 0) {
-                            try {
-                              const gitStatus = this.engine.git.executor.gitStatus();
-                              if (!gitStatus.clean) {
-                                const commitMsg = `[RE] ${reAtom.slice(0, 50)}${reExecSummary.failed > 0 ? " (partial)" : ""}`;
-                                const commitResult = this.engine.git.commitThought({
-                                  message: commitMsg,
-                                  chainId: visionChain.id,
-                                  thoughtId: reExecResult.thought.id,
-                                  layer: "worker",
-                                  atomIndex: rj + 1,
-                                  atomTotal: reAtoms.length,
-                                });
-                                if (commitResult.success) {
-                                  this.engine.streaming.toolCall("git_commit", commitResult.shortHash);
-                                }
-                              }
-                            } catch (gitErr) {
-                              console.warn(`[orchestrator] Re-atom git commit failed: ${gitErr}`);
-                            }
-                          }
+                          // NOTE: Re-atom commit moved AFTER reviewer gate (see "POST-REVIEW COMMIT" below)
+                          // so reviewer can see the actual git diff before it gets committed.
+                          // Store summary for post-review commit
+                          reLastExecSummary = reExecSummary;
                         } catch (reExecErr) {
                           this.emit({
                             type: "error",
@@ -1957,6 +1942,30 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                     message: `[RE] Re-atom ${rj + 1} failed after ${this.MAX_ATOM_RETRIES} attempts: ${reLastRejection.slice(0, 100)}`,
                   });
                 } else {
+                  // ─── POST-REVIEW COMMIT (re-atom) ─────────────────
+                  // Commit AFTER reviewer gate passes so reviewer sees real diff.
+                  if (this.engine.git && reLastExecSummary && reLastExecSummary.succeeded > 0) {
+                    try {
+                      const gitStatus = this.engine.git.executor.gitStatus();
+                      if (!gitStatus.clean) {
+                        const commitMsg = `[RE] ${reAtom.slice(0, 50)}${reLastExecSummary.failed > 0 ? " (partial)" : ""}`;
+                        const commitResult = this.engine.git.commitThought({
+                          message: commitMsg,
+                          chainId: visionChain.id,
+                          thoughtId: reExecResult!.thought.id,
+                          layer: "worker",
+                          atomIndex: rj + 1,
+                          atomTotal: reAtoms.length,
+                        });
+                        if (commitResult.success) {
+                          this.engine.streaming.toolCall("git_commit", commitResult.shortHash);
+                        }
+                      }
+                    } catch (gitErr) {
+                      console.warn(`[orchestrator] Re-atom git commit failed: ${gitErr}`);
+                    }
+                  }
+
                   // Checkpoint + streaming for passed re-atom
                   const reAtomDurationMs = Date.now() - reAtomStartTime;
                   this.emit({

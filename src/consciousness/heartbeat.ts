@@ -36,6 +36,7 @@ import {
   generateInnerMonologue,
   generateDailyJournal,
   generateCuriosityThought,
+  canNotify,
 } from './thinker.js';
 import {
   composeProactiveMessage,
@@ -162,6 +163,13 @@ export async function heartbeatCycle(
   state.lastBeatAt = Date.now();
   state.uptimeMs = Date.now() - state.startedAt;
 
+  // Reset daily counters at day boundary (don't rely on canNotify being called)
+  const currentDay = new Date().toISOString().split('T')[0];
+  if (state.lastResetDate !== currentDay) {
+    state.notificationsToday = 0;
+    state.lastResetDate = currentDay;
+  }
+
   const allThoughts: Thought[] = [];
   const allReadings: SensorReading[] = [];
 
@@ -220,7 +228,18 @@ export async function heartbeatCycle(
     }
   }
 
-  // ─── 5. ACT ───
+  // ─── 5. ACT — Severity Gate + Dedup ───
+  // Bildirim dedup: aynı metricKey 1 saat içinde tekrar bildirilmez
+  const notifiedMetrics: Record<string, number> = {};
+  const recentNotifs = state.thoughts.filter(
+    t => t.notified && Date.now() - t.timestamp < 3600000
+  );
+  for (const rn of recentNotifs) {
+    for (const rd of rn.readings) {
+      if (rd.metricKey) notifiedMetrics[rd.metricKey] = rn.timestamp;
+    }
+  }
+
   for (const thought of allThoughts) {
     if (!thought.action) continue;
 
@@ -231,17 +250,42 @@ export async function heartbeatCycle(
         thought.autoResolved = !result.startsWith('HATA');
         await log(`[auto-fix] ${thought.action.command} → ${result}`);
 
-        if (config.notifyChatId) {
-          await sendTelegram(formatThoughtForHuman(thought), config.notifyChatId);
-          state.notificationsToday++;
+        // Auto-fix her zaman bildir — ama dedup uygula
+        if (config.notifyChatId && canNotify(state, config)) {
+          const metricKey = thought.readings[0]?.metricKey;
+          const isDup = metricKey && notifiedMetrics[metricKey] && (Date.now() - notifiedMetrics[metricKey] < 3600000);
+          if (!isDup) {
+            const msg = `[#${state.heartbeatCount}] ${formatThoughtForHuman(thought)}`;
+            await sendTelegram(msg, config.notifyChatId);
+            state.notificationsToday++;
+            thought.notified = true;
+            if (metricKey) notifiedMetrics[metricKey] = Date.now();
+          }
         }
         break;
       }
 
       case 'notify': {
-        if (config.notifyChatId) {
-          const sent = await sendTelegram(formatThoughtForHuman(thought), config.notifyChatId);
-          if (sent) state.notificationsToday++;
+        // Severity gate: sadece critical veya high bildirilir
+        if (thought.priority !== 'critical' && thought.priority !== 'high') {
+          await log(`[gate-blocked] ${thought.priority}: ${thought.summary}`);
+          break;
+        }
+        if (config.notifyChatId && canNotify(state, config)) {
+          // Dedup: aynı metricKey 1 saat içinde tekrar gitmez
+          const metricKey = thought.readings[0]?.metricKey;
+          const isDup = metricKey && notifiedMetrics[metricKey] && (Date.now() - notifiedMetrics[metricKey] < 3600000);
+          if (isDup) {
+            await log(`[dedup] ${metricKey} son 1h içinde bildirildi, atlıyorum`);
+            break;
+          }
+          const msg = `[#${state.heartbeatCount}] ${formatThoughtForHuman(thought)}`;
+          const sent = await sendTelegram(msg, config.notifyChatId);
+          if (sent) {
+            state.notificationsToday++;
+            thought.notified = true;
+            if (metricKey) notifiedMetrics[metricKey] = Date.now();
+          }
           await log(`[notify] ${sent ? '✓' : '✗'}: ${thought.summary}`);
         }
         break;

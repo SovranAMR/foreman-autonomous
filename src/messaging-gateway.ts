@@ -561,6 +561,46 @@ Metin YAZMA. İŞ YAP.
           finalText = finalText.slice(0, 2800) + "\n\n... (kısaltıldı)";
         }
 
+        // ─── AUTO-CONTINUATION ─────────────────────────────
+        // If LLM response ends with continuation signals, auto-send
+        // "devam et" so the agent doesn't stall waiting for user input.
+        const continuationPatterns = [
+          /devam ediyorum[.:\s]*$/i,
+          /devam\.{3}$/i,
+          /şimdi\s+(?:bak|kontrol|oku|yap|test|çalıştır)/i,
+          /\.\.\.$/, // ends with ...
+          /(?:adım|step)\s*\d+.*:$/i,
+        ];
+        const looksLikeContinuation = continuationPatterns.some(p => p.test(finalText.trim()));
+        if (looksLikeContinuation && !conversation.messages.some(m => m.content === "__AUTO_CONTINUE__")) {
+          // Send current response first, then auto-continue
+          const reply = { text: finalText, parseMode: "markdown" as const };
+          conversation.messages.push({ role: "assistant", content: finalText });
+          conversation.messages.push({ role: "user", content: "Devam et." });
+          conversation.messages.push({ role: "user", content: "__AUTO_CONTINUE__" });
+          conversation.lastActivity = Date.now();
+          this.persistConversation(`${conversation.channel}:${conversation.chatId}`);
+          // Fire-and-forget: process continuation
+          setTimeout(async () => {
+            try {
+              const contReply = await this.processWithLLM(conversation);
+              if (contReply) {
+                const channel = this.channels.get(conversation.channel);
+                if (channel) {
+                  await channel.send(conversation.chatId, contReply);
+                  conversation.messages.push({ role: "assistant", content: contReply.text });
+                  this.persistConversation(`${conversation.channel}:${conversation.chatId}`);
+                }
+              }
+            } catch (e) {
+              console.error("[gateway] Auto-continuation failed:", e);
+            }
+          }, 500);
+          return reply;
+        }
+        // Clean up auto-continue markers
+        conversation.messages = conversation.messages.filter(m => m.content !== "__AUTO_CONTINUE__");
+
         return {
           text: finalText,
           parseMode: "markdown",
