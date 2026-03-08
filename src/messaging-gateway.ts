@@ -556,6 +556,20 @@ Metin YAZMA. İŞ YAP.
           return { text: "🤔 (boş yanıt — tekrar dene)" };
         }
 
+        // ─── RESPONSE CLEANUP — remove step-by-step narration noise ───
+        // LLM sometimes narrates: "şunu yapıyorum... tamam... bunu yapıyorum... tamam"
+        // Strip these patterns since tool summary already shows what happened.
+        finalText = finalText
+          // Remove "Şimdi X yapıyorum..." lines that are just narration
+          .replace(/^(?:Şimdi|Önce|Sonra|Ardından|Hemen|İlk olarak|Daha sonra)\s+.{10,80}(?:yapıyorum|ediyorum|bakıyorum|kontrol ediyorum|okuyorum|çalıştırıyorum)[.…:]*\s*$/gmi, "")
+          // Remove "X yaptım/ettim" lines that just confirm tool calls
+          .replace(/^.{5,60}(?:yaptım|ettim|okudum|yazdım|çalıştırdım|tamamlandı|tamam)[.!✅]*\s*$/gmi, "")
+          // Remove "devam ediyorum" lines
+          .replace(/^.*devam ediyorum[.…:]*\s*$/gmi, "")
+          // Collapse multiple blank lines into one
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+
         // Cap response length for Telegram
         if (finalText.length > 3000) {
           finalText = finalText.slice(0, 2800) + "\n\n... (kısaltıldı)";
@@ -786,12 +800,15 @@ If you encounter repeated failures:
 </error_recovery>
 
 <communication>
-- Max 3-4 short paragraphs. Telegram has a 4096 char limit.
-- Lead with results, not explanations.
-- Format: brief status → tool actions → brief summary.
+- CRITICAL: Your Telegram message is what the user SEES. Make it CLEAN.
+- NEVER narrate your work step-by-step ("bunu yapıyorum... tamam... şimdi bunu yapıyorum... tamam").
+- Tool calls are shown separately as a compact summary (e.g. "🔧 bash×3, edit_file×2").
+- Your TEXT response should be ONLY the final result/conclusion. Max 3-4 short paragraphs.
+- BAD: "Önce dosyayı okudum. Sonra sorunu buldum. Düzelttim. Sonra test ettim. Geçti."
+- GOOD: "Sorun X'teydi — Y yüzünden Z oluyordu. Düzelttim, test geçiyor. ✅"
+- Lead with WHAT you found/did, not HOW you got there. The tool log already shows the how.
 - Use Turkish when the user speaks Turkish.
-- Don't repeat yourself. If you just said something, don't say it again.
-- Don't be verbose. Every word should earn its place.
+- Don't repeat yourself. Every word should earn its place.
 </communication>
 
 <forbidden_patterns>
