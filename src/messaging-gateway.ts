@@ -527,7 +527,7 @@ Metin YAZMA. İŞ YAP.
         // Remove retry marker if present (so next message can trigger retry again)
         conversation.messages = conversation.messages.filter(m => m.content !== "__TOOL_RETRY__");
 
-        // Create a compact tool summary (not raw logs)
+        // ─── TOOL SUMMARY (compact) ─────────────────────────
         let toolSummary = "";
         if (toolLog.length > 0) {
           const calls = toolLog.filter(l => l.startsWith("⚙"));
@@ -547,44 +547,51 @@ Metin YAZMA. İŞ YAP.
           }
         }
 
+        // ─── DISTILLATION — real engineering, not regex hacks ───────
+        // When the LLM used tools, its text is usually step-by-step narration
+        // ("Şimdi X bakıyorum... tamam... Y yapıyorum..."). Instead of trying
+        // to regex-strip Turkish narration patterns, we make a SEPARATE cheap
+        // LLM call that distills the raw output into a clean 2-3 sentence result.
+        let finalText = text;
+        const toolCallCount = toolLog.filter(l => l.startsWith("⚙")).length;
+
+        if (toolCallCount >= 2 && text.length > 300) {
+          // Response has tool calls + long text = likely narration-heavy
+          try {
+            const distillResult = await this.provider!.generate(
+              [
+                { role: "system", content: "You are a response distiller. The user will give you a raw AI assistant response that contains step-by-step narration mixed with results. Extract ONLY the final conclusions, findings, and results. Output 2-4 short sentences maximum. Same language as input. No narration, no process description, no 'I did X then Y'. Just the outcome." },
+                { role: "user", content: text },
+              ] as any,
+              { model: this.activeModel, maxTokens: 500, temperature: 0.1 },
+            );
+            const distilled = distillResult.text?.trim();
+            if (distilled && distilled.length > 20 && distilled.length < text.length) {
+              finalText = distilled;
+              console.log(`[gateway] Distilled: ${text.length} chars → ${distilled.length} chars`);
+            }
+          } catch (e) {
+            console.warn(`[gateway] Distillation failed, using raw text:`, e);
+            // Fallback: just use the raw text
+          }
+        }
+
+        if (!finalText?.trim()) {
+          finalText = text || "🤔 (boş yanıt — tekrar dene)";
+        }
+
         const parts: string[] = [];
         if (toolSummary) parts.push(toolSummary);
-        if (text) parts.push(text);
+        parts.push(finalText);
 
-        let finalText = parts.join("\n\n").trim();
-        if (!finalText) {
-          return { text: "🤔 (boş yanıt — tekrar dene)" };
-        }
-
-        // ─── RESPONSE CLEANUP — remove step-by-step narration noise ───
-        // LLM narrates tool calls inline. Strip narration, keep only conclusions.
-        finalText = finalText
-          // Strip "Şimdi X yapıyorum/göreceğim/bakacağım:" inline fragments
-          .replace(/(?:Şimdi|Önce|Sonra|Ardından|Hemen)\s+[^.!?✅]{10,120}(?:yapıyorum|ediyorum|bakıyorum|göreceğim|bakacağım|kontrol ediyorum|okuyorum|çalıştırıyorum|inceliyorum|düzeltiyorum)[.…:\s]*/gi, "")
-          // Strip "X yaptım/ettim/okudum" confirmation fragments
-          .replace(/[^.!?✅]{5,80}(?:yaptım|ettim|okudum|yazdım|çalıştırdım|tamamlandı|kontrol ettim|test ettim|buldum\.?\s*(?:Test|Şimdi|Sonra))/gi, "")
-          // Strip "Test edeyim:" / "Bakalım:" / "Oraya bakalım:" fragments
-          .replace(/(?:Test|Kontrol|Deneme)\s+(?:edeyim|edelim|yapayım|yapalım)[.…:\s]*/gi, "")
-          .replace(/(?:Şimdi\s+)?(?:oraya|buraya|ona|buna)\s+(?:bakalım|görelim|bakayım)[.…:\s]*/gi, "")
-          // Strip "devam ediyorum" 
-          .replace(/devam ediyorum[.…:\s]*/gi, "")
-          // Strip lone colons left over from cleanup
-          .replace(/(?:^|\n)\s*:\s*(?:\n|$)/g, "\n")
-          // Collapse multiple blank lines / spaces
-          .replace(/\n{3,}/g, "\n\n")
-          .replace(/\s{3,}/g, " ")
-          .trim();
-
-        // If cleanup stripped almost everything, keep just the last meaningful sentence
-        if (finalText.length < 20 && text.length > 100) {
-          const sentences = text.split(/[.!?✅]/).filter(s => s.trim().length > 15);
-          finalText = sentences.length > 0 ? sentences[sentences.length - 1].trim() + "." : text.slice(-200).trim();
-        }
+        let output = parts.join("\n\n").trim();
 
         // Cap response length for Telegram
-        if (finalText.length > 3000) {
-          finalText = finalText.slice(0, 2800) + "\n\n... (kısaltıldı)";
+        if (output.length > 3000) {
+          output = output.slice(0, 2800) + "\n\n... (kısaltıldı)";
         }
+
+        let finalOutput = output;
 
         // ─── AUTO-CONTINUATION ─────────────────────────────
         // If LLM response ends with continuation signals, auto-send
@@ -598,11 +605,11 @@ Metin YAZMA. İŞ YAP.
           /\.\.\.$/, // ends with ...
           /:\s*$/,   // ends with colon (about to do something)
         ];
-        const looksLikeContinuation = continuationPatterns.some(p => p.test(finalText.trim()));
+        const looksLikeContinuation = continuationPatterns.some(p => p.test(finalOutput.trim()));
         if (looksLikeContinuation && !conversation.messages.some(m => m.content === "__AUTO_CONTINUE__")) {
           // Send current response first, then auto-continue
-          const reply = { text: finalText, parseMode: "markdown" as const };
-          conversation.messages.push({ role: "assistant", content: finalText });
+          const reply = { text: finalOutput, parseMode: "markdown" as const };
+          conversation.messages.push({ role: "assistant", content: finalOutput });
           conversation.messages.push({ role: "user", content: "Devam et." });
           conversation.messages.push({ role: "user", content: "__AUTO_CONTINUE__" });
           conversation.lastActivity = Date.now();
@@ -629,7 +636,7 @@ Metin YAZMA. İŞ YAP.
         conversation.messages = conversation.messages.filter(m => m.content !== "__AUTO_CONTINUE__");
 
         return {
-          text: finalText,
+          text: finalOutput,
           parseMode: "markdown",
         };
       }
