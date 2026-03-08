@@ -10,6 +10,7 @@ import { promisify } from 'util';
 import { readFile, stat } from 'fs/promises';
 import { existsSync } from 'fs';
 import { SensorReading, SensorType } from './types.js';
+import { senseOperations, senseSniper, senseCronHealth, senseGitHub } from './sensors-foreman.js';
 
 const run = promisify(exec);
 
@@ -368,5 +369,8 @@ export const SENSOR_MAP: Record<SensorType, () => Promise<SensorReading[]>> = {
   log: senseLogs,
   self: senseSelf,
   network: senseNetwork,
-  cron: async () => [],
+  cron: senseCronHealth,
+  foreman: senseOperations,
+  sniper: senseSniper,
+  github: senseGitHub,
 };

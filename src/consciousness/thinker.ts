@@ -667,8 +667,55 @@ export function formatStatusReport(state: ConsciousnessState): string {
   if (state.emotion.trigger) {
     lines.push(`Sebep: ${state.emotion.trigger}`);
   }
+  lines.push('');
 
-  // System metrics
+  // ── Operasyonel İstihbarat ──
+  const recentReadings = state.recentThoughts.flatMap(t => t.readings);
+
+  // Work items (foreman/self sensor)
+  const workReadings = recentReadings.filter(
+    r => r.sensor === 'foreman' || (r.sensor === 'self' && r.metricKey?.includes('work'))
+  );
+  if (workReadings.length > 0) {
+    lines.push('📋 *İşler:*');
+    for (const r of workReadings) {
+      lines.push(`  ${r.title}`);
+    }
+    lines.push('');
+  }
+
+  // Sniper durumu
+  const sniperReadings = recentReadings.filter(r => r.sensor === 'sniper');
+  if (sniperReadings.length > 0) {
+    lines.push('🐦 *Sniper:*');
+    for (const r of sniperReadings) {
+      lines.push(`  ${r.title}`);
+    }
+    lines.push('');
+  }
+
+  // GitHub
+  const githubReadings = recentReadings.filter(r => r.metricKey?.startsWith('github_'));
+  if (githubReadings.length > 0) {
+    lines.push('⭐ *GitHub:*');
+    for (const r of githubReadings) {
+      lines.push(`  ${r.title}`);
+    }
+    lines.push('');
+  }
+
+  // Cron sorunları
+  const cronReadings = recentReadings.filter(r => r.sensor === 'cron');
+  const unhealthyCron = cronReadings.filter(r => r.severity !== 'info');
+  if (unhealthyCron.length > 0) {
+    lines.push('⏰ *Cron Sorunlar:*');
+    for (const r of unhealthyCron) {
+      lines.push(`  ${r.title}`);
+    }
+    lines.push('');
+  }
+
+  // System metrics (kompakt)
   const disk = state.trends.find(t => t.key === 'disk_usage');
   const ram = state.trends.find(t => t.key === 'ram_usage');
   const cpu = state.trends.find(t => t.key === 'cpu_load');
@@ -679,12 +726,24 @@ export function formatStatusReport(state: ConsciousnessState): string {
     return t.direction === 'rising' ? '↑' : t.direction === 'falling' ? '↓' : '→';
   };
 
-  lines.push(`💾 Disk: %${lastVal(disk)}${arrow(disk)} | 🧠 RAM: %${lastVal(ram)}${arrow(ram)} | ⚡ CPU: ${lastVal(cpu)}${arrow(cpu)}`);
+  lines.push(`💾 %${lastVal(disk)}${arrow(disk)} | 🧠 %${lastVal(ram)}${arrow(ram)} | ⚡ ${lastVal(cpu)}${arrow(cpu)}`);
 
   // Predictions
   const predictions = state.trends.filter(t => t.prediction);
   for (const p of predictions) {
     lines.push(`⚠️ ${p.prediction}`);
+  }
+
+  // Anomaliler
+  const anomalies = state.recentThoughts.filter(
+    t => t.action?.type === 'notify' || t.priority === 'high' || t.priority === 'critical'
+  );
+  if (anomalies.length > 0) {
+    lines.push('');
+    lines.push('🔔 *Dikkat:*');
+    for (const a of anomalies.slice(0, 5)) {
+      lines.push(`  ${a.summary}`);
+    }
   }
 
   // Stats
