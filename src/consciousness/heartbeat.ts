@@ -217,6 +217,40 @@ export async function heartbeatCycle(
     }
   }
 
+  // ─── 4a. PATTERN APPLICATION — Öğrenilen pattern'leri uygula ───
+  try {
+    const learning = await loadLearning();
+    if (learning.patterns.length > 0) {
+      for (const reading of allReadings) {
+        const matched = matchPattern(reading, learning.patterns);
+        if (matched && matched.learnedAction) {
+          const thought: Thought = {
+            id: `t_${Date.now()}_pat`,
+            timestamp: Date.now(),
+            source: reading.sensor,
+            priority: matched.learnedAction.type === 'auto_fix' ? 'high' : 'low',
+            summary: `[Pattern] ${matched.description}: ${reading.title}`,
+            readings: [reading],
+            action: {
+              type: matched.learnedAction.type,
+              command: matched.learnedAction.command,
+              reason: `Learned pattern (${matched.occurrences}x, conf: ${(matched.confidence * 100).toFixed(0)}%)`,
+            },
+            notified: false,
+            autoResolved: false,
+          };
+          allThoughts.push(thought);
+          state.thoughts.push(thought);
+          learning.totalApplied++;
+          await log(`[pattern-applied] ${matched.description} → ${matched.learnedAction.type}: ${matched.learnedAction.command ?? matched.learnedAction.reason}`);
+        }
+      }
+      await saveLearning(learning);
+    }
+  } catch (e: any) {
+    await log(`[pattern-apply-error] ${e.message}`);
+  }
+
   // ─── 4b. CURIOSITY — Merak düşünceleri ───
   // Her 3 beat'te bir merak düşüncesi üret — sorun olmasa bile
   if (state.heartbeatCount % 3 === 0) {
@@ -356,7 +390,22 @@ export async function heartbeatCycle(
     const nextTask = getNextTask(taskQueue);
     if (nextTask) {
       const step = getNextStep(nextTask);
-      if (step && step.command) {
+      if (step && !step.command && step.description) {
+        // Complex task without shell command — send to LLM via Telegram self-message
+        // This bridges heartbeat tasks to the full LLM pipeline
+        if (config.notifyChatId) {
+          const taskPrompt = `[Otonom Görev] ${nextTask.title}: ${step.description}`;
+          await sendTelegram(taskPrompt, config.notifyChatId);
+          await log(`[task→llm] Forwarded complex step to LLM: ${step.description.slice(0, 80)}`);
+          const started = startStep(nextTask, step.id);
+          const idx = taskQueue.tasks.findIndex(t => t.id === started.id);
+          if (idx >= 0) {
+            const completed = completeStep(started, step.id, 'Forwarded to LLM pipeline');
+            taskQueue.tasks[idx] = completed;
+            await saveTaskQueue(taskQueue);
+          }
+        }
+      } else if (step && step.command) {
         const started = startStep(nextTask, step.id);
         const idx = taskQueue.tasks.findIndex(t => t.id === started.id);
         if (idx >= 0) taskQueue.tasks[idx] = started;
