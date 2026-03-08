@@ -33,6 +33,18 @@ export interface TaskStep {
   error?: string;
   retries: number;
   maxRetries: number;
+  /** Step type: shell command, LLM task, or file operation */
+  type?: 'command' | 'llm' | 'file_write' | 'file_edit' | 'forge';
+  /** Target file for file operations */
+  targetFile?: string;
+  /** Content for file_write */
+  content?: string;
+  /** Dependencies — step IDs that must complete first */
+  dependsOn?: string[];
+  /** Timeout override (ms) */
+  timeoutMs?: number;
+  /** Retry backoff multiplier */
+  backoffMs?: number;
 }
 
 export interface AutonomousTask {
@@ -116,7 +128,7 @@ export function createTask(
       status: 'pending' as TaskStatus,
       command: s.command,
       retries: 0,
-      maxRetries: 3,
+      maxRetries: 5,
     })),
     currentStepIndex: 0,
     createdAt: Date.now(),
@@ -160,6 +172,24 @@ export function getNextStep(task: AutonomousTask): TaskStep | null {
     return getNextStep(task);
   }
   return step;
+}
+
+/**
+ * Get up to N pending steps for parallel/batch execution in a single beat.
+ */
+export function getNextSteps(task: AutonomousTask, maxSteps: number = 3): TaskStep[] {
+  const steps: TaskStep[] = [];
+  let idx = task.currentStepIndex;
+  while (idx < task.steps.length && steps.length < maxSteps) {
+    const step = task.steps[idx];
+    if (step.status === 'pending') {
+      steps.push(step);
+    } else if (step.status !== 'done') {
+      break; // blocked or failed — stop here
+    }
+    idx++;
+  }
+  return steps;
 }
 
 /**
@@ -301,4 +331,81 @@ export function formatQueueStatus(queue: TaskQueueState): string {
   }
 
   return lines.join('\n');
+}
+
+// ═══════════════════════════════════════════
+// ADVANCED QUEUE OPERATIONS
+// ═══════════════════════════════════════════
+
+/**
+ * Check if a step's dependencies are all completed.
+ */
+export function areDependenciesMet(task: AutonomousTask, step: TaskStep): boolean {
+  if (!step.dependsOn || step.dependsOn.length === 0) return true;
+  return step.dependsOn.every(depId => {
+    const dep = task.steps.find(s => s.id === depId);
+    return dep?.status === 'done';
+  });
+}
+
+/**
+ * Get all steps that are ready to execute (dependencies met, not done/failed).
+ */
+export function getReadySteps(task: AutonomousTask): TaskStep[] {
+  return task.steps.filter(s =>
+    (s.status === 'pending' || s.status === 'blocked') &&
+    areDependenciesMet(task, s)
+  );
+}
+
+/**
+ * Calculate retry delay with exponential backoff.
+ */
+export function getRetryDelay(step: TaskStep): number {
+  const base = step.backoffMs ?? 5000;
+  return Math.min(base * Math.pow(2, step.retries), 120000); // max 2 minutes
+}
+
+/**
+ * Retry a failed step if retries remain.
+ */
+export function retryStep(task: AutonomousTask, stepId: string): AutonomousTask {
+  const updated = { ...task, updatedAt: Date.now() };
+  const step = updated.steps.find(s => s.id === stepId);
+  if (!step) return updated;
+
+  if (step.retries < step.maxRetries) {
+    step.retries++;
+    step.status = 'pending';
+    step.error = undefined;
+    step.startedAt = undefined;
+    step.completedAt = undefined;
+  } else {
+    step.status = 'failed';
+    // Check if task should fail
+    const allDone = updated.steps.every(s => s.status === 'done' || s.status === 'failed');
+    if (allDone) {
+      updated.status = updated.steps.some(s => s.status === 'failed') ? 'failed' : 'done';
+    }
+  }
+
+  return updated;
+}
+
+// getQueueStats already defined above
+
+/**
+ * Clean up old completed/failed tasks (keep last 50).
+ */
+export function pruneQueue(queue: TaskQueueState): TaskQueueState {
+  const active = queue.tasks.filter(t => t.status === 'pending' || t.status === 'in_progress' || t.status === 'blocked');
+  const finished = queue.tasks
+    .filter(t => t.status === 'done' || t.status === 'failed')
+    .sort((a, b) => (b.completedAt ?? b.updatedAt) - (a.completedAt ?? a.updatedAt))
+    .slice(0, 50);
+
+  return {
+    ...queue,
+    tasks: [...active, ...finished],
+  };
 }

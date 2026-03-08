@@ -143,7 +143,7 @@ async function sendTelegram(message: string, chatId: string): Promise<boolean> {
 
 async function executeAutoFix(command: string): Promise<string> {
   try {
-    const { stdout, stderr } = await run(command, { timeout: 30000 });
+    const { stdout, stderr } = await run(command, { timeout: 120000 });
     return (stdout || stderr || 'OK').trim().slice(0, 200);
   } catch (e: any) {
     return `HATA: ${e.message?.slice(0, 200)}`;
@@ -390,20 +390,55 @@ export async function heartbeatCycle(
     const nextTask = getNextTask(taskQueue);
     if (nextTask) {
       const step = getNextStep(nextTask);
-      if (step && !step.command && step.description) {
-        // Complex task without shell command — send to LLM via Telegram self-message
-        // This bridges heartbeat tasks to the full LLM pipeline
-        if (config.notifyChatId) {
-          const taskPrompt = `[Otonom Görev] ${nextTask.title}: ${step.description}`;
-          await sendTelegram(taskPrompt, config.notifyChatId);
-          await log(`[task→llm] Forwarded complex step to LLM: ${step.description.slice(0, 80)}`);
+      if (step && step.type === 'forge' && config.notifyChatId) {
+        // Forge-type step — forward to LLM pipeline via Telegram
+        const taskPrompt = `[Otonom Görev] ${nextTask.title}: ${step.description}`;
+        await sendTelegram(taskPrompt, config.notifyChatId);
+        await log(`[task→forge] ${step.description.slice(0, 80)}`);
+        const started = startStep(nextTask, step.id);
+        const idx = taskQueue.tasks.findIndex(t => t.id === started.id);
+        if (idx >= 0) {
+          const completed = completeStep(started, step.id, 'Forwarded to forge pipeline');
+          taskQueue.tasks[idx] = completed;
+          await saveTaskQueue(taskQueue);
+        }
+      } else if (step && step.type === 'file_write' && step.targetFile && step.content) {
+        // Direct file write — no LLM needed
+        try {
+          const { writeFileSync, mkdirSync } = await import('fs');
+          const { dirname } = await import('path');
+          const dir = dirname(step.targetFile);
+          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+          writeFileSync(step.targetFile, step.content, 'utf-8');
           const started = startStep(nextTask, step.id);
           const idx = taskQueue.tasks.findIndex(t => t.id === started.id);
           if (idx >= 0) {
-            const completed = completeStep(started, step.id, 'Forwarded to LLM pipeline');
+            const completed = completeStep(started, step.id, `Wrote ${step.targetFile}`);
             taskQueue.tasks[idx] = completed;
-            await saveTaskQueue(taskQueue);
           }
+          await log(`[task→file] Wrote ${step.targetFile}`);
+          await saveTaskQueue(taskQueue);
+        } catch (e: any) {
+          const started = startStep(nextTask, step.id);
+          const idx = taskQueue.tasks.findIndex(t => t.id === started.id);
+          if (idx >= 0) {
+            const failed = failStep(started, step.id, e.message);
+            taskQueue.tasks[idx] = failed;
+          }
+          await log(`[task→file] FAILED: ${e.message}`);
+          await saveTaskQueue(taskQueue);
+        }
+      } else if (step && !step.command && step.description && config.notifyChatId) {
+        // Complex task without command — send to LLM
+        const taskPrompt = `[Otonom Görev] ${nextTask.title}: ${step.description}`;
+        await sendTelegram(taskPrompt, config.notifyChatId);
+        await log(`[task→llm] ${step.description.slice(0, 80)}`);
+        const started = startStep(nextTask, step.id);
+        const idx = taskQueue.tasks.findIndex(t => t.id === started.id);
+        if (idx >= 0) {
+          const completed = completeStep(started, step.id, 'Forwarded to LLM');
+          taskQueue.tasks[idx] = completed;
+          await saveTaskQueue(taskQueue);
         }
       } else if (step && step.command) {
         const started = startStep(nextTask, step.id);
