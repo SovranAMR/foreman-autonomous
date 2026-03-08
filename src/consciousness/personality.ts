@@ -166,27 +166,30 @@ export function composeMorningMessage(state: ConsciousnessState): string {
   const hour = new Date().getHours();
   if (hour < 6 || hour > 11) return '';
 
-  const beats = state.heartbeatCount;
-  const mood = state.emotion.mood;
   const incidents = state.thoughts.filter(
     t => t.priority === 'critical' && Date.now() - t.timestamp < 8 * 3600000
   ).length;
   
+  const warnings = state.thoughts.filter(
+    t => t.priority === 'high' && Date.now() - t.timestamp < 8 * 3600000
+  ).length;
+
   const risingTrends = state.trends?.filter(t => t.direction === 'rising') || [];
 
-  const lines = [`☀️ Sabah brifingi`];
+  // Sorun yoksa mesaj atma — sessizlik = her şey yolunda
+  if (incidents === 0 && warnings === 0 && risingTrends.length === 0) return '';
+
+  const lines = [`📋 Sabah brifing`];
   
   if (incidents > 0) {
-    lines.push(`🚨 Gece ${incidents} kritik olay — inceleme gerekli.`);
-  } else {
-    lines.push('✅ Gece olaysız geçti.');
+    lines.push(`🚨 ${incidents} kritik olay gece boyunca — inceleme gerekli`);
   }
-  
+  if (warnings > 0) {
+    lines.push(`⚠️ ${warnings} uyarı`);
+  }
   if (risingTrends.length > 0) {
     lines.push(`📈 Yükselen: ${risingTrends.map(t => t.key).join(', ')}`);
   }
-  
-  lines.push(`🫀 ${beats} beat | Mod: ${mood}`);
   
   return lines.join('\n');
 }
@@ -203,24 +206,22 @@ export function composeNightReport(state: ConsciousnessState): string {
   const criticals = todaysThoughts.filter(t => t.priority === 'critical').length;
   const highs = todaysThoughts.filter(t => t.priority === 'high').length;
   const fixes = todaysThoughts.filter(t => t.action?.type === 'auto_fix').length;
-  const correlations = todaysThoughts.filter(t => t.summary.startsWith('[')).length;
-  
-  const lines = ['🌙 *Gün Sonu Raporu*', ''];
-  
-  lines.push(`📊 ${todaysThoughts.length} düşünce | ${criticals} kritik | ${highs} yüksek`);
-  if (fixes > 0) lines.push(`🔧 ${fixes} otomatik düzeltme uygulandı`);
-  if (correlations > 0) lines.push(`🔗 ${correlations} cross-sensor korelasyon`);
-  lines.push(`📬 ${state.notificationsToday} bildirim gönderildi`);
   
   const rising = state.trends?.filter(t => t.direction === 'rising') || [];
-  const falling = state.trends?.filter(t => t.direction === 'falling') || [];
-  if (rising.length > 0 || falling.length > 0) {
-    lines.push('');
-    if (rising.length > 0) lines.push(`📈 Yükselen: ${rising.map(t => t.key).join(', ')}`);
-    if (falling.length > 0) lines.push(`📉 Düşen: ${falling.map(t => t.key).join(', ')}`);
+
+  const lines = ['📋 Gün sonu rapor'];
+  
+  if (criticals === 0 && highs === 0) {
+    lines.push('✅ Nominal — sorun yok.');
+  } else {
+    if (criticals > 0) lines.push(`🚨 ${criticals} kritik`);
+    if (highs > 0) lines.push(`⚠️ ${highs} uyarı`);
   }
   
-  lines.push('', 'Nöbetteyim. 🫡');
+  if (fixes > 0) lines.push(`🔧 ${fixes} otomatik düzeltme`);
+  if (rising.length > 0) lines.push(`📈 Trend: ${rising.map(t => t.key).join(', ')}`);
+  lines.push(`📬 ${state.notificationsToday} bildirim`);
+  
   return lines.join('\n');
 }
 
@@ -233,13 +234,13 @@ export function composeCheckInMessage(
 ): string | null {
   const silenceHours = (Date.now() - lastUserMessageAt) / 3600000;
 
-  // 8+ saat sessizlik ve çalışma saatleri içindeyse
-  if (silenceHours < 8) return null;
+  // 12+ saat sessizlik ve çalışma saatleri içindeyse (eskiden 8 saatti, çok agresifti)
+  if (silenceHours < 12) return null;
 
   const hour = new Date().getHours();
   if (hour < 9 || hour > 22) return null;
 
-  return `👋 ${Math.floor(silenceHours)} saattir sessizsin. Her şey yolunda mı?\n${MOOD_EMOJI[state.emotion.mood]} Ben buradayım, ${state.emotion.mood} moddayım.`;
+  return `📋 ${Math.floor(silenceHours)}s sessizlik — sistem nominal, beklemedeyim.`;
 }
 
 // ═══════════════════════════════════════════

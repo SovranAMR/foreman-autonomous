@@ -92,14 +92,18 @@ export function deriveMood(
     mood = 'critical';
     intensity = 80 + Math.min(criticalCount * 10, 20);
     trigger = readings.find(r => r.severity === 'critical')?.title;
-  } else if (totalIssues >= 3) {
+  } else if (totalIssues >= 5) {
     mood = 'stressed';
     intensity = 60 + Math.min(totalIssues * 5, 30);
     trigger = `${totalIssues} aktif sorun`;
-  } else if (warningCount > 0) {
+  } else if (warningCount >= 3) {
     mood = 'alert';
-    intensity = 40 + warningCount * 10;
-    trigger = readings.find(r => r.severity === 'warning')?.title;
+    intensity = 40 + warningCount * 5;
+    const warningTitles = readings
+      .filter(r => r.severity === 'warning')
+      .map(r => r.title)
+      .slice(0, 3);
+    trigger = `${warningCount} warning: ${warningTitles.join(', ')}`;
   } else {
     // Her şey yolunda — saate göre mood belirle
     const hour = new Date().getHours();
@@ -389,21 +393,21 @@ const CURIOSITY_TEMPLATES: Array<{
     },
     source: 'system',
   },
-  // Disk doluluk gözlemi
+  // RAM gözlemi — sadece yüksek RAM
   {
     condition: (s) => {
-      const disk = s.trends.find(t => t.key === 'disk_usage');
-      const lastVal = disk?.values.slice(-1)[0]?.value ?? 0;
-      return lastVal > 50;
+      const ram = s.trends.find(t => t.key === 'ram_usage');
+      const lastVal = ram?.values.slice(-1)[0]?.value ?? 0;
+      return lastVal > 80;
     },
     generate: (s) => {
-      const disk = s.trends.find(t => t.key === 'disk_usage');
-      const val = disk?.values.slice(-1)[0]?.value ?? 0;
-      return `Disk kullanımı %${val.toFixed(0)}. ${val > 70 ? 'Temizlik düşünmeli miyiz?' : 'Stabil görünüyor.'}`;
+      const ram = s.trends.find(t => t.key === 'ram_usage');
+      const val = ram?.values.slice(-1)[0]?.value ?? 0;
+      return `RAM %${val.toFixed(0)} — hangi süreçler yiyor? Top 5'i kontrol etmeliyim.`;
     },
     source: 'system',
   },
-  // Uptime gözlemi
+  // Uptime gözlemi — sadece her 48 beat'te (4 saatte bir)
   {
     condition: (s) => {
       const hours = (Date.now() - s.startedAt) / 3600000;
@@ -415,44 +419,7 @@ const CURIOSITY_TEMPLATES: Array<{
     },
     source: 'self',
   },
-  // RAM gözlemi
-  {
-    condition: (s) => {
-      const ram = s.trends.find(t => t.key === 'ram_usage');
-      const lastVal = ram?.values.slice(-1)[0]?.value ?? 0;
-      return lastVal > 60;
-    },
-    generate: (s) => {
-      const ram = s.trends.find(t => t.key === 'ram_usage');
-      const val = ram?.values.slice(-1)[0]?.value ?? 0;
-      return `RAM kullanımı %${val.toFixed(0)}. ${val > 80 ? 'Hangi süreçler yiyor acaba?' : 'Normal aralıkta.'}`;
-    },
-    source: 'system',
-  },
-  // Gece düşüncesi
-  {
-    condition: () => {
-      const h = new Date().getHours();
-      return h >= 0 && h < 6;
-    },
-    generate: (s) => {
-      const thoughts = s.thoughts.length;
-      return `Gece sessizliği... Bugün ${s.notificationsToday} bildirim gönderdim, ${thoughts} düşünce ürettim. Yarın nasıl olacak acaba?`;
-    },
-    source: 'inner_monologue',
-  },
-  // Bildirim analizi
-  {
-    condition: (s) => s.notificationsToday > 5,
-    generate: (s) => `Bugün ${s.notificationsToday} bildirim gönderdim. Çok mu rahatsız ediyorum yoksa? Dengelemeye çalışıyorum.`,
-    source: 'self',
-  },
-  // Düşünce yokluğu gözlemi
-  {
-    condition: (s) => s.thoughts.length === 0 && s.heartbeatCount > 12,
-    generate: (s) => `${s.heartbeatCount} beat oldu ama hiç "gerçek" düşünce üretmedim. Her şey çok sakin. Bu iyi bir şey.`,
-    source: 'inner_monologue',
-  },
+
   // CPU gözlemi
   {
     condition: (s) => {
@@ -476,51 +443,7 @@ const CURIOSITY_TEMPLATES: Array<{
     },
     source: 'self',
   },
-  // Git gözlemi
-  {
-    condition: () => new Date().getHours() >= 10 && new Date().getHours() <= 18,
-    generate: () => 'Çalışma saatleri... Repo\'da bir aktivite var mı diye bakıyorum.',
-    source: 'git',
-  },
-  // ═══ HER ZAMAN ÇALIŞAN DÜŞÜNCELER ═══
-  // Genel sağlık raporu — her koşulda tetiklenir
-  {
-    condition: () => true,
-    generate: (s) => {
-      const uptime = Math.floor((Date.now() - s.startedAt) / 3600000);
-      const healthy = Object.values(s.sensorHealth).filter(v => v === 'healthy').length;
-      const total = Object.keys(s.sensorHealth).length;
-      return `${healthy}/${total} sensör sağlıklı. ${uptime} saattir uyanığım. Beat #${s.heartbeatCount}.`;
-    },
-    source: 'self',
-  },
-  // Zaman bazlı gözlem
-  {
-    condition: () => true,
-    generate: (s) => {
-      const h = new Date().getHours();
-      const period = h < 6 ? 'Gece sessizliği' : h < 12 ? 'Sabah enerjisi' : h < 18 ? 'Öğleden sonra' : 'Akşam sakinliği';
-      const ram = s.trends.find(t => t.key === 'ram_usage');
-      const ramVal = ram?.values.slice(-1)[0]?.value?.toFixed(0) ?? '?';
-      return `${period}. RAM %${ramVal}, bildirim: ${s.notificationsToday}. Her şey kontrol altında.`;
-    },
-    source: 'system',
-  },
   // ═══ AWARENESS DÜŞÜNCELER — Dış dünya ile bağlantı ═══
-  // Son konuşma hakkında düşünce
-  {
-    condition: () => true,
-    generate: (s) => {
-      // lastInnerMonologue'da awareness bilgisi varsa oradan çek
-      const mono = s.lastInnerMonologue || '';
-      if (mono.includes('[Hafıza]')) {
-        const memLine = mono.split('\n').find(l => l.includes('[Hafıza]'));
-        if (memLine) return memLine.replace('[Hafıza] ', '');
-      }
-      return `Son iç diyaloğumda hafızayı taradım. Bağlam güncel.`;
-    },
-    source: 'inner_monologue',
-  },
   // Yapılacak iş varsa hatırlat
   {
     condition: (s) => {
@@ -659,39 +582,73 @@ export function generateInnerMonologue(state: ConsciousnessState, awareness?: st
   // ── Çıkarım — Ne yapmalıyım? ──
   const inferences: string[] = [];
 
-  if (state.notificationsToday > 50) {
-    inferences.push(`Bildirim sayısı kontrolden çıkmış (${state.notificationsToday}). Severity gate devrede ama eşikler hâlâ gevşek.`);
+  // Bildirim kontrolü
+  if (state.notificationsToday > 10) {
+    inferences.push(`${state.notificationsToday} bildirim — eşik aşıldı. Filtre sıkılaştırılmalı.`);
   }
 
+  // Stale work detection
   const staleWork = state.recentThoughts.find(t => t.summary.includes('stale'));
   if (staleWork) {
     inferences.push('Yarım işler birikiyor. Patrona hatırlatma zamanı.');
   }
 
+  // Tehlikeli trend tespiti — sadece gerçek tehlike
   const dangerousTrends = state.trends.filter(t => t.prediction && t.direction === 'rising');
-  if (dangerousTrends.length > 0) {
-    inferences.push(`${dangerousTrends[0].key} yükseliyor: ${dangerousTrends[0].prediction}. Erken müdahale şart.`);
+  for (const dt of dangerousTrends) {
+    const val = lastVal(dt);
+    // Sadece %75+ olan rising trend'ler tehlikeli
+    if (val !== null && val > 75) {
+      inferences.push(`${dt.key} kritik bölgede (%${val.toFixed(0)}): ${dt.prediction}`);
+    }
   }
 
+  // Sniper analizi
   const sniperTrend = state.trends.find(t => t.key === 'sniper_engagement');
   if (sniperTrend) {
     const sniperVal = lastVal(sniperTrend);
+    const sniperVel = velocityPerHour(sniperTrend, 24);
     if (sniperVal !== null && sniperVal === 0) {
-      inferences.push('Sniper sıfır engagement. Query değişikliği mi lazım, API sorunu mu?');
+      inferences.push('Sniper sıfır engagement — API sorunu veya query değişikliği gerekli.');
+    } else if (sniperVel !== null && sniperVel < -5) {
+      inferences.push(`Sniper engagement düşüşte (${sniperVel.toFixed(1)}/h). İçerik stratejisi gözden geçirilmeli.`);
     }
   }
 
+  // RAM + CPU korelasyon
+  const ramTrend = state.trends.find(t => t.key === 'ram_usage');
+  const cpuTrend = state.trends.find(t => t.key === 'cpu_load');
+  if (ramTrend && cpuTrend) {
+    const ramV = lastVal(ramTrend);
+    const cpuV = lastVal(cpuTrend);
+    if (ramV !== null && cpuV !== null) {
+      if (ramV > 80 && cpuV < 1) {
+        inferences.push(`RAM %${ramV.toFixed(0)} ama CPU idle — memory leak şüphesi. Top 5 process'i kontrol et.`);
+      } else if (ramV > 85) {
+        inferences.push(`RAM %${ramV.toFixed(0)} — reboot veya servis restart planla.`);
+      }
+    }
+  }
+
+  // Gece saatleri analizi
   const hour = new Date().getHours();
-  if (hour >= 2 && hour < 7 && recentIncidents.length === 0) {
-    inferences.push('Gece sessiz. Yarınki potansiyel sorunları değerlendiriyorum.');
+  if (hour >= 2 && hour < 7) {
+    if (recentIncidents.length === 0) {
+      inferences.push('Gece sessiz. Nominal operasyon.');
+    } else {
+      inferences.push(`Gece ${recentIncidents.length} olay — sabah brifingi hazırlanmalı.`);
+    }
   }
 
-  if (inferences.length > 0) {
-    lines.push('');
-    lines.push('[Çıkarım]');
-    for (const inf of inferences) {
-      lines.push(`  → ${inf}`);
-    }
+  // Her şey yolundaysa bile söyle
+  if (inferences.length === 0 && risingTrends.length === 0 && recentIncidents.length === 0) {
+    inferences.push('Tüm sistemler nominal. Delta yok. Nöbetteyim.');
+  }
+
+  lines.push('');
+  lines.push('[Çıkarım]');
+  for (const inf of inferences) {
+    lines.push(`  → ${inf}`);
   }
 
   return lines.join('\n');
@@ -764,101 +721,71 @@ const MOOD_EMOJI: Record<Mood, string> = {
 };
 
 export function formatStatusReport(state: ConsciousnessState): string {
-  const uptime = Math.floor((Date.now() - state.startedAt) / 3600000);
+  const uptimeH = Math.floor((Date.now() - state.startedAt) / 3600000);
   const moodEmoji = MOOD_EMOJI[state.emotion.mood];
-  const moodDur = Math.floor((Date.now() - state.emotion.since) / 60000);
 
-  const lines: string[] = [
-    `${moodEmoji} *Foreman — Beat #${state.heartbeatCount}*`,
-    '',
-  ];
-
-  // Mood
-  lines.push(`Ruh hali: ${moodEmoji} ${state.emotion.mood} (${moodDur}dk)`);
-  if (state.emotion.trigger) {
-    lines.push(`Sebep: ${state.emotion.trigger}`);
-  }
-  lines.push('');
-
-  // ── Operasyonel İstihbarat ──
-  const recentReadings = state.recentThoughts.flatMap(t => t.readings);
-
-  // Work items (foreman/self sensor)
-  const workReadings = recentReadings.filter(
-    r => r.sensor === 'foreman' || (r.sensor === 'self' && r.metricKey?.includes('work'))
-  );
-  if (workReadings.length > 0) {
-    lines.push('📋 *İşler:*');
-    for (const r of workReadings) {
-      lines.push(`  ${r.title}`);
-    }
-    lines.push('');
-  }
-
-  // Sniper durumu
-  const sniperReadings = recentReadings.filter(r => r.sensor === 'sniper');
-  if (sniperReadings.length > 0) {
-    lines.push('🐦 *Sniper:*');
-    for (const r of sniperReadings) {
-      lines.push(`  ${r.title}`);
-    }
-    lines.push('');
-  }
-
-  // GitHub
-  const githubReadings = recentReadings.filter(r => r.metricKey?.startsWith('github_'));
-  if (githubReadings.length > 0) {
-    lines.push('⭐ *GitHub:*');
-    for (const r of githubReadings) {
-      lines.push(`  ${r.title}`);
-    }
-    lines.push('');
-  }
-
-  // Cron sorunları
-  const cronReadings = recentReadings.filter(r => r.sensor === 'cron');
-  const unhealthyCron = cronReadings.filter(r => r.severity !== 'info');
-  if (unhealthyCron.length > 0) {
-    lines.push('⏰ *Cron Sorunlar:*');
-    for (const r of unhealthyCron) {
-      lines.push(`  ${r.title}`);
-    }
-    lines.push('');
-  }
-
-  // System metrics (kompakt)
+  // ── System Metrics ──
   const disk = state.trends.find(t => t.key === 'disk_usage');
   const ram = state.trends.find(t => t.key === 'ram_usage');
   const cpu = state.trends.find(t => t.key === 'cpu_load');
 
-  const lastVal = (t?: MetricTrend) => t?.values.length ? t.values[t.values.length - 1].value : '?';
+  const trendVal = (t?: MetricTrend) => t?.values.length ? t.values[t.values.length - 1].value : null;
   const arrow = (t?: MetricTrend) => {
     if (!t) return '';
     return t.direction === 'rising' ? '↑' : t.direction === 'falling' ? '↓' : '→';
   };
 
-  lines.push(`💾 %${lastVal(disk)}${arrow(disk)} | 🧠 %${lastVal(ram)}${arrow(ram)} | ⚡ ${lastVal(cpu)}${arrow(cpu)}`);
+  const diskV = trendVal(disk);
+  const ramV = trendVal(ram);
+  const cpuV = trendVal(cpu);
 
-  // Predictions
-  const predictions = state.trends.filter(t => t.prediction);
-  for (const p of predictions) {
-    lines.push(`⚠️ ${p.prediction}`);
-  }
+  // ── Header: tek satır durum özeti ──
+  const lines: string[] = [
+    `${moodEmoji} *Durum Raporu* — ${uptimeH}h uptime`,
+    `💾 %${diskV?.toFixed(0) ?? '?'}${arrow(disk)} 🧠 %${ramV?.toFixed(0) ?? '?'}${arrow(ram)} ⚡ ${cpuV?.toFixed(1) ?? '?'}${arrow(cpu)}`,
+  ];
 
-  // Anomaliler
-  const anomalies = state.recentThoughts.filter(
-    t => t.action?.type === 'notify' || t.priority === 'high' || t.priority === 'critical'
-  );
-  if (anomalies.length > 0) {
+  // ── Sadece sorunları göster ──
+  const recentReadings = state.recentThoughts.flatMap(t => t.readings);
+  const issues = recentReadings.filter(r => r.severity !== 'info');
+  const criticals = issues.filter(r => r.severity === 'critical');
+  const warnings = issues.filter(r => r.severity === 'warning');
+
+  if (criticals.length > 0) {
     lines.push('');
-    lines.push('🔔 *Dikkat:*');
-    for (const a of anomalies.slice(0, 5)) {
-      lines.push(`  ${a.summary}`);
+    lines.push('🚨 *Kritik:*');
+    // Deduplicate by title
+    const seen = new Set<string>();
+    for (const r of criticals) {
+      if (!seen.has(r.title)) { lines.push(`  ${r.title}`); seen.add(r.title); }
     }
   }
 
-  // Stats
-  lines.push(`\n📊 Uptime: ${uptime}s | Bildirim: ${state.notificationsToday} | Düşünce: ${state.recentThoughts.length}`);
+  if (warnings.length > 0) {
+    lines.push('');
+    lines.push('⚠️ *Uyarı:*');
+    const seen = new Set<string>();
+    for (const r of warnings.slice(0, 5)) {
+      if (!seen.has(r.title)) { lines.push(`  ${r.title}`); seen.add(r.title); }
+    }
+  }
+
+  // ── Predictions (sadece tehlikeli) ──
+  const predictions = state.trends.filter(t => t.prediction && t.direction === 'rising');
+  for (const p of predictions) {
+    const val = trendVal(p);
+    if (val !== null && val > 70) {
+      lines.push(`📈 ${p.prediction}`);
+    }
+  }
+
+  // ── Sorun yoksa kısa bilgi ──
+  if (criticals.length === 0 && warnings.length === 0) {
+    lines.push('✅ Tüm sistemler nominal.');
+  }
+
+  // ── Footer: kompakt stats ──
+  lines.push(`\n📬 ${state.notificationsToday} bildirim | 💭 ${state.recentThoughts.length} düşünce`);
 
   return lines.join('\n');
 }

@@ -469,174 +469,118 @@ export class MessagingGateway {
 
       if (hasToolSupport) {
         console.log(`[gateway] Using streamChatWithTools path (with tools)`);
-        let responseText = "";
-        const toolLog: string[] = [];
 
-        const result = await this.provider.streamChatWithTools!(
-          messages,
-          this.activeModel,
-          // onToken — collect response text
-          (token: string) => {
-            responseText += token;
-          },
-          // onToolCall — log tool usage
-          (call: { name: string; args: Record<string, any> }) => {
-            const argsPreview = call.args.command ?? call.args.path ?? call.args.pattern ?? call.args.directory ?? ".";
-            toolLog.push(`⚙ ${call.name} ${String(argsPreview).slice(0, 60)}`);
-          },
-          // onToolResult — log tool results
-          (result: { name: string; content: string; isError?: boolean }) => {
-            const icon = result.isError ? "✘" : "✔";
-            const preview = result.content.split("\n").slice(0, 3).join("\n  ");
-            toolLog.push(`  ${icon} ${preview.slice(0, 200)}`);
-          },
-          32768,  // maxTokens — high to allow many tool iterations
-          25,     // maxIterations — same as REPL
-          this.toolExecutor,
-        );
+        // ─── AGENTIC LOOP ─────────────────────────────────
+        // Keep calling LLM with tools until it signals work is done.
+        // Only the FINAL response goes to the user.
+        const MAX_AGENT_ITERATIONS = 10;
+        const allToolLogs: string[] = [];
+        let finalResponseText = "";
+        let totalInputTokens = 0;
+        let totalOutputTokens = 0;
 
-        // Track tokens
-        console.log(`[gateway] streamChatWithTools done: toolCalls=${toolLog.length}, responseLen=${responseText.length}, tokens=${(result.inputTokens ?? 0) + (result.outputTokens ?? 0)}`);
-        conversation.totalTokens += (result.inputTokens ?? 0) + (result.outputTokens ?? 0);
+        for (let iteration = 0; iteration < MAX_AGENT_ITERATIONS; iteration++) {
+          let responseText = "";
+          const toolLog: string[] = [];
 
-        // ─── HALLUCINATION GUARD ─────────────────────────────
-        // If model returns 0 tool calls but long text, it's hallucinating —
-        // describing what it would do instead of doing it. RETRY with force.
-        const text = responseText.trim() || result.text?.trim() || "";
-        if (toolLog.length === 0 && text.length > 1500 && !conversation.messages.some(m => m.content === "__TOOL_RETRY__")) {
-          console.warn(`[gateway] ⚠️ Hallucination detected: 0 tool calls, ${text.length} chars. Forcing tool-usage retry.`);
-          // Add the hallucinated response + correction to conversation (Cursor non_compliance pattern)
-          conversation.messages.push({ role: "assistant", content: text.slice(0, 200) + "..." });
-          conversation.messages.push({
-            role: "user", content: `<non_compliance>
-SORUN: ${text.length} karakter yazdın ama 0 tool call yaptın. Bu anti_hallucination kurallarını ihlal ediyor:
-- Kural 1: İlk aksiyon tool call olmalı ❌
-- Kural 3: Kod bloğu yazma, write_file kullan ❌
-- Kural 5: "Yapardım" deme, YAP ❌
+          const iterMessages = iteration === 0 ? messages : [
+            ...messages,
+            ...conversation.messages
+              .filter(m => typeof m.content === "string")
+              .slice(-(iteration * 2)) // include recent assistant+user pairs
+              .map(m => ({ role: m.role, content: m.content })),
+          ];
 
-DÜZELTME: Şimdi SADECE tool call'lar ile yanıt ver.
-- Dosya okumak → read_file
-- Kod yazmak → write_file veya edit_file
-- Komut çalıştırmak → bash
-Metin YAZMA. İŞ YAP.
-</non_compliance>` });
-          conversation.messages.push({ role: "user", content: "__TOOL_RETRY__" }); // Prevent infinite retry
-          // Recursive retry with the corrected conversation
-          return this.processWithLLM(conversation);
+          const result = await this.provider.streamChatWithTools!(
+            iteration === 0 ? messages : [
+              { role: "system", content: messages[0].content },
+              ...conversation.messages
+                .filter(m => typeof m.content === "string" && m.role !== "system")
+                .map(m => ({ role: m.role, content: m.content })),
+            ],
+            this.activeModel,
+            (token: string) => { responseText += token; },
+            (call: { name: string; args: Record<string, any> }) => {
+              const argsPreview = call.args.command ?? call.args.path ?? call.args.pattern ?? call.args.directory ?? ".";
+              toolLog.push(`⚙ ${call.name} ${String(argsPreview).slice(0, 60)}`);
+            },
+            (result: { name: string; content: string; isError?: boolean }) => {
+              const icon = result.isError ? "✘" : "✔";
+              const preview = result.content.split("\n").slice(0, 3).join("\n  ");
+              toolLog.push(`  ${icon} ${preview.slice(0, 200)}`);
+            },
+            32768,
+            25,
+            this.toolExecutor,
+          );
+
+          totalInputTokens += result.inputTokens ?? 0;
+          totalOutputTokens += result.outputTokens ?? 0;
+          allToolLogs.push(...toolLog);
+
+          const text = responseText.trim() || result.text?.trim() || "";
+          const toolCallCount = toolLog.filter(l => l.startsWith("⚙")).length;
+
+          console.log(`[gateway] Iteration ${iteration + 1}: ${toolCallCount} tool calls, ${text.length} chars response`);
+
+          // Hallucination guard: 0 tool calls + long text on first iteration
+          if (iteration === 0 && toolCallCount === 0 && text.length > 1500) {
+            console.warn(`[gateway] ⚠️ Hallucination: 0 tools, ${text.length} chars. Injecting correction.`);
+            conversation.messages.push({ role: "assistant", content: text.slice(0, 200) + "..." });
+            conversation.messages.push({ role: "user", content: "Metin yazma, tool call kullan. Dosya oku → read_file, kod yaz → write_file, komut → bash." });
+            continue;
+          }
+
+          // If LLM used tools → work is in progress. Add response to conversation and continue.
+          if (toolCallCount > 0) {
+            conversation.messages.push({ role: "assistant", content: text || "(tool calls executed)" });
+            conversation.messages.push({ role: "user", content: "Devam et. İşin bittiyse sonucu özetle." });
+            finalResponseText = text;
+            continue;
+          }
+
+          // No tool calls → LLM is done. This is the final response.
+          finalResponseText = text;
+          console.log(`[gateway] Agent loop done after ${iteration + 1} iterations, ${allToolLogs.filter(l => l.startsWith("⚙")).length} total tool calls`);
+          break;
         }
-        // Remove retry marker if present (so next message can trigger retry again)
-        conversation.messages = conversation.messages.filter(m => m.content !== "__TOOL_RETRY__");
 
-        // ─── TOOL SUMMARY (compact) ─────────────────────────
+        conversation.totalTokens += totalInputTokens + totalOutputTokens;
+
+        // Build compact tool summary
         let toolSummary = "";
-        if (toolLog.length > 0) {
-          const calls = toolLog.filter(l => l.startsWith("⚙"));
-          const errors = toolLog.filter(l => l.includes("✘"));
-          if (calls.length > 0) {
-            const names = calls.map(c => {
-              const match = c.match(/⚙\s+(\S+)/);
-              return match ? match[1] : "tool";
-            });
-            const counts = new Map<string, number>();
-            for (const n of names) counts.set(n, (counts.get(n) ?? 0) + 1);
-            const summary = [...counts.entries()]
-              .map(([name, count]) => count > 1 ? `${name}×${count}` : name)
-              .join(", ");
-            toolSummary = `🔧 ${summary}`;
-            if (errors.length > 0) toolSummary += ` (${errors.length} error)`;
-          }
-        }
-
-        // ─── DISTILLATION — real engineering, not regex hacks ───────
-        // When the LLM used tools, its text is usually step-by-step narration
-        // ("Şimdi X bakıyorum... tamam... Y yapıyorum..."). Instead of trying
-        // to regex-strip Turkish narration patterns, we make a SEPARATE cheap
-        // LLM call that distills the raw output into a clean 2-3 sentence result.
-        let finalText = text;
-        const toolCallCount = toolLog.filter(l => l.startsWith("⚙")).length;
-
-        if (toolCallCount >= 2 && text.length > 300) {
-          // Response has tool calls + long text = likely narration-heavy
-          try {
-            const distillResult = await this.provider!.generate(
-              [
-                { role: "system", content: "You are a response distiller. The user will give you a raw AI assistant response that contains step-by-step narration mixed with results. Extract ONLY the final conclusions, findings, and results. Output 2-4 short sentences maximum. Same language as input. No narration, no process description, no 'I did X then Y'. Just the outcome." },
-                { role: "user", content: text },
-              ] as any,
-              { model: this.activeModel, maxTokens: 500, temperature: 0.1 },
-            );
-            const distilled = distillResult.text?.trim();
-            if (distilled && distilled.length > 20 && distilled.length < text.length) {
-              finalText = distilled;
-              console.log(`[gateway] Distilled: ${text.length} chars → ${distilled.length} chars`);
-            }
-          } catch (e) {
-            console.warn(`[gateway] Distillation failed, using raw text:`, e);
-            // Fallback: just use the raw text
-          }
-        }
-
-        if (!finalText?.trim()) {
-          finalText = text || "🤔 (boş yanıt — tekrar dene)";
+        const allCalls = allToolLogs.filter(l => l.startsWith("⚙"));
+        const allErrors = allToolLogs.filter(l => l.includes("✘"));
+        if (allCalls.length > 0) {
+          const names = allCalls.map(c => {
+            const match = c.match(/⚙\s+(\S+)/);
+            return match ? match[1] : "tool";
+          });
+          const counts = new Map<string, number>();
+          for (const n of names) counts.set(n, (counts.get(n) ?? 0) + 1);
+          const summary = [...counts.entries()]
+            .map(([name, count]) => count > 1 ? `${name}×${count}` : name)
+            .join(", ");
+          toolSummary = `🔧 ${summary}`;
+          if (allErrors.length > 0) toolSummary += ` (${allErrors.length} error)`;
         }
 
         const parts: string[] = [];
         if (toolSummary) parts.push(toolSummary);
-        parts.push(finalText);
+        if (finalResponseText) parts.push(finalResponseText);
 
-        let output = parts.join("\n\n").trim();
+        let finalText = parts.join("\n\n").trim();
+        if (!finalText) {
+          return { text: "🤔 (boş yanıt — tekrar dene)" };
+        }
 
         // Cap response length for Telegram
-        if (output.length > 3000) {
-          output = output.slice(0, 2800) + "\n\n... (kısaltıldı)";
+        if (finalText.length > 3000) {
+          finalText = finalText.slice(0, 2800) + "\n\n... (kısaltıldı)";
         }
-
-        let finalOutput = output;
-
-        // ─── AUTO-CONTINUATION ─────────────────────────────
-        // If LLM response ends with continuation signals, auto-send
-        // "devam et" so the agent doesn't stall waiting for user input.
-        const continuationPatterns = [
-          /devam ediyorum[.:\s]*$/i,
-          /devam\.{3}$/i,
-          /(?:göreceğim|bakacağım|kontrol edeceğim|test edeceğim|düzelteceğim|inceleyeceğim)[.:\s]*$/i,
-          /(?:bakalım|görelim|kontrol edelim|test edelim)[.:\s]*$/i,
-          /(?:şimdi|hemen)\s+.{5,40}[.:\s]*$/i,
-          /\.\.\.$/, // ends with ...
-          /:\s*$/,   // ends with colon (about to do something)
-        ];
-        const looksLikeContinuation = continuationPatterns.some(p => p.test(finalOutput.trim()));
-        if (looksLikeContinuation && !conversation.messages.some(m => m.content === "__AUTO_CONTINUE__")) {
-          // Send current response first, then auto-continue
-          const reply = { text: finalOutput, parseMode: "markdown" as const };
-          conversation.messages.push({ role: "assistant", content: finalOutput });
-          conversation.messages.push({ role: "user", content: "Devam et." });
-          conversation.messages.push({ role: "user", content: "__AUTO_CONTINUE__" });
-          conversation.lastActivity = Date.now();
-          this.persistConversation(`${conversation.channel}:${conversation.chatId}`);
-          // Fire-and-forget: process continuation
-          setTimeout(async () => {
-            try {
-              const contReply = await this.processWithLLM(conversation);
-              if (contReply) {
-                const channel = this.channels.get(conversation.channel);
-                if (channel) {
-                  await channel.send(conversation.chatId, contReply);
-                  conversation.messages.push({ role: "assistant", content: contReply.text });
-                  this.persistConversation(`${conversation.channel}:${conversation.chatId}`);
-                }
-              }
-            } catch (e) {
-              console.error("[gateway] Auto-continuation failed:", e);
-            }
-          }, 500);
-          return reply;
-        }
-        // Clean up auto-continue markers
-        conversation.messages = conversation.messages.filter(m => m.content !== "__AUTO_CONTINUE__");
 
         return {
-          text: finalOutput,
+          text: finalText,
           parseMode: "markdown",
         };
       }

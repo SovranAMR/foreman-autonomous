@@ -252,8 +252,8 @@ export async function heartbeatCycle(
   }
 
   // ─── 4b. CURIOSITY — Merak düşünceleri ───
-  // Her 3 beat'te bir merak düşüncesi üret — sorun olmasa bile
-  if (state.heartbeatCount % 3 === 0) {
+  // Her 6 beat'te bir merak düşüncesi üret — sorun olmasa bile
+  if (state.heartbeatCount % 6 === 0) {
     const curiosity = generateCuriosityThought(state, allReadings);
     if (curiosity) {
       allThoughts.push(curiosity);
@@ -334,8 +334,10 @@ export async function heartbeatCycle(
         break;
     }
 
-    // Deneyimden öğren
-    state.experiences = recordExperience(state.experiences, thought);
+    // Deneyimden öğren — sadece anlamlı düşüncelerden (low+reflect = curiosity gürültüsü, kaydetme)
+    if (thought.priority !== 'low' || thought.action?.type !== 'reflect') {
+      state.experiences = recordExperience(state.experiences, thought);
+    }
   }
 
   // ─── 6. REFLECT — İç Diyalog + Awareness ───
@@ -357,11 +359,11 @@ export async function heartbeatCycle(
   }
 
   // ─── 7. STATUS REPORT ───
-  if (state.heartbeatCount % config.statusReportEvery === 0 && config.notifyChatId) {
+  if (state.heartbeatCount % config.statusReportEvery === 0 && config.notifyChatId && canNotify(state, config)) {
     const report = formatStatusReport(state);
-    await sendTelegram(report, config.notifyChatId);
-    state.notificationsToday++;
-    await log(`[status-report] Gönderildi`);
+    const sent = await sendTelegram(report, config.notifyChatId);
+    if (sent) state.notificationsToday++;
+    await log(`[status-report] ${sent ? 'Gönderildi' : 'Gönderilemedi'}`);
   }
 
   // ─── 8. DAILY JOURNAL ───
@@ -377,9 +379,9 @@ export async function heartbeatCycle(
       state.journals = state.journals.slice(-30);
     }
 
-    if (config.notifyChatId) {
-      await sendTelegram(formatJournalForHuman(journal), config.notifyChatId);
-      state.notificationsToday++;
+    if (config.notifyChatId && canNotify(state, config)) {
+      const sent = await sendTelegram(formatJournalForHuman(journal), config.notifyChatId);
+      if (sent) state.notificationsToday++;
     }
     await log(`[journal] Günlük yazıldı: ${journal.summary}`);
   }
@@ -499,12 +501,13 @@ export async function heartbeatCycle(
     // Sabah selamlaması (1 kez/gün, saat 8-10)
     if (hour >= 8 && hour <= 10 && state.heartbeatCount > 1) {
       const morningKey = `morning_${today}`;
-      if (!state.proactiveMessages[morningKey]) {
+      if (!state.proactiveMessages[morningKey] && canNotify(state, config)) {
         const morning = composeMorningMessage(state);
         if (morning) {
           const sent = await sendTelegram(morning, config.notifyChatId);
           if (sent) {
             state.proactiveMessages[morningKey] = Date.now();
+            state.notificationsToday++;
             await log('[proactive] Sabah selamlaması gönderildi');
           }
         }
@@ -514,11 +517,12 @@ export async function heartbeatCycle(
     // Gece raporu (1 kez/gün, saat 23)
     if (hour === 23) {
       const nightKey = `night_${today}`;
-      if (!state.proactiveMessages[nightKey]) {
+      if (!state.proactiveMessages[nightKey] && canNotify(state, config)) {
         const nightReport = composeNightReport(state);
         const sent = await sendTelegram(nightReport, config.notifyChatId);
         if (sent) {
           state.proactiveMessages[nightKey] = Date.now();
+          state.notificationsToday++;
           await log('[proactive] Gece raporu gönderildi');
         }
       }

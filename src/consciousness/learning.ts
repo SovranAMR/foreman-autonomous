@@ -101,8 +101,8 @@ export function detectPatterns(
   const groups = new Map<string, Thought[]>();
   for (const t of significantThoughts) {
     const keyword = extractKeyword(t.summary);
-    // "normal" içeren keyword'ler gürültü — atla
-    if (keyword.includes('normal')) continue;
+    // Boş keyword veya 'normal' → gürültü, atla
+    if (!keyword || keyword.includes('normal')) continue;
     const key = `${t.source}:${keyword}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(t);
@@ -174,28 +174,35 @@ export function detectPatterns(
 
 /**
  * Bir düşünceden anahtar kelime çıkar
+ * Boş string → pattern oluşturma (gürültü filtresi)
  */
 function extractKeyword(summary: string): string {
-  // "Disk: %92" → "disk_high"
-  // "RAM: %85" → "ram_high"
-  // "CPU Load: 4.2" → "cpu_high"
   const lower = summary.toLowerCase();
 
   if (lower.includes('disk') && lower.match(/%(\d+)/)) {
     const pct = parseInt(lower.match(/%(\d+)/)![1], 10);
-    return pct > 80 ? 'disk_high' : 'disk_normal';
+    if (pct > 85) return 'disk_critical';
+    if (pct > 70) return 'disk_high';
+    return ''; // Normal disk — pattern oluşturma
   }
   if (lower.includes('ram') && lower.match(/%(\d+)/)) {
     const pct = parseInt(lower.match(/%(\d+)/)![1], 10);
-    return pct > 80 ? 'ram_high' : 'ram_normal';
+    if (pct > 85) return 'ram_critical';
+    if (pct > 75) return 'ram_high';
+    return ''; // Normal RAM — pattern oluşturma
   }
-  if (lower.includes('cpu') || lower.includes('load')) return 'cpu_load';
+  if (lower.includes('cpu') || lower.includes('load')) {
+    const match = lower.match(/([\d.]+)/);
+    if (match && parseFloat(match[1]) > 4) return 'cpu_high';
+    return ''; // Normal CPU
+  }
   if (lower.includes('durmuş') || lower.includes('down')) return 'service_down';
   if (lower.includes('test') && lower.includes('fail')) return 'test_failure';
   if (lower.includes('dns') || lower.includes('network')) return 'network_issue';
+  if (lower.includes('stale') && lower.includes('work')) return 'stale_work';
 
-  // Fallback: ilk 2 kelime
-  return lower.split(/\s+/).slice(0, 2).join('_').replace(/[^a-z_]/g, '');
+  // Boş keyword = pattern oluşturma (generic gürültüyü engelle)
+  return '';
 }
 
 // ═══════════════════════════════════════════
