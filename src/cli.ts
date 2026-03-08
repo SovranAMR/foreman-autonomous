@@ -465,6 +465,7 @@ program
     const engine = new Engine({
       projectRoot,
       projectName: "foreman",
+      model: "kimi-k2.5",  // Forge pipeline uses Kimi
     });
 
     // Register providers
@@ -536,6 +537,19 @@ program
         } catch (e: any) {
           console.log(`  ${icon.fail} Antigravity: ${brand.dim(e.message)}`);
         }
+      }
+
+      // Kimi provider (used by forge pipeline as primary model)
+      try {
+        const { KimiProvider, loadKimiKey } = await import("./kimi-provider.js");
+        const kimiKey = loadKimiKey();
+        if (kimiKey) {
+          const kimi = new KimiProvider(kimiKey);
+          engine.providers.register(kimi);
+          console.log(`  ${icon.done} Kimi ${brand.dim("(K2.5 — forge pipeline)")}`);
+        }
+      } catch (e: any) {
+        console.log(`  ${icon.fail} Kimi: ${brand.dim(e.message)}`);
       }
 
       if (engine.providers.size === 0) {
