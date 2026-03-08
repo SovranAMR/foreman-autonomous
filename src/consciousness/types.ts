@@ -259,7 +259,7 @@ export const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {
   intervalMs: 5 * 60 * 1000,          // 5 dakika
   quietHoursStart: 2,                  // Gece 2
   quietHoursEnd: 7,                    // Sabah 7
-  maxDailyNotifications: 20,
+  maxDailyNotifications: 15,
   enabledSensors: ['system', 'service', 'git', 'test', 'log', 'self', 'cron', 'foreman', 'sniper', 'github'],
   autoFixEnabled: true,
   notifyChatId: undefined,

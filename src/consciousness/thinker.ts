@@ -29,6 +29,43 @@ function tid(): string {
 }
 
 // ═══════════════════════════════════════════
+// HELPER FUNCTIONS — Trend Analysis Utilities
+// ═══════════════════════════════════════════
+
+/** Trend volatil mi? direction === 'volatile' veya son 12 değerde yüksek stddev */
+function isVolatile(t: MetricTrend): boolean {
+  if (t.direction === 'volatile') return true;
+  const vals = t.values.slice(-12).map(v => v.value);
+  if (vals.length < 3) return false;
+  return stddev(vals) > 10; // %10'dan fazla sapma = volatil
+}
+
+/** Son N değer üzerinden saat başına değişim hızı */
+function velocityPerHour(t: MetricTrend, n: number = 12): number | null {
+  const recent = t.values.slice(-n);
+  if (recent.length < 2) return null;
+  const first = recent[0];
+  const last = recent[recent.length - 1];
+  const hours = (last.ts - first.ts) / 3600000;
+  if (hours < 0.01) return null;
+  return (last.value - first.value) / hours;
+}
+
+/** Trend'in son değeri */
+function lastVal(t: MetricTrend): number | null {
+  if (t.values.length === 0) return null;
+  return t.values[t.values.length - 1].value;
+}
+
+/** Standart sapma */
+function stddev(vals: number[]): number {
+  if (vals.length === 0) return 0;
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const sqDiffs = vals.map(v => (v - mean) ** 2);
+  return Math.sqrt(sqDiffs.reduce((a, b) => a + b, 0) / vals.length);
+}
+
+// ═══════════════════════════════════════════
 // MOOD ENGINE — Duygu Durumu
 // ═══════════════════════════════════════════
 
@@ -540,47 +577,121 @@ export function generateCuriosityThought(
 export function generateInnerMonologue(state: ConsciousnessState, awareness?: string): string {
   const lines: string[] = [];
   const uptime = Math.floor((Date.now() - state.startedAt) / 3600000);
-
-  lines.push(`[İç ses] ${uptime} saattir uyanığım. ${state.heartbeatCount} kez nabız attım.`);
-
-  // Mood hakkında düşün
   const moodDuration = Math.floor((Date.now() - state.emotion.since) / 60000);
-  lines.push(`Şu an ${state.emotion.mood} modundayım (${moodDuration} dakikadır).`);
 
-  // Awareness — ne konuşuldu, ne yapıldı, ne yapılacak
-  if (awareness) {
-    lines.push('');
-    lines.push('[Hafıza] ' + awareness);
-  }
+  // Header — kompakt durum
+  lines.push(`[Beat #${state.heartbeatCount}] ${uptime}h uptime | ${state.emotion.mood} (${moodDuration}dk)`);
 
-  // Trend'ler hakkında düşün
+  // ── Trend Analizi — asıl beyin çalışması ──
   const risingTrends = state.trends.filter(t => t.direction === 'rising');
-  if (risingTrends.length > 0) {
-    lines.push(`Dikkat: ${risingTrends.map(t => t.key).join(', ')} yükseliyor.`);
+  const fallingTrends = state.trends.filter(t => t.direction === 'falling');
+  const volatileTrends = state.trends.filter(t => isVolatile(t));
+
+  if (risingTrends.length > 0 || fallingTrends.length > 0 || volatileTrends.length > 0) {
+    lines.push('');
+    lines.push('[Trend Analizi]');
+
     for (const t of risingTrends) {
-      if (t.prediction) lines.push(`  → ${t.prediction}`);
+      const vel = velocityPerHour(t, 12);
+      const current = lastVal(t);
+      const velStr = vel !== null ? `hız: +${vel.toFixed(2)}/h` : '';
+
+      let analysis = `  ↑ ${t.key}: ${current?.toFixed(1) ?? '?'}`;
+      if (velStr) analysis += ` (${velStr})`;
+
+      // Cross-reference
+      if (t.key === 'ram_usage' && current !== null && current > 70) {
+        const cpuTrend = state.trends.find(tt => tt.key === 'cpu_load');
+        if (cpuTrend && cpuTrend.direction === 'stable') {
+          analysis += ' ← CPU stabil, muhtemelen passive leak';
+        }
+      }
+
+      if (t.prediction) {
+        analysis += ` → ${t.prediction}`;
+      }
+      lines.push(analysis);
+    }
+
+    for (const t of fallingTrends) {
+      const vel = velocityPerHour(t, 12);
+      lines.push(`  ↓ ${t.key}: ${lastVal(t)?.toFixed(1) ?? '?'} (${vel !== null ? vel.toFixed(2) + '/h' : 'yavaş'})`);
+    }
+
+    for (const t of volatileTrends) {
+      if (t.direction === 'rising' || t.direction === 'falling') continue;
+      const vals = t.values.slice(-12).map(v => v.value);
+      const sd = stddev(vals);
+      lines.push(`  ~ ${t.key}: volatil (σ=${sd.toFixed(2)}) — periyodik süreç veya external faktör`);
     }
   }
 
-  // Deneyimlerden çıkarım
+  // ── Awareness — bağlam (kısa) ──
+  if (awareness) {
+    lines.push('');
+    lines.push('[Bağlam] ' + awareness.slice(0, 200));
+  }
+
+  // ── İncident Analizi ──
   const recentIncidents = state.experiences.filter(
     e => e.category === 'incident' && Date.now() - e.lastSeen < 24 * 3600000
   );
   if (recentIncidents.length > 0) {
-    lines.push(`Son 24 saatte ${recentIncidents.length} incident yaşandı.`);
-    const recurring = recentIncidents.filter(e => e.occurrenceCount > 2);
+    const recurring = recentIncidents.filter(e => e.occurrenceCount >= 3);
     if (recurring.length > 0) {
-      lines.push(`Tekrarlayan sorunlar: ${recurring.map(e => e.summary).join(', ')}`);
+      lines.push('');
+      lines.push(`[Tekrarlayan] ${recurring.length} pattern: ${recurring.map(e => `${e.summary.slice(0, 50)}(${e.occurrenceCount}x)`).join(', ')}`);
     }
   }
 
-  // Bugünkü bildirim sayısı
-  lines.push(`Bugün ${state.notificationsToday} bildirim gönderdim.`);
+  // ── Bildirim audit ──
+  if (state.notificationsToday > 30) {
+    lines.push('');
+    lines.push(`[Self-Audit] ${state.notificationsToday} bildirim/gün — kalibrasyon gerekli.`);
+  }
 
-  // Gece düşüncesi
+  // ── Stabil durum — kısa ──
+  if (risingTrends.length === 0 && fallingTrends.length === 0 && recentIncidents.length === 0) {
+    lines.push('');
+    lines.push('[Sonuç] Tüm metrikler nominal. Delta yok. İzlemeye devam.');
+  }
+
+  // ── Çıkarım — Ne yapmalıyım? ──
+  const inferences: string[] = [];
+
+  if (state.notificationsToday > 50) {
+    inferences.push(`Bildirim sayısı kontrolden çıkmış (${state.notificationsToday}). Severity gate devrede ama eşikler hâlâ gevşek.`);
+  }
+
+  const staleWork = state.recentThoughts.find(t => t.summary.includes('stale'));
+  if (staleWork) {
+    inferences.push('Yarım işler birikiyor. Patrona hatırlatma zamanı.');
+  }
+
+  const dangerousTrends = state.trends.filter(t => t.prediction && t.direction === 'rising');
+  if (dangerousTrends.length > 0) {
+    inferences.push(`${dangerousTrends[0].key} yükseliyor: ${dangerousTrends[0].prediction}. Erken müdahale şart.`);
+  }
+
+  const sniperTrend = state.trends.find(t => t.key === 'sniper_engagement');
+  if (sniperTrend) {
+    const sniperVal = lastVal(sniperTrend);
+    if (sniperVal !== null && sniperVal === 0) {
+      inferences.push('Sniper sıfır engagement. Query değişikliği mi lazım, API sorunu mu?');
+    }
+  }
+
   const hour = new Date().getHours();
-  if (hour >= 22 || hour < 6) {
-    lines.push('Gece saatleri... Sakin bir zaman. Yarına hazırlanıyorum.');
+  if (hour >= 2 && hour < 7 && recentIncidents.length === 0) {
+    inferences.push('Gece sessiz. Yarınki potansiyel sorunları değerlendiriyorum.');
+  }
+
+  if (inferences.length > 0) {
+    lines.push('');
+    lines.push('[Çıkarım]');
+    for (const inf of inferences) {
+      lines.push(`  → ${inf}`);
+    }
   }
 
   return lines.join('\n');

@@ -94,10 +94,16 @@ export function detectPatterns(
 ): LearnedPattern[] {
   const updated = [...existingPatterns];
 
+  // Info/low seviyesindeki düşüncelerden pattern çıkarma — gürültü
+  const significantThoughts = thoughts.filter(t => t.priority !== 'low');
+
   // Grup: sensör + keyword
   const groups = new Map<string, Thought[]>();
-  for (const t of thoughts) {
-    const key = `${t.source}:${extractKeyword(t.summary)}`;
+  for (const t of significantThoughts) {
+    const keyword = extractKeyword(t.summary);
+    // "normal" içeren keyword'ler gürültü — atla
+    if (keyword.includes('normal')) continue;
+    const key = `${t.source}:${keyword}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(t);
   }
@@ -105,7 +111,7 @@ export function detectPatterns(
   for (const entry of Array.from(groups.entries())) {
     const key = entry[0];
     const groupThoughts = entry[1];
-    if (groupThoughts.length < 3) continue;
+    if (groupThoughts.length < 5) continue; // 3→5 eşik artırıldı
 
     const [sensor, keyword] = key.split(':');
     const existing = updated.find(
@@ -156,7 +162,14 @@ export function detectPatterns(
     }
   }
 
-  return updated;
+  // Max 50 pattern — en düşük confidence olanları sil
+  if (updated.length > 50) {
+    updated.sort((a, b) => b.confidence - a.confidence);
+    return updated.slice(0, 50);
+  }
+
+  // confidence < 0.2 olan inaktif pattern'leri temizle
+  return updated.filter(p => p.confidence >= 0.2 || p.active);
 }
 
 /**

@@ -168,21 +168,26 @@ export function composeMorningMessage(state: ConsciousnessState): string {
 
   const beats = state.heartbeatCount;
   const mood = state.emotion.mood;
-  const emoji = MOOD_EMOJI[mood];
   const incidents = state.thoughts.filter(
     t => t.priority === 'critical' && Date.now() - t.timestamp < 8 * 3600000
   ).length;
+  
+  const risingTrends = state.trends?.filter(t => t.direction === 'rising') || [];
 
-  const lines = [`☀️ Günaydın patron!`, ''];
-
+  const lines = [`☀️ Sabah brifingi`];
+  
   if (incidents > 0) {
-    lines.push(`Gece ${incidents} kritik olay oldu, bakmanı önerim.`);
+    lines.push(`🚨 Gece ${incidents} kritik olay — inceleme gerekli.`);
   } else {
-    lines.push('Gece sakin geçti, sorun yok.');
+    lines.push('✅ Gece olaysız geçti.');
   }
-
-  lines.push(`${emoji} Şu an: ${mood} | ${beats} beat`);
-
+  
+  if (risingTrends.length > 0) {
+    lines.push(`📈 Yükselen: ${risingTrends.map(t => t.key).join(', ')}`);
+  }
+  
+  lines.push(`🫀 ${beats} beat | Mod: ${mood}`);
+  
   return lines.join('\n');
 }
 
@@ -196,21 +201,26 @@ export function composeNightReport(state: ConsciousnessState): string {
   });
 
   const criticals = todaysThoughts.filter(t => t.priority === 'critical').length;
+  const highs = todaysThoughts.filter(t => t.priority === 'high').length;
   const fixes = todaysThoughts.filter(t => t.action?.type === 'auto_fix').length;
-  const total = todaysThoughts.length;
-
-  const lines = [
-    '🌙 Gece raporu',
-    '',
-    `Bugün ${total} düşünce ürettim.`,
-  ];
-
-  if (criticals > 0) lines.push(`🚨 ${criticals} kritik olay yaşandı.`);
-  if (fixes > 0) lines.push(`🔧 ${fixes} otomatik düzeltme yaptım.`);
-  if (criticals === 0 && fixes === 0) lines.push('Sakin bir gündü.');
-
-  lines.push('', 'İyi geceler, patron. Ben nöbetteyim. 🫡');
-
+  const correlations = todaysThoughts.filter(t => t.summary.startsWith('[')).length;
+  
+  const lines = ['🌙 *Gün Sonu Raporu*', ''];
+  
+  lines.push(`📊 ${todaysThoughts.length} düşünce | ${criticals} kritik | ${highs} yüksek`);
+  if (fixes > 0) lines.push(`🔧 ${fixes} otomatik düzeltme uygulandı`);
+  if (correlations > 0) lines.push(`🔗 ${correlations} cross-sensor korelasyon`);
+  lines.push(`📬 ${state.notificationsToday} bildirim gönderildi`);
+  
+  const rising = state.trends?.filter(t => t.direction === 'rising') || [];
+  const falling = state.trends?.filter(t => t.direction === 'falling') || [];
+  if (rising.length > 0 || falling.length > 0) {
+    lines.push('');
+    if (rising.length > 0) lines.push(`📈 Yükselen: ${rising.map(t => t.key).join(', ')}`);
+    if (falling.length > 0) lines.push(`📉 Düşen: ${falling.map(t => t.key).join(', ')}`);
+  }
+  
+  lines.push('', 'Nöbetteyim. 🫡');
   return lines.join('\n');
 }
 
