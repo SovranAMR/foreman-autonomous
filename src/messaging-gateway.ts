@@ -557,18 +557,29 @@ Metin YAZMA. İŞ YAP.
         }
 
         // ─── RESPONSE CLEANUP — remove step-by-step narration noise ───
-        // LLM sometimes narrates: "şunu yapıyorum... tamam... bunu yapıyorum... tamam"
-        // Strip these patterns since tool summary already shows what happened.
+        // LLM narrates tool calls inline. Strip narration, keep only conclusions.
         finalText = finalText
-          // Remove "Şimdi X yapıyorum..." lines that are just narration
-          .replace(/^(?:Şimdi|Önce|Sonra|Ardından|Hemen|İlk olarak|Daha sonra)\s+.{10,80}(?:yapıyorum|ediyorum|bakıyorum|kontrol ediyorum|okuyorum|çalıştırıyorum)[.…:]*\s*$/gmi, "")
-          // Remove "X yaptım/ettim" lines that just confirm tool calls
-          .replace(/^.{5,60}(?:yaptım|ettim|okudum|yazdım|çalıştırdım|tamamlandı|tamam)[.!✅]*\s*$/gmi, "")
-          // Remove "devam ediyorum" lines
-          .replace(/^.*devam ediyorum[.…:]*\s*$/gmi, "")
-          // Collapse multiple blank lines into one
+          // Strip "Şimdi X yapıyorum/göreceğim/bakacağım:" inline fragments
+          .replace(/(?:Şimdi|Önce|Sonra|Ardından|Hemen)\s+[^.!?✅]{10,120}(?:yapıyorum|ediyorum|bakıyorum|göreceğim|bakacağım|kontrol ediyorum|okuyorum|çalıştırıyorum|inceliyorum|düzeltiyorum)[.…:\s]*/gi, "")
+          // Strip "X yaptım/ettim/okudum" confirmation fragments
+          .replace(/[^.!?✅]{5,80}(?:yaptım|ettim|okudum|yazdım|çalıştırdım|tamamlandı|kontrol ettim|test ettim|buldum\.?\s*(?:Test|Şimdi|Sonra))/gi, "")
+          // Strip "Test edeyim:" / "Bakalım:" / "Oraya bakalım:" fragments
+          .replace(/(?:Test|Kontrol|Deneme)\s+(?:edeyim|edelim|yapayım|yapalım)[.…:\s]*/gi, "")
+          .replace(/(?:Şimdi\s+)?(?:oraya|buraya|ona|buna)\s+(?:bakalım|görelim|bakayım)[.…:\s]*/gi, "")
+          // Strip "devam ediyorum" 
+          .replace(/devam ediyorum[.…:\s]*/gi, "")
+          // Strip lone colons left over from cleanup
+          .replace(/(?:^|\n)\s*:\s*(?:\n|$)/g, "\n")
+          // Collapse multiple blank lines / spaces
           .replace(/\n{3,}/g, "\n\n")
+          .replace(/\s{3,}/g, " ")
           .trim();
+
+        // If cleanup stripped almost everything, keep just the last meaningful sentence
+        if (finalText.length < 20 && text.length > 100) {
+          const sentences = text.split(/[.!?✅]/).filter(s => s.trim().length > 15);
+          finalText = sentences.length > 0 ? sentences[sentences.length - 1].trim() + "." : text.slice(-200).trim();
+        }
 
         // Cap response length for Telegram
         if (finalText.length > 3000) {
@@ -581,9 +592,11 @@ Metin YAZMA. İŞ YAP.
         const continuationPatterns = [
           /devam ediyorum[.:\s]*$/i,
           /devam\.{3}$/i,
-          /şimdi\s+(?:bak|kontrol|oku|yap|test|çalıştır)/i,
+          /(?:göreceğim|bakacağım|kontrol edeceğim|test edeceğim|düzelteceğim|inceleyeceğim)[.:\s]*$/i,
+          /(?:bakalım|görelim|kontrol edelim|test edelim)[.:\s]*$/i,
+          /(?:şimdi|hemen)\s+.{5,40}[.:\s]*$/i,
           /\.\.\.$/, // ends with ...
-          /(?:adım|step)\s*\d+.*:$/i,
+          /:\s*$/,   // ends with colon (about to do something)
         ];
         const looksLikeContinuation = continuationPatterns.some(p => p.test(finalText.trim()));
         if (looksLikeContinuation && !conversation.messages.some(m => m.content === "__AUTO_CONTINUE__")) {
