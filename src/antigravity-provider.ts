@@ -131,11 +131,12 @@ const ANTIGRAVITY_MODELS: Record<string, string> = {
   "claude-haiku": "claude-3-5-haiku-20241022",
   // Chat model aliases — map user-facing names to Cloud Code Assist internal names
   "gemini-3.1-pro-high": "gemini-3.1-pro-high",
-  "gemini-3.1-pro-low": "gemini-3.1-pro",
-  "gemini-3-flash": "gemini-3.1-flash",
-  "claude-sonnet-4-6-thinking": "claude-sonnet-4-6-thinking",
+  "gemini-3.1-pro-low": "gemini-3-pro-low",
+  "gemini-3-flash": "gemini-3-flash",
+  "claude-sonnet-4-6": "claude-sonnet-4-6",
+  "claude-sonnet-4-6-thinking": "claude-sonnet-4-6",
   "claude-opus-4-6-thinking": "claude-opus-4-6-thinking",
-  "gpt-oss-120b": "gpt-oss-120b",
+  "gpt-oss-120b": "gpt-oss-120b-medium",
 };
 
 function resolveModel(model: string): string {
@@ -343,7 +344,7 @@ export function getChatModels(): Array<{ id: string; label: string; model: strin
   return CHAT_MODELS;
 }
 
-export const DEFAULT_CHAT_MODEL = "claude-sonnet-4-6";
+export const DEFAULT_CHAT_MODEL = "claude-sonnet-4-6-thinking";
 
 // ─── PROVIDER ────────────────────────────────────────────────
 
@@ -359,7 +360,7 @@ export class AntigravityProvider implements LLMProvider {
     "gemini-pro",
     "gemini-flash",
     "claude-sonnet",
-    "claude-sonnet-4-6",
+    "claude-sonnet-4-6-thinking",
     "claude-opus",
     "claude-opus-4-6-thinking",
     "claude-haiku",
