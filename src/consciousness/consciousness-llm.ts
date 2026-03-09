@@ -10,8 +10,12 @@
 
 import { readFile } from 'fs/promises';
 import { existsSync, readFileSync } from 'fs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import type { AwarenessContext, ConversationSummary } from './awareness.js';
 import type { ConsciousnessState, HeartbeatConfig } from './types.js';
+
+const run = promisify(exec);
 
 // ═══════════════════════════════════════════
 // TYPES
@@ -130,11 +134,11 @@ export async function getFullConversationHistory(maxMessages: number = 30): Prom
  * LLM'e verilecek bilinç promptunu oluştur.
  * Bu prompt Foreman'ın "iç sesi" — farkındalık + karar verme.
  */
-export function buildConsciousnessPrompt(
+export async function buildConsciousnessPrompt(
     awareness: AwarenessContext,
     conversationHistory: { role: string; content: string }[] | null,
     state: ConsciousnessState,
-): string {
+): Promise<string> {
     const now = new Date();
     const hour = now.getHours();
     const timeStr = now.toLocaleString('tr-TR');
@@ -197,7 +201,7 @@ export function buildConsciousnessPrompt(
     }
     parts.push('');
 
-    // ─── Git durumu
+    // ─── Git durumu + uncommitted changes
     parts.push('## Git Durumu');
     if (awareness.recentGitActivity.length > 0) {
         parts.push('Son commitler:');
@@ -208,6 +212,14 @@ export function buildConsciousnessPrompt(
     if (awareness.recentFileChanges.length > 0) {
         parts.push(`Son 24 saatte ${awareness.recentFileChanges.length} dosya değişti.`);
     }
+    // Uncommitted changes
+    try {
+        const { stdout: diffStat } = await run('cd /home/sovranamr/projects/foreman && git diff --stat HEAD 2>/dev/null', { timeout: 5000 });
+        if (diffStat.trim()) {
+            parts.push('Commit edilmemiş değişiklikler:');
+            parts.push(diffStat.trim());
+        }
+    } catch { /* ignore */ }
     parts.push('');
 
     // ─── Konular
@@ -221,9 +233,10 @@ export function buildConsciousnessPrompt(
     parts.push('Yukarıdaki bağlamı değerlendir ve KARAR VER:');
     parts.push('');
     parts.push('1. **Yanıtsız mesaj var mı?** Ali\'nin son mesajına yanıt verilmemiş mi? → Yanıt ver.');
-    parts.push('2. **Yarım kalan iş var mı?** Devam edebilir misin? → Devam et veya "X\'ten devam edeyim mi?" sor.');
-    parts.push('3. **Anlamlı bir şey söyleyecek misin?** Gerçek bilgi/güncelleme var mı? → Söyle.');
-    parts.push('4. **Hiçbiri yoksa → SESSIZ KAL.** Boş rapor gönderme, tekrarlayan bilgi gönderme.');
+    parts.push('2. **Yarım kalan iş var mı?** Devam edebilir misin? → Tool kullanarak devam et veya "X\'ten devam edeyim mi?" sor.');
+    parts.push('3. **Commit edilmemiş değişiklik var mı?** → Commit atıp push edebilirsin.');
+    parts.push('4. **Anlamlı bir şey söyleyecek misin?** Gerçek bilgi/güncelleme var mı? → Söyle.');
+    parts.push('5. **Hiçbiri yoksa → SESSIZ KAL.** Boş rapor gönderme, tekrarlayan bilgi gönderme.');
     parts.push('');
     parts.push('KURALLAR:');
     parts.push('- RAM %X, CPU %Y gibi metrik raporları hiçbir zaman gönderme - bu bir monitoring aracı değilsin.');
@@ -231,6 +244,7 @@ export function buildConsciousnessPrompt(
     parts.push('- Ali cevap vermiyorsa spam yapma.');
     parts.push('- Gece 02:00-07:00 arası mesaj gönderme (sessiz saatler).');
     parts.push(`- Bugün ${state.notificationsToday} bildirim gönderildi, günlük limit 10.`);
+    parts.push('- Tool\'ları kullanabilirsin (bash, dosya oku/yaz, git). Gerektiğinde kullan.');
     parts.push('');
     parts.push('YANIT FORMATI:');
     parts.push('Eğer bir mesaj göndereceksen, sadece mesaj yaz (düz metin, Telegram Markdown).');
@@ -317,7 +331,7 @@ export async function executeConsciousness(
             () => { },
             () => { },
             2048,     // max tokens — kısa yanıt
-            1,        // max iterations — tek tur, tool call yok (Faz 2'de açılacak)
+            5,        // max iterations — tool call yapabilir (Faz 2)
             toolExecutor,
         );
 
