@@ -500,8 +500,9 @@ export class MessagingGateway {
             ],
             this.activeModel,
             (token: string) => { responseText += token; },
-            (call: { name: string; args: Record<string, any> }) => {
-              const argsPreview = call.args.command ?? call.args.path ?? call.args.pattern ?? call.args.directory ?? ".";
+            (call: { name: string; args?: Record<string, any> }) => {
+              const a = call.args ?? {};
+              const argsPreview = a.command ?? a.path ?? a.pattern ?? a.directory ?? ".";
               toolLog.push(`⚙ ${call.name} ${String(argsPreview).slice(0, 60)}`);
             },
             (result: { name: string; content: string; isError?: boolean }) => {

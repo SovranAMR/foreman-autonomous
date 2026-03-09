@@ -1109,8 +1109,8 @@ function createToolDispatcher(
     // Run specialized hooks for specific tools
     if (hooksEngine && call.name === "bash") {
       const cmdResult = await hooksEngine.run("before_command", {
-        command: call.args.command,
-        timeout: call.args.timeout_ms,
+        command: call.args?.command,
+        timeout: call.args?.timeout_ms,
       });
       if (cmdResult.block) {
         return {

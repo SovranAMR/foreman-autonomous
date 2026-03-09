@@ -575,7 +575,8 @@ async function handleChatTurn(input: string, state: ReplState): Promise<void> {
           spinner.stop();
           firstToken = false;
         }
-        const argsPreview = call.args.command ?? call.args.path ?? call.args.pattern ?? call.args.directory ?? ".";
+        const a = call.args ?? {};
+        const argsPreview = a.command ?? a.path ?? a.pattern ?? a.directory ?? ".";
         console.log(`\n    ${brand.cyan("⚙")} ${brand.bold(call.name)} ${brand.dim(String(argsPreview).slice(0, 80))}`);
       },
       (result: ToolResult) => {
