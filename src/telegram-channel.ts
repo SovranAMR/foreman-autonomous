@@ -21,7 +21,10 @@ import type {
   OutboundReply,
   TelegramChannelConfig,
   MessageHandler,
+  MediaAttachment,
 } from "./channel.js";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 // ─── TELEGRAM CHANNEL ───────────────────────────────────────
 
@@ -34,11 +37,17 @@ export class TelegramChannel implements Channel {
   private botUsername = "";
   /** Unix timestamp (seconds) when start() was called — messages older than this are stale */
   private startedAtUnix = 0;
+  /** Directory for downloaded media files */
+  private mediaDir: string;
 
   constructor(config: TelegramChannelConfig, onMessage: MessageHandler) {
     this.config = config;
     this.onMessage = onMessage;
     this.bot = new Bot(config.botToken);
+    this.mediaDir = join(process.env.HOME ?? "/tmp", ".foreman", "media");
+    if (!existsSync(this.mediaDir)) {
+      mkdirSync(this.mediaDir, { recursive: true });
+    }
   }
 
   async start(): Promise<void> {
@@ -60,6 +69,42 @@ export class TelegramChannel implements Channel {
     // Register message handler
     this.bot.on("message:text", async (ctx) => {
       await this.handleIncoming(ctx);
+    });
+
+    // ─── MEDIA HANDLERS ─────────────────────────────────────
+    // Photo messages (compressed images)
+    this.bot.on("message:photo", async (ctx) => {
+      await this.handleMediaMessage(ctx, "photo");
+    });
+
+    // Document messages (any file)
+    this.bot.on("message:document", async (ctx) => {
+      await this.handleMediaMessage(ctx, "document");
+    });
+
+    // Voice messages
+    this.bot.on("message:voice", async (ctx) => {
+      await this.handleMediaMessage(ctx, "audio");
+    });
+
+    // Audio files
+    this.bot.on("message:audio", async (ctx) => {
+      await this.handleMediaMessage(ctx, "audio");
+    });
+
+    // Video messages
+    this.bot.on("message:video", async (ctx) => {
+      await this.handleMediaMessage(ctx, "video");
+    });
+
+    // Video notes (round video messages)
+    this.bot.on("message:video_note", async (ctx) => {
+      await this.handleMediaMessage(ctx, "video");
+    });
+
+    // Stickers
+    this.bot.on("message:sticker", async (ctx) => {
+      await this.handleMediaMessage(ctx, "sticker");
     });
 
     // Handle errors gracefully — don't crash on transient issues
@@ -130,6 +175,178 @@ export class TelegramChannel implements Channel {
 
   isConnected(): boolean {
     return this.connected;
+  }
+
+  // ─── MEDIA PROCESSING ────────────────────────────────────
+
+  /**
+   * Download a file from Telegram servers.
+   * Returns local file path and MIME type.
+   */
+  private async downloadTelegramFile(fileId: string, filename?: string): Promise<{ path: string; mimeType: string } | null> {
+    try {
+      const file = await this.bot.api.getFile(fileId);
+      if (!file.file_path) return null;
+
+      const url = `https://api.telegram.org/file/bot${this.config.botToken}/${file.file_path}`;
+      const response = await fetch(url);
+      if (!response.ok) return null;
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      
+      // Determine filename
+      const ext = file.file_path.split(".").pop() ?? "bin";
+      const finalName = filename ?? `${fileId.slice(-8)}_${Date.now()}.${ext}`;
+      const localPath = join(this.mediaDir, finalName);
+      
+      writeFileSync(localPath, buffer);
+
+      // Determine MIME type from extension
+      const mimeMap: Record<string, string> = {
+        jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+        gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
+        mp3: "audio/mpeg", ogg: "audio/ogg", wav: "audio/wav",
+        opus: "audio/opus", m4a: "audio/mp4", oga: "audio/ogg",
+        mp4: "video/mp4", webm: "video/webm", avi: "video/x-msvideo",
+        pdf: "application/pdf", zip: "application/zip",
+        doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        tgs: "application/x-tgsticker",
+        py: "text/x-python", ts: "text/typescript", js: "text/javascript",
+        json: "application/json", txt: "text/plain", md: "text/markdown",
+        yaml: "application/x-yaml", yml: "application/x-yaml",
+        csv: "text/csv", html: "text/html", css: "text/css",
+      };
+      const mimeType = mimeMap[ext] ?? "application/octet-stream";
+
+      console.log(`[telegram] Downloaded file: ${localPath} (${(buffer.length / 1024).toFixed(1)}KB, ${mimeType})`);
+      return { path: localPath, mimeType };
+    } catch (err) {
+      console.error(`[telegram] File download failed:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Handle incoming media messages (photo, document, voice, video, sticker).
+   * Downloads the file, creates a MediaAttachment, and forwards to gateway.
+   */
+  private async handleMediaMessage(ctx: Context, type: MediaAttachment["type"]): Promise<void> {
+    const msg = ctx.message;
+    if (!msg || !msg.from) return;
+
+    // Stale message filter
+    const messageAge = this.startedAtUnix - msg.date;
+    if (messageAge > 60) {
+      console.log(`[telegram] Skipping stale media (${messageAge}s old)`);
+      return;
+    }
+
+    // Group filter
+    if (msg.chat.type !== "private") {
+      const caption = msg.caption ?? "";
+      const mentioned = caption.includes(`@${this.botUsername}`);
+      const isReply = msg.reply_to_message?.from?.id === this.bot.botInfo.id;
+      if (!mentioned && !isReply) return;
+    }
+
+    // Extract file_id and optional metadata
+    let fileId = "";
+    let fileName: string | undefined;
+    let mimeType: string | undefined;
+    let caption = msg.caption ?? "";
+
+    if (type === "photo" && msg.photo) {
+      // Get highest resolution photo (last in array)
+      const bestPhoto = msg.photo[msg.photo.length - 1];
+      fileId = bestPhoto.file_id;
+    } else if (type === "document" && msg.document) {
+      fileId = msg.document.file_id;
+      fileName = msg.document.file_name ?? undefined;
+      mimeType = msg.document.mime_type ?? undefined;
+    } else if (type === "audio" && (msg.voice || msg.audio)) {
+      const audio = msg.voice ?? msg.audio;
+      if (audio) {
+        fileId = audio.file_id;
+        mimeType = audio.mime_type ?? undefined;
+      }
+    } else if (type === "video" && (msg.video || msg.video_note)) {
+      const video = msg.video ?? msg.video_note;
+      if (video) {
+        fileId = video.file_id;
+        mimeType = (msg.video as any)?.mime_type ?? undefined;
+      }
+    } else if (type === "sticker" && msg.sticker) {
+      fileId = msg.sticker.file_id;
+      mimeType = msg.sticker.is_animated ? "application/x-tgsticker" : "image/webp";
+    }
+
+    if (!fileId) return;
+
+    // Strip bot mention from caption
+    if (this.botUsername && caption) {
+      caption = caption.replace(new RegExp(`@${this.botUsername}\\b`, "gi"), "").trim();
+    }
+
+    console.log(`[telegram] Media from ${msg.from.first_name}: ${type} (${fileId.slice(-12)}...) caption: "${caption.slice(0, 40)}"`);
+
+    // Download the file
+    const downloaded = await this.downloadTelegramFile(fileId, fileName);
+
+    // Build media attachment
+    const attachment: MediaAttachment = {
+      type,
+      fileId,
+      mimeType: downloaded?.mimeType ?? mimeType,
+      caption: caption || undefined,
+    };
+
+    // Build text content: use caption, or describe the media
+    const textContent = caption || `[${type === "photo" ? "Görsel" : type === "document" ? "Dosya" : type === "audio" ? "Ses" : type === "video" ? "Video" : "Sticker"} gönderildi]`;
+
+    // Build inbound message with media
+    const inbound: InboundMessage = {
+      id: String(msg.message_id),
+      channel: "telegram",
+      senderId: String(msg.from.id),
+      senderName: msg.from.first_name + (msg.from.last_name ? ` ${msg.from.last_name}` : ""),
+      text: textContent,
+      chatId: String(msg.chat.id),
+      isGroup: msg.chat.type !== "private",
+      timestamp: new Date(msg.date * 1000),
+      replyToId: msg.reply_to_message ? String(msg.reply_to_message.message_id) : undefined,
+      media: [attachment],
+    };
+
+    // Add local file path to attachment for downstream processing
+    if (downloaded) {
+      (attachment as any).localPath = downloaded.path;
+    }
+
+    // Typing indicator
+    const chatId = msg.chat.id;
+    let typingActive = true;
+    const sendTyping = async () => {
+      while (typingActive) {
+        try {
+          await ctx.api.sendChatAction(chatId, "typing");
+        } catch { /* best-effort */ }
+        await new Promise(resolve => setTimeout(resolve, 4000));
+      }
+    };
+    const typingPromise = sendTyping();
+
+    try {
+      const reply = await this.onMessage(inbound);
+      if (reply) {
+        await this.send(String(chatId), {
+          ...reply,
+          replyToId: String(msg.message_id),
+        });
+      }
+    } finally {
+      typingActive = false;
+      await typingPromise.catch(() => {});
+    }
   }
 
   // ─── INTERNAL ─────────────────────────────────────────────

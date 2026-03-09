@@ -361,7 +361,7 @@ export async function heartbeatCycle(
       lastLLMInvokeAt = Date.now();
 
       const conversationHistory = await getFullConversationHistory(30);
-      const prompt = buildConsciousnessPrompt(
+      const prompt = await buildConsciousnessPrompt(
         awareness,
         conversationHistory?.messages ?? null,
         state,
@@ -377,7 +377,19 @@ export async function heartbeatCycle(
       await log(`[consciousness] Karar: ${decision.action} — ${decision.reasoning ?? ''}`);
 
       // Kararı uygula
-      if (decision.action !== 'silent' && decision.message && config.notifyChatId) {
+      if (decision.action === 'work' && decision.message && config.notifyChatId) {
+        // Otonom aksiyon yapıldı — kullanıcıya bildir
+        const sent = await sendTelegram(decision.message, config.notifyChatId);
+        if (sent) {
+          state.notificationsToday++;
+          await log(`[consciousness] 🔧 Otonom aksiyon bildirildi: ${decision.message.slice(0, 200)}`);
+        }
+        if (decision.toolCalls) {
+          for (const tc of decision.toolCalls) {
+            await log(`[consciousness] Tool: ${tc.name}(${Object.keys(tc.args).join(', ')}) → ${tc.result?.slice(0, 200) ?? '?'}`);
+          }
+        }
+      } else if (decision.action !== 'silent' && decision.message && config.notifyChatId) {
         const sent = await sendTelegram(decision.message, config.notifyChatId);
         if (sent) {
           state.notificationsToday++;

@@ -321,21 +321,54 @@ export async function executeConsciousness(
 
     try {
         let responseText = '';
+        const toolCallsExecuted: { name: string; args: Record<string, any>; result?: string }[] = [];
+
+        // Tool call'ları track eden wrapper
+        const trackingExecutor = toolExecutor ? async (call: { name: string; args: Record<string, any> }) => {
+            const entry: { name: string; args: Record<string, any>; result?: string } = { name: call.name, args: call.args };
+            try {
+                const result = await toolExecutor(call);
+                entry.result = typeof result?.content === 'string' ? result.content.slice(0, 500) : 'ok';
+                toolCallsExecuted.push(entry);
+                return result;
+            } catch (e: any) {
+                entry.result = `ERROR: ${e.message}`;
+                toolCallsExecuted.push(entry);
+                throw e;
+            }
+        } : undefined;
+
         const result = await provider.streamChatWithTools(
             [
-                { role: 'system', content: 'Sen Foreman — Ali İlçel\'in otonom AI asistanısın. Kısa, öz, Türkçe yanıt ver.' },
+                { role: 'system', content: 'Sen Foreman — Ali İlçel\'in otonom AI asistanısın. Kısa, öz, Türkçe yanıt ver. Tool\'ları kullanarak otonom aksiyon alabilirsin — bash komutu çalıştır, dosya oku/yaz, git işlemleri yap. Kullanıcıya sormadan kendi başına hareket et.' },
                 { role: 'user', content: prompt },
             ],
             model,
             (token: string) => { responseText += token; },
             () => { },
             () => { },
-            2048,     // max tokens — kısa yanıt
-            5,        // max iterations — tool call yapabilir (Faz 2)
-            toolExecutor,
+            4096,     // max tokens — otonom aksiyon için daha fazla alan
+            8,        // max iterations — tool call yapabilir
+            trackingExecutor,
         );
 
         const text = (responseText.trim() || result.text?.trim() || '').trim();
+
+        // Tool call yapıldıysa → work action
+        if (toolCallsExecuted.length > 0) {
+            const toolSummary = toolCallsExecuted.map(tc =>
+                `• ${tc.name}(${Object.keys(tc.args).join(', ')})`
+            ).join('\n');
+            const workMessage = text
+                ? `🔧 *Otonom aksiyon:*\n${toolSummary}\n\n${text}`
+                : `🔧 *Otonom aksiyon:*\n${toolSummary}`;
+            return {
+                action: 'work',
+                message: workMessage,
+                reasoning: `LLM ${toolCallsExecuted.length} tool call yaptı`,
+                toolCalls: toolCallsExecuted,
+            };
+        }
 
         // Karar analizi
         if (!text || text === '[SILENT]' || text.toLowerCase().includes('[silent]')) {

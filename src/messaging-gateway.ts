@@ -263,11 +263,101 @@ export class MessagingGateway {
       // Get or create conversation
       const conversation = this.getConversation(chatKey, message);
 
-      // Add user message
-      conversation.messages.push({
-        role: "user",
-        content: message.text,
-      });
+      // Add user message — with media support for Claude Vision
+      if (message.media?.length) {
+        // Build multi-modal content array for Claude Vision API
+        const contentParts: any[] = [];
+
+        for (const attachment of message.media) {
+          const localPath = (attachment as any).localPath;
+          if (localPath && attachment.mimeType?.startsWith("image/")) {
+            // Image → send as base64 to Claude Vision
+            try {
+              const { readFileSync } = await import("node:fs");
+              const imageBuffer = readFileSync(localPath);
+              const base64 = imageBuffer.toString("base64");
+              const mediaType = attachment.mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+              contentParts.push({
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mediaType,
+                  data: base64,
+                },
+              });
+            } catch (err) {
+              console.error(`[gateway] Failed to read image:`, err);
+              contentParts.push({ type: "text", text: `[Görsel okunamadı: ${attachment.mimeType}]` });
+            }
+          } else if (localPath) {
+            // Non-image file → read as text if possible, describe if binary
+            try {
+              const { readFileSync, statSync } = await import("node:fs");
+              const stat = statSync(localPath);
+              const isTextual = attachment.mimeType?.startsWith("text/") ||
+                ["application/json", "application/xml", "application/x-yaml", "application/sql"].includes(attachment.mimeType ?? "");
+
+              if (isTextual && stat.size < 100_000) {
+                const textContent = readFileSync(localPath, "utf-8");
+                contentParts.push({
+                  type: "text",
+                  text: `📎 Dosya: ${attachment.caption ?? localPath.split("/").pop()}\n\`\`\`\n${textContent}\n\`\`\``,
+                });
+              } else if (attachment.mimeType === "application/pdf") {
+                contentParts.push({
+                  type: "text",
+                  text: `📎 PDF dosyası gönderildi: ${localPath.split("/").pop()} (${(stat.size / 1024).toFixed(1)}KB). Dosya yolu: ${localPath}`,
+                });
+              } else {
+                contentParts.push({
+                  type: "text",
+                  text: `📎 Dosya gönderildi: ${localPath.split("/").pop()} (${attachment.mimeType}, ${(stat.size / 1024).toFixed(1)}KB). Dosya yolu: ${localPath}`,
+                });
+              }
+            } catch {
+              contentParts.push({
+                type: "text",
+                text: `📎 Dosya gönderildi (${attachment.type}): ${attachment.mimeType ?? "bilinmiyor"}`,
+              });
+            }
+          }
+        }
+
+        // Add text/caption
+        const userText = message.text || "";
+        if (userText && userText !== "[Görsel gönderildi]" && userText !== "[Dosya gönderildi]") {
+          contentParts.push({ type: "text", text: userText });
+        } else if (contentParts.length === 0) {
+          contentParts.push({ type: "text", text: "[Medya gönderildi ama işlenemedi]" });
+        }
+
+        // If there are image parts, use multi-modal content array
+        const hasImages = contentParts.some(p => p.type === "image");
+        if (hasImages) {
+          conversation.messages.push({
+            role: "user",
+            content: contentParts as any,
+          });
+        } else {
+          // Text-only fallback (file descriptions)
+          const combinedText = contentParts
+            .filter(p => p.type === "text")
+            .map(p => p.text)
+            .join("\n\n");
+          conversation.messages.push({
+            role: "user",
+            content: combinedText,
+          });
+        }
+
+        console.log(`[gateway] Media message: ${message.media.length} attachment(s), ${contentParts.length} content parts, hasImages=${hasImages}`);
+      } else {
+        // Regular text message
+        conversation.messages.push({
+          role: "user",
+          content: message.text,
+        });
+      }
 
       // Trim history
       this.trimConversation(conversation);
