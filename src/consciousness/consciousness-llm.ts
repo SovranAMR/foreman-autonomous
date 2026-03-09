@@ -48,7 +48,8 @@ export interface ConsciousnessProvider {
 const CONVERSATIONS_DIR = '/home/sovranamr/.foreman/conversations';
 
 /**
- * Son konuşmanın tam mesajlarını oku — sadece snippet değil, tam metin
+ * Son konuşmanın tam mesajlarını oku — chat + tool call'lar dahil.
+ * Tool call'ları özet olarak gösterir (komut, dosya adı, vs.)
  */
 export async function getFullConversationHistory(maxMessages: number = 30): Promise<{
     messages: { role: string; content: string; timestamp?: number }[];
@@ -78,16 +79,41 @@ export async function getFullConversationHistory(maxMessages: number = 30): Prom
 
         if (!latest) return null;
 
-        const allMessages = (latest.messages || [])
-            .filter((m: any) => typeof m.content === 'string' && m.content.trim())
-            .slice(-maxMessages);
+        const result: { role: string; content: string; timestamp?: number }[] = [];
+
+        for (const m of (latest.messages || []).slice(-maxMessages * 2)) {
+            // Text mesajlar
+            if (typeof m.content === 'string' && m.content.trim()) {
+                result.push({ role: m.role, content: m.content, timestamp: m.timestamp });
+            }
+            // Array content — tool_use ve tool_result parçaları
+            else if (Array.isArray(m.content)) {
+                const parts: string[] = [];
+                for (const part of m.content) {
+                    if (part.type === 'text' && part.text) {
+                        parts.push(part.text);
+                    } else if (part.type === 'tool_use' && part.name) {
+                        const args = part.input || part.args || {};
+                        const argSummary = Object.entries(args)
+                            .map(([k, v]) => `${k}: ${String(v).slice(0, 100)}`)
+                            .join(', ')
+                            .slice(0, 300);
+                        parts.push(`[Tool: ${part.name}(${argSummary})]`);
+                    } else if (part.type === 'tool_result' && part.content) {
+                        const resultText = typeof part.content === 'string'
+                            ? part.content
+                            : JSON.stringify(part.content);
+                        parts.push(`[Result: ${resultText.slice(0, 200)}]`);
+                    }
+                }
+                if (parts.length > 0) {
+                    result.push({ role: m.role, content: parts.join('\n'), timestamp: m.timestamp });
+                }
+            }
+        }
 
         return {
-            messages: allMessages.map((m: any) => ({
-                role: m.role,
-                content: m.content,
-                timestamp: m.timestamp,
-            })),
+            messages: result.slice(-maxMessages),
             senderName: latest.senderName || 'Ali',
             lastActivity: latest.lastActivity || 0,
         };
