@@ -893,7 +893,7 @@ export class AntigravityProvider implements LLMProvider {
                         console.log(`[provider] functionCall: ${part.functionCall.name} (id: ${part.functionCall.id || 'none'})`);
                         functionCalls.push({
                           name: part.functionCall.name,
-                          args: part.functionCall.args,
+                          args: part.functionCall.args ?? {},
                           id: part.functionCall.id, // Proxy-generated ID for Claude tool_use matching
                         });
                       }
@@ -921,7 +921,7 @@ export class AntigravityProvider implements LLMProvider {
               modelParts.push({ text: iterText });
             }
             for (const fc of functionCalls) {
-              const fcPart: any = { functionCall: { name: fc.name, args: fc.args } };
+              const fcPart: any = { functionCall: { name: fc.name, args: fc.args ?? {} } };
               if (fc.id) fcPart.functionCall.id = fc.id;
               modelParts.push(fcPart);
             }

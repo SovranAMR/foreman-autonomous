@@ -158,7 +158,7 @@ export class MessagingGateway {
           const { readFileSync } = await import('fs');
           const cfg = JSON.parse(readFileSync('/home/sovranamr/.foreman/config.json', 'utf-8'));
           chatId = cfg.telegram?.chatId;
-        } catch {}
+        } catch { }
       }
       if (!chatId) chatId = process.env.FOREMAN_CHAT_ID;
 
@@ -170,7 +170,7 @@ export class MessagingGateway {
         if (cfg.consciousness?.intervalMs) {
           consciousnessConfig.intervalMs = cfg.consciousness.intervalMs;
         }
-      } catch {}
+      } catch { }
 
       startHeartbeatLoop(consciousnessConfig);
       console.log(`[gateway] 🫀 Consciousness heartbeat started (notify: ${chatId ?? 'none'}, interval: ${consciousnessConfig.intervalMs / 1000}s)`);
@@ -953,10 +953,16 @@ Rules:
             continue;
           }
 
+          // Sanitize: only keep text messages — tool call/response parts
+          // cause API 400 errors when replayed from persisted state
+          const sanitizedMessages = (data.messages ?? []).filter(
+            (m: any) => typeof m.content === "string" && m.content.trim()
+          );
+
           const conv: ConversationState = {
             chatId: data.chatId,
             channel: data.channel,
-            messages: data.messages ?? [],
+            messages: sanitizedMessages,
             lastActivity: data.lastActivity,
             totalTokens: data.totalTokens ?? 0,
             senderName: data.senderName ?? "Unknown",
