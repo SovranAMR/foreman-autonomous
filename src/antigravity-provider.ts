@@ -49,8 +49,9 @@ function getHeaders(accessToken: string): Record<string, string> {
 
 // ─── RATE LIMIT RETRY ────────────────────────────────────────
 
-const MAX_RETRIES = 5;
+const MAX_RETRIES = 20;
 const BASE_DELAY_MS = 2000;
+const MAX_DELAY_MS = 60_000; // cap backoff at 60s
 
 /**
  * Fetch with automatic retry on rate limit (429) and overload (503).
@@ -92,9 +93,9 @@ async function fetchWithRetry(
     let delayMs: number;
     if (retryAfter) {
       const secs = parseInt(retryAfter, 10);
-      delayMs = !isNaN(secs) ? secs * 1000 : BASE_DELAY_MS * Math.pow(2, attempt);
+      delayMs = !isNaN(secs) ? secs * 1000 : Math.min(BASE_DELAY_MS * Math.pow(2, attempt), MAX_DELAY_MS);
     } else {
-      delayMs = BASE_DELAY_MS * Math.pow(2, attempt); // 2s, 4s, 8s, 16s, 32s
+      delayMs = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), MAX_DELAY_MS);
     }
 
     console.log(`[provider] ${label}: ${response.status} rate limited — retrying in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
