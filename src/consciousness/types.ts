@@ -253,6 +253,12 @@ export interface HeartbeatConfig {
   journalHour: number;
   /** Trend takibi aktif mi */
   trendTrackingEnabled: boolean;
+  /** LLM provider — consciousness için (opsiyonel, yoksa eski davranış) */
+  provider?: any;
+  /** Tool executor — consciousness tool call'lar için */
+  toolExecutor?: any;
+  /** Aktif model adı */
+  activeModel?: string;
 }
 
 export const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {

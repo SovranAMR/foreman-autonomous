@@ -163,7 +163,13 @@ export class MessagingGateway {
       if (!chatId) chatId = process.env.FOREMAN_CHAT_ID;
 
       // Consciousness ayarlarını config'den oku
-      let consciousnessConfig = { ...DEFAULT_HEARTBEAT_CONFIG, notifyChatId: chatId };
+      let consciousnessConfig = {
+        ...DEFAULT_HEARTBEAT_CONFIG,
+        notifyChatId: chatId,
+        provider: this.provider,
+        toolExecutor: this.toolExecutor,
+        activeModel: this.activeModel,
+      };
       try {
         const { readFileSync } = await import('fs');
         const cfg = JSON.parse(readFileSync('/home/sovranamr/.foreman/config.json', 'utf-8'));

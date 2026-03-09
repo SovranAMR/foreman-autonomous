@@ -92,3 +92,12 @@ export {
   type ConversationSummary,
   type ChainSummary,
 } from './awareness.js';
+
+export {
+  buildConsciousnessPrompt,
+  shouldInvokeLLM,
+  executeConsciousness,
+  getFullConversationHistory,
+  type ConsciousnessDecision,
+  type ConsciousnessProvider,
+} from './consciousness-llm.js';

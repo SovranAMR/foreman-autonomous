@@ -62,6 +62,12 @@ import {
   decayPatterns,
 } from './learning.js';
 import { gatherAwareness, getAwarenessBrief } from './awareness.js';
+import {
+  buildConsciousnessPrompt,
+  shouldInvokeLLM,
+  executeConsciousness,
+  getFullConversationHistory,
+} from './consciousness-llm.js';
 
 const run = promisify(exec);
 
@@ -70,6 +76,8 @@ const STATE_FILE = `${STATE_DIR}/consciousness-state.json`;
 const LOG_FILE = `${STATE_DIR}/consciousness.log`;
 
 // ─── Helpers ───
+
+let lastLLMInvokeAt = 0;  // Track when LLM was last called
 
 async function ensureDir(): Promise<void> {
   if (!existsSync(STATE_DIR)) await mkdir(STATE_DIR, { recursive: true });
@@ -340,22 +348,60 @@ export async function heartbeatCycle(
     }
   }
 
-  // ─── 6. REFLECT — İç Diyalog + Awareness ───
-  if (state.heartbeatCount % config.innerMonologueEvery === 0) {
-    // Awareness: ne konuşuldu, ne yapıldı, ne yapılacak
-    let awarenessText = '';
-    try {
-      const awareness = await gatherAwareness();
-      awarenessText = awareness.summary;
-      await log(`[awareness] ${awarenessText}`);
-    } catch (e: any) {
-      await log(`[awareness-error] ${e.message}`);
-    }
+  // ─── 6. LLM CONSCIOUSNESS — Bilinç karar noktası ───
+  // Eski hardcoded REFLECT yerine LLM düşünür ve karar verir
+  let awarenessText = '';
+  try {
+    const awareness = await gatherAwareness();
+    awarenessText = awareness.summary;
 
-    const monologue = generateInnerMonologue(state, awarenessText);
-    state.lastInnerMonologue = monologue;
-    state.lastInnerMonologueAt = Date.now();
-    await log(`[inner-voice]\n${monologue}`);
+    // LLM consciousness — provider varsa ve çağırma zamanıysa
+    if (config.provider && config.activeModel && shouldInvokeLLM(state, awareness, lastLLMInvokeAt)) {
+      await log(`[consciousness] LLM çağrılıyor...`);
+      lastLLMInvokeAt = Date.now();
+
+      const conversationHistory = await getFullConversationHistory(15);
+      const prompt = buildConsciousnessPrompt(
+        awareness,
+        conversationHistory?.messages ?? null,
+        state,
+      );
+
+      const decision = await executeConsciousness(
+        config.provider,
+        config.activeModel,
+        prompt,
+        config.toolExecutor,
+      );
+
+      await log(`[consciousness] Karar: ${decision.action} — ${decision.reasoning ?? ''}`);
+
+      // Kararı uygula
+      if (decision.action !== 'silent' && decision.message && config.notifyChatId) {
+        const sent = await sendTelegram(decision.message, config.notifyChatId);
+        if (sent) {
+          state.notificationsToday++;
+          await log(`[consciousness] Mesaj gönderildi: ${decision.message.slice(0, 100)}`);
+        }
+      }
+    } else if (!config.provider) {
+      // Provider yok — eski davranış: sadece inner monologue
+      if (state.heartbeatCount % config.innerMonologueEvery === 0) {
+        const monologue = generateInnerMonologue(state, awarenessText);
+        state.lastInnerMonologue = monologue;
+        state.lastInnerMonologueAt = Date.now();
+        await log(`[inner-voice]\n${monologue}`);
+      }
+    }
+  } catch (e: any) {
+    await log(`[consciousness-error] ${e.message}`);
+    // Fallback: eski inner monologue
+    if (state.heartbeatCount % config.innerMonologueEvery === 0) {
+      const monologue = generateInnerMonologue(state, awarenessText);
+      state.lastInnerMonologue = monologue;
+      state.lastInnerMonologueAt = Date.now();
+      await log(`[inner-voice-fallback]\n${monologue}`);
+    }
   }
 
   // ─── 7. STATUS REPORT ───
@@ -576,7 +622,7 @@ export function startHeartbeatLoop(config: HeartbeatConfig = DEFAULT_HEARTBEAT_C
     sendTelegram(
       `🫀 *Foreman uyanıyor...*\nSensörler: ${config.enabledSensors.join(', ')}\nAralık: ${config.intervalMs / 1000}s`,
       config.notifyChatId,
-    ).catch(() => {});
+    ).catch(() => { });
   }
 
   // İlk beat hemen
