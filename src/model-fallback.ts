@@ -234,3 +234,21 @@ export async function runWithFallback<T>(params: {
     { cause: lastError instanceof Error ? lastError : undefined },
   );
 }
+
+// ─── SIMPLE FALLBACK ─────────────────────────────────────────
+
+const MODEL_FALLBACK_CHAIN = [
+  "claude-opus-4-6-thinking",
+  "claude-sonnet-4-6",
+  "gemini-3.1-pro-high",
+  "claude-opus",
+  "gemini-2.5-pro",
+];
+
+export function getNextFallbackModel(currentModel: string): string | null {
+  const index = MODEL_FALLBACK_CHAIN.indexOf(currentModel);
+  if (index === -1 || index === MODEL_FALLBACK_CHAIN.length - 1) {
+    return null; // No fallback available
+  }
+  return MODEL_FALLBACK_CHAIN[index + 1];
+}

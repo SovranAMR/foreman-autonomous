@@ -29,6 +29,7 @@ import type {
 import { Engine } from "./engine.js";
 import { Orchestrator } from "./orchestrator.js";
 import { AntigravityProvider, loadCredentials, getChatModels } from "./antigravity-provider.js";
+import { getNextFallbackModel } from "./model-fallback.js";
 import type { LLMProvider } from "./provider.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
@@ -363,7 +364,7 @@ export class MessagingGateway {
       this.trimConversation(conversation);
 
       // Process through LLM
-      const reply = await this.processWithLLM(conversation);
+      const reply = await this.processWithLLM(chatKey, conversation, message);
 
       // Add assistant response to history
       if (reply) {
@@ -537,7 +538,7 @@ export class MessagingGateway {
 
   // ─── LLM PROCESSING ──────────────────────────────────────
 
-  private async processWithLLM(conversation: ConversationState): Promise<OutboundReply | null> {
+  private async processWithLLM(chatKey: string, conversation: ConversationState, message: InboundMessage, attempt: number = 1): Promise<OutboundReply | null> {
     if (!this.provider || !this.toolExecutor) {
       return { text: "❌ Provider not initialized. Run: foreman login" };
     }
@@ -708,8 +709,29 @@ export class MessagingGateway {
       // NEVER give up — keep retrying until API becomes available
 
       if (msg.includes("exhausted your capacity") || msg.includes("quota will reset")) {
-        // Hard limit — do not retry infinitely for hours, inform user immediately
-        return { text: `⚠️ **API Kotası Aşıldı**\n\nBu model için limitiniz doldu. Lütfen daha sonra tekrar deneyin veya modeli değiştirin.\n\n_Detay: ${msg.split('"message":"')[1]?.split('",')[0] ?? msg}_`, parseMode: "markdown" };
+        // Hard limit — attempt fallback to next model in the chain
+        const nextModel = getNextFallbackModel(this.activeModel);
+
+        if (nextModel) {
+          console.log(`[gateway] ⚠️ Quota exhausted for ${this.activeModel}. Falling back to ${nextModel}...`);
+
+          // Notify user about the fallback silently by adding an assistant message, 
+          // but we still want to answer their actual prompt.
+          const channel = this.channels.get(message.channel);
+          if (channel) {
+            await channel.send(message.chatId, { text: `🔄 **Model Değişimi:** \`${this.activeModel}\` kotası dolduğu için otomatik olarak \`${nextModel}\` modeline geçildi.` });
+          }
+
+          this.activeModel = nextModel;
+
+          // Retry the entire process with the new model
+          if (attempt < 5) {
+            return this.processWithLLM(chatKey, conversation, message, attempt + 1);
+          }
+        }
+
+        // No more fallbacks available
+        return { text: `⚠️ **API Kotası Aşıldı**\n\nTüm modeller için limitiniz doldu.\n\n_Detay: ${msg.split('"message":"')[1]?.split('",')[0] ?? msg}_`, parseMode: "markdown" };
       }
 
       if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded") || msg.includes("503") || msg.includes("UNAVAILABLE") || msg.includes("No capacity")) {
