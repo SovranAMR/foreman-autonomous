@@ -360,7 +360,7 @@ export async function heartbeatCycle(
       await log(`[consciousness] LLM çağrılıyor...`);
       lastLLMInvokeAt = Date.now();
 
-      const conversationHistory = await getFullConversationHistory(15);
+      const conversationHistory = await getFullConversationHistory(30);
       const prompt = buildConsciousnessPrompt(
         awareness,
         conversationHistory?.messages ?? null,

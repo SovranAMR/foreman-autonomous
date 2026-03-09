@@ -50,7 +50,7 @@ const CONVERSATIONS_DIR = '/home/sovranamr/.foreman/conversations';
 /**
  * Son konuşmanın tam mesajlarını oku — sadece snippet değil, tam metin
  */
-export async function getFullConversationHistory(maxMessages: number = 15): Promise<{
+export async function getFullConversationHistory(maxMessages: number = 30): Promise<{
     messages: { role: string; content: string; timestamp?: number }[];
     senderName: string;
     lastActivity: number;
@@ -142,9 +142,9 @@ export function buildConsciousnessPrompt(
         parts.push(`Son mesajlaşma: ${agoText} (${awareness.lastConversation?.senderName ?? 'Ali'} ile)`);
         parts.push('');
         parts.push('Son mesajlar:');
-        for (const msg of conversationHistory.slice(-8)) {
+        for (const msg of conversationHistory) {
             const role = msg.role === 'user' ? '👤 Ali' : '🤖 Foreman';
-            const content = msg.content.length > 300 ? msg.content.slice(0, 300) + '...' : msg.content;
+            const content = msg.content.length > 500 ? msg.content.slice(0, 500) + '...' : msg.content;
             parts.push(`${role}: ${content}`);
         }
 
