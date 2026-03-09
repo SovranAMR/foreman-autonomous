@@ -135,6 +135,7 @@ const ANTIGRAVITY_MODELS: Record<string, string> = {
   "gemini-3-flash": "gemini-3.1-flash",
   "claude-sonnet-4-6": "claude-sonnet-4-6",
   "claude-opus-4-6-thinking": "claude-opus-4-6-thinking",
+  "gpt-oss-120b": "gpt-oss-120b",
 };
 
 function resolveModel(model: string): string {

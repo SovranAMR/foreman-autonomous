@@ -241,8 +241,9 @@ const MODEL_FALLBACK_CHAIN = [
   "claude-opus-4-6-thinking",
   "claude-sonnet-4-6",
   "gemini-3.1-pro-high",
-  "claude-opus",
-  "gemini-2.5-pro",
+  "gpt-oss-120b",
+  "gemini-3.1-pro-low",
+  "gemini-3-flash",
 ];
 
 export function getNextFallbackModel(currentModel: string): string | null {
