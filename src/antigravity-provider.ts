@@ -84,7 +84,17 @@ async function fetchWithRetry(
       return response;
     }
 
-    // Rate limited or overloaded — retry with backoff
+    // Hard limit check (do not retry if quota is exhausted for hours)
+    try {
+      const cloned = response.clone();
+      const bodyText = await cloned.text();
+      if (bodyText.includes("exhausted your capacity") || bodyText.includes("quota will reset")) {
+        console.warn(`[provider] ${label}: Hard quota exhaustion detected, stopping retries: ${bodyText.slice(0, 100)}`);
+        return response; // Return immediately to throw error to caller
+      }
+    } catch { /* ignore read errors */ }
+
+    // Soft Rate limited or overloaded — retry with backoff
     lastResponse = response;
     if (attempt === MAX_RETRIES) break;
 

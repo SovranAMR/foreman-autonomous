@@ -706,6 +706,12 @@ export class MessagingGateway {
 
       // Handle 503 (capacity) same as rate limit — persistent retry loop
       // NEVER give up — keep retrying until API becomes available
+
+      if (msg.includes("exhausted your capacity") || msg.includes("quota will reset")) {
+        // Hard limit — do not retry infinitely for hours, inform user immediately
+        return { text: `⚠️ **API Kotası Aşıldı**\n\nBu model için limitiniz doldu. Lütfen daha sonra tekrar deneyin veya modeli değiştirin.\n\n_Detay: ${msg.split('"message":"')[1]?.split('",')[0] ?? msg}_`, parseMode: "markdown" };
+      }
+
       if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded") || msg.includes("503") || msg.includes("UNAVAILABLE") || msg.includes("No capacity")) {
         for (let attempt = 1; ; attempt++) {
           // Backoff: 10s, 15s, 20s, 30s, then 30s forever
