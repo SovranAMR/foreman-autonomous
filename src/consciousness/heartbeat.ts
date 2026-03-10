@@ -396,24 +396,38 @@ export async function heartbeatCycle(
       }
 
       // Kararı uygula
-      if (decision.action === 'work' && decision.message && config.notifyChatId) {
-        // Otonom aksiyon yapıldı — kullanıcıya bildir
-        const sent = await sendTelegram(decision.message, config.notifyChatId);
-        if (sent) {
-          state.notificationsToday++;
-          await log(`[consciousness] 🔧 Otonom aksiyon bildirildi: ${decision.message.slice(0, 200)}`);
+      const hour = new Date().getHours();
+      const isSniperHours = hour >= 2 && hour < 7;
+      const isSilentDecision = decision.message?.includes('[SILENT_WORK]');
+
+      if (decision.action === 'work') {
+        if (config.notifyChatId && decision.message && !isSniperHours && !isSilentDecision) {
+          // Otonom aksiyon yapıldı — kullanıcıya bildir
+          const sent = await sendTelegram(decision.message, config.notifyChatId);
+          if (sent) {
+            state.notificationsToday++;
+            await log(`[consciousness] 🔧 Otonom aksiyon bildirildi: ${decision.message.slice(0, 200)}`);
+          }
+        } else {
+          await log(`[consciousness] 🔧 Otonom aksiyon yapıldı (SNIPER MODE, Sessiz): ${decision.message?.slice(0, 200) ?? 'No Message'}`);
         }
+
         if (decision.toolCalls) {
           for (const tc of decision.toolCalls) {
-            await log(`[consciousness] Tool: ${tc.name}(${Object.keys(tc.args).join(', ')}) → ${tc.result?.slice(0, 200) ?? '?'}`);
+            const argStr = Object.entries(tc.args)
+              .map(([k, v]) => `${k}: ${String(v).slice(0, 50).replace(/\n/g, ' ')}`)
+              .join(', ');
+            await log(`[consciousness] Tool: ${tc.name}(${argStr}) → ${tc.result?.slice(0, 200) ?? '?'}`);
           }
         }
-      } else if (decision.action !== 'silent' && decision.message && config.notifyChatId) {
+      } else if (decision.action !== 'silent' && decision.message && config.notifyChatId && !isSniperHours && !isSilentDecision) {
         const sent = await sendTelegram(decision.message, config.notifyChatId);
         if (sent) {
           state.notificationsToday++;
           await log(`[consciousness] Mesaj gönderildi: ${decision.message.slice(0, 100)}`);
         }
+      } else if (decision.action !== 'silent') {
+        await log(`[consciousness] Mesaj engellendi (Sniper Mode): ${decision.message?.slice(0, 100)}`);
       }
     } else if (!config.provider) {
       // Provider yok — eski davranış: sadece inner monologue

@@ -118,7 +118,7 @@ function extractTopics(messages: any[]): string[] {
 
   for (const msg of userMsgs) {
     const content = (msg.content || '').toLowerCase();
-    
+
     // Anahtar kelimelerden konu çıkar
     if (content.includes('consciousness') || content.includes('bilinç')) topics.push('bilinç sistemi');
     if (content.includes('heartbeat') || content.includes('kalp')) topics.push('heartbeat');
@@ -205,9 +205,9 @@ async function readRecentFileChanges(): Promise<string[]> {
     const { promisify } = await import('util');
     const run = promisify(exec);
 
-    // Son 24 saatte değişen dosyalar
+    // Commit edilmemiş (modified + untracked) dosyalar
     const { stdout } = await run(
-      'cd /home/sovranamr/projects/foreman && find src/ -name "*.ts" -mmin -1440 -printf "%T@ %p\\n" 2>/dev/null | sort -rn | head -15 | awk \'{print $2}\'',
+      'cd /home/sovranamr/projects/foreman && (git diff --name-only HEAD; git ls-files --others --exclude-standard) | sort -u | head -15',
       { timeout: 5000 }
     );
     return stdout.trim().split('\n').filter(Boolean);
@@ -293,10 +293,10 @@ function generateSummary(ctx: AwarenessContext): string {
   if (ctx.lastConversation) {
     const conv = ctx.lastConversation;
     const ago = Math.floor((Date.now() - conv.lastActivity) / 60000);
-    const agoText = ago < 60 
-      ? `${ago} dakika önce` 
-      : ago < 1440 
-        ? `${Math.floor(ago / 60)} saat önce` 
+    const agoText = ago < 60
+      ? `${ago} dakika önce`
+      : ago < 1440
+        ? `${Math.floor(ago / 60)} saat önce`
         : `${Math.floor(ago / 1440)} gün önce`;
 
     parts.push(
