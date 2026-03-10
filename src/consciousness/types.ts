@@ -152,6 +152,21 @@ export interface DailyJournal {
 }
 
 // ═══════════════════════════════════════════
+// LLM DECISION TRACKING
+// ═══════════════════════════════════════════
+
+export interface LlmDecision {
+  id: string;
+  timestamp: number;
+  action: 'respond' | 'work' | 'ask' | 'silent' | 'notify';
+  message?: string;
+  reasoning?: string;
+  contextSummary: string; // Hangi durumda bu karar verildi
+  feedback?: 'positive' | 'negative' | 'neutral' | 'ignored';
+  evaluated: boolean;
+}
+
+// ═══════════════════════════════════════════
 // CONSCIOUSNESS STATE
 // ═══════════════════════════════════════════
 
@@ -186,6 +201,9 @@ export interface ConsciousnessState {
   // ─── Experiences ───
   experiences: Experience[];
 
+  // ─── LLM Decisions (Phase 3) ───
+  llmDecisions: LlmDecision[];
+
   // ─── Journal ───
   journals: DailyJournal[];
 
@@ -218,6 +236,7 @@ export function createInitialState(): ConsciousnessState {
     sensorHealth: {},
     trends: [],
     experiences: [],
+    llmDecisions: [],
     journals: [],
     lastInnerMonologue: '',
     lastInnerMonologueAt: 0,

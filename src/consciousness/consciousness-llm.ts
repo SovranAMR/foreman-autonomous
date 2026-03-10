@@ -139,6 +139,8 @@ export async function buildConsciousnessPrompt(
     conversationHistory: { role: string; content: string }[] | null,
     state: ConsciousnessState,
 ): Promise<string> {
+    evaluateLlmDecisions(state, conversationHistory);
+
     const now = new Date();
     const hour = now.getHours();
     const timeStr = now.toLocaleString('tr-TR');
@@ -149,6 +151,21 @@ export async function buildConsciousnessPrompt(
     parts.push(`Sen Foreman'sın — Ali İlçel'in otonom AI asistanı ve iş ortağı.`);
     parts.push(`Şu an: ${timeStr}. Beat #${state.heartbeatCount}.`);
     parts.push('');
+
+    // ─── Öğrenilen Dersler (Adaptive Learning)
+    const recentFeedbacks = state.llmDecisions
+        .filter(d => d.evaluated && (d.feedback === 'positive' || d.feedback === 'negative'))
+        .slice(-5); // Son 5 önemli dönüt
+
+    if (recentFeedbacks.length > 0) {
+        parts.push('## Öğrenilen Dersler (Geçmiş Kararlarından Geri Bildirimler)');
+        for (const fb of recentFeedbacks) {
+            const icon = fb.feedback === 'positive' ? '✅' : '❌';
+            parts.push(`${icon} Karar: [${fb.action}] ${fb.reasoning} -> Sonuç: ${fb.feedback === 'positive' ? 'Kullanıcı memnun' : 'Kullanıcı memnun değil veya düzeltme istedi'}`);
+        }
+        parts.push('Bu geri bildirimleri kullanarak gelecekteki eylemlerini iyileştir.');
+        parts.push('');
+    }
 
     // ─── Durum özeti
     parts.push('## Durum');
@@ -389,5 +406,57 @@ export async function executeConsciousness(
             return { action: 'silent', reasoning: `API müsait değil: ${msg.slice(0, 100)}` };
         }
         return { action: 'silent', reasoning: `LLM hatası: ${msg.slice(0, 100)}` };
+    }
+}
+
+// ═══════════════════════════════════════════
+// EVALUATE DECISIONS — Öğrenme Döngüsü
+// ═══════════════════════════════════════════
+
+/**
+ * Geçmiş LLM kararlarını değerlendirir.
+ * Eğer LLM bir eylem yaptıysa ve kullanıcı buna yanıt verdiyse,
+ * tepkinin olumlu/olumsuz olduğunu analiz eder ve state'e kaydeder.
+ */
+export function evaluateLlmDecisions(
+    state: ConsciousnessState,
+    conversationHistory: { role: string; content: string; timestamp?: number }[] | null
+): void {
+    if (!conversationHistory || conversationHistory.length === 0) return;
+
+    for (const decision of state.llmDecisions) {
+        if (decision.evaluated) continue;
+
+        // Karardan SONRA gelen ilk kullanıcı mesajını bul
+        const userReplies = conversationHistory.filter(
+            m => m.role === 'user' && (m.timestamp || 0) > decision.timestamp
+        );
+
+        if (userReplies.length === 0) {
+            // Henüz yanıt yok, ama üzerinden 1 saat geçtiyse 'ignored' say
+            if (Date.now() - decision.timestamp > 60 * 60 * 1000) {
+                decision.evaluated = true;
+                decision.feedback = 'ignored';
+            }
+            continue;
+        }
+
+        const firstReply = userReplies[0].content.toLowerCase();
+
+        // Basit duygu analizi / keyword matching
+        const positiveWords = ['teşekkür', 'tesekkur', 'eline sağlık', 'harika', 'güzel', 'iyi', 'tamam', 'ok', 'yes', 'evet', 'süper', 'mükemmel'];
+        const negativeWords = ['hayır', 'olmamış', 'yanlış', 'hata', 'düzelt', 'kötü', 'dur', 'yapma', 'iptal', 'no', 'stop'];
+
+        let isPositive = positiveWords.some(w => firstReply.includes(w));
+        let isNegative = negativeWords.some(w => firstReply.includes(w));
+
+        decision.evaluated = true;
+        if (isPositive && !isNegative) {
+            decision.feedback = 'positive';
+        } else if (isNegative && !isPositive) {
+            decision.feedback = 'negative';
+        } else {
+            decision.feedback = 'neutral';
+        }
     }
 }

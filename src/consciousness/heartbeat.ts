@@ -98,6 +98,7 @@ async function loadState(): Promise<ConsciousnessState> {
       recentThoughts: parsed.recentThoughts ?? [],
       sensorHealth: parsed.sensorHealth ?? {},
       proactiveMessages: parsed.proactiveMessages ?? {},
+      llmDecisions: parsed.llmDecisions ?? [],
     };
   } catch {
     return createInitialState();
@@ -375,6 +376,24 @@ export async function heartbeatCycle(
       );
 
       await log(`[consciousness] Karar: ${decision.action} — ${decision.reasoning ?? ''}`);
+
+      // Kararı state'e kaydet (öğrenme için)
+      if (decision.action !== 'silent' || (decision.action === 'silent' && decision.reasoning !== 'LLM sessiz kalmayı seçti')) {
+        state.llmDecisions.push({
+          id: `dec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          timestamp: Date.now(),
+          action: decision.action,
+          message: decision.message,
+          reasoning: decision.reasoning,
+          contextSummary: awarenessText,
+          evaluated: false,
+        });
+
+        // Max 100 decision tutalım (memory limit)
+        if (state.llmDecisions.length > 100) {
+          state.llmDecisions = state.llmDecisions.slice(-100);
+        }
+      }
 
       // Kararı uygula
       if (decision.action === 'work' && decision.message && config.notifyChatId) {
