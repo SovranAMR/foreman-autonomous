@@ -94,8 +94,8 @@ export class KimiProvider implements LLMProvider {
             stream: false,
         };
 
-        
-        
+
+
 
         const response = await fetch(KIMI_ENDPOINT, {
             method: "POST",
@@ -104,9 +104,9 @@ export class KimiProvider implements LLMProvider {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
-            
+
         });
-        
+
 
         if (!response.ok) {
             const errText = await response.text();
@@ -147,8 +147,8 @@ export class KimiProvider implements LLMProvider {
             stream: true,
         };
 
-        
-        
+
+
 
         const response = await fetch(KIMI_ENDPOINT, {
             method: "POST",
@@ -157,9 +157,9 @@ export class KimiProvider implements LLMProvider {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
-            
+
         });
-        
+
 
         if (!response.ok) {
             const errText = await response.text();
@@ -181,6 +181,8 @@ export class KimiProvider implements LLMProvider {
         maxTokens = 32768,
         maxIterations = 100,
         toolExecutor?: (call: ToolCall) => ToolResult | Promise<ToolResult>,
+        abortSignal?: AbortSignal,
+        pollInjectedMessages?: () => Array<{ role: string; content: string }> | undefined,
     ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
         const model = KIMI_MODELS.find(m => m.id === modelId)?.model ?? modelId;
         const tools = toOpenAITools();
@@ -197,6 +199,22 @@ export class KimiProvider implements LLMProvider {
         let finalText = "";
 
         for (let iteration = 0; iteration < maxIterations; iteration++) {
+            if (abortSignal?.aborted) {
+                throw new Error("streamChatWithTools aborted");
+            }
+
+            if (pollInjectedMessages) {
+                const injected = pollInjectedMessages();
+                if (injected && injected.length > 0) {
+                    console.log(`[kimi-provider] injecting ${injected.length} steering messages into iteration ${iteration}`);
+                    const combinedContent = injected.map(m => typeof m.content === "string" ? m.content : JSON.stringify(m.content)).join("\n\n");
+                    conversationMessages.push({
+                        role: "user",
+                        content: combinedContent,
+                    });
+                }
+            }
+
             const isK2 = model.includes("k2");
             const body: any = {
                 model,
@@ -208,8 +226,8 @@ export class KimiProvider implements LLMProvider {
                 tool_choice: "auto",
             };
 
-            
-            
+
+
 
             const response = await fetch(KIMI_ENDPOINT, {
                 method: "POST",
@@ -218,9 +236,9 @@ export class KimiProvider implements LLMProvider {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(body),
-                
+
             });
-            
+
 
             if (!response.ok) {
                 const errText = await response.text();

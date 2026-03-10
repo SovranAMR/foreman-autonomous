@@ -66,6 +66,7 @@ export class MessagingGateway {
   private processing: Set<string> = new Set(); // active chat IDs
   private workTracker: WorkTracker;
   private messageQueue: Map<string, InboundMessage[]> = new Map(); // queued messages per chat
+  private injectedMessages: Map<string, string[]> = new Map(); // Messages injected while LLM is actively streaming tools (chatKey -> text[])
   private running = false;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -242,16 +243,19 @@ export class MessagingGateway {
     // Skip empty messages
     if (!message.text.trim()) return null;
 
-    // Concurrency guard — one message per chat at a time, others queued
+    // Concurrency guard: if already processing, inject it directly into the thought process
     const chatKey = `${message.channel}:${message.chatId}`;
     if (this.processing.has(chatKey)) {
-      // Queue the message — it'll be processed after current finishes
-      const queue = this.messageQueue.get(chatKey) ?? [];
-      if (queue.length < 5) { // Cap queue at 5 to prevent flooding
-        queue.push(message);
-        this.messageQueue.set(chatKey, queue);
+      const injected = this.injectedMessages.get(chatKey) ?? [];
+      injected.push(message.text);
+      this.injectedMessages.set(chatKey, injected);
+
+      const channel = this.channels.get(message.channel);
+      if (channel) {
+        // Don't wait for it
+        channel.send(message.chatId, { text: "⚡ *Rotaya eklendi:* " + message.text, parseMode: "markdown" }).catch(() => { });
       }
-      return { text: "⏳ Processing previous message... yours is queued." };
+      return null;
     }
 
     this.processing.add(chatKey);
@@ -386,7 +390,19 @@ export class MessagingGateway {
     } finally {
       this.processing.delete(chatKey);
 
-      // Process queued message if any
+      // Process unconsumed injected messages (e.g. sent at the very end of generation)
+      const unconsumed = this.injectedMessages.get(chatKey);
+      if (unconsumed && unconsumed.length > 0) {
+        this.injectedMessages.set(chatKey, []);
+        for (const text of unconsumed) {
+          const clone = { ...message, text, media: [] };
+          this.handleMessage(clone).catch(err => {
+            console.error(`[gateway] Unconsumed message processing failed:`, err);
+          });
+        }
+      }
+
+      // Process queued message if any (legacy fallback)
       const queue = this.messageQueue.get(chatKey);
       if (queue && queue.length > 0) {
         const next = queue.shift()!;
@@ -779,23 +795,63 @@ export class MessagingGateway {
         // ─── AGENTIC LOOP ─────────────────────────────────
         // Keep calling LLM with tools until it signals work is done.
         // Only the FINAL response goes to the user.
-        const MAX_AGENT_ITERATIONS = 10;
         const allToolLogs: string[] = [];
         let finalResponseText = "";
         let totalInputTokens = 0;
         let totalOutputTokens = 0;
 
-        for (let iteration = 0; iteration < MAX_AGENT_ITERATIONS; iteration++) {
+        // ─── LIVE STREAMING SETUP ───
+        const channel = this.channels.get(message.channel);
+        let liveMessageId: string | undefined;
+        let lastEditTime = 0;
+
+        if (channel) {
+          liveMessageId = await channel.send(message.chatId, { text: "⏳ *Foreman is thinking...*", parseMode: "markdown" });
+        }
+
+        const updateLiveMessage = async (currentText: string, currentToolLog: string[]) => {
+          if (!channel || !channel.edit || !liveMessageId) return;
+
+          const now = Date.now();
+          if (now - lastEditTime < 1500) return; // Throttle to 1.5s
+          lastEditTime = now;
+
+          try {
+            // Build preview text
+            let preview = "";
+            if (currentToolLog.length > 0) {
+              const recentTools = currentToolLog.slice(-5).join("\n");
+              preview += `🔧 *Working...*\n\`\`\`\n${recentTools}\n\`\`\`\n\n`;
+            }
+            if (currentText) {
+              const textPreview = currentText.length > 800 ? "..." + currentText.slice(-800) : currentText;
+              preview += `💬 *Drafting:*\n${textPreview}`;
+            }
+
+            await channel.edit(message.chatId, liveMessageId, { text: preview || "⏳ *Thinking...*", parseMode: "markdown" });
+          } catch (err) {
+            console.error(`[gateway] Live edit failed:`, err);
+          }
+        };
+
+        // Max 2 iterations just for hallucination retries
+        for (let iteration = 0; iteration < 2; iteration++) {
           let responseText = "";
           const toolLog: string[] = [];
 
-          const iterMessages = iteration === 0 ? messages : [
-            ...messages,
-            ...conversation.messages
-              .filter(m => typeof m.content === "string")
-              .slice(-(iteration * 2)) // include recent assistant+user pairs
-              .map(m => ({ role: m.role, content: m.content })),
-          ];
+          const pollInjected = () => {
+            const injected = this.injectedMessages.get(chatKey);
+            if (injected && injected.length > 0) {
+              const msgs = [...injected];
+              this.injectedMessages.set(chatKey, []);
+              // Add to conversation state so it's persisted
+              msgs.forEach(msg => {
+                conversation.messages.push({ role: "user", content: `[Canlı Müdahale]: ${msg}` });
+              });
+              return msgs.map(m => ({ role: "user", content: `[Canlı Müdahale]: ${m}` }));
+            }
+            return undefined;
+          };
 
           const result = await this.provider.streamChatWithTools!(
             iteration === 0 ? messages : [
@@ -805,20 +861,28 @@ export class MessagingGateway {
                 .map(m => ({ role: m.role, content: m.content })),
             ],
             this.activeModel,
-            (token: string) => { responseText += token; },
+            (token: string) => {
+              responseText += token;
+              // Fire and forget so we don't block the stream
+              updateLiveMessage(responseText, toolLog).catch(() => { });
+            },
             (call: { name: string; args?: Record<string, any> }) => {
               const a = call.args ?? {};
               const argsPreview = a.command ?? a.path ?? a.pattern ?? a.directory ?? ".";
               toolLog.push(`⚙ ${call.name} ${String(argsPreview).slice(0, 60)}`);
+              updateLiveMessage(responseText, toolLog).catch(() => { });
             },
             (result: { name: string; content: string; isError?: boolean }) => {
               const icon = result.isError ? "✘" : "✔";
               const preview = result.content.split("\n").slice(0, 3).join("\n  ");
               toolLog.push(`  ${icon} ${preview.slice(0, 200)}`);
+              updateLiveMessage(responseText, toolLog).catch(() => { });
             },
             32768,
-            25,
+            25, // Internal iteration handles full tool loops seamlessly
             this.toolExecutor,
+            undefined, // abort signal
+            pollInjected // pass polling callback
           );
 
           totalInputTokens += result.inputTokens ?? 0;
@@ -828,7 +892,7 @@ export class MessagingGateway {
           const text = responseText.trim() || result.text?.trim() || "";
           const toolCallCount = toolLog.filter(l => l.startsWith("⚙")).length;
 
-          console.log(`[gateway] Iteration ${iteration + 1}: ${toolCallCount} tool calls, ${text.length} chars response`);
+          console.log(`[gateway] streamChatWithTools completed: ${toolCallCount} tool calls, ${text.length} chars final response`);
 
           // Hallucination guard: 0 tool calls + long text on first iteration
           if (iteration === 0 && toolCallCount === 0 && text.length > 1500) {
@@ -838,17 +902,8 @@ export class MessagingGateway {
             continue;
           }
 
-          // If LLM used tools → work is in progress. Add response to conversation and continue.
-          if (toolCallCount > 0) {
-            conversation.messages.push({ role: "assistant", content: text || "(tool calls executed)" });
-            conversation.messages.push({ role: "user", content: "Devam et. İşin bittiyse sonucu özetle." });
-            finalResponseText = text;
-            continue;
-          }
-
-          // No tool calls → LLM is done. This is the final response.
+          // Operation naturally finished (internal loop completed)
           finalResponseText = text;
-          console.log(`[gateway] Agent loop done after ${iteration + 1} iterations, ${allToolLogs.filter(l => l.startsWith("⚙")).length} total tool calls`);
           break;
         }
 

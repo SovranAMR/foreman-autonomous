@@ -91,8 +91,11 @@ export interface Channel {
   /** Stop the channel */
   stop(): Promise<void>;
 
-  /** Send a reply to a chat */
-  send(chatId: string, reply: OutboundReply): Promise<void>;
+  /** Send a reply to a chat and return the message ID if supported */
+  send(chatId: string, reply: OutboundReply): Promise<string | undefined>;
+
+  /** Edit an existing message if supported by the channel */
+  edit?(chatId: string, messageId: string, reply: OutboundReply): Promise<void>;
 
   /** Whether the channel is currently connected */
   isConnected(): boolean;

@@ -31,11 +31,11 @@ import type {
 // Baileys logs are very verbose — silence them
 const logger = {
   level: "silent" as const,
-  info: () => {},
+  info: () => { },
   error: (...args: unknown[]) => console.error("[whatsapp]", ...args),
   warn: (...args: unknown[]) => console.warn("[whatsapp]", ...args),
-  debug: () => {},
-  trace: () => {},
+  debug: () => { },
+  trace: () => { },
   fatal: (...args: unknown[]) => console.error("[whatsapp:fatal]", ...args),
   child: () => logger,
 };
@@ -139,14 +139,14 @@ export class WhatsAppChannel implements Channel {
     }
   }
 
-  async send(chatId: string, reply: OutboundReply): Promise<void> {
-    if (!this.sock) return;
+  async send(chatId: string, reply: OutboundReply): Promise<string | undefined> {
+    if (!this.sock) return undefined;
 
     try {
       // WhatsApp doesn't support markdown natively — strip it
       const text = this.stripMarkdown(reply.text);
 
-      await this.sock.sendMessage(chatId, {
+      const msg = await this.sock.sendMessage(chatId, {
         text,
         ...(reply.replyToId ? {
           quoted: {
@@ -158,8 +158,10 @@ export class WhatsAppChannel implements Channel {
           } as any,
         } : {}),
       });
+      return msg?.key?.id ?? undefined;
     } catch (err) {
       console.error(`[whatsapp] Send failed:`, err);
+      return undefined;
     }
   }
 

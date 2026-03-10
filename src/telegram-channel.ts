@@ -138,11 +138,12 @@ export class TelegramChannel implements Channel {
     await this.bot.stop();
   }
 
-  async send(chatId: string, reply: OutboundReply): Promise<void> {
+  async send(chatId: string, reply: OutboundReply): Promise<string | undefined> {
     const parseMode = reply.parseMode === "markdown" ? "Markdown" : undefined;
 
     // Split long messages (Telegram limit: 4096 chars)
     const chunks = this.splitMessage(reply.text, 4000);
+    let firstMsgId: string | undefined;
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
@@ -152,17 +153,19 @@ export class TelegramChannel implements Channel {
         : undefined;
 
       try {
-        await this.bot.api.sendMessage(chatId, chunk, {
+        const result = await this.bot.api.sendMessage(chatId, chunk, {
           parse_mode: parseMode,
           reply_parameters: replyParams,
         });
+        if (i === 0) firstMsgId = result.message_id.toString();
       } catch (err) {
         // Retry without parse mode if markdown fails
         if (parseMode) {
           try {
-            await this.bot.api.sendMessage(chatId, chunk, {
+            const result = await this.bot.api.sendMessage(chatId, chunk, {
               reply_parameters: replyParams,
             });
+            if (i === 0) firstMsgId = result.message_id.toString();
           } catch (retryErr) {
             console.error(`[telegram] Send failed (chunk ${i + 1}/${chunks.length}):`, retryErr);
           }
@@ -170,6 +173,22 @@ export class TelegramChannel implements Channel {
           console.error(`[telegram] Send failed (chunk ${i + 1}/${chunks.length}):`, err);
         }
       }
+    }
+    return firstMsgId;
+  }
+
+  async edit(chatId: string, messageId: string, reply: OutboundReply): Promise<void> {
+    const parseMode = reply.parseMode === "markdown" ? "Markdown" : undefined;
+    try {
+      await this.bot.api.editMessageText(chatId, Number(messageId), reply.text, {
+        parse_mode: parseMode,
+      });
+    } catch (err: any) {
+      if (err.message && err.message.includes("message is not modified")) {
+        // This is fine, just ignore
+        return;
+      }
+      console.error(`[telegram] Edit failed for message ${messageId}:`, err);
     }
   }
 
@@ -193,12 +212,12 @@ export class TelegramChannel implements Channel {
       if (!response.ok) return null;
 
       const buffer = Buffer.from(await response.arrayBuffer());
-      
+
       // Determine filename
       const ext = file.file_path.split(".").pop() ?? "bin";
       const finalName = filename ?? `${fileId.slice(-8)}_${Date.now()}.${ext}`;
       const localPath = join(this.mediaDir, finalName);
-      
+
       writeFileSync(localPath, buffer);
 
       // Determine MIME type from extension
@@ -345,7 +364,7 @@ export class TelegramChannel implements Channel {
       }
     } finally {
       typingActive = false;
-      await typingPromise.catch(() => {});
+      await typingPromise.catch(() => { });
     }
   }
 
@@ -422,7 +441,7 @@ export class TelegramChannel implements Channel {
     } finally {
       // Stop typing indicator
       typingActive = false;
-      await typingPromise.catch(() => {});
+      await typingPromise.catch(() => { });
     }
   }
 

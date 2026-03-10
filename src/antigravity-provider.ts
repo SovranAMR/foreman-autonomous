@@ -497,20 +497,30 @@ export class AntigravityProvider implements LLMProvider {
     const systemMsg = messages.find(m => m.role === "system");
     const nonSystemMsgs = messages.filter(m => m.role !== "system");
 
-    const contents = nonSystemMsgs.map(m => {
+    const contents: Array<{ role: string; parts: any[] }> = [];
+
+    for (const m of nonSystemMsgs) {
       const role = m.role === "assistant" || m.role === "model" ? "model" : "user";
+      let newParts: any[] = [];
+
       // Support both string content and pre-built parts arrays
       if (typeof m.content === "string") {
-        return {
-          role,
-          parts: [{ text: m.content }],
-        };
+        newParts = [{ text: m.content }];
+      } else if (Array.isArray(m.content)) {
+        newParts = m.content;
       }
-      return {
-        role,
-        parts: m.content,
-      };
-    });
+
+      // Merge with previous if role is the same
+      if (contents.length > 0 && contents[contents.length - 1].role === role) {
+        contents[contents.length - 1].parts.push(...newParts);
+      } else {
+        contents.push({
+          role,
+          // Make a copy so we don't accidentally mutate the original array if we push to it later
+          parts: [...newParts],
+        });
+      }
+    }
 
     const systemParts: Array<{ text: string }> = [];
     if (systemMsg && typeof systemMsg.content === "string") {
@@ -725,6 +735,8 @@ export class AntigravityProvider implements LLMProvider {
     maxTokens = 32768,
     maxIterations = 100,
     toolExecutor?: (call: ToolCall) => ToolResult | Promise<ToolResult>,
+    abortSignal?: AbortSignal,
+    pollInjectedMessages?: () => Array<{ role: string; content: string }> | undefined,
   ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
     await this.ensureValidToken();
 
@@ -738,6 +750,21 @@ export class AntigravityProvider implements LLMProvider {
     let finalText = "";
 
     for (let iteration = 0; iteration < maxIterations; iteration++) {
+      if (abortSignal?.aborted) {
+        throw new Error("streamChatWithTools aborted");
+      }
+
+      // ─── LIVE STEERING INJECTION ───
+      // If the user sent a message mid-thought, inject it into the conversation
+      // so the LLM reads it before the next tool call / text generation step.
+      if (pollInjectedMessages) {
+        const injected = pollInjectedMessages();
+        if (injected && injected.length > 0) {
+          console.log(`[provider] injecting ${injected.length} steering messages into iteration ${iteration}`);
+          conversationMessages.push(...injected);
+        }
+      }
+
       // Pre-send validation: ensure proper functionCall→functionResponse pairing
       // This prevents tool_use_id mismatch errors before they happen
       for (let i = conversationMessages.length - 1; i >= 0; i--) {

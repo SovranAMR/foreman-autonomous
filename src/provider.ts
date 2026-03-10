@@ -46,6 +46,17 @@ export interface GenerateResult {
   model: string;
 }
 
+export interface ToolCall {
+  name: string;
+  args: Record<string, any>;
+}
+
+export interface ToolResult {
+  name: string;
+  content: string;
+  isError?: boolean;
+}
+
 // ─── PROVIDER INTERFACE ──────────────────────────────────────
 
 /**
@@ -62,16 +73,32 @@ export interface LLMProvider {
   /** Generate text */
   generate(messages: LLMMessage[], options: GenerateOptions): Promise<GenerateResult>;
 
-  /** Stream chat with tool calling (optional — used by messaging gateway) */
+  /**
+   * Stream a chat completion with tool calling capabilities.
+   * Runs an inner loop (agentic reasoning) until a final text is produced.
+   *
+   * @param messages Conversation history
+   * @param modelId Model identifier
+   * @param onToken Callback for each text token received
+   * @param onToolCall Callback fired when the LLM decides to use a tool
+   * @param onToolResult Callback fired when the tool execution finishes
+   * @param maxTokens Maximum tokens to generate
+   * @param maxIterations Maximum number of tool-call loops (default: 10)
+   * @param toolExecutor Function to execute the tool (if provided, it will handle execution)
+   * @param abortSignal Allows cancelling the stream
+   * @param pollInjectedMessages Allows injecting mid-flight thoughts into conversation
+   */
   streamChatWithTools?(
     messages: Array<{ role: string; content: string | any[] }>,
     modelId: string,
     onToken: (token: string) => void,
-    onToolCall: (call: { name: string; args: Record<string, any> }) => void,
-    onToolResult: (result: { name: string; content: string; isError?: boolean }) => void,
+    onToolCall: (call: ToolCall) => void,
+    onToolResult: (result: ToolResult) => void,
     maxTokens?: number,
     maxIterations?: number,
-    toolExecutor?: (call: { name: string; args: Record<string, any> }) => any,
+    toolExecutor?: (call: ToolCall) => ToolResult | Promise<ToolResult>,
+    abortSignal?: AbortSignal,
+    pollInjectedMessages?: () => Array<{ role: string; content: string }> | undefined,
   ): Promise<{ text: string; inputTokens: number; outputTokens: number }>;
 }
 

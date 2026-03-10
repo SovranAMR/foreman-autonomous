@@ -239,7 +239,7 @@ export async function runWithFallback<T>(params: {
 
 const MODEL_FALLBACK_CHAIN = [
   "claude-opus-4-6-thinking",
-  "claude-sonnet-4-6-thinking",
+  "claude-sonnet-4-6",
   "gemini-3.1-pro-high",
   "gpt-oss-120b",
   "gemini-3.1-pro-low",
