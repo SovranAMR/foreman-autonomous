@@ -877,7 +877,7 @@ export class AntigravityProvider implements LLMProvider {
           const lines = body.split("\n");
 
           let iterText = "";
-          const functionCalls: Array<{ name: string; args: Record<string, any>; id?: string; original: any }> = [];
+          const functionCalls: Array<{ name: string; args: Record<string, any>; id?: string; original: any; rawPart?: any }> = [];
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -903,12 +903,13 @@ export class AntigravityProvider implements LLMProvider {
 
                       // Track function calls — preserve id from proxy for Claude pairing
                       if (part.functionCall) {
-                        console.log(`[provider] functionCall: ${part.functionCall.name} (id: ${part.functionCall.id || 'none'})`);
+                        console.log(`[provider] functionCall received. Raw part: ${JSON.stringify(part)}`);
                         functionCalls.push({
                           name: part.functionCall.name,
                           args: part.functionCall.args ?? {},
-                          id: part.functionCall.id, // Proxy-generated ID for Claude tool_use matching
+                          id: part.functionCall.id,
                           original: part.functionCall,
+                          rawPart: part,
                         });
                       }
                     }
@@ -936,6 +937,12 @@ export class AntigravityProvider implements LLMProvider {
             }
             for (const fc of functionCalls) {
               const fcPart: any = { functionCall: fc.original };
+              // also merge any other fields from the raw part if needed, like thought_signature
+              const sig = fc.rawPart?.thoughtSignature || fc.rawPart?.thought_signature || fc.rawPart?.functionCall?.thought_signature;
+              if (sig) {
+                // Put it on the part ONLY, not inside functionCall
+                fcPart.thought_signature = sig;
+              }
               modelParts.push(fcPart);
             }
             conversationMessages.push({ role: "model", content: modelParts });
