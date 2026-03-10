@@ -90,7 +90,8 @@ async function fetchWithRetry(
       const bodyText = await cloned.text();
       if (bodyText.includes("exhausted your capacity") || bodyText.includes("quota will reset")) {
         console.warn(`[provider] ${label}: Hard quota exhaustion detected, stopping retries: ${bodyText.slice(0, 100)}`);
-        return response; // Return immediately to throw error to caller
+        // Throw immediately with the correct message so it isn't lost if the response text was consumed
+        throw new Error(`Antigravity API error ${response.status}: ${bodyText.slice(0, 200)}`);
       }
     } catch { /* ignore read errors */ }
 

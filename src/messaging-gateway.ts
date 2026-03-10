@@ -977,7 +977,8 @@ export class MessagingGateway {
             break; // success with empty text — exit retry loop
           } catch (retryErr) {
             const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
-            const isRetryable = retryMsg.includes("503") || retryMsg.includes("429") || retryMsg.includes("rate limit") || retryMsg.includes("UNAVAILABLE") || retryMsg.includes("No capacity");
+            const isHardLimit = retryMsg.includes("exhausted your capacity") || retryMsg.includes("quota will reset");
+            const isRetryable = !isHardLimit && (retryMsg.includes("503") || retryMsg.includes("429") || retryMsg.includes("rate limit") || retryMsg.includes("UNAVAILABLE") || retryMsg.includes("No capacity"));
             if (!isRetryable) {
               console.error(`[gateway] Retry ${attempt} failed (non-retryable):`, retryMsg.slice(0, 200));
               return { text: `❌ ${retryMsg.slice(0, 150)}` };
