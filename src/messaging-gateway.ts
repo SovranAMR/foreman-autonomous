@@ -455,7 +455,14 @@ export class MessagingGateway {
           "/cost — Token cost report",
           "/cancel — Cancel active forge run",
           "/observe — Last pipeline report",
-          "/rollback — Undo last operation",
+          "",
+          "**Admin Commands:**",
+          "/system — Sistem durum özeti",
+          "/sensors — Aktif sensörleri göster",
+          "/toggle <isim> — Sensörü aç/kapat",
+          "/restart — Foreman servisini yenile",
+          "/logs — Son hata logları",
+          "/heartbeat — Heartbeat döngü logu",
         ].join("\n"),
         parseMode: "markdown",
       };
@@ -519,7 +526,159 @@ export class MessagingGateway {
       }
     }
 
-    // ─── OBSERVER: Last pipeline report ─────────────────────
+    // ─── ADMIN COMMANDS (Phase 4) ────────────────────────────
+    if (text === "/system" || text === "/sistem") {
+      try {
+        const { readFileSync } = await import("node:fs");
+        let state;
+        try {
+          state = JSON.parse(readFileSync("/home/sovranamr/.foreman/consciousness-state.json", "utf-8"));
+        } catch {
+          return { text: "❌ State dosyası okunamadı." };
+        }
+
+        const uptimeH = (Date.now() - (state.startedAt || Date.now())) / 3600000;
+        const memory = process.memoryUsage();
+
+        return {
+          text: [
+            "⚙️ **System Control**",
+            `├ Mood: ${state.emotion?.mood} (Int: ${state.emotion?.intensity})`,
+            `├ Heartbeat: ${state.heartbeatCount} beats`,
+            `├ Uptime: ${uptimeH.toFixed(1)}h`,
+            `├ RAM: ${Math.round(memory.rss / 1024 / 1024)}MB`,
+            `└ Tasks: ${state.recentThoughts?.length || 0} recent thoughts`
+          ].join("\n"),
+          parseMode: "markdown",
+        };
+      } catch (err) {
+        return { text: `❌ Sistem durumu okunamadı: ${err}` };
+      }
+    }
+
+    if (text === "/sensors" || text === "/sensorler") {
+      try {
+        const { readFileSync } = await import("node:fs");
+        const { SENSOR_MAP } = await import("./consciousness/sensors.js");
+        const { DEFAULT_HEARTBEAT_CONFIG } = await import("./consciousness/types.js");
+
+        let configList = DEFAULT_HEARTBEAT_CONFIG.enabledSensors;
+        try {
+          const cfg = JSON.parse(readFileSync("/home/sovranamr/.foreman/config.json", "utf-8"));
+          if (cfg.consciousness?.enabledSensors) {
+            configList = cfg.consciousness.enabledSensors;
+          }
+        } catch { }
+
+        const allSensors = Object.keys(SENSOR_MAP);
+        const list = allSensors.map(s => {
+          const isEnabled = (configList as string[]).includes(s);
+          return `• \`${s}\`: ${isEnabled ? "🟢" : "🔴"}`;
+        }).join("\n");
+
+        return {
+          text: `📡 **Sensors**\n\n${list}\n\n_Aç/Kapat: /toggle <isim>_`,
+          parseMode: "markdown",
+        };
+      } catch (err) {
+        return { text: `❌ Sensör listesi okunamadı: ${err}` };
+      }
+    }
+
+    if (text.startsWith("/toggle ")) {
+      const sensor = text.split(" ")[1]?.trim();
+      if (!sensor) return { text: "Kullanım: `/toggle <sensor>`", parseMode: "markdown" };
+
+      try {
+        const { readFileSync, writeFileSync } = await import("node:fs");
+        const { DEFAULT_HEARTBEAT_CONFIG } = await import("./consciousness/types.js");
+        const { SENSOR_MAP } = await import("./consciousness/sensors.js");
+
+        if (!(Object.keys(SENSOR_MAP) as string[]).includes(sensor)) {
+          return { text: `❌ Geçersiz sensör: \`${sensor}\``, parseMode: "markdown" };
+        }
+
+        const configPath = "/home/sovranamr/.foreman/config.json";
+        let cfg: any = {};
+        try { cfg = JSON.parse(readFileSync(configPath, "utf-8")); } catch { }
+
+        if (!cfg.consciousness) cfg.consciousness = {};
+        let currentList = cfg.consciousness.enabledSensors || DEFAULT_HEARTBEAT_CONFIG.enabledSensors;
+
+        const isEnabled = currentList.includes(sensor);
+        if (isEnabled) {
+          cfg.consciousness.enabledSensors = currentList.filter((s: string) => s !== sensor);
+        } else {
+          cfg.consciousness.enabledSensors = [...currentList, sensor];
+        }
+
+        writeFileSync(configPath, JSON.stringify(cfg, null, 2));
+
+        // Restart to apply
+        const { exec } = await import("node:child_process");
+        const { promisify } = await import("node:util");
+        const run = promisify(exec);
+
+        // Notify before restarting to avoid losing the reply
+        setTimeout(() => run("systemctl --user restart foreman").catch(() => { }), 1000);
+
+        return {
+          text: `✅ Sensör \`${sensor}\` ${isEnabled ? "kapatıldı" : "açıldı"}.\nServis yeniden başlatılıyor...`,
+          parseMode: "markdown",
+        };
+      } catch (err) {
+        return { text: `❌ Toggle başarısız: ${err}` };
+      }
+    }
+
+    if (text === "/restart" || text === "/baslat") {
+      try {
+        const { exec } = await import("node:child_process");
+        const { promisify } = await import("node:util");
+        const run = promisify(exec);
+
+        setTimeout(() => run("systemctl --user restart foreman").catch(() => { }), 1000);
+        return { text: "🔄 Foreman yeniden başlatılıyor...", parseMode: "markdown" };
+      } catch (err) {
+        return { text: `❌ Restart başarısız: ${err}` };
+      }
+    }
+
+    if (text === "/logs" || text === "/loglar") {
+      try {
+        const { exec } = await import("node:child_process");
+        const { promisify } = await import("node:util");
+        const run = promisify(exec);
+
+        const { stdout } = await run("tail -n 15 /home/sovranamr/.foreman/foreman-error.log");
+        if (!stdout.trim()) return { text: "✅ Error log boş." };
+
+        return {
+          text: `📋 **Son Hatalar:**\n\`\`\`\n${stdout.slice(-3800)}\n\`\`\``,
+          parseMode: "markdown",
+        };
+      } catch (err) {
+        return { text: `❌ Loglar okunamadı.` };
+      }
+    }
+
+    if (text === "/heartbeat") {
+      try {
+        const { exec } = await import("node:child_process");
+        const { promisify } = await import("node:util");
+        const run = promisify(exec);
+
+        const { stdout } = await run("tail -n 10 /home/sovranamr/.foreman/consciousness.log");
+        if (!stdout.trim()) return { text: "🫀 Heartbeat log boş." };
+
+        return {
+          text: `🫀 **Heartbeat Pulse:**\n\`\`\`\n${stdout.slice(-3800)}\n\`\`\``,
+          parseMode: "markdown",
+        };
+      } catch (err) {
+        return { text: `❌ Heartbeat logu okunamadı.` };
+      }
+    }
     if (text === "/observe" || text === "/gozlem" || text === "/rapor") {
       try {
         const { readdirSync, readFileSync } = await import("node:fs");
