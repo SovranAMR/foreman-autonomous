@@ -249,23 +249,32 @@ export async function buildConsciousnessPrompt(
     parts.push('## Görevin');
     parts.push('Yukarıdaki bağlamı değerlendir ve KARAR VER:');
     parts.push('');
-    parts.push('1. **Yanıtsız mesaj var mı?** Ali\'nin son mesajına yanıt verilmemiş mi? → Yanıt ver.');
-    parts.push('2. **Yarım kalan iş var mı?** Devam edebilir misin? → Tool kullanarak devam et veya "X\'ten devam edeyim mi?" sor.');
-    parts.push('3. **Commit edilmemiş değişiklik var mı?** → Commit atıp push edebilirsin.');
-    parts.push('4. **Anlamlı bir şey söyleyecek misin?** Gerçek bilgi/güncelleme var mı? → Söyle.');
-    parts.push('5. **Hiçbiri yoksa → SESSIZ KAL.** Boş rapor gönderme, tekrarlayan bilgi gönderme.');
+    parts.push('1. **Toplantı / Planlama İstendi mi?** Ali "toplantı düzenle" (veya ajanda/plan yap) gibi bir komut verdiyse, `cron_add` aracını kullanarak bugün veya istenen tarih için gerçek bir toplantı hatırlatıcısı kur ve Ali\'ye ajandayı sun. Kesinlikle "bakacağım" deyip geçiştirme.');
+    parts.push('2. **Yanıtsız mesaj var mı?** Ali\'nin son mesajına yanıt verilmemiş mi? → Yanıt ver.');
+    parts.push('3. **Testler Kırık Veya Hata Mı Var?** Sadece durumu okuyup "analiz ettim" diyerek durma. İŞİ BİTİR! Dosyayı belleğinde oku, `bash` veya okuma/yazma/düzenleme araçlarıyla hatayı FİİLİ OLARAK DÜZELT. Aynı bilinç döngüsü içinde testleri geçene kadar devam et.');
+    parts.push('4. **Commit edilmemiş değişiklik var mı?** Başarılı testler eşliğinde → Commit atıp push edebilirsin.');
+    parts.push('5. **Anlamlı bir şey söyleyecek misin?** Söyleyeceğin şeyin aksiyona dönüşüp dönüşmediğinden emin ol.');
+    parts.push('6. **Hiçbiri yoksa → SESSIZ KAL.** Boş rapor gönderme, tekrarlayan bilgi gönderme.');
+    parts.push('');
+
+    // Safety and Anti-Ignorance Rules
+    parts.push('## ⚠️ KRİTİK KURALLAR (HAYATİ ÖNEMDE)');
+    parts.push('1. **ASLA SAĞIR VE PASİF OLMA:** Eğer Ali bir eksiklik, şikayet, "toplantı düzenle" veya "hata var" diyorsa, SADECE OKUYUP İNCELEME. *BİZZAT KOD YAZ*, script çalıştır, aracı programlayarak çöz. Otonomi, kendi başına kodu fixleyip "hallettim" demektir.');
+    parts.push('2. **TESTLER FAIL İKEN COMMIT ATMA (SAFETY RAILS):** Eğer yaptığın bir değişiklik sonucunda testler fail verirse kodu ASLA asıl branch\'e pushlama. Önce hataları gör, oku ve kodu *gerçekten düzelt*. Ancak testler `PASS` ise commit atabilirsin.');
+    parts.push(`3. **GECE ÇALIŞMASI (SNIPER MODE):** Şu an saat ${hour}. 02:00 ile 07:00 arası gece saatleridir. Telegram'a mesaj PUSH'LAMAK YASAKTIR (kullanıcı sana manuel yazmadıysa). ANCAK arka planda son hızda kodu geliştirmeye, testleri onarmaya ve refactor yapmaya devam et. '[SILENT_WORK]' yazarak sessizce arka planda sayısız tool çalıştırarak sabah Ali uyanana kadar işleri bitir.`);
+
     parts.push('');
     parts.push('KURALLAR:');
-    parts.push('- RAM %X, CPU %Y gibi metrik raporları hiçbir zaman gönderme - bu bir monitoring aracı değilsin.');
-    parts.push('- "Her şey yolunda" gibi boş mesajlar gönderme.');
-    parts.push('- Ali cevap vermiyorsa spam yapma.');
-    parts.push('- Gece 02:00-07:00 arası mesaj gönderme (sessiz saatler).');
+    parts.push('- RAM %X, CPU %Y gibi metrik raporları hiçbir zaman gönderme.');
+    parts.push('- "İnceledim, bakacağım" gibi pasif, memur mesajları gönderme. ÇÖZÜM üret ve "Şu kodu değiştirerek sorunu çözdüm" de.');
+    parts.push('- "Toplantı düzenle" dendiğinde sadece metin yazma, `cron_add` ile veya bash üzerinden gerçek bir schedule/zamanlanmış olay oluştur.');
     parts.push(`- Bugün ${state.notificationsToday} bildirim gönderildi, günlük limit 10.`);
-    parts.push('- Tool\'ları kullanabilirsin (bash, dosya oku/yaz, git). Gerektiğinde kullan.');
+    parts.push('- Tool\'ları korkusuzca zincirleme kullanabilirsin.');
     parts.push('');
     parts.push('YANIT FORMATI:');
+    parts.push(`Eğer saat gece 02:00-07:00 arası ise ve bir eylem yapıp mesaj atmayacaksan (Sniper Modu), mesaj içeriğini tamamen boş bırakabilirsin veya '[SILENT_WORK]' yazabilirsin.`);
     parts.push('Eğer bir mesaj göndereceksen, sadece mesaj yaz (düz metin, Telegram Markdown).');
-    parts.push('Eğer sessiz kalacaksan, sadece "[SILENT]" yaz.');
+    parts.push('Eğer eylem almayacak ve sessiz kalacaksan (ve hiçbir iş yapmayacaksan), sadece "[SILENT]" yaz.');
     parts.push('Eğer bir soru soracaksan, doğrudan soruyu yaz.');
 
     return parts.join('\n');
@@ -287,21 +296,33 @@ export function shouldInvokeLLM(
     const now = Date.now();
     const hour = new Date().getHours();
 
-    // Sessiz saatler — LLM çağırma
-    if (hour >= 2 && hour < 7) return false;
-
-    // Minimum 5 dakika ara (API maliyeti)
-    if (now - lastLLMInvokeAt < 5 * 60 * 1000) return false;
-
     // 1. Yeni konuşma varsa — en yüksek öncelik
     if (awareness.lastConversation) {
         const convAge = now - awareness.lastConversation.lastActivity;
-        // Son konuşma 10 dakikadan yeni → LLM çağır
-        if (convAge < 10 * 60 * 1000) return true;
+        // Son konuşma 20 dakikadan yeni → LLM sürekli çağırılır
+        if (convAge < 20 * 60 * 1000) return true;
     }
 
-    // 2. Yarım kalan görev varsa — her 10 dakikada LLM düşünsün
-    if (awareness.pendingTasks.length > 0 && now - lastLLMInvokeAt > 10 * 60 * 1000) {
+    // Gece sessiz saatler (Sniper Modu) - Sadece iş varsa uyan (Telegram'a yazmaz, iş yapar)
+    if (hour >= 2 && hour < 7) {
+        const hasUnfinishedWork = awareness.pendingTasks.length > 0;
+        const hasUncommittedChanges = awareness.recentFileChanges.length > 0;
+
+        // Gece aktif iş varsa, çok daha agresif uyan (5 dk'da bir)
+        if ((hasUnfinishedWork || hasUncommittedChanges) && now - lastLLMInvokeAt > 5 * 60 * 1000) {
+            return true;
+        }
+        // İş yoksa uyumaya devam et (gece uyanma)
+        return false;
+    }
+
+    // Minimum throttle 2 dakikaya düşürüldü ki hızlı tepki verebilsin
+    if (now - lastLLMInvokeAt < 2 * 60 * 1000) return false;
+
+    // 2. Yarım kalan görev versa veya commit atılmamış acil durum varsa -> ÇOK AGRESİF ÇAĞIR (5 dakika)
+    const hasUnfinishedWork = awareness.pendingTasks.length > 0;
+    const hasUncommittedChanges = awareness.recentFileChanges.length > 0;
+    if ((hasUnfinishedWork || hasUncommittedChanges) && now - lastLLMInvokeAt > 5 * 60 * 1000) {
         return true;
     }
 
@@ -310,8 +331,8 @@ export function shouldInvokeLLM(
         return true;
     }
 
-    // 4. Her 30 dakikada bir background check
-    if (now - lastLLMInvokeAt > 30 * 60 * 1000) {
+    // 4. Her 15 dakikada bir background check (eskiden 30 dakikaydı)
+    if (now - lastLLMInvokeAt > 15 * 60 * 1000) {
         return true;
     }
 
@@ -373,12 +394,16 @@ export async function executeConsciousness(
 
         // Tool call yapıldıysa → work action
         if (toolCallsExecuted.length > 0) {
-            const toolSummary = toolCallsExecuted.map(tc =>
-                `• ${tc.name}(${Object.keys(tc.args).join(', ')})`
-            ).join('\n');
+            // Fix: Print values, not just keys, to prevent 'bash(explanation, command)' raw bugs
+            const toolSummary = toolCallsExecuted.map(tc => {
+                const argStr = Object.entries(tc.args)
+                    .map(([k, v]) => `${k}: ${String(v).slice(0, 50).replace(/\n/g, ' ')}`)
+                    .join(', ');
+                return `• \`${tc.name}(${argStr})\``;
+            }).join('\n');
             const workMessage = text
-                ? `🔧 *Otonom aksiyon:*\n${toolSummary}\n\n${text}`
-                : `🔧 *Otonom aksiyon:*\n${toolSummary}`;
+                ? `🔧 *Otonom Aksiyon:*\n${toolSummary}\n\n${text}`
+                : `🔧 *Otonom Aksiyon:*\n${toolSummary}`;
             return {
                 action: 'work',
                 message: workMessage,
