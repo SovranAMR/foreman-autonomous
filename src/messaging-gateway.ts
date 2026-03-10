@@ -469,6 +469,56 @@ export class MessagingGateway {
       };
     }
 
+    // ─── MODEL SWITCHING ─────────────────────────────────────
+    if (text === "/models" || text === "/modeller") {
+      try {
+        const { CHAT_MODELS } = await import("./antigravity-provider.js");
+        const modelList = CHAT_MODELS.map(m => {
+          const active = m.id === this.activeModel ? " ● (aktif)" : "";
+          return `• \`${m.id}\` — _${m.label}_${active}`;
+        }).join("\n");
+        return {
+          text: `🤖 **Available Models**\n\n${modelList}\n\n_Kullanım: /model <name>_`,
+          parseMode: "markdown",
+        };
+      } catch {
+        return { text: "❌ Modeller yüklenemedi." };
+      }
+    }
+
+    if (text.startsWith("/model ") || text === "/model") {
+      const arg = text.slice(6).trim();
+      try {
+        const { CHAT_MODELS } = await import("./antigravity-provider.js");
+        if (!arg) {
+          const modelList = CHAT_MODELS.map(m => {
+            const active = m.id === this.activeModel ? " ● (aktif)" : "";
+            return `• \`${m.id}\` — _${m.label}_${active}`;
+          }).join("\n");
+          return {
+            text: `🤖 **Available Models**\n\n${modelList}\n\n_Kullanım: /model <name>_`,
+            parseMode: "markdown",
+          };
+        }
+
+        const match = CHAT_MODELS.find(m => m.id === arg || m.label.toLowerCase() === arg.toLowerCase());
+        if (match) {
+          this.activeModel = match.id;
+          return {
+            text: `✅ **Model Değiştirildi:** \`${match.label}\``,
+            parseMode: "markdown",
+          };
+        } else {
+          return {
+            text: `❌ **Bilinmeyen model:** \`${arg}\`\nMevcut modelleri görmek için \`/models\` yazabilirsiniz.`,
+            parseMode: "markdown",
+          };
+        }
+      } catch (err) {
+        return { text: `❌ Model değiştirme hatası: ${err}` };
+      }
+    }
+
     // ─── OBSERVER: Last pipeline report ─────────────────────
     if (text === "/observe" || text === "/gozlem" || text === "/rapor") {
       try {

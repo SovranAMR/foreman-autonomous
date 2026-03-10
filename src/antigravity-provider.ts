@@ -877,7 +877,7 @@ export class AntigravityProvider implements LLMProvider {
           const lines = body.split("\n");
 
           let iterText = "";
-          const functionCalls: Array<{ name: string; args: Record<string, any>; id?: string }> = [];
+          const functionCalls: Array<{ name: string; args: Record<string, any>; id?: string; original: any }> = [];
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -908,6 +908,7 @@ export class AntigravityProvider implements LLMProvider {
                           name: part.functionCall.name,
                           args: part.functionCall.args ?? {},
                           id: part.functionCall.id, // Proxy-generated ID for Claude tool_use matching
+                          original: part.functionCall,
                         });
                       }
                     }
@@ -934,8 +935,7 @@ export class AntigravityProvider implements LLMProvider {
               modelParts.push({ text: iterText });
             }
             for (const fc of functionCalls) {
-              const fcPart: any = { functionCall: { name: fc.name, args: fc.args ?? {} } };
-              if (fc.id) fcPart.functionCall.id = fc.id;
+              const fcPart: any = { functionCall: fc.original };
               modelParts.push(fcPart);
             }
             conversationMessages.push({ role: "model", content: modelParts });
