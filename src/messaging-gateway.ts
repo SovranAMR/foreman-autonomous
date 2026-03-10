@@ -165,12 +165,53 @@ export class MessagingGateway {
       if (!chatId) chatId = process.env.FOREMAN_CHAT_ID;
 
       // Consciousness ayarlarını config'den oku
+      // Consciousness için daha hafif ve güvenilir bir model kullan
+      // claude-opus-4-6-thinking çok pahalı ve 400 hatası veriyor
+      const consciousnessModel = 'gemini-2.0-flash';
+
+      // Fallback provider zinciri: Antigravity başarısız olursa Kimi'ye geç
+      let consciousnessProvider = this.provider;
+      try {
+        const { KimiProvider, loadKimiKey } = await import('./kimi-provider.js');
+        const kimiKey = loadKimiKey();
+        if (kimiKey && this.provider) {
+          // Wrap provider with fallback: try Antigravity first, Kimi on error
+          const primaryProvider = this.provider;
+          const kimiProvider = new KimiProvider(kimiKey);
+          consciousnessProvider = {
+            name: 'consciousness-fallback',
+            supportedModels: [...primaryProvider.supportedModels, ...kimiProvider.supportedModels],
+            generate: primaryProvider.generate.bind(primaryProvider),
+            streamChatWithTools: async (
+              messages: any, modelId: string, onToken: any, onThinking: any, onThinkingDone: any,
+              maxTokens?: number, maxIterations?: number, toolExec?: any, signal?: any, poll?: any,
+            ) => {
+              try {
+                return await (primaryProvider as any).streamChatWithTools(
+                  messages, modelId, onToken, onThinking, onThinkingDone, maxTokens, maxIterations, toolExec, signal, poll,
+                );
+              } catch (err: any) {
+                const msg = err.message || '';
+                if (msg.includes('400') || msg.includes('401') || msg.includes('403') || msg.includes('404')) {
+                  console.log(`[gateway] Consciousness: Antigravity failed (${msg.slice(0, 80)}), falling back to Kimi`);
+                  return await kimiProvider.streamChatWithTools(
+                    messages, 'kimi-k2-thinking', onToken, onThinking, onThinkingDone, maxTokens, maxIterations, toolExec, signal, poll,
+                  );
+                }
+                throw err;
+              }
+            },
+          } as any;
+          console.log(`[gateway] 🛡️ Consciousness fallback: Antigravity → Kimi`);
+        }
+      } catch { /* Kimi not available, use primary only */ }
+
       let consciousnessConfig = {
         ...DEFAULT_HEARTBEAT_CONFIG,
         notifyChatId: chatId,
-        provider: this.provider,
+        provider: consciousnessProvider,
         toolExecutor: this.toolExecutor,
-        activeModel: this.activeModel,
+        activeModel: consciousnessModel,
       };
       try {
         const { readFileSync } = await import('fs');
