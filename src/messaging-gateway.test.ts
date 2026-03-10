@@ -32,12 +32,12 @@ class MockChannel implements Channel {
   }
 
   async start() { this.connected = true; }
-  async stop() { }
+  async stop() { this.connected = false; }
   async send(chatId: string, reply: OutboundReply): Promise<string | undefined> {
     this.sent.push({ chatId, reply });
     return "mock-id";
   }
-  isConnected() { return true; }
+  isConnected() { return this.connected; }
 }
 
 // ─── HELPERS ────────────────────────────────────────────────

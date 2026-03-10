@@ -137,7 +137,7 @@ export function repairChain(
     }
 
     // 3. Stale thought (pending too long)
-    if (thought.status === "pending" || thought.status === "thinking") {
+    if (thought.status === "pending" || thought.status === "thinking" || thought.status === "active") {
       const createdAt = new Date(thought.createdAt).getTime();
       if (now - createdAt > STALE_THRESHOLD_MS) {
         issues.push({
@@ -146,8 +146,8 @@ export function repairChain(
           message: `Thought has been '${thought.status}' for ${Math.round((now - createdAt) / 60_000)} minutes`,
           autoFixed: true,
         });
-        thought.status = "blocked";
-        thought.output = (thought.output || "") + "\n[auto-blocked: stale after 30+ minutes]";
+        thought.status = "abandoned" as any;
+        thought.output = (thought.output || "") + "\n[auto-abandoned: stale after 30+ minutes]";
         fixCount++;
       }
     }
@@ -181,8 +181,8 @@ export function repairChain(
           message: `Duplicate of ${other.id} — same input and output`,
           autoFixed: true,
         });
-        thought.status = "blocked";
-        thought.output = (thought.output || "") + `\n[auto-blocked: duplicate of ${other.id}]`;
+        thought.status = "abandoned";
+        thought.output = (thought.output || "") + `\n[auto-abandoned: duplicate of ${other.id}]`;
         fixCount++;
         break;
       }
@@ -309,6 +309,6 @@ export function checkChainHealth(thoughts: Thought[]): {
  */
 export function getActiveThoughts(thoughts: Thought[]): Thought[] {
   return thoughts.filter(t =>
-    t.status !== "blocked" && t.status !== "reverted"
+    t.status !== "blocked" && t.status !== "reverted" && t.status !== "abandoned" && t.status !== "error"
   );
 }
