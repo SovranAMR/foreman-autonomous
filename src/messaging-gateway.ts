@@ -167,7 +167,7 @@ export class MessagingGateway {
       // Consciousness ayarlarını config'den oku
       // Consciousness için daha hafif ve güvenilir bir model kullan
       // claude-opus-4-6-thinking çok pahalı ve 400 hatası veriyor
-      const consciousnessModel = 'gemini-2.0-flash';
+      const consciousnessModel = 'gemini-3-flash';
 
       // Fallback provider zinciri: Antigravity başarısız olursa Kimi'ye geç
       let consciousnessProvider = this.provider;
@@ -1013,18 +1013,18 @@ export class MessagingGateway {
       // Handle 503 (capacity) same as rate limit — persistent retry loop
       // NEVER give up — keep retrying until API becomes available
 
-      if (msg.includes("exhausted your capacity") || msg.includes("quota will reset")) {
+      if (msg.includes("exhausted your capacity") || msg.includes("quota will reset") || msg.includes("400") || msg.includes("404")) {
         // Hard limit — attempt fallback to next model in the chain
         const nextModel = getNextFallbackModel(this.activeModel);
 
         if (nextModel) {
-          console.log(`[gateway] ⚠️ Quota exhausted for ${this.activeModel}. Falling back to ${nextModel}...`);
+          console.log(`[gateway] ⚠️ Quota exhausted or invalid model (${msg.slice(0, 50)}) for ${this.activeModel}. Falling back to ${nextModel}...`);
 
           // Notify user about the fallback silently by adding an assistant message, 
           // but we still want to answer their actual prompt.
           const channel = this.channels.get(message.channel);
           if (channel) {
-            await channel.send(message.chatId, { text: `🔄 **Model Değişimi:** \`${this.activeModel}\` kotası dolduğu için otomatik olarak \`${nextModel}\` modeline geçildi.` });
+            await channel.send(message.chatId, { text: `🔄 **Model Değişimi:** Hata alındığı için otomatik olarak \`${nextModel}\` modeline geçildi.` });
           }
 
           this.activeModel = nextModel;
@@ -1036,7 +1036,7 @@ export class MessagingGateway {
         }
 
         // No more fallbacks available
-        return { text: `⚠️ **API Kotası Aşıldı**\n\nTüm modeller için limitiniz doldu.\n\n_Detay: ${msg.split('"message":"')[1]?.split('",')[0] ?? msg}_`, parseMode: "markdown" };
+        return { text: `⚠️ **API Kotası Aşıldı veya Hata**\n\nTüm modeller denendi ancak yanıt alınamadı.\n\n_Detay: ${msg.split('"message":"')[1]?.split('",')[0] ?? msg}_`, parseMode: "markdown" };
       }
 
       if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded") || msg.includes("503") || msg.includes("UNAVAILABLE") || msg.includes("No capacity")) {
