@@ -1,6 +1,7 @@
 node_modules
 dist
 .env
+*.env
 *.log
 state.json
 .foreman/
@@ -12,3 +13,36 @@ tasks/
 cache/
 src/_test*.ts
 src/_debug*.ts
+
+# Video ve media dosyaları
+*.mp4
+*.avi
+*.mov
+*.mkv
+video-gen/
+
+# Tweet scripti (local path içeriyor)
+post_video_tweet.mjs
+build_pipeline.js
+generate_frames.js
+
+# Pipeline observer logs (local path ifşası)
+dasvision_deploy/.foreman/
+
+# Kişisel notlar
+ahbab-tekstil-receteler.md
+ahbab-tekstil-receteler-ozet.md
+brain-sim-research.md
+HEARTBEAT_TOPLANTI.md
+
+# Memory (kişisel veri)
+MEMORY.md
+
+# State dosyaları
+dasvision_deploy/state.json
+dasvision_deploy/memory/
+dasvision_deploy/thoughts/
+dasvision_deploy/tasks/
+dasvision_deploy/sessions/
+dasvision_deploy/chains/
+dasvision_deploy/cache/
