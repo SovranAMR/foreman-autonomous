@@ -100,9 +100,49 @@ export class MessagingGateway {
     // Initialize provider — Antigravity (Opus) first for smart tool calling, Kimi fallback
     const creds = loadCredentials();
     if (creds) {
-      this.provider = new AntigravityProvider(creds);
+      const antigravityProvider = new AntigravityProvider(creds);
       this.activeModel = "claude-opus-4-6-thinking";
       console.log(`[gateway] Using Antigravity provider (Opus 4.6-thinking)`);
+
+      // Wrap with Kimi fallback: if Antigravity returns 400/401/403/404, retry with Kimi
+      try {
+        const { KimiProvider, loadKimiKey } = await import("./kimi-provider.js");
+        const kimiKey = loadKimiKey();
+        if (kimiKey) {
+          const kimiProvider = new KimiProvider(kimiKey);
+          this.provider = {
+            name: 'antigravity-with-fallback',
+            supportedModels: [...antigravityProvider.supportedModels, ...kimiProvider.supportedModels],
+            generate: antigravityProvider.generate.bind(antigravityProvider),
+            streamChat: antigravityProvider.streamChat?.bind(antigravityProvider),
+            streamChatWithTools: async (
+              messages: any, modelId: string, onToken: any, onToolCall: any, onToolResult: any,
+              maxTokens?: number, maxIterations?: number, toolExec?: any, signal?: any, poll?: any,
+            ) => {
+              try {
+                return await antigravityProvider.streamChatWithTools!(
+                  messages, modelId, onToken, onToolCall, onToolResult, maxTokens, maxIterations, toolExec, signal, poll,
+                );
+              } catch (err: any) {
+                const msg = err.message || '';
+                if (msg.includes('400') || msg.includes('401') || msg.includes('403') || msg.includes('404')) {
+                  console.log(`[gateway] Antigravity failed (${msg.slice(0, 80)}), falling back to Kimi for chat`);
+                  this.activeModel = 'kimi-k2-thinking';
+                  return await kimiProvider.streamChatWithTools(
+                    messages, 'kimi-k2-thinking', onToken, onToolCall, onToolResult, maxTokens, maxIterations, toolExec, signal, poll,
+                  );
+                }
+                throw err;
+              }
+            },
+          } as any;
+          console.log(`[gateway] 🛡️ Provider fallback: Antigravity → Kimi`);
+        } else {
+          this.provider = antigravityProvider;
+        }
+      } catch {
+        this.provider = antigravityProvider;
+      }
     } else {
       const { KimiProvider, loadKimiKey } = await import("./kimi-provider.js");
       const kimiKey = loadKimiKey();

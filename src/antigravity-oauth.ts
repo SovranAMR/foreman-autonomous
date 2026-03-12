@@ -19,16 +19,17 @@ import { createServer, type Server } from "node:http";
 import { brand, icon } from "./theme.js";
 
 // ─── OAUTH CREDENTIALS ──────────────────────────────────────
-// Antigravity OAuth credentials (same as OpenClaw/pi-ai)
+// Antigravity OAuth credentials (same as OpenClaw)
+// Note: It's ok to have these in source because this is an installed application
+// https://developers.google.com/identity/protocols/oauth2#installed
 
 const decode = (s: string) => Buffer.from(s, "base64").toString("utf-8");
-// OAuth credentials loaded from environment (base64-encoded)
 const CLIENT_ID = process.env.ANTIGRAVITY_CLIENT_ID
   ? decode(process.env.ANTIGRAVITY_CLIENT_ID)
-  : decode(["MTA3MTAwNjA2MDU5MS10bWhzc2luMm", "gyMWxjcmUyMzV2dG9sb2poNGc0MDNl", "cC5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbQ=="].join(""));
+  : "1071006060591-REDACTED.apps.googleusercontent.com";
 const CLIENT_SECRET = process.env.ANTIGRAVITY_CLIENT_SECRET
   ? decode(process.env.ANTIGRAVITY_CLIENT_SECRET)
-  : decode(["R09DU1BYLUS1OEZXUjQ4Nkxk", "TEoxbUxCOHNYQzR6NnFEQWY="].join(""));
+  : "GOCSPX-REDACTED";
 const REDIRECT_URI = "http://localhost:51121/oauth-callback";
 const SCOPES = [
   "https://www.googleapis.com/auth/cloud-platform",

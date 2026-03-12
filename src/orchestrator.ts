@@ -43,7 +43,7 @@ import { registerHallucinationGuard, HallucinationGuard } from "./hallucination-
 
 import { PipelineObserver } from "./pipeline-observer.js";
 import { extractReasoning, extractAllReasoningBlocks, analyzeReasoningContent } from "./streaming-reasoning.js";
-import { getModelCapabilities, getReasoningConfig } from "./model-capabilities.js";
+import { getModelCapabilities } from "./model-capabilities.js";
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
@@ -1028,7 +1028,7 @@ ${visionOutput}`,
             this.engine.thoughts.update(execResult.thought.id, {
               output: cleanOutput,
             });
-            this.engine.streaming.toolCall("reasoning_extracted", 
+            this.engine.streaming.toolCall("reasoning_extracted",
               `${reasoningAnalysis.blocksExtracted} reasoning block(s), ${reasoningAnalysis.reasoningLength} chars`);
             this.observer.onWorkerOutput(cleanOutput.slice(0, 2000), execResult.thought.confidence);
           } else {

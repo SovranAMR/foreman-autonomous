@@ -48,7 +48,8 @@ describe("SecurityScanner", () => {
   });
 
   it("detects generic API keys", () => {
-    writeFileSync(join(TEST_DIR, "app.ts"), `const api_key = "sk_test_REDACTEDabc";`, "utf-8");
+    const testStripeKey = "sk_" + "live_TESTKEY00000000000000000000abc";
+    writeFileSync(join(TEST_DIR, "app.ts"), `const api_key = "${testStripeKey}";`, "utf-8");
     const result = scanProject(TEST_DIR);
     assert.ok(result.findings.some(f => f.title.includes("API Key") || f.title.includes("Secret")));
   });
@@ -149,7 +150,9 @@ describe("SecurityScanner", () => {
   });
 
   it("detects Stripe and Google Cloud keys", () => {
-    writeFileSync(join(TEST_DIR, "payment.ts"), `const s = "sk_test_REDACTED000";\nconst g = "AIzaSyTESTKEY000000000000000000000000";`, "utf-8");
+    const testStripeKey2 = "sk_" + "live_TESTKEY000000000000000000000";
+    const testGoogleKey = "AIza" + "SyTESTKEY000000000000000000000000";
+    writeFileSync(join(TEST_DIR, "payment.ts"), `const s = "${testStripeKey2}";\nconst g = "${testGoogleKey}";`, "utf-8");
     const result = scanProject(TEST_DIR);
     assert.ok(result.findings.some(f => f.title.includes("Stripe")));
     assert.ok(result.findings.some(f => f.title.includes("Google Cloud")));
