@@ -59,6 +59,52 @@ Foreman, AI agent'ları 4 katmanlı düşünce zinciriyle orkestre eder. Her kat
 
 ---
 
+## Advanced Internal Capabilities (Void-derived)
+
+Foreman'a Void (VS Code fork) reposundan transfer edilmiş ileri düzey yapılar:
+
+### 1. Model Capabilities (`src/model-capabilities.ts`)
+- Provider-aware reasoning: Anthropic thinking blocks, OpenAI reasoning_effort, Gemini thinkingConfig
+- Model detection: `getModelCapabilities(provider, model)` → tools, images, reasoning, FIM desteği
+- Reasoning slider: `getReasoningConfig(provider, effort)` → budget_tokens veya effort level
+- Provider auto-detection: model isminden provider çıkarır (claude → anthropic, gpt → openai, gemini → google)
+
+### 2. Streaming Reasoning (`src/streaming-reasoning.ts`)
+- `extractReasoning(text)` → `<think>...</think>` taglerini ayırır, clean text döner
+- `extractAllReasoningBlocks(text)` → birden fazla think bloğunu parse eder
+- `analyzeReasoningContent(text)` → reasoning var mı, kalitesi ne, uzunluğu ne
+- `SurroundingsRemover` → LLM çıktısından gereksiz prefix/suffix temizler
+- FIM extraction: `extractCodeFromRegular()`, `extractCodeFromFIM()`
+
+### 3. Provider Types (`src/provider-types.ts`)
+- Typed message formats: Anthropic `content_block`, OpenAI `tool_calls`, Gemini `functionCall`
+- `convertMessagesForProvider(messages, provider)` → SimpleLLMMessage → provider-specific format
+- `AbortRef` pattern: graceful cancellation for long-running LLM calls
+- Callback types: `OnText`, `OnFinalMessage`, `OnError` for streaming
+
+### 4. Code Extraction (`src/code-extraction.ts`)
+- `SurroundingsRemover` — intelligent prefix/suffix stripping with configurable matchers
+- SEARCH/REPLACE block parsing from LLM output
+- FIM (Fill-In-Middle) code extraction
+- Language-aware code fence extraction
+
+### 5. Advanced Edit Engine (`src/edit-engine.ts`)
+- `findTextInFileContents()` — Void'un whitespace-insensitive matching algoritması
+- 5-tier cascade: exact → trim → whitespace-normalize → line-by-line fuzzy → best match
+- `findBestMatch()` — Levenshtein-like scoring ile en yakın eşleşmeyi bulur
+- Whitespace farklılıkları nedeniyle edit başarısızlığı artık imkansız
+
+### 6. Abort Mechanism (`src/abort-ref.ts`)
+- `AbortRef` type: `{ current: boolean }` — simple cancellation flag
+- Long-running LLM çağrılarını graceful iptal etme
+
+### Forge Pipeline Enhancements
+- Atom çıktılarından otomatik reasoning extraction
+- Model-capability-aware error recovery
+- Provider-specific optimizasyonlar (reasoning model kullanılıyorsa retry stratejisi değişir)
+
+---
+
 ## Atomik Birim: Thought
 
 Sistemin en küçük birimi. Her vizyon, strateji, araştırma ve kod parçası bir Thought:
@@ -261,26 +307,18 @@ Tüm CLI görselleri `src/theme.ts`'de:
 
 ## Sonraki Adımlar (Roadmap)
 
-### Faz 2: Gerçek LLM Integration
-- [ ] API key'leri ayarla, gerçek görevle test et
-- [ ] Token tracking dashboard
-- [ ] Model rotation gerçek senaryoda test
+### ✅ Tamamlanan Fazlar
+- [x] Faz 2: Gerçek LLM Integration (Anthropic, OpenAI, Gemini, Antigravity, Kimi)
+- [x] Faz 3: Research Engine (web search, link intelligence, file system araştırma)
+- [x] Faz 4: Execution Engine (dosya R/W, build/test, git, screenshot verification)
+- [x] Faz 5: Context & Memory (context guard, memory-md-bridge, session manager)
+- [x] Faz 6: Void Integration (model capabilities, streaming reasoning, provider types, advanced edit engine)
 
-### Faz 3: Research Engine
-- [ ] Web search entegrasyonu (Brave/Google)
-- [ ] Dosya sistemi araştırma (grep, AST parse)
-- [ ] Reference/gap analizi
-
-### Faz 4: Execution Engine
-- [ ] Dosya okuma/yazma (gerçek kod)
-- [ ] Build/test çalıştırma (exec)
-- [ ] Git commit integration
-- [ ] Screenshot verification
-
-### Faz 5: Context & Memory
-- [ ] Context compression (uzun zincir özeti)
-- [ ] Cross-session memory
-- [ ] Proje hafızası (MEMORY.md)
+### Aktif Fazlar
+- [ ] Forge Pipeline optimizasyonu (daha az token, daha hızlı execution)
+- [ ] Multi-agent parallelism (sub-agent spawning for independent atoms)
+- [ ] Self-improving prompts (başarı/başarısızlık feedback loop)
+- [ ] Browser automation (Playwright/CDP entegrasyonu ile visual QA)
 
 ---
 

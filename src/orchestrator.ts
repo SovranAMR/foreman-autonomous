@@ -42,6 +42,8 @@ import { batchWrite } from "./batch-file-engine.js";
 import { registerHallucinationGuard, HallucinationGuard } from "./hallucination-guard.js";
 
 import { PipelineObserver } from "./pipeline-observer.js";
+import { extractReasoning, extractAllReasoningBlocks, analyzeReasoningContent } from "./streaming-reasoning.js";
+import { getModelCapabilities, getReasoningConfig } from "./model-capabilities.js";
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
@@ -1017,10 +1019,24 @@ ${visionOutput}`,
           this.emit({ type: "thought_complete", thought: execResult?.thought });
 
           // ─── OBSERVER: Worker output ──────────────────────
-          this.observer.onWorkerOutput(
-            execResult.thought.output.slice(0, 2000),
-            execResult.thought.confidence,
-          );
+          // Extract reasoning from output if think tags present
+          const rawOutput = execResult.thought.output;
+          const reasoningAnalysis = analyzeReasoningContent(rawOutput);
+          if (reasoningAnalysis.hasReasoning) {
+            const { text: cleanOutput, reasoningBlocks } = extractAllReasoningBlocks(rawOutput);
+            // Update thought with clean output (reasoning separated)
+            this.engine.thoughts.update(execResult.thought.id, {
+              output: cleanOutput,
+            });
+            this.engine.streaming.toolCall("reasoning_extracted", 
+              `${reasoningAnalysis.blocksExtracted} reasoning block(s), ${reasoningAnalysis.reasoningLength} chars`);
+            this.observer.onWorkerOutput(cleanOutput.slice(0, 2000), execResult.thought.confidence);
+          } else {
+            this.observer.onWorkerOutput(
+              execResult.thought.output.slice(0, 2000),
+              execResult.thought.confidence,
+            );
+          }
 
           // ── POST-HOC EXECUTION (Mode B fallback) ──
           // Only if no tools were called in Mode A (toolCallCount === 0)

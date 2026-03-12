@@ -70,6 +70,10 @@ import { buildIntelligentContext, extractCrossChainContext } from "./context-int
 import { buildCompactContext, chunkThoughtsByTokens, computeAdaptiveChunkRatio, estimateTokens } from "./context-compression.js";
 import { generateMemoryMd, parseMemoryMd, generateCategoryFiles } from "./memory-md-bridge.js";
 import { GitEngine } from "./git-engine.js";
+import { getModelCapabilities, getReasoningConfig, detectProvider } from "./model-capabilities.js";
+import { extractReasoning, extractAllReasoningBlocks, analyzeReasoningContent } from "./streaming-reasoning.js";
+import { extractCodeFromRegular, extractSearchReplaceBlocks } from "./code-extraction.js";
+import type { ModelCapabilities, ProviderName } from "./model-capabilities.js";
 
 // ─── ENGINE CONFIG ───────────────────────────────────────────
 
@@ -145,6 +149,32 @@ export class Engine {
   readonly sessionLifecycle: SessionLifecycle;
   readonly forgeBridge: ForgeGatewayBridge;
   readonly router: CognitiveLoadBalancer;
+
+  /**
+   * Get capabilities of the currently active model.
+   * Used by pipeline and tools to adapt behavior per-provider.
+   */
+  getActiveModelCapabilities(): ModelCapabilities | null {
+    const model = this.primaryModel;
+    if (!model) return null;
+    try {
+      const provider = detectProvider(model);
+      return getModelCapabilities(provider, model);
+    } catch { return null; }
+  }
+
+  /**
+   * Get reasoning config for the active model.
+   * Returns provider-specific reasoning IO settings.
+   */
+  getActiveReasoningConfig() {
+    const model = this.primaryModel;
+    if (!model) return null;
+    try {
+      const provider = detectProvider(model);
+      return getReasoningConfig(provider, model);
+    } catch { return null; }
+  }
 
   readonly config: EngineConfig;
   /** The user's chosen model — ALL layers use this unless explicitly overridden */
@@ -619,6 +649,13 @@ export class Engine {
       rawText = result.text;
       totalTokens = result.tokenUsage.total;
       resultModel = result.model;
+
+      // Auto-extract reasoning blocks from response (e.g. <think>...</think>)
+      const reasoningAnalysis = analyzeReasoningContent(rawText);
+      if (reasoningAnalysis.hasReasoning) {
+        const { text: cleanText } = extractAllReasoningBlocks(rawText);
+        rawText = cleanText;
+      }
 
       // Cache'e kaydet
       this.cache.set(cacheKey, {

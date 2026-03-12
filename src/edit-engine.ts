@@ -570,6 +570,85 @@ function findDifferingLines(a: string[], b: string[]): number[] {
   return diffs;
 }
 
+// ─── VOID-STYLE TEXT SEARCH (whitespace-insensitive) ─────────
+
+/**
+ * Remove all whitespace except newlines from a string.
+ * Ported from Void's findTextInFileContents helper.
+ */
+function removeWhitespaceExceptNewlines(s: string): string {
+  return s.replace(/[^\S\n]/g, '');
+}
+
+/**
+ * Count number of newlines in a string (= number of lines - 1).
+ */
+function numLinesOfStr(s: string): number {
+  let count = 1;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\n') count++;
+  }
+  return count;
+}
+
+/**
+ * Find text in file contents with whitespace-insensitive fallback.
+ * Returns [startLine, endLine] (1-indexed) or a status string.
+ *
+ * Strategy (ported from Void's editCodeService.ts):
+ * 1. Try exact indexOf match first
+ * 2. If not found, strip all whitespace (except newlines) and retry
+ * 3. If found after stripping, verify the match is unique
+ * 4. Optionally start searching from a specific line
+ *
+ * This is critical for LLM-generated edits where whitespace often differs.
+ */
+export function findTextInFileContents(
+  text: string,
+  fileContents: string,
+  opts?: {
+    startingAtLine?: number;
+    canFallbackToRemoveWhitespace?: boolean;
+  },
+): readonly [number, number] | 'Not found' | 'Not unique' {
+  const canFallbackToRemoveWhitespace = opts?.canFallbackToRemoveWhitespace ?? true;
+
+  const returnAns = (fc: string, idx: number): readonly [number, number] => {
+    const startLine = numLinesOfStr(fc.substring(0, idx));
+    const numLines = numLinesOfStr(text);
+    const endLine = startLine + numLines - 1;
+    return [startLine, endLine] as const;
+  };
+
+  const startingAtLineIdx = (fc: string): number =>
+    opts?.startingAtLine !== undefined
+      ? fc.split('\n').slice(0, opts.startingAtLine).join('\n').length
+      : 0;
+
+  // 1. Try exact match
+  let idx = fileContents.indexOf(text, startingAtLineIdx(fileContents));
+  if (idx !== -1) {
+    return returnAns(fileContents, idx);
+  }
+
+  if (!canFallbackToRemoveWhitespace) {
+    return 'Not found' as const;
+  }
+
+  // 2. Try whitespace-insensitive match
+  const strippedText = removeWhitespaceExceptNewlines(text);
+  const strippedContents = removeWhitespaceExceptNewlines(fileContents);
+  idx = strippedContents.indexOf(strippedText, startingAtLineIdx(strippedContents));
+
+  if (idx === -1) return 'Not found' as const;
+
+  // 3. Verify uniqueness
+  const lastIdx = strippedContents.lastIndexOf(strippedText);
+  if (lastIdx !== idx) return 'Not unique' as const;
+
+  return returnAns(strippedContents, idx);
+}
+
 // ─── DIFF GENERATION ─────────────────────────────────────────
 
 /**
