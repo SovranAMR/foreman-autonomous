@@ -151,7 +151,7 @@ describe("SecurityScanner", () => {
 
   it("detects Stripe and Google Cloud keys", () => {
     const testStripeKey2 = "sk_" + "live_TESTKEY000000000000000000000";
-    const testGoogleKey = "AIza" + "SyTESTKEY000000000000000000000000";
+    const testGoogleKey = "AIza" + "SyTESTKEY00000000000000000000000000";
     writeFileSync(join(TEST_DIR, "payment.ts"), `const s = "${testStripeKey2}";\nconst g = "${testGoogleKey}";`, "utf-8");
     const result = scanProject(TEST_DIR);
     assert.ok(result.findings.some(f => f.title.includes("Stripe")));

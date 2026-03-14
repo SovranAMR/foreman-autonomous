@@ -709,14 +709,14 @@ export async function startRepl(): Promise<void> {
   let activeModel = DEFAULT_CHAT_MODEL;
   let activeModelList = CHAT_MODELS;
 
-  // Priority 1: Antigravity (Opus 4.6-thinking) — best for conversation + tool calling
+  // Priority 1: Antigravity (Gemini 3.1 Pro High) — best for conversation + tool calling
   if (creds) {
     try {
       provider = new AntigravityProvider(creds);
-      activeModel = "claude-opus-4-6-thinking";
+      activeModel = "gemini-3.1-pro-high";
       // Discover models from API in background (non-blocking)
       refreshChatModels(creds).catch(() => {/* silent */ });
-      console.log(`    ${icon.done} ${brand.gold("Opus 4.6-thinking loaded — powered by Antigravity")}`);
+      console.log(`    ${icon.done} ${brand.gold("Gemini 3.1 Pro High loaded — powered by Antigravity")}`);
     } catch (err: any) {
       console.log(`    ${icon.fail} ${brand.red("Antigravity provider failed:")} ${brand.dim(err.message)}`);
     }

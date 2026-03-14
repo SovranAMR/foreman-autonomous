@@ -61,7 +61,7 @@ export class MessagingGateway {
   private engine: Engine;
   private orchestrator: Orchestrator | null = null;
   private provider: LLMProvider | null = null;
-  private activeModel: string = "claude-opus-4-6-thinking";
+  private activeModel: string = "gemini-3.1-pro-high";
   private toolExecutor: ((call: ToolCall) => Promise<ToolResult>) | null = null;
   private processing: Set<string> = new Set(); // active chat IDs
   private workTracker: WorkTracker;
@@ -101,8 +101,8 @@ export class MessagingGateway {
     const creds = loadCredentials();
     if (creds) {
       const antigravityProvider = new AntigravityProvider(creds);
-      this.activeModel = "claude-opus-4-6-thinking";
-      console.log(`[gateway] Using Antigravity provider (Opus 4.6-thinking)`);
+      this.activeModel = "gemini-3.1-pro-high";
+      console.log(`[gateway] Using Antigravity provider (Gemini 3.1 Pro High)`);
 
       // Wrap with Kimi fallback: if Antigravity returns 400/401/403/404, retry with Kimi
       try {
@@ -126,8 +126,8 @@ export class MessagingGateway {
               } catch (err: any) {
                 const msg = err.message || '';
                 if (msg.includes('400') || msg.includes('401') || msg.includes('403') || msg.includes('404')) {
-                  console.log(`[gateway] Antigravity failed (${msg.slice(0, 80)}), falling back to Kimi for chat`);
-                  this.activeModel = 'kimi-k2-thinking';
+                  console.log(`[gateway] Antigravity failed (${msg.slice(0, 80)}), falling back to Kimi for THIS request`);
+                  // Do NOT permanently mutate this.activeModel — fallback is per-request only
                   return await kimiProvider.streamChatWithTools(
                     messages, 'kimi-k2-thinking', onToken, onToolCall, onToolResult, maxTokens, maxIterations, toolExec, signal, poll,
                   );
@@ -207,7 +207,8 @@ export class MessagingGateway {
       // Consciousness ayarlarını config'den oku
       // Consciousness için daha hafif ve güvenilir bir model kullan
       // claude-opus-4-6-thinking çok pahalı ve 400 hatası veriyor
-      const consciousnessModel = 'gemini-3-flash';
+      // consciousnessModel: Use a lightweight model that actually works with streamChatWithTools
+      const consciousnessModel = 'gemini-3.1-pro-low';
 
       // Fallback provider zinciri: Antigravity başarısız olursa Kimi'ye geç
       let consciousnessProvider = this.provider;
