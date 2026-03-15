@@ -398,7 +398,7 @@ export async function heartbeatCycle(
       // Kararı uygula
       const hour = new Date().getHours();
       const isSniperHours = hour >= 2 && hour < 7;
-      const isSilentDecision = decision.message?.includes('[SILENT_WORK]');
+      const isSilentDecision = decision.message?.includes('[SILENT_WORK]') || decision.message?.includes('SILENT') || decision.message?.includes('[silent]') || decision.message?.includes('[SILENT]');
 
       if (decision.action === 'work') {
         if (config.notifyChatId && decision.message && !isSniperHours && !isSilentDecision) {
