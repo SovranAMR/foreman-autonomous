@@ -100,10 +100,12 @@ export class MessagingGateway {
     // Initialize provider — Antigravity (Opus) first for smart tool calling, Kimi fallback
     const creds = loadCredentials();
     if (creds) {
-      this.provider = new AntigravityProvider(creds);
+      const antigravityProvider = new AntigravityProvider(creds);
       this.activeModel = "gemini-3.1-pro-high";
       console.log(`[gateway] Using Antigravity provider (Gemini 3.1 Pro High)`);
-    } else {
+
+      // Only use Antigravity, no Kimi fallback
+      this.provider = antigravityProvider;
       throw new Error("No API credentials. Run: foreman login");
     }
 
@@ -162,8 +164,7 @@ export class MessagingGateway {
       // consciousnessModel: Use a lightweight model that actually works with streamChatWithTools
       const consciousnessModel = 'gemini-3.1-pro-low';
 
-      // Fallback provider zinciri: Antigravity başarısız olursa Kimi'ye geç (Kimi DELETED)
-      let consciousnessProvider = this.provider;
+      const consciousnessProvider = this.provider;
 
       let consciousnessConfig = {
         ...DEFAULT_HEARTBEAT_CONFIG,
