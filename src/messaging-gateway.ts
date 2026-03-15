@@ -106,6 +106,7 @@ export class MessagingGateway {
 
       // Only use Antigravity, no Kimi fallback
       this.provider = antigravityProvider;
+    } else {
       throw new Error("No API credentials. Run: foreman login");
     }
 
@@ -974,29 +975,15 @@ export class MessagingGateway {
       // NEVER give up — keep retrying until API becomes available
 
       if (msg.includes("exhausted your capacity") || msg.includes("quota will reset") || msg.includes("400") || msg.includes("404")) {
-        // Hard limit — attempt fallback to next model in the chain
-        const nextModel = getNextFallbackModel(this.activeModel);
+        // Hard limit or unavailable model — just fail. We no longer fallback.
+        console.log(`[gateway] ⚠️ Quota exhausted or invalid model (${msg.slice(0, 50)}) for ${this.activeModel}. No fallback available.`);
 
-        if (nextModel) {
-          console.log(`[gateway] ⚠️ Quota exhausted or invalid model (${msg.slice(0, 50)}) for ${this.activeModel}. Falling back to ${nextModel}...`);
-
-          // Notify user about the fallback silently by adding an assistant message, 
-          // but we still want to answer their actual prompt.
-          const channel = this.channels.get(message.channel);
-          if (channel) {
-            await channel.send(message.chatId, { text: `🔄 **Model Değişimi:** Hata alındığı için otomatik olarak \`${nextModel}\` modeline geçildi.` });
-          }
-
-          this.activeModel = nextModel;
-
-          // Retry the entire process with the new model
-          if (attempt < 5) {
-            return this.processWithLLM(chatKey, conversation, message, attempt + 1);
-          }
+        const channel = this.channels.get(message.channel);
+        if (channel) {
+          await channel.send(message.chatId, { text: `⚠️ **Google API Hatası:** Model mevcut değil veya kota aşıldı.` });
         }
 
-        // No more fallbacks available
-        return { text: `⚠️ **API Kotası Aşıldı veya Hata**\n\nTüm modeller denendi ancak yanıt alınamadı.\n\n_Detay: ${msg.split('"message":"')[1]?.split('",')[0] ?? msg}_`, parseMode: "markdown" };
+        return { text: `⚠️ **API Kotası Aşıldı veya Hata**\n\nYanıt alınamadı.\n\n_Detay: ${msg.split('"message":"')[1]?.split('",')[0] ?? msg}_`, parseMode: "markdown" };
       }
 
       if (msg.includes("rate limit") || msg.includes("429") || msg.includes("overloaded") || msg.includes("503") || msg.includes("UNAVAILABLE") || msg.includes("No capacity")) {

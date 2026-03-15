@@ -11,11 +11,11 @@ import { getApiKey } from "./setup.js";
  * Priority: Kimi > Anthropic > OpenAI > Gemini > Antigravity
  */
 export function bootstrapProviders(engine: Engine): void {
-  // Kimi (highest priority when configured)
-  const kimiKey = loadKimiKey();
-  if (kimiKey) {
+  // Antigravity (OAuth) — PRIMARY
+  const antigravCreds = loadCredentials();
+  if (antigravCreds) {
     try {
-      engine.providers.register(new KimiProvider(kimiKey));
+      engine.providers.register(new AntigravityProvider(antigravCreds));
     } catch {
       // ignore
     }
@@ -51,13 +51,5 @@ export function bootstrapProviders(engine: Engine): void {
     }
   }
 
-  // Antigravity (OAuth) — fallback
-  const antigravCreds = loadCredentials();
-  if (antigravCreds) {
-    try {
-      engine.providers.register(new AntigravityProvider(antigravCreds));
-    } catch {
-      // ignore
-    }
-  }
+
 }
