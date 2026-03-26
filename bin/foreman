@@ -1,30 +1,71 @@
 #!/usr/bin/env bash
 # FOREMAN — Entry Point
 # Resolves tsx and runs cli.ts directly
-# Disable compile cache to prevent stale cached modules
+# Works with: npm link, npm global install, direct execution, install.sh
 
 export NODE_DISABLE_COMPILE_CACHE=1
 
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-
-# npm global install creates symlink: bin/foreman -> ../../projects/foreman/bin/foreman
-# So SCRIPT_DIR is the actual project's bin/ dir
+# Resolve real path (follow symlinks)
+REAL_SCRIPT="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$REAL_SCRIPT")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 CLI="$PROJECT_DIR/src/cli.ts"
-TSX="$PROJECT_DIR/node_modules/.bin/tsx"
 
 if [ ! -f "$CLI" ]; then
   echo "Error: cli.ts not found at $CLI" >&2
+  echo "Reinstall: curl -fsSL https://raw.githubusercontent.com/SovranAMR/foreman/main/install.sh | bash" >&2
   exit 1
 fi
 
-if [ ! -f "$TSX" ]; then
-  TSX="$(command -v tsx 2>/dev/null)"
-fi
+# Try to find tsx in order of preference:
+# 1. Project's node_modules
+# 2. Global npx (nvm-aware)
+# 3. Global tsx command
+# 4. npx tsx (downloads if needed)
 
-if [ -z "$TSX" ]; then
-  echo "Error: tsx not found. Run: cd $PROJECT_DIR && npm install" >&2
+find_tsx() {
+  # 1. Local node_modules
+  if [ -x "$PROJECT_DIR/node_modules/.bin/tsx" ]; then
+    echo "$PROJECT_DIR/node_modules/.bin/tsx"
+    return 0
+  fi
+
+  # 2. nvm node_modules (if using nvm)
+  if [ -n "$NVM_DIR" ]; then
+    local nvm_tsx
+    nvm_tsx="$(dirname "$(command -v node 2>/dev/null)")/../lib/node_modules/tsx/dist/cli.mjs" 2>/dev/null
+    if [ -f "$nvm_tsx" ]; then
+      echo "node" "$nvm_tsx"
+      return 0
+    fi
+  fi
+
+  # 3. Global tsx
+  if command -v tsx &>/dev/null; then
+    echo "$(command -v tsx)"
+    return 0
+  fi
+
+  # 4. npx (will auto-install tsx if needed)
+  if command -v npx &>/dev/null; then
+    echo "npx" "tsx"
+    return 0
+  fi
+
+  return 1
+}
+
+TSX_CMD=$(find_tsx)
+
+if [ -z "$TSX_CMD" ]; then
+  echo "Error: tsx not found and npx not available." >&2
+  echo "" >&2
+  echo "Fix with one of:" >&2
+  echo "  cd $PROJECT_DIR && npm install    # install local tsx" >&2
+  echo "  npm install -g tsx                # install global tsx" >&2
+  echo "" >&2
   exit 1
 fi
 
-exec "$TSX" "$CLI" "$@"
+# Execute: handles both single command and "npx tsx" two-word commands
+exec $TSX_CMD "$CLI" "$@"

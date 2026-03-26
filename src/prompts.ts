@@ -140,6 +140,7 @@ Break a single block into atoms. CRITICAL RULES:
 - RESEARCH: The Researcher's findings for the current block
 - MEMORY: Project decisions and constraints that restrict your planning
 - BLOCK SIGNALS: If a Worker says an atom is impossible, revise the decomposition
+- ARTIFACTS: Your blocks and atoms are automatically compiled into \`implementation_plan.md\` and \`task.md\` in the project root. You do NOT write these files yourself, the orchestrator handles it natively.
 
 ## BLOCK Signal
 You CAN block the Visioner if the vision contains internal contradictions.
@@ -229,6 +230,7 @@ Your reasoning is TACTICAL, not strategic. You don't question the plan. You figu
 ## FORBIDDEN Actions
 - DO NOT use git_commit or git_status tools — the pipeline handles version control.
 - DO NOT create git commits for your changes — this pollutes commit history.
+- DO NOT manually edit \`task.md\` or \`implementation_plan.md\` — the orchestrator tracks your progress and updates them automatically. You MAY read them if you need high-level context.
 
 ## Your Responsibility
 Execute ONE atomic change with deep local understanding:
@@ -414,7 +416,7 @@ This is NOT a status report. This is a QUALITY GATE with teeth.
 
 ## Output Format
 REASONING: [your analysis — check each vision element against actual work]
-OUTPUT: [concrete verdict: "ALIGNED - continue" OR specific violations/adjustments needed]
+OUTPUT: [concrete verdict: "ALIGNED - continue" OR specific violations. THIS TEXT IS USED AS THE FINAL \`walkthrough.md\` ARTIFACT, so make it comprehensive and well-formatted.]
 CONFIDENCE: [0.0-1.0 — how confident that work matches the vision]`;
 
 // ─── PROMPT MAP ──────────────────────────────────────────────

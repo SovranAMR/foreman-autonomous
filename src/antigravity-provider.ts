@@ -26,24 +26,11 @@ const DAILY_ENDPOINT = "https://daily-cloudcode-pa.sandbox.googleapis.com";
 const PROD_ENDPOINT = "https://cloudcode-pa.googleapis.com";
 const GENERATE_PATH = "/v1internal:streamGenerateContent?alt=sse";
 
-const DEFAULT_ANTIGRAVITY_VERSION = "1.18.3";
-
 function getHeaders(accessToken: string): Record<string, string> {
-  const version = process.env.FOREMAN_ANTIGRAVITY_VERSION || DEFAULT_ANTIGRAVITY_VERSION;
-  const platform = process.platform === "darwin" ? "darwin" : "linux";
-  const arch = process.arch === "arm64" ? "arm64" : "x64";
-
   return {
     Authorization: `Bearer ${accessToken}`,
     "Content-Type": "application/json",
     Accept: "text/event-stream",
-    "User-Agent": `antigravity/${version} ${platform}/${arch}`,
-    "X-Goog-Api-Client": `gl-node/${process.versions.node} antigravity/${version}`,
-    "Client-Metadata": JSON.stringify({
-      ideType: "IDE_UNSPECIFIED",
-      platform: "PLATFORM_UNSPECIFIED",
-      pluginType: "GEMINI",
-    }),
   };
 }
 
@@ -131,9 +118,9 @@ const ANTIGRAVITY_MODELS: Record<string, string> = {
   "claude-opus": "claude-opus-4-5",
   "claude-haiku": "claude-3-5-haiku-20241022",
   // Chat model aliases — map user-facing names to Cloud Code Assist internal names
-  "gemini-3.1-pro-high": "gemini-3.1-pro-high",
-  "gemini-3.1-pro-low": "gemini-3-pro-low",
-  "gemini-3-flash": "gemini-3-flash",
+  "gemini-3.1-pro-high": "gemini-2.5-pro", // Fallback to 2.5-pro due to 429 quota on 3-pro-preview
+  "gemini-3.1-pro-low": "gemini-2.5-flash",
+  "gemini-3-flash": "gemini-2.5-flash",
   "claude-sonnet-4-6": "claude-sonnet-4-6",
   "claude-sonnet-4-6-thinking": "claude-sonnet-4-6",
   "claude-opus-4-6-thinking": "claude-opus-4-6-thinking",
@@ -266,9 +253,10 @@ import { toGeminiFunctionDeclarations, executeTool, type ToolCall, type ToolResu
 const FALLBACK_CHAT_MODELS: Array<{ id: string; label: string; model: string }> = [
   { id: "claude-opus-4-6-thinking", label: "Claude Opus 4.6 (Thinking)", model: "claude-opus-4-6-thinking" },
   { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (Thinking)", model: "claude-sonnet-4-6" },
-  { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro (High)", model: "gemini-3.1-pro-high" },
-  { id: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro (Low)", model: "gemini-3.1-pro" },
-  { id: "gemini-3-flash", label: "Gemini 3 Flash", model: "gemini-3.1-flash" },
+  { id: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro (High)", model: "gemini-2.5-pro" },
+  { id: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro (Low)", model: "gemini-2.5-flash" },
+  { id: "gemini-3-flash", label: "Gemini 3 Flash", model: "gemini-2.5-flash" },
+  { id: "gpt-oss-120b", label: "GPT-OSS 120B (Medium)", model: "gpt-oss-120b-medium" },
 ];
 
 /** Models available in the REPL chat mode — dynamically updated by discovery */
@@ -345,7 +333,7 @@ export function getChatModels(): Array<{ id: string; label: string; model: strin
   return CHAT_MODELS;
 }
 
-export const DEFAULT_CHAT_MODEL = "claude-sonnet-4-6-thinking";
+export const DEFAULT_CHAT_MODEL = "gemini-3.1-pro-high";
 
 // ─── PROVIDER ────────────────────────────────────────────────
 
@@ -528,8 +516,9 @@ export class AntigravityProvider implements LLMProvider {
     }
 
     const body: any = {
-      project: this.credentials.projectId,
       model,
+      project: this.credentials.projectId,
+      user_prompt_id: `foreman-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       request: {
         contents,
         ...(systemParts.length > 0 ? {
@@ -537,7 +526,7 @@ export class AntigravityProvider implements LLMProvider {
         } : {}),
         generationConfig: {
           maxOutputTokens: maxTokens,
-          ...(model.startsWith("gemini") ? {
+          ...(model.includes("thinking") ? {
             thinkingConfig: {
               includeThoughts: true,
               thinkingLevel: "HIGH",
@@ -545,9 +534,6 @@ export class AntigravityProvider implements LLMProvider {
           } : {}),
         },
       },
-      requestType: "agent",
-      userAgent: "antigravity",
-      requestId: `agent-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     };
 
     // Add tool declarations if requested

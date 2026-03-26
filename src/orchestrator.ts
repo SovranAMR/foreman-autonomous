@@ -44,6 +44,7 @@ import { registerHallucinationGuard, HallucinationGuard } from "./hallucination-
 import { PipelineObserver } from "./pipeline-observer.js";
 import { extractReasoning, extractAllReasoningBlocks, analyzeReasoningContent } from "./streaming-reasoning.js";
 import { getModelCapabilities } from "./model-capabilities.js";
+import { ArtifactEngine } from "./artifact-engine.js";
 
 // ─── EVENTS ──────────────────────────────────────────────────
 
@@ -69,6 +70,7 @@ export class Orchestrator {
   private listeners: EventListener[] = [];
   private hallucinationGuard: HallucinationGuard | null = null;
   readonly observer: PipelineObserver;
+  readonly artifactEngine: ArtifactEngine;
 
   // ─── TOKEN BUDGETS ──────────────────────────────────────────
   private readonly MAX_TOKENS_PER_ATOM = 200_000;
@@ -98,6 +100,7 @@ export class Orchestrator {
     this.engine = engine;
     this.resume = new PipelineResumeEngine(engine.config.projectRoot);
     this.observer = new PipelineObserver(engine.config.projectRoot);
+    this.artifactEngine = new ArtifactEngine(engine.config.projectRoot);
     this.setupHallucinationGuard();
 
     // Wire observer to streaming events
@@ -490,6 +493,13 @@ ${visionOutput}`,
     // ─── CHECKPOINT: Decompose complete ───
     this.resume.updatePhase("research", { blocks });
 
+    // ─── ARTIFACT ENGINE: Generate Plans ───
+    try {
+      this.artifactEngine.writeImplementationPlan(task, visionOutput, blocks);
+      this.artifactEngine.initTaskMd(blocks);
+      this.emit({ type: "phase_start", phase: "artifacts", detail: "Generated implementation_plan.md and task.md" });
+    } catch { /* best-effort */ }
+
     // ─── TASK MANAGEMENT — register blocks as subtasks ──────
     const parentTask = this.engine.tasks.create({
       title: task.slice(0, 80),
@@ -739,6 +749,11 @@ ${visionOutput}`,
         continue; // skip this block, move to next
       }
 
+      // ─── ARTIFACT ENGINE: Add Atoms to Task Tracker ───
+      try {
+        this.artifactEngine.addAtomsToBlock(i, atoms);
+      } catch { /* best-effort */ }
+
       // ── 3c. EXECUTE EACH ATOM ──
       let blockPassedAtoms = 0;
       let blockFailedAtoms = 0;
@@ -746,6 +761,11 @@ ${visionOutput}`,
       const blockStartTime = Date.now();
       for (let j = 0; j < atoms.length; j++) {
         const atom = atoms[j];
+
+        // ─── ARTIFACT ENGINE: Mark in-progress ───
+        try {
+          this.artifactEngine.updateAtomStatus(i, j, "in_progress");
+        } catch { /* best-effort */ }
 
         // Block-level failure threshold — if majority of atoms fail, skip remaining
         if (blockFailedAtoms > 0 && blockFailedAtoms >= Math.ceil(atoms.length / 2)) {
@@ -915,6 +935,17 @@ ${visionOutput}`,
               }
             } catch { /* pre-read best-effort */ }
 
+            // ─── TASK.MD PROGRESS ────────────────────────────
+            let taskTrackerContext = "";
+            try {
+              const { readFileSync, existsSync } = await import("node:fs");
+              const { join } = await import("node:path");
+              const taskPath = join(this.engine.config.projectRoot, "task.md");
+              if (existsSync(taskPath)) {
+                taskTrackerContext = `CURRENT PIPELINE PROGRESS (from task.md):\n${readFileSync(taskPath, "utf-8").slice(0, 1500)}`;
+              }
+            } catch { /* best-effort */ }
+
             // ─── REJECTION FEEDBACK INJECTION ─────────────────
             // On retry, inject the EXACT reason why the previous attempt failed
             // Worker sees: "Your previous attempt was REJECTED because: ..."
@@ -926,6 +957,7 @@ ${visionOutput}`,
               `YOUR TASK (Atom ${j + 1}/${atoms.length}): ${atom}`,
               retryContext,
               preReadContext,
+              taskTrackerContext,
               `BLOCK: ${block}`,
               prevAtomContext,
               visionSummary,
@@ -1297,12 +1329,21 @@ ${visionOutput}`,
           // ─── ATOM PASSED ALL GATES ────────────────────────────
           atomPassed = true;
           blockPassedAtoms++;
+          
+          try {
+            this.artifactEngine.updateAtomStatus(i, j, "done");
+          } catch { /* best-effort */ }
+          
           passedAttempt = attempt;
           break; // break retry loop — atom succeeded
         } // end retry loop
 
         // ─── RETRY EXHAUSTED CHECK ──────────────────────────
         if (!atomPassed) {
+          try {
+            this.artifactEngine.updateAtomStatus(i, j, "failed");
+          } catch { /* best-effort */ }
+
           this.emit({
             type: "error",
             message: `Atom ${j + 1} failed after ${this.MAX_ATOM_RETRIES} attempts: ${lastRejectionFeedback.slice(0, 100)}`,
@@ -2500,6 +2541,13 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
         detail: `Recent: ${recentSummaries.join(" | ")}`,
       });
     }
+
+    // ─── ARTIFACT ENGINE: Walkthrough ───
+    try {
+      const allThoughts = this.engine.chains.list().flatMap(c => c.thoughts.map(id => this.engine.thoughts.get(id))).filter(t => t);
+      const reflections = allThoughts.filter(t => t?.layer === "visioner" && t.status === "done").map(t => t?.output).join("\n\n");
+      this.artifactEngine.writeWalkthrough(task, reflections || "Pipeline completed successfully with no critical reflections.");
+    } catch { /* best-effort */ }
 
     return this.buildResult(true, totalThoughts, visionChain.id);
   }

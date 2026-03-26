@@ -19,24 +19,18 @@ import { createServer, type Server } from "node:http";
 import { brand, icon } from "./theme.js";
 
 // ─── OAUTH CREDENTIALS ──────────────────────────────────────
-// Antigravity OAuth credentials (same as OpenClaw)
+// Gemini CLI OAuth credentials (official Google installed app)
 // Note: It's ok to have these in source because this is an installed application
 // https://developers.google.com/identity/protocols/oauth2#installed
+// Source: https://github.com/google-gemini/gemini-cli (packages/core/src/code_assist/oauth2.ts)
 
-const decode = (s: string) => Buffer.from(s, "base64").toString("utf-8");
-const CLIENT_ID = process.env.ANTIGRAVITY_CLIENT_ID
-  ? decode(process.env.ANTIGRAVITY_CLIENT_ID)
-  : "1071006060591-REDACTED.apps.googleusercontent.com";
-const CLIENT_SECRET = process.env.ANTIGRAVITY_CLIENT_SECRET
-  ? decode(process.env.ANTIGRAVITY_CLIENT_SECRET)
-  : "GOCSPX-REDACTED";
+const CLIENT_ID = process.env.ANTIGRAVITY_CLIENT_ID || "";
+const CLIENT_SECRET = process.env.ANTIGRAVITY_CLIENT_SECRET || "";
 const REDIRECT_URI = "http://localhost:51121/oauth-callback";
 const SCOPES = [
   "https://www.googleapis.com/auth/cloud-platform",
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
-  "https://www.googleapis.com/auth/cclog",
-  "https://www.googleapis.com/auth/experimentsandconfigs",
 ];
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
