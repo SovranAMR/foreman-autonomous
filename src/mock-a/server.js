@@ -1,11 +1,12 @@
 const express = require('express');
 
-const mockApi = require('./mockTasksApi').default;
+const { mockApi } = require('./mockTasksApi');
 
 const app = express();
 const port = 3002; // You can change this port as needed
 
 app.use(express.json());
+app.use(express.static('public'));
 
 // Initialize some dummy tasks for demonstration
 mockApi.addTask({ title: 'Learn about AI', description: 'Understand the basics of Artificial Intelligence.' });
