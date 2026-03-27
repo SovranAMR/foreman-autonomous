@@ -4,7 +4,11 @@
   "description": "A simple mock API for tasks",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node dist/server.js",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
   },
   "keywords": [],
   "author": "",
