@@ -3,7 +3,7 @@ const express = require('express');
 const mockApi = require('./mockTasksApi').default;
 
 const app = express();
-const port = 3001; // You can change this port as needed
+const port = 3002; // You can change this port as needed
 
 app.use(express.json());
 
