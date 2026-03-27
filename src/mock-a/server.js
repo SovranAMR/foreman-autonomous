@@ -1,6 +1,6 @@
 const express = require('express');
 
-const { mockApi } = require('./mockTasksApi');
+const mockApi = require('./mockTasksApi').default;
 
 const app = express();
 const port = 3001; // You can change this port as needed
@@ -8,9 +8,9 @@ const port = 3001; // You can change this port as needed
 app.use(express.json());
 
 // Initialize some dummy tasks for demonstration
-mockApi.addTask('Learn about AI', 'Understand the basics of Artificial Intelligence.');
-mockApi.addTask('Build a mock API', 'Develop a mock REST API for task management.');
-mockApi.addTask('Deploy to cloud', 'Deploy the application to a cloud platform like AWS or GCP.');
+mockApi.addTask({ title: 'Learn about AI', description: 'Understand the basics of Artificial Intelligence.' });
+mockApi.addTask({ title: 'Build a mock API', description: 'Develop a mock REST API for task management.' });
+mockApi.addTask({ title: 'Deploy to cloud', description: 'Deploy the application to a cloud platform like AWS or GCP.' });
 
 // GET all tasks
 app.get('/tasks', async (req, res) => {
@@ -35,7 +35,7 @@ app.post('/tasks', async (req, res) => {
   if (!title) {
     return res.status(400).send('Title is required');
   }
-  const newTask = await mockApi.addTask(title, description || '');
+  const newTask = await mockApi.addTask({ title, description: description || '' });
   res.status(201).json(newTask);
 });
 
