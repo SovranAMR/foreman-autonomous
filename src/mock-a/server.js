@@ -1,5 +1,5 @@
 const express = require('express');
-const { mockApi } = require('./mock-api'); // Import the mockApi
+
 const app = express();
 const port = 3001; // You can change this port as needed
 
