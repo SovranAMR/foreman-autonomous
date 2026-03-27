@@ -19,7 +19,8 @@ export const mockApi = {
     return Promise.resolve(tasks.find(task => task.id === id));
   },
 
-  addTask(title: string, description: string): Promise<Task> {
+  addTask(taskData: { title: string; description: string }): Promise<Task> {
+    const { title, description } = taskData;
     const newTask: Task = {
       id: (nextId++).toString(),
       title,
