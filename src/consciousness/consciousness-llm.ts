@@ -331,8 +331,8 @@ export function shouldInvokeLLM(
         return true;
     }
 
-    // 4. Her 15 dakikada bir background check (eskiden 30 dakikaydı)
-    if (now - lastLLMInvokeAt > 15 * 60 * 1000) {
+    // 4. Her 30 dakikada bir background check (eskiden 15 dakikaydı)
+    if (now - lastLLMInvokeAt > 30 * 60 * 1000) {
         return true;
     }
 
@@ -386,7 +386,7 @@ export async function executeConsciousness(
             () => { },
             () => { },
             4096,     // max tokens — otonom aksiyon için daha fazla alan
-            8,        // max iterations — tool call yapabilir
+            3,        // max iterations — arka planda otonom tool call sayısını kısıyoruz
             trackingExecutor,
         );
 

@@ -163,7 +163,7 @@ export class MessagingGateway {
       // Consciousness için daha hafif ve güvenilir bir model kullan
       // claude-opus-4-6-thinking çok pahalı ve 400 hatası veriyor
       // consciousnessModel: Use a lightweight model that actually works with streamChatWithTools
-      const consciousnessModel = 'gemini-3.1-pro-low';
+      const consciousnessModel = 'gemini-3.1-pro-high';
 
       const consciousnessProvider = this.provider;
 

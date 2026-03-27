@@ -24,8 +24,8 @@ import { brand, icon } from "./theme.js";
 // https://developers.google.com/identity/protocols/oauth2#installed
 // Source: https://github.com/google-gemini/gemini-cli (packages/core/src/code_assist/oauth2.ts)
 
-const CLIENT_ID = process.env.ANTIGRAVITY_CLIENT_ID || "";
-const CLIENT_SECRET = process.env.ANTIGRAVITY_CLIENT_SECRET || "";
+const CLIENT_ID = process.env.ANTIGRAVITY_CLIENT_ID || "REDACTED_GOOGLE_CLIENT_ID";
+const CLIENT_SECRET = process.env.ANTIGRAVITY_CLIENT_SECRET || "REDACTED_GOOGLE_CLIENT_SECRET";
 const REDIRECT_URI = "http://localhost:51121/oauth-callback";
 const SCOPES = [
   "https://www.googleapis.com/auth/cloud-platform",

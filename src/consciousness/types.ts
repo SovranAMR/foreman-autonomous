@@ -281,7 +281,7 @@ export interface HeartbeatConfig {
 }
 
 export const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {
-  intervalMs: 5 * 60 * 1000,          // 5 dakika
+  intervalMs: 15 * 60 * 1000,          // 15 dakika
   quietHoursStart: 2,                  // Gece 2
   quietHoursEnd: 7,                    // Sabah 7
   maxDailyNotifications: 10,
