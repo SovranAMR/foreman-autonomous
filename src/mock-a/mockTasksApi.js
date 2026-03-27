@@ -14,7 +14,7 @@ const getTaskById = (id) => {
   return Promise.resolve(tasks.find(task => task.id === id));
 };
 
-const addTask = (title, description) => {
+const addTask = ({ title, description }) => {
   const newTask = {
     id: String(tasks.length + 1), // Simple ID generation
     title,

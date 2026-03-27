@@ -21,7 +21,7 @@ const getTaskById = (id: string): Promise<Task | undefined> => {
   return Promise.resolve(tasks.find(task => task.id === id));
 };
 
-const addTask = (title: string, description?: string): Promise<Task> => { // Renamed from createTask
+const addTask = ({ title, description }: { title: string; description?: string }): Promise<Task> => {
   const newTask: Task = {
     id: String(tasks.length + 1), // Simple ID generation
     title,

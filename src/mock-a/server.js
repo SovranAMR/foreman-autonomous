@@ -9,7 +9,7 @@ app.use(express.json());
 
 // Initialize some dummy tasks for demonstration
 mockApi.addTask({ title: 'Learn about AI', description: 'Understand the basics of Artificial Intelligence.' });
-mockApi.addTask({ title: 'Build a mock API', description: 'Develop a mock REST API for task management.' });
+mockApi.addTask('Build a mock API', 'Develop a mock REST API for task management.');
 mockApi.addTask({ title: 'Deploy to cloud', description: 'Deploy the application to a cloud platform like AWS or GCP.' });
 
 // GET all tasks
