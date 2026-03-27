@@ -25,4 +25,16 @@ export const foundationalAssumptions: CoreAssumption[] = [
     id: 'file_system_state',
     description: 'The file system state is consistent and not being modified by external processes during an operation.',
   },
+  {
+    id: 'tool_availability',
+    description: 'All declared tools (bash, git, fs) are available and functioning correctly in the environment.',
+  },
+  {
+    id: 'shell_is_posix',
+    description: 'The shell environment is POSIX-compliant (e.g., bash, zsh).',
+  },
+  {
+    id: 'api_endpoints_stable',
+    description: 'External API endpoints (e.g., git provider, package registry) are stable and available.',
+  },
 ];

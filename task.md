@@ -4,7 +4,7 @@
 - [/] **Atom 1**: Create the file `src/core/assumptions.ts` containing the complete data models for the assumption engine. The file must define and export the following
 
 ## Block 2: Implement the standalone Assumption Engine logic. Create a new file `src/engine/assumption.ts` that 
-_Pending atomization..._
+- [/] **Atom 1**: Create the file `src/engine/assumption.ts` to implement the standalone Assumption Engine logic. The file must import the necessary data models (like `
 
 ## Block 3: Implement wait state detection in the main orchestrator loop. Modify the core orchestrator logic to 
 - [x] **Atom 1**: Execute a recursive `grep` command across the `src/` directory to locate the file and function responsible for pausing the orchestrator to await user 
