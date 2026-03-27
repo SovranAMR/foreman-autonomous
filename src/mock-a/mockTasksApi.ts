@@ -13,15 +13,15 @@ let tasks: Task[] = [
   { id: '3', title: 'Finish report', completed: false },
 ];
 
-export const getTasks = (): Promise<Task[]> => {
+const getTasks = (): Promise<Task[]> => {
   return Promise.resolve(tasks);
 };
 
-export const getTaskById = (id: string): Promise<Task | undefined> => {
+const getTaskById = (id: string): Promise<Task | undefined> => {
   return Promise.resolve(tasks.find(task => task.id === id));
 };
 
-export const createTask = (title: string, description?: string): Promise<Task> => {
+const addTask = (title: string, description?: string): Promise<Task> => { // Renamed from createTask
   const newTask: Task = {
     id: String(tasks.length + 1), // Simple ID generation
     title,
@@ -32,7 +32,7 @@ export const createTask = (title: string, description?: string): Promise<Task> =
   return Promise.resolve(newTask);
 };
 
-export const updateTask = (id: string, updates: Partial<Task>): Promise<Task | undefined> => {
+const updateTask = (id: string, updates: Partial<Task>): Promise<Task | undefined> => {
   const taskIndex = tasks.findIndex(task => task.id === id);
   if (taskIndex === -1) {
     return Promise.resolve(undefined);
@@ -41,8 +41,16 @@ export const updateTask = (id: string, updates: Partial<Task>): Promise<Task | u
   return Promise.resolve(tasks[taskIndex]);
 };
 
-export const deleteTask = (id: string): Promise<boolean> => {
+const deleteTask = (id: string): Promise<boolean> => {
   const initialLength = tasks.length;
   tasks = tasks.filter(task => task.id !== id);
   return Promise.resolve(tasks.length < initialLength);
+};
+
+export const mockApi = { // Export as a single object
+  getTasks,
+  getTaskById,
+  addTask, // Export renamed function
+  updateTask,
+  deleteTask,
 };

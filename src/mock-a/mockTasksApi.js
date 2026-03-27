@@ -71,4 +71,4 @@ const mockTasksApi = {
   },
 };
 
-export default mockTasksApi;
+exports.mockApi = mockTasksApi;
