@@ -1,54 +1,59 @@
-// EDIT: src/orchestration/engine.ts
-
-// ... (existing code from previous atoms: imports, enum, class definition, constructor) ...
-
-export class OrchestratorEngine {
-    private status: EngineStatus;
-    private assumedState: AssumedState | null;
-    private taskContext: any; // Simplified for now
-
-    constructor(initialContext: any) {
-        this.status = EngineStatus.IDLE;
-        this.assumedState = null;
-        this.taskContext = initialContext;
-    }
-
-    public async run(): Promise<void> {
-        console.log("Orchestrator engine starting.");
-        while (this.status !== EngineStatus.COMPLETED && this.status !== EngineStatus.ERROR) {
-            console.log(`Current status: ${EngineStatus[this.status]}`);
+// Edit src/orchestration/engine.ts
+// SEARCH
             switch (this.status) {
-                case EngineStatus.IDLE:
-                    // In a real scenario, we'd start processing a task.
-                    // For now, move to the next state.
-                    this.status = EngineStatus.PROCESSING_TASK;
-                    break;
-
                 case EngineStatus.PROCESSING_TASK:
-                    // Simulate processing and then needing input
-                    this.status = EngineStatus.AWAITING_INPUT;
+                    // Simulate work, transition to AWAITING_INPUT
                     break;
-
                 case EngineStatus.AWAITING_INPUT:
-                    // This is where we'd detect a block and decide to assume
-                    this.status = EngineStatus.GENERATING_ASSUMPTION;
+                    // Log, transition to GENERATING_ASSUMPTION
                     break;
-
                 case EngineStatus.GENERATING_ASSUMPTION:
-                    // Call the assumption engine, then go back to processing.
-                    // For this placeholder, we'll just complete to ensure the loop terminates.
-                    console.log("Placeholder for generating assumption...");
-                    this.status = EngineStatus.COMPLETED;
+                    // Call assumption generator, transition to PROCESSING_TASK_WITH_ASSUMPTION
                     break;
-
+                case EngineStatus.PROCESSING_TASK_WITH_ASSUMPTION:
+                    // Simulate work with assumption, transition to COMPLETED
+                    break;
+                case EngineStatus.COMPLETED:
+                    // Log completion, break loop
+                    break;
+                case EngineStatus.HALTED:
+                    // Log error, break loop
+                    break;
                 default:
-                    console.error(`Unhandled status: ${EngineStatus[this.status]}`);
-                    this.status = EngineStatus.ERROR;
+                    this.status = EngineStatus.HALTED;
+                    console.error("Unknown engine status.");
                     break;
             }
-            // A small delay to prevent a tight loop in a real-world async environment
-            await new Promise(resolve => setTimeout(resolve, 50));
-        }
-        console.log(`Orchestrator engine finished with status: ${EngineStatus[this.status]}`);
-    }
-}
+// REPLACE
+            switch (this.status) {
+                case EngineStatus.PROCESSING_TASK:
+                    console.log("   -> Simulating task processing...");
+                    this.status = EngineStatus.AWAITING_INPUT;
+                    break;
+                case EngineStatus.AWAITING_INPUT:
+                    console.log("   -> Task requires user input. Pausing and waiting.");
+                    this.status = EngineStatus.GENERATING_ASSUMPTION;
+                    break;
+                case EngineStatus.GENERATING_ASSUMPTION:
+                    console.log("   -> Wait detected. Generating assumption to unblock...");
+                    this.generateAndSetAssumption();
+                    console.log(`   -> Assumption generated: ${this.assumedState?.data.kind}`);
+                    this.status = EngineStatus.PROCESSING_TASK_WITH_ASSUMPTION;
+                    break;
+                case EngineStatus.PROCESSING_TASK_WITH_ASSUMPTION:
+                    console.log(`   -> Continuing task with assumed data:`, this.assumedState?.data);
+                    this.status = EngineStatus.COMPLETED;
+                    break;
+                case EngineStatus.COMPLETED:
+                    console.log("   -> Orchestration complete.");
+                    this.shouldRun = false;
+                    break;
+                case EngineStatus.HALTED:
+                    console.error("   -> Orchestration halted due to an error.");
+                    this.shouldRun = false;
+                    break;
+                default:
+                    this.status = EngineStatus.HALTED;
+                    console.error("Unknown engine status.");
+                    break;
+            }
