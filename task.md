@@ -7,7 +7,12 @@
 _Pending atomization..._
 
 ## Block 3: Implement wait state detection in the main orchestrator loop. Modify the core orchestrator logic to 
+<<<<<<< Updated upstream
 _Pending atomization..._
+=======
+- [x] **Atom 1**: Execute a recursive `grep` command across the `src/` directory to locate the file and function responsible for pausing the orchestrator to await user 
+- [x] **Atom 2**: Based on the file and function identified in the previous atom, modify the code to introduce a formal wait state. This involves: a) defining a new sta
+>>>>>>> Stashed changes
 
 ## Block 4: Integrate the Assumption Engine into the orchestrator's control flow. Modify the orchestrator loop, 
 _Pending atomization..._
