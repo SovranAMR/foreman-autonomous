@@ -16,8 +16,8 @@ _Pending atomization..._
 =======
 - [x] **Atom 1**: Create the file `src/orchestration/engine.ts` to implement the full FSM-based orchestrator. This file must define and implement the complete logic in 
 - [x] **Atom 2**: **Imports**: Import `AssumedState` from `../core/assumptions.ts`, `generateAssumption` from `../engine/assumption.ts`, `OrchestratorState` from `./sta
-- [/] **Atom 3**: **State Definition**: Define an `EngineStatus` enum (e.g., `IDLE`, `AWAITING_INPUT`, `GENERATING_ASSUMPTION`, `PROCESSING`, `DONE`).
-- [ ] **Atom 4**: **Engine Class**: Create an `OrchestratorEngine` class containing the FSM.
+- [x] **Atom 3**: **State Definition**: Define an `EngineStatus` enum (e.g., `IDLE`, `AWAITING_INPUT`, `GENERATING_ASSUMPTION`, `PROCESSING`, `DONE`).
+- [/] **Atom 4**: **Engine Class**: Create an `OrchestratorEngine` class containing the FSM.
 - [ ] **Atom 5**: **FSM Loop**: Implement a `run` method that contains a state-dispatch loop (e.g., a `while` loop with a `switch` on the current status).
 - [ ] **Atom 6**: **State Transitions**:
 >>>>>>> Stashed changes
