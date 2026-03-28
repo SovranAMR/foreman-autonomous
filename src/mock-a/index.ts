@@ -1,21 +1,35 @@
 
-import { rest } from 'msw';
+export interface Task {
+  id: string;
+  title: string;
+  completed: boolean;
+}
 
-const tasks = [
-  { id: '1', title: 'Buy milk', completed: false },
-  { id: '2', title: 'Walk the dog', completed: true },
-  { id: '3', title: 'Do laundry', completed: false },
+const tasks: Task[] = [
+  { id: '1', title: 'Setup project structure', completed: true },
+  { id: '2', title: 'Create mock API', completed: true },
+  { id: '3', title: 'Integrate API with frontend', completed: false },
+  { id: '4', title: 'Add styling', completed: false },
 ];
 
-export const handlers = [
-  rest.get('/api/tasks', (req, res, ctx) => {
-    return res(ctx.json(tasks));
-  }),
+export const getTasks = (): Promise<Task[]> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(tasks);
+    }, 500);
+  });
+};
 
-  rest.post('/api/tasks', async (req, res, ctx) => {
-    const { title } = await req.json();
-    const newTask = { id: String(tasks.length + 1), title, completed: false };
-    tasks.push(newTask);
-    return res(ctx.json(newTask), ctx.status(201));
-  }),
-];
+export const addTask = (title: string): Promise<Task> => {
+    return new Promise((resolve) => {
+        const newTask: Task = {
+            id: String(Date.now()),
+            title,
+            completed: false,
+        };
+        tasks.push(newTask);
+        setTimeout(() => {
+            resolve(newTask);
+        }, 500);
+    });
+};
