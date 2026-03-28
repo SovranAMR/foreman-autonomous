@@ -1,26 +1,14 @@
 # Foreman Task Tracker
 
-## Block 1: Define the core data models for assumptions. Create a new file `src/core/assumptions.ts` to define t
-- [/] **Atom 1**: Create the file `src/core/assumptions.ts` containing the complete data models for the assumption engine. The file must define and export the following
+## Block 1: Create the foundational data models for the Assumption Engine. The file `src/foreman/assumptions/mod
+- [/] **Atom 1**: Create the file `src/foreman/assumptions/models.ts` with the complete, exported data models for the Assumption Engine. The file must define and export
 
-## Block 2: Implement the standalone Assumption Engine logic. Create a new file `src/engine/assumption.ts` that 
-- [/] **Atom 1**: Create the file `src/engine/assumption.ts` to implement the standalone Assumption Engine logic. The file must import the necessary data models (like `
-
-## Block 3: Implement wait state detection in the main orchestrator loop. Modify the core orchestrator logic to 
-- [x] **Atom 1**: Execute a recursive `grep` command across the `src/` directory to locate the file and function responsible for pausing the orchestrator to await user 
-- [x] **Atom 2**: Based on the file and function identified in the previous atom, modify the code to introduce a formal wait state. This involves: a) defining a new sta
-
-## Block 4: Integrate the Assumption Engine into the orchestrator's control flow. Modify the orchestrator loop, 
-<<<<<<< Updated upstream
+## Block 2: Implement the core logic of the standalone Assumption Engine. The file `src/foreman/assumptions/engi
 _Pending atomization..._
-=======
-- [x] **Atom 1**: Create the file `src/orchestration/engine.ts` to implement the full FSM-based orchestrator. This file must define and implement the complete logic in 
-- [x] **Atom 2**: **Imports**: Import `AssumedState` from `../core/assumptions.ts`, `generateAssumption` from `../engine/assumption.ts`, `OrchestratorState` from `./sta
-- [x] **Atom 3**: **State Definition**: Define an `EngineStatus` enum (e.g., `IDLE`, `AWAITING_INPUT`, `GENERATING_ASSUMPTION`, `PROCESSING`, `DONE`).
-- [x] **Atom 4**: **Engine Class**: Create an `OrchestratorEngine` class containing the FSM.
-- [x] **Atom 5**: **FSM Loop**: Implement a `run` method that contains a state-dispatch loop (e.g., a `while` loop with a `switch` on the current status).
-- [x] **Atom 6**: **State Transitions**:
->>>>>>> Stashed changes
 
-## Block 5: Implement assumption flagging in the task state and final output. Update the orchestrator's state ma
+## Block 3: Develop the specialized logger for assumption declarations. The file `src/foreman/assumptions/logger
 _Pending atomization..._
+
+## Block 4: Integrate the Assumption Engine into the main orchestrator control loop. Modify the core Foreman orc
+_Pending atomization..._
+
