@@ -13,3 +13,9 @@
 ## Block 4: Integrate the Assumption Engine into the main orchestrator control loop. Modify the core Foreman orc
 _Pending atomization..._
 
+## Block 5: Create a mock API for tasks.
+- [x] **Atom 1**: Implement a mock API for tasks in `src/mock-api/index.ts`.
+
+## Block 6: Create a simple hello world page.
+- [x] **Atom 1**: Create a simple `index.html` file with "hello world".
+
