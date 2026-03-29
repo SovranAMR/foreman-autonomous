@@ -213,6 +213,10 @@ export interface ConsciousnessState {
 
   // ─── Proactive Messaging ───
   proactiveMessages: Record<string, number>;
+
+  // ─── Batch Notification System ───
+  pendingActions: Array<{ summary: string; timestamp: number; toolCount: number }>;
+  lastBatchSentAt: number;
 }
 
 export function createInitialState(): ConsciousnessState {
@@ -238,6 +242,8 @@ export function createInitialState(): ConsciousnessState {
     experiences: [],
     llmDecisions: [],
     journals: [],
+    pendingActions: [],
+    lastBatchSentAt: Date.now(),
     lastInnerMonologue: '',
     lastInnerMonologueAt: 0,
     proactiveMessages: {},

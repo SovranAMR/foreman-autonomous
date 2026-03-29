@@ -340,6 +340,78 @@ export function shouldInvokeLLM(
 }
 
 // ═══════════════════════════════════════════
+// HUMAN-FRIENDLY MESSAGE FORMATTING
+// ═══════════════════════════════════════════
+
+/** Tool isimlerini Türkçe fiillere çevir */
+const TOOL_LABELS: Record<string, string> = {
+    bash: '🖥 Komut çalıştırıldı',
+    read_file: '📖 Dosya okundu',
+    edit_file: '✏️ Dosya düzenlendi',
+    write_file: '📝 Dosya yazıldı',
+    list_dir: '📂 Klasör listelendi',
+    git_commit: '💾 Değişiklik kaydedildi',
+    git_log: '📜 Git geçmişi kontrol edildi',
+    git_diff: '🔍 Farklar incelendi',
+    git_status: '📊 Git durumu kontrol edildi',
+    work_start: '🚀 Yeni görev başlatıldı',
+    work_complete: '✅ Görev tamamlandı',
+    search_web: '🌐 Web araması yapıldı',
+    screenshot: '📸 Ekran görüntüsü alındı',
+};
+
+/**
+ * Ham tool call dizisini insan dostu Telegram mesajına dönüştürür.
+ *
+ * Eski format:
+ *   🔧 *Otonom Aksiyon:*
+ *   • `bash(command: git status, explanation: Commit edilmemiş...)`
+ *
+ * Yeni format:
+ *   📋 *Yapılan İş:*
+ *   Test sistemi güncellendi — package.json sadeleştirildi.
+ *   📎 2 dosya okundu, 1 dosya düzenlendi
+ */
+function formatHumanFriendly(toolCalls: Array<{ name: string; args: Record<string, any>; result?: string }>, llmText: string): string {
+    // 1. LLM'in kendi ürettiği açıklama her zaman en iyisi
+    const explanation = llmText?.trim() || '';
+
+    // 2. Tool istatistikleri
+    const counts: Record<string, number> = {};
+    const filesSet = new Set<string>();
+
+    for (const tc of toolCalls) {
+        const label = TOOL_LABELS[tc.name] || tc.name;
+        counts[label] = (counts[label] || 0) + 1;
+
+        // Dosya isimlerini topla
+        const filePath = tc.args?.path || tc.args?.file || '';
+        if (filePath) {
+            const basename = String(filePath).split('/').pop() || filePath;
+            filesSet.add(String(basename));
+        }
+    }
+
+    // 3. Kısa detay satırı
+    const detailParts = Object.entries(counts).map(([label, count]) => 
+        count > 1 ? `${count}× ${label}` : label
+    );
+    const detailLine = `📎 ${detailParts.join(', ')}`;
+
+    // 4. Dosya listesi (varsa)
+    const files = Array.from(filesSet);
+    const fileLine = files.length > 0 ? `\n📁 ${files.slice(0, 5).join(', ')}${files.length > 5 ? ` (+${files.length - 5})` : ''}` : '';
+
+    // 5. Mesajı oluştur
+    if (explanation && !explanation.includes('[SILENT')) {
+        return `📋 *Yapılan İş:*\n${explanation}${fileLine}\n\n${detailLine}`;
+    }
+
+    // LLM açıklama vermediyse sadece istatistik göster
+    return `📋 *Otonom Çalışma:*${fileLine}\n${detailLine}`;
+}
+
+// ═══════════════════════════════════════════
 // EXECUTE CONSCIOUSNESS — LLM'i çağır, kararı uygula
 // ═══════════════════════════════════════════
 
@@ -394,16 +466,7 @@ export async function executeConsciousness(
 
         // Tool call yapıldıysa → work action
         if (toolCallsExecuted.length > 0) {
-            // Fix: Print values, not just keys, to prevent 'bash(explanation, command)' raw bugs
-            const toolSummary = toolCallsExecuted.map(tc => {
-                const argStr = Object.entries(tc.args)
-                    .map(([k, v]) => `${k}: ${String(v).slice(0, 50).replace(/\n/g, ' ')}`)
-                    .join(', ');
-                return `• \`${tc.name}(${argStr})\``;
-            }).join('\n');
-            const workMessage = text
-                ? `🔧 *Otonom Aksiyon:*\n${toolSummary}\n\n${text}`
-                : `🔧 *Otonom Aksiyon:*\n${toolSummary}`;
+            const workMessage = formatHumanFriendly(toolCallsExecuted, text);
             return {
                 action: 'work',
                 message: workMessage,

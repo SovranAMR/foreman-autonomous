@@ -400,17 +400,18 @@ export async function heartbeatCycle(
       const isSniperHours = hour >= 2 && hour < 7;
       const isSilentDecision = decision.message?.includes('[SILENT_WORK]') || decision.message?.includes('SILENT') || decision.message?.includes('[silent]') || decision.message?.includes('[SILENT]');
 
+      // ─── Batch sistemi: Aksiyonları biriktir, tek mesajda gönder ───
+      if (!state.pendingActions) state.pendingActions = [];
+      if (!state.lastBatchSentAt) state.lastBatchSentAt = Date.now();
+
       if (decision.action === 'work') {
-        if (config.notifyChatId && decision.message && !isSniperHours && !isSilentDecision) {
-          // Otonom aksiyon yapıldı — kullanıcıya bildir
-          const sent = await sendTelegram(decision.message, config.notifyChatId);
-          if (sent) {
-            state.notificationsToday++;
-            await log(`[consciousness] 🔧 Otonom aksiyon bildirildi: ${decision.message.slice(0, 200)}`);
-          }
-        } else {
-          await log(`[consciousness] 🔧 Otonom aksiyon yapıldı (SNIPER MODE, Sessiz): ${decision.message?.slice(0, 200) ?? 'No Message'}`);
-        }
+        // Aksiyonu batch'e ekle (hemen gönderme)
+        state.pendingActions.push({
+          summary: decision.message?.slice(0, 300) ?? 'Otonom çalışma',
+          timestamp: Date.now(),
+          toolCount: decision.toolCalls?.length ?? 0,
+        });
+        await log(`[consciousness] 📋 Aksiyon batch'e eklendi (${state.pendingActions.length} bekliyor): ${decision.message?.slice(0, 150)}`);
 
         if (decision.toolCalls) {
           for (const tc of decision.toolCalls) {
@@ -420,7 +421,36 @@ export async function heartbeatCycle(
             await log(`[consciousness] Tool: ${tc.name}(${argStr}) → ${tc.result?.slice(0, 200) ?? '?'}`);
           }
         }
+
+        // Batch flush koşulları: 5 aksiyon birikti VEYA 30 dakika geçti
+        const BATCH_MAX = 5;
+        const BATCH_INTERVAL_MS = 30 * 60 * 1000; // 30 dakika
+        const timeSinceLastBatch = Date.now() - (state.lastBatchSentAt ?? 0);
+        const shouldFlush = state.pendingActions.length >= BATCH_MAX || timeSinceLastBatch >= BATCH_INTERVAL_MS;
+
+        if (shouldFlush && config.notifyChatId && !isSniperHours) {
+          const actions = state.pendingActions;
+          const totalTools = actions.reduce((sum, a) => sum + a.toolCount, 0);
+          
+          // Her aksiyonun özet mesajından sadece ilk satırı al
+          const summaryLines = actions.map(a => {
+            const firstLine = a.summary.split('\n').find(l => l.trim() && !l.startsWith('📎') && !l.startsWith('📁')) || a.summary.split('\n')[0] || '';
+            // "📋 *Yapılan İş:*" prefix'ini kaldır — sadece içerik göster
+            return `• ${firstLine.replace(/^📋\s*\*?Yapılan İş:?\*?\s*/i, '').replace(/^📋\s*\*?Otonom Çalışma:?\*?\s*/i, '').trim()}`;
+          });
+
+          const batchMessage = `📊 *Son ${actions.length} aksiyon özeti:*\n${summaryLines.join('\n')}\n\n📎 Toplam ${totalTools} araç çağrısı`;
+          
+          const sent = await sendTelegram(batchMessage, config.notifyChatId);
+          if (sent) {
+            state.notificationsToday++;
+            await log(`[consciousness] 📊 Batch gönderildi: ${actions.length} aksiyon, ${totalTools} tool`);
+          }
+          state.pendingActions = [];
+          state.lastBatchSentAt = Date.now();
+        }
       } else if (decision.action !== 'silent' && decision.message && config.notifyChatId && !isSniperHours && !isSilentDecision) {
+        // Soru veya yanıt gibi direkt mesajlar hemen gönderilir
         const sent = await sendTelegram(decision.message, config.notifyChatId);
         if (sent) {
           state.notificationsToday++;
