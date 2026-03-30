@@ -46,3 +46,8 @@ dasvision_deploy/tasks/
 dasvision_deploy/sessions/
 dasvision_deploy/chains/
 dasvision_deploy/cache/
+
+# Hadith data and scripts
+get_hadith_data.mjs
+hadith-data/
+hadith_api_search_results.json
