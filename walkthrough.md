@@ -1,7 +1,7 @@
 # Walkthrough
 
 ## Original Task
-Kullanıcıdan bir bilgi istendiğinde (örneğin bir ekran görüntüsü) ve bu bilgi gelmediğinde, akışı tamamen durdurmak yerine proaktif bir varsayımda bulunarak göreve devam etme yeteneği geliştir. Bu, görevin bağlamını analiz edip (örneğin, dosya yolları, hata mesajları), en olası senaryo üzerinden bir "sahte" veri üreterek Foreman'ın çalışmaya devam etmesini sağlamalıdır. Bu mekanizma, Foreman'ın daha otonom ve akıcı çalışmasını sağlayarak kullanıcı bekleme sürelerini ortadan kaldırmayı hedefler.
+Vision: Write a mock API for tasks in src/mock-api
 
 ## Final Report
 **EMOTION TARGET**: The awe of discovering a classified technical manual for a perfect machine. The reader should feel they've uncovered documentation from a secret military-grade fabrication facility — simultaneously intimidated by the precision and seduced by the craftsmanship. First 2 seconds: "This is serious engineering." After 30 seconds: "I need to see how this works." The document should feel like holding a heavy steel plate with laser-etched schematics.
@@ -1225,3 +1225,101 @@ This shows excellent forethought and alignment.
 
 ### 2. ALIGNMENT (Check: PASS)
 - **EMOTION TARGET:** The target of "Calculated Self-Reliance" is being served well. The methodical approach—defining data models, then building a pure function engine that uses them—mirrors the behavior of a senior, expert engineer. This builds
+
+**GOAL**: Create a new, robust, self-contained mock API module at `src/mock-a/task-api.ts` that provides asynchronous CRUD operations for tasks, with `tasks.json` as the single source of truth.
+
+**APPROACH**:
+1.  **Transactional Integrity**: Each function call is a self-contained transaction. It must read `tasks.json` at the start and, if it's a mutating operation (Create, Update, Delete), write the changes back to `tasks.json` before completing. This ensures data is always persistent and consistent.
+2.  **Explicit Error Signaling**: The API will not fail silently. If `tasks.json` is missing, malformed, or a requested task ID is not found, the relevant function MUST `throw` a descriptive `Error`. This aligns with the "pure signal, zero noise" philosophy.
+3.  **Strict Type Enforcement**: A `Task` interface will be defined and used for all function signatures and return values. This ensures compiler-level correctness.
+4.  **Asynchronous by Design**: All functions, including read operations, must be `async` and use `fs/promises` to avoid blocking the Node.js event loop.
+
+**ACCEPTANCE CRITERIA**:
+1.  The file `src/mock-a/task-api.ts` exists and exports asynchronous functions for creating, reading, updating, and deleting tasks.
+2.  Calling an update or delete function with a non-existent ID throws a specific, identifiable error.
+3.  Calling any function when `tasks.json` does not exist throws a file-not-found error.
+4.  A full Create -> Read -> Update -> Read -> Delete -> Read cycle successfully modifies `tasks.json` at each step and reflects the correct state.
+
+**CONSTRAINTS**:
+-   Must use the built-in `fs/promises` module for all file operations.
+-   No third-party dependencies for the API logic itself.
+-   The `tasks.json` file is the ONLY state. There must be no in-memory caching of the task list between API calls.
+
+**FORBIDDEN**:
+-   Using a module-level variable to store the task list. Each function must read the file directly to guarantee it has the latest state.
+-   Returning `null`, `undefined`, or an empty array to signify an error condition (e.g., task not found). Errors must be thrown.
+
+**ALIGNED - continue as planned**
+
+The project is off to an excellent start. The first completed atom directly and effectively serves the core vision by establishing the foundational data layer.
+
+-   **Vision Alignment:** The creation of `tasks.json` is a mandatory prerequisite for the `task-api.ts` module, which is the project's focal point. This action supports, rather than dilutes, the vision. The execution was clean, deterministic, and verifiable, which perfectly aligns with the emotion targets of "pure signal" and "industrial precision."
+-   **Quality:** The work is of high quality. The created file is well-formed and contains a useful variety of seed data (mixing complete and incomplete tasks), demonstrating good practice without exceeding the scope of the task.
+-   **Plan
+
+**ALIGNED - continue as planned**
+
+The execution of the first two atoms is a perfect reflection of the project's vision. The work is of exceptionally high quality, demonstrating a deep understanding of the core principles.
+
+-   **Vision Adherence:** The implementation of `src/mock-a/task-api.ts` is exemplary. It directly satisfies the `FORBIDDEN` constraints by avoiding module-level caching and correctly throwing errors instead of returning `null`. This demonstrates a true grasp of the "pure signal" philosophy.
+-   **Execution Quality:** The agent's process—creating a necessary directory, implementing robust path resolution based on research, and verifying the result with the TypeScript compiler—is the exact "industrial precision" we aim for.
+-   **Project Trajectory:** The foundational read-only functions and data layer are now in place. This provides a solid and reliable base upon which to build the remaining Create, Update, and Delete functionalities.
+
+The project is on an ideal path. The next block can proceed with high
+
+### The Foreman Project: Core Vision
+
+-   **EMOTION TARGET**: **Deterministic Omniscience**. The user is not a "user" in the traditional sense; they are an observer with a privileged, frictionless view into a complex, powerful, and utterly transparent machine. The feeling is akin to watching a high-precision industrial press stamp a perfect component from raw metal—a sense of awe at the power, precision, and inevitability of the process.
+
+-   **FOCAL POINT**: **The Execution Trace**. There is no UI. The design system *is* the real-time stream of thought from the orchestrator's layers (Visioner, Strategist, etc.). The focal point is the structured, relentless flow of this log, which represents pure, unadulterated execution.
+
+-   **COLOR PHILOSOPHY**:
+    1.  **Monochrome (Default)**: Represents the raw material and the final product—commands, code, file contents. It is the "metal" of the system.
+    2.  **Amber/Yellow**: Represents control signals and state transitions—the "hydraulics" of the press. Used for `[LAYER]` tags, `GOAL`, `APPROACH`, and other key structural markers. It guides the observer's eye to the decision points.
+    3.  **Red**: Represents critical failure—an "emergency stop". Used exclusively for errors, constraint violations, and failed acceptance criteria. Its rarity makes it impactful.
+
+-   **MOTION BUDGET**: **Zero Pauses**. The "motion" is the ceaseless, scrolling stream of the execution trace. There are no spinners, no "thinking..." ellipses, no artificial delays. The system is either executing at full speed or has deterministically completed/failed. It is a continuous flow of information, not an interactive dialogue.
+
+-   **TYPOGRAPHY HIERARCHY**: A dense, information-rich, monospace structure.
+    1.  Top Level: `[LAYER_NAME]` prefixes.
+    2.  Structure: `**KEYWORD**:` for sections within a thought.
+    3.  Data: Indented code blocks for file contents and command outputs.
+
+-   **SPACE PHILOSOPHY**: **High Information Density (<15% negative space)**. "Pure signal, zero noise." Whitespace is functional, used only to delineate distinct thoughts or data blocks. The feel should be dense and technical, like a professional schematic, not a consumer-friendly webpage.
+
+-   **FORBIDDEN LIST**:
+    -   `Spinners, loaders, or "thinking..." indicators`.
+    -   `Friendly, conversational, or anthropomorphic language ("I'll try...", "Let's...")`.
+    -   `Ambiguous success messages ("Done!", "Okay!")`. Success is proven by the trace.
+
+-   **REFERENCE BENCHMARKS**:
+    1.  **`terraform apply` output**: A deterministic plan followed by a precise, step-by-step execution log.
+    2.  **`docker build` log**: A series of immutable, layered steps creating a final artifact.
+    3.  **Launch Control Console (e.g., Apollo Program)**: Dense, critical, real-time data where every line signifies a crucial state change.
+
+---
+
+### Translation to Current Task: `mock-api`
+
+Based on the core vision, the mock API cannot be a simple, brittle script. It must be a microcosm of the Foreman philosophy: robust, deterministic, and well-defined.
+
+**GOAL**: Create a new, robust, self-contained mock API module at `src/mock-api/task-api.ts` that provides asynchronous CRUD operations for tasks, using `tasks.json` in the project root as the single source of truth.
+
+**APPROACH**:
+1.  **Interface Definition**: Define and export a strict `Task` TypeScript interface in `task-api.ts`.
+2.  **Transactional File I/O**: Implement private helper functions for reading from and writing to `tasks.json`. The write function must be "transactional" — it reads the entire file, modifies the data in memory, and writes the entire file back. This ensures data integrity for each operation.
+3.  **Asynchronous Operations**: All exported CRUD functions (`getTasks`, `createTask`, `updateTask`, `deleteTask`) must be `async` and use `fs/promises` to accurately simulate a real-world network API.
+4.  **Pathing**: Use `path.join(process.cwd(), 'tasks.json')` to create a robust, absolute path to the data file, eliminating ambiguity from where the script is run.
+
+**ACCEPTANCE CRITERIA**:
+1.  The file `src/mock-api/task-api.ts` exists and exports the four async CRUD functions.
+2.  The `tasks.json` file can be created, read, updated, and deleted via these functions.
+3.  Calling `createTask` with a new task results in that task being present in `tasks.json`.
+4.  The module compiles without TypeScript errors.
+
+**CONSTRAINTS**:
+-   Must not use any external npm packages for logic (e.g., database clients). Node.js built-ins (`fs/promises`, `path`) are required.
+-   The data store MUST be the single `tasks.json` file in the project root.
+
+**FORBIDDEN**:
+-   Synchronous file system calls (e.g., `readFileSync`, `writeFileSync`) in the API functions, as they contradict the `async` nature of the API simulation.
