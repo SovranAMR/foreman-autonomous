@@ -1,0 +1,17 @@
+[
+  {
+    "id": "task_1",
+    "title": "Implement user authentication",
+    "status": "In Progress"
+  },
+  {
+    "id": "task_2",
+    "title": "Design the database schema",
+    "status": "Todo"
+  },
+  {
+    "id": "task_3",
+    "title": "Deploy the application",
+    "status": "Done"
+  }
+]
