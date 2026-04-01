@@ -21,22 +21,16 @@
         <h1>Foreman Dashboard</h1>
         
         <div class="section">
-            <h2>Current Status</h2>
-            <p><strong>Mood:</strong> serene (intensity: 50)</p>
-            <p><strong>Uptime:</strong> 435 hours</p>
-        </div>
-
-        
-        <div class="section">
             <h2>Recent Commits</h2>
-            <ul>
-                <li><span class="commit-id">f46df8c</span> chore(web): index.html'i güncelle</li>
-                <li><span class="commit-id">467e3d0</span> chore(web): Remove outdated Open Tasks section from index.html</li>
-                <li><span class="commit-id">76c923c</span> chore(web): remove mock-a vision task from index.html</li>
-                <li><span class="commit-id">b9a7275</span> docs: walkthrough.md dosyasını güncelle</li>
-                <li><span class="commit-id">465364a</span> chore: remove deleted mock-a files</li>
+            <!-- Dynamic commit list will be injected here -->
+            <ul id="commit-list">
+                <li>Loading...</li>
             </ul>
         </div>
+
+        <script>
+            // TODO: Implement script to fetch and display recent commits dynamically.
+        </script>
     </div>
 </body>
 </html>
