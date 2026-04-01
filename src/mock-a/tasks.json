@@ -1,6 +1,7 @@
 [
-  { "id": 1, "title": "Set up project repository", "completed": true },
-  { "id": 2, "title": "Create initial HTML structure", "completed": true },
-  { "id": 3, "title": "Add basic CSS styling", "completed": true },
-  { "id": 4, "title": "Implement JavaScript task logic", "completed": true }
+  { "id": 1, "title": "Setup project structure", "completed": true },
+  { "id": 2, "title": "Create initial UI mockups", "completed": true },
+  { "id": 3, "title": "Develop API endpoints", "completed": false },
+  { "id": 4, "title": "Implement frontend logic", "completed": false },
+  { "id": 5, "title": "Write unit and integration tests", "completed": false }
 ]
