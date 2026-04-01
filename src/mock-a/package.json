@@ -1,0 +1,12 @@
+{
+    "name": "mock-api",
+    "version": "1.0.0",
+    "description": "Mock API for tasks",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "express": "^4.17.1"
+    }
+}
