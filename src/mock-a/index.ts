@@ -1,26 +1,78 @@
-import * as http from 'http';
-import * as fs from 'fs';
-import * as path from 'path';
 
-const server = http.createServer((req, res) => {
-  if (req.url === '/tasks' && req.method === 'GET') {
-    const filePath = path.join(__dirname, 'tasks.json');
-    fs.readFile(filePath, 'utf8', (err, data) => {
-      if (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: 'Error reading tasks data' }));
-        return;
+import { json, TysInstance } from 'tys';
+
+interface Task {
+  id: number;
+  title: string;
+  completed: boolean;
+}
+
+let tasks: Task[] = [
+  { id: 1, title: 'Learn Foreman', completed: true },
+  { id: 2, title: 'Build an App', completed: false },
+  { id: 3, title: 'Deploy to Production', completed: false },
+];
+
+export default function(app: TysInstance) {
+  app.get('/tasks', () => {
+    return json(tasks);
+  });
+
+  app.post('/tasks', async (req) => {
+    try {
+      const { title } = await req.json();
+      if (!title) {
+        return json({ error: 'Title is required' }, { status: 400 });
       }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(data);
-    });
-  } else {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ message: 'Not Found' }));
-  }
-});
+      const newTask: Task = {
+        id: tasks.length + 1,
+        title,
+        completed: false,
+      };
+      tasks.push(newTask);
+      return json(newTask, { status: 201 });
+    } catch (error) {
+      return json({ error: 'Invalid request body' }, { status: 400 });
+    }
+  });
 
-const PORT = 3001;
-server.listen(PORT, () => {
-  console.log(`Mock API server running on port ${PORT}`);
-});
+  app.get('/tasks/:id', (req) => {
+    const id = parseInt(req.param('id'), 10);
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+      return json(task);
+    }
+    return json({ error: 'Task not found' }, { status: 404 });
+  });
+
+  app.put('/tasks/:id', async (req) => {
+    const id = parseInt(req.param('id'), 10);
+    const taskIndex = tasks.findIndex(t => t.id === id);
+    if (taskIndex === -1) {
+      return json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    try {
+      const { title, completed } = await req.json();
+      if (title !== undefined) {
+        tasks[taskIndex].title = title;
+      }
+      if (completed !== undefined) {
+        tasks[taskIndex].completed = completed;
+      }
+      return json(tasks[taskIndex]);
+    } catch (error) {
+      return json({ error: 'Invalid request body' }, { status: 400 });
+    }
+  });
+
+  app.delete('/tasks/:id', (req) => {
+    const id = parseInt(req.param('id'), 10);
+    const taskIndex = tasks.findIndex(t => t.id === id);
+    if (taskIndex === -1) {
+      return json({ error: 'Task not found' }, { status: 404 });
+    }
+    tasks.splice(taskIndex, 1);
+    return new Response(null, { status: 204 });
+  });
+}
