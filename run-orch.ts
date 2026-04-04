@@ -7,7 +7,9 @@ async function main() {
   bootstrapProviders(engine);
   const orchestrator = new Orchestrator(engine);
   try {
-    const result = await orchestrator.run("Write a mock API for tasks in src/mock-api.ts");
+    const result = await orchestrator.run(
+      "Summarize the project's package.json scripts and main entrypoints in three bullet points.",
+    );
     console.log("Success:", result);
   } catch (err) {
     console.error("Error:", err);
