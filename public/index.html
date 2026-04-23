@@ -1,12 +1,1234 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Foreman Task Interface</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DAS Systems — Endüstriyel Geleceği Kodluyoruz</title>
+  <meta name="description" content="AI güvenlik, endüstriyel otomasyon ve özel yazılım entegrasyonu. 300K$ - 1M$+ ölçekli endüstriyel projeler için Bursa merkezli mühendislik ofisi.">
+  <meta name="keywords" content="endüstriyel otomasyon, AI güvenlik, özel yazılım, SCADA, PLC, DASVision, fabrika otomasyonu">
+  <meta name="author" content="DAS Systems">
+  <meta name="theme-color" content="#050505">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://dassystems.com.tr">
+  <meta property="og:title" content="DAS Systems — Endüstriyel Geleceği Kodluyoruz">
+  <meta property="og:description" content="AI güvenlik, endüstriyel otomasyon ve özel yazılım entegrasyonu. 300K$ - 1M$+ ölçekli projeler.">
+  <meta property="og:image" content="https://dassystems.com.tr/og-image.jpg">
+  <meta property="og:locale" content="tr_TR">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DAS Systems — Endüstriyel Geleceği Kodluyoruz">
+  <meta name="twitter:description" content="AI güvenlik, endüstriyel otomasyon ve özel yazılım entegrasyonu.">
+  <meta name="twitter:image" content="https://dassystems.com.tr/og-image.jpg">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://dassystems.com.tr">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+  <!-- Schema.org -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "DAS Systems",
+    "url": "https://dassystems.com.tr",
+    "logo": "https://dassystems.com.tr/logo.png",
+    "description": "AI güvenlik, endüstriyel otomasyon ve özel yazılım entegrasyonu.",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Bursa",
+      "addressCountry": "TR"
+    },
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "sales",
+      "email": "info@dassystems.com.tr"
+    },
+    "sameAs": []
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #050505;
+      --bg-secondary: #0a0a0a;
+      --bg-tertiary: #111111;
+      --text: #e8e6e3;
+      --text-secondary: #8a8886;
+      --text-muted: #4a4a4a;
+      --accent: #c9a050;
+      --accent-light: #ddb86a;
+      --accent-dark: #a08040;
+      --border: #1a1a1a;
+      --border-light: #2a2a2a;
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    ::selection {
+      background: rgba(201, 160, 80, 0.3);
+      color: var(--text);
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 3px;
+    }
+
+    /* ─── Loading Screen ─── */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .loader-text {
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 10vw, 8rem);
+      font-weight: 400;
+      letter-spacing: 0.3em;
+      color: var(--accent);
+      opacity: 0;
+    }
+
+    .loader-line {
+      width: 0;
+      height: 1px;
+      background: var(--accent);
+      margin-top: 2rem;
+    }
+
+    .loader-sub {
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 1.5rem;
+      opacity: 0;
+    }
+
+    /* ─── Navigation ─── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      padding: 1.5rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.4s ease;
+      background: transparent;
+    }
+
+    nav.scrolled {
+      background: rgba(5, 5, 5, 0.9);
+      backdrop-filter: blur(20px);
+      padding: 1rem 3rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.1em;
+      text-decoration: none;
+    }
+
+    .nav-logo span {
+      color: var(--accent);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.3s ease;
+      position: relative;
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: var(--accent);
+      transition: width 0.3s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .nav-links a:hover::after {
+      width: 100%;
+    }
+
+    .nav-cta {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.75rem 1.5rem;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+    }
+
+    .nav-cta:hover {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    /* ─── Hero ─── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      padding: 0 2rem;
+      overflow: hidden;
+    }
+
+    #particle-canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.6;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+    }
+
+    .hero-eyebrow {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.5em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 2rem;
+      opacity: 0;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 400;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      opacity: 0;
+    }
+
+    .hero-title em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .hero-subtitle {
+      font-size: 1.1rem;
+      font-weight: 300;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto 3rem;
+      line-height: 1.7;
+      opacity: 0;
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 1rem 2.5rem;
+      background: var(--accent);
+      color: var(--bg);
+      text-decoration: none;
+      transition: all 0.3s ease;
+      opacity: 0;
+    }
+
+    .hero-cta:hover {
+      background: var(--accent-light);
+      transform: translateY(-2px);
+    }
+
+    .hero-cta svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s ease;
+    }
+
+    .hero-cta:hover svg {
+      transform: translateX(4px);
+    }
+
+    .hero-scroll {
+      position: absolute;
+      bottom: 3rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      opacity: 0;
+    }
+
+    .hero-scroll span {
+      font-size: 0.6rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .hero-scroll-line {
+      width: 1px;
+      height: 40px;
+      background: var(--border-light);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-scroll-line::after {
+      content: '';
+      position: absolute;
+      top: -100%;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--accent);
+      animation: scrollDown 2s ease-in-out infinite;
+    }
+
+    @keyframes scrollDown {
+      0% { top: -100%; }
+      50% { top: 0; }
+      100% { top: 100%; }
+    }
+
+    /* ─── Section Common ─── */
+    section {
+      padding: 8rem 2rem;
+      position: relative;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-eyebrow {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      font-weight: 400;
+      line-height: 1.2;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-subtitle {
+      font-size: 1.1rem;
+      font-weight: 300;
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: 1.7;
+    }
+
+    /* ─── Manifesto ─── */
+    .manifesto {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .manifesto-content {
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .manifesto-quote {
+      font-family: var(--font-display);
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      font-style: italic;
+      font-weight: 400;
+      line-height: 1.4;
+      color: var(--text);
+      margin-bottom: 2rem;
+    }
+
+    .manifesto-quote::before {
+      content: '"';
+      color: var(--accent);
+      font-size: 3rem;
+      line-height: 0;
+      vertical-align: -0.5em;
+      margin-right: 0.1em;
+    }
+
+    .manifesto-text {
+      font-size: 1rem;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+
+    /* ─── Capabilities ─── */
+    .capabilities {
+      padding: 8rem 2rem;
+    }
+
+    .capabilities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-top: 4rem;
+    }
+
+    .capability-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      transition: all 0.4s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .capability-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+
+    .capability-card:hover {
+      border-color: var(--border-light);
+      transform: translateY(-4px);
+    }
+
+    .capability-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .capability-icon {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+    }
+
+    .capability-title {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .capability-desc {
+      font-size: 0.9rem;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 1.5rem;
+    }
+
+    .capability-tech {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .capability-tech span {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      padding: 0.35rem 0.75rem;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    /* ─── Stats ─── */
+    .stats {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 5rem 2rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 3rem;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-family: var(--font-display);
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      font-weight: 400;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ─── Technology ─── */
+    .technology {
+      padding: 8rem 2rem;
+    }
+
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-top: 4rem;
+    }
+
+    .tech-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .tech-item:hover {
+      border-color: var(--accent-dark);
+      background: var(--bg-tertiary);
+    }
+
+    .tech-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+    }
+
+    .tech-category {
+      font-size: 0.65rem;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ─── Process ─── */
+    .process {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 8rem 2rem;
+    }
+
+    .process-steps {
+      display: flex;
+      justify-content: space-between;
+      gap: 2rem;
+      margin-top: 4rem;
+      position: relative;
+    }
+
+    .process-steps::before {
+      content: '';
+      position: absolute;
+      top: 24px;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: var(--border-light);
+      z-index: 0;
+    }
+
+    .process-step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-number {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+    }
+
+    .step-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .step-desc {
+      font-size: 0.8rem;
+      font-weight: 300;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    @media (max-width: 768px) {
+      .process-steps {
+        flex-direction: column;
+        gap: 3rem;
+      }
+      .process-steps::before {
+        display: none;
+      }
+    }
+
+    /* ─── Contact ─── */
+    .contact {
+      padding: 8rem 2rem;
+      text-align: center;
+    }
+
+    .contact-email {
+      font-family: var(--font-display);
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      font-weight: 400;
+      color: var(--accent);
+      text-decoration: none;
+      display: inline-block;
+      margin: 2rem 0 1rem;
+      transition: color 0.3s ease;
+    }
+
+    .contact-email:hover {
+      color: var(--accent-light);
+    }
+
+    .contact-location {
+      font-size: 0.85rem;
+      font-weight: 300;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    .contact-cta {
+      margin-top: 3rem;
+    }
+
+    /* ─── Footer ─── */
+    footer {
+      padding: 3rem 2rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .footer-text {
+      font-size: 0.75rem;
+      font-weight: 300;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    /* ─── Reveal Animation ─── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    /* ─── Mobile Nav ─── */
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      padding: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+      nav {
+        padding: 1rem 1.5rem;
+      }
+      nav.scrolled {
+        padding: 1rem 1.5rem;
+      }
+      .nav-links {
+        display: none;
+      }
+      .mobile-menu-btn {
+        display: block;
+      }
+      .nav-cta {
+        display: none;
+      }
+      section {
+        padding: 5rem 1.5rem;
+      }
+      .capabilities-grid {
+        grid-template-columns: 1fr;
+      }
+      .tech-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+      }
+    }
+
+    /* ─── Reduced Motion ─── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .reveal {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  </style>
 </head>
 <body>
-    <h1>Hello, Foreman</h1>
-    <p>Mock task interface is loading...</p>
+
+  <!-- Loading Screen -->
+  <div id="loader">
+    <div class="loader-text">DAS</div>
+    <div class="loader-line"></div>
+    <div class="loader-sub">Systems</div>
+  </div>
+
+  <!-- Navigation -->
+  <nav id="navbar">
+    <a href="#" class="nav-logo">DAS<span>.</span></a>
+    <ul class="nav-links">
+      <li><a href="#manifesto">Vizyon</a></li>
+      <li><a href="#capabilities">Kabiliyetler</a></li>
+      <li><a href="#technology">Teknoloji</a></li>
+      <li><a href="#process">Süreç</a></li>
+    </ul>
+    <a href="#contact" class="nav-cta">İletişim</a>
+    <button class="mobile-menu-btn" aria-label="Menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero" id="hero">
+    <canvas id="particle-canvas"></canvas>
+    <div class="hero-content">
+      <p class="hero-eyebrow">Endüstriyel Yazılım & AI</p>
+      <h1 class="hero-title">Endüstriyel Geleceği<br><em>Kodluyoruz</em></h1>
+      <p class="hero-subtitle">
+        AI güvenlik sistemlerinden özel yazılım entegrasyonuna. 
+        300K$ – 1M$+ ölçekli endüstriyel projeler için 
+        Bursa merkezli mühendislik ofisi.
+      </p>
+      <a href="#contact" class="hero-cta">
+        Projeyi Başlat
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </a>
+    </div>
+    <div class="hero-scroll">
+      <span>Keşfet</span>
+      <div class="hero-scroll-line"></div>
+    </div>
+  </section>
+
+  <!-- Manifesto -->
+  <section class="manifesto" id="manifesto">
+    <div class="container">
+      <div class="manifesto-content reveal">
+        <p class="section-eyebrow">Vizyon</p>
+        <p class="manifesto-quote">
+          Biz fabrikaların, tesislerin ve büyük ölçekli operasyonların dijital sinir sistemini inşa ediyoruz.
+        </p>
+        <p class="manifesto-text">
+          Endüstriyel otomasyon, yapay zeka güvenlik sistemleri ve özel yazılım entegrasyonu alanlarında 
+          çalışan bir mühendislik ofisi olarak, 300 bin dolar ile 1 milyon dolar üzeri projeleri 
+          hayata geçiriyoruz. Sıradan çözümlerle yetinmeyen, operasyonel mükemmelliği hedefleyen 
+          kurumlar için tasarlanmış sistemler üretiyoruz.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Capabilities -->
+  <section class="capabilities" id="capabilities">
+    <div class="container">
+      <p class="section-eyebrow reveal">Kabiliyetler</p>
+      <h2 class="section-title reveal">Sistem Odaklı<br>Çözümler</h2>
+      <p class="section-subtitle reveal">
+        Her projeyi bir bütün olarak ele alıyoruz. Donanım, yazılım, AI ve operasyonel entegrasyon 
+        tek elden yönetiliyor.
+      </p>
+      
+      <div class="capabilities-grid">
+        <div class="capability-card reveal">
+          <div class="capability-icon">
+            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="6" y="6" width="36" height="36" rx="4"/>
+              <circle cx="24" cy="24" r="8"/>
+              <path d="M24 16v-6M24 38v-6M16 24h-6M38 24h-6"/>
+            </svg>
+          </div>
+          <h3 class="capability-title">AI Güvenlik & Fiziksel İzleme</h3>
+          <p class="capability-desc">
+            DASVision v3: 7 kamera, gerçek zamanlı nesne algılama, personel takibi, 
+            anomali tespiti ve Telegram komut entegrasyonu. Yüz tanıma, poz analizi 
+            ve davranışsal pattern tespiti ile üretim alanlarını izliyoruz.
+          </p>
+          <div class="capability-tech">
+            <span>YOLO</span><span>InsightFace</span><span>OpenCV</span><span>Python</span>
+          </div>
+        </div>
+
+        <div class="capability-card reveal">
+          <div class="capability-icon">
+            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M24 4L4 14v20l20 10 20-10V14L24 4z"/>
+              <path d="M4 14l20 10 20-10M24 24v20"/>
+              <path d="M24 24L12 18"/>
+            </svg>
+          </div>
+          <h3 class="capability-title">Kognitif AI Sistemleri</h3>
+          <p class="capability-desc">
+            Foreman: 57 bin satır, 4 katmanlı pipeline. Visioner → Strategist → Researcher → Worker. 
+            Otonom kod sentezi, hata kurtarma, çoklu oturum yönetimi ve reflection mekanizmaları. 
+            Kendi kendini iyileştiren AI mimarileri.
+          </p>
+          <div class="capability-tech">
+            <span>TypeScript</span><span>Gemini</span><span>Claude</span><span>OpenAI</span>
+          </div>
+        </div>
+
+        <div class="capability-card reveal">
+          <div class="capability-icon">
+            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="8" y="8" width="32" height="32" rx="2"/>
+              <path d="M8 16h32M16 8v32"/>
+              <circle cx="24" cy="24" r="4"/>
+            </svg>
+          </div>
+          <h3 class="capability-title">Endüstriyel Otomasyon</h3>
+          <p class="capability-desc">
+            PLC/SCADA/HMI sistemleri. Siemens, Delta, Mitsubishi entegrasyonu. 
+            Servo sürücü kontrolü, senkronizasyon, EV şarj istasyonları. 
+            Mace Otomasyon ortaklığı ile tam kapsamlı endüstriyel çözümler.
+          </p>
+          <div class="capability-tech">
+            <span>PLC</span><span>SCADA</span><span>HMI</span><span>Modbus</span>
+          </div>
+        </div>
+
+        <div class="capability-card reveal">
+          <div class="capability-icon">
+            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 8h24v32H12z"/>
+              <path d="M12 16h24M20 8v-4M28 8v-4"/>
+              <path d="M18 24h12M18 30h8"/>
+            </svg>
+          </div>
+          <h3 class="capability-title">A'dan Z'ye Özel Software</h3>
+          <p class="capability-desc">
+            21GB veritabanı, 12 sprint, panel entegrasyonu, muhasebe mutabakatı, 
+            AI raporlama. PBX+AI transkripsiyon, duygu analizi, multi-kanal gateway. 
+            Next.js 16, React 19, Tailwind v4 ile modern web uygulamaları.
+          </p>
+          <div class="capability-tech">
+            <span>Next.js</span><span>React</span><span>PostgreSQL</span><span>Docker</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="stats">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="reveal">
+          <div class="stat-number" data-count="57">0</div>
+          <div class="stat-label">Bin Satır AI Kodu</div>
+        </div>
+        <div class="reveal">
+          <div class="stat-number" data-count="21">0</div>
+          <div class="stat-label">GB Veri İşleniyor</div>
+        </div>
+        <div class="reveal">
+          <div class="stat-number" data-count="500">0</div>
+          <div class="stat-label">Milyon Nöron Simülasyonu</div>
+        </div>
+        <div class="reveal">
+          <div class="stat-number" data-count="12">0</div>
+          <div class="stat-label">Sprint Tamamlandı</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Technology -->
+  <section class="technology" id="technology">
+    <div class="container">
+      <p class="section-eyebrow reveal">Altyapı</p>
+      <h2 class="section-title reveal">Teknoloji<br>Yığını</h2>
+      <p class="section-subtitle reveal">
+        En güncel, en güvenilir, en ölçeklenebilir teknolojileri seçiyoruz. 
+        R&D projelerimizde deneysel yaklaşımları da test ediyoruz.
+      </p>
+
+      <div class="tech-grid">
+        <div class="tech-item reveal"><div class="tech-name">Next.js 16</div><div class="tech-category">Frontend</div></div>
+        <div class="tech-item reveal"><div class="tech-name">React 19</div><div class="tech-category">Frontend</div></div>
+        <div class="tech-item reveal"><div class="tech-name">TypeScript</div><div class="tech-category">Dil</div></div>
+        <div class="tech-item reveal"><div class="tech-name">Tailwind v4</div><div class="tech-category">CSS</div></div>
+        <div class="tech-item reveal"><div class="tech-name">Python</div><div class="tech-category">Backend/ML</div></div>
+        <div class="tech-item reveal"><div class="tech-name">OpenCV</div><div class="tech-category">Görüntü</div></div>
+        <div class="tech-item reveal"><div class="tech-name">YOLO</div><div class="tech-category">Nesne Algılama</div></div>
+        <div class="tech-item reveal"><div class="tech-name">InsightFace</div><div class="tech-category">Yüz Tanıma</div></div>
+        <div class="tech-item reveal"><div class="tech-name">Gemini</div><div class="tech-category">AI Model</div></div>
+        <div class="tech-item reveal"><div class="tech-name">Claude</div><div class="tech-category">AI Model</div></div>
+        <div class="tech-item reveal"><div class="tech-name">OpenAI</div><div class="tech-category">AI Model</div></div>
+        <div class="tech-item reveal"><div class="tech-name">PostgreSQL</div><div class="tech-category">Veritabanı</div></div>
+        <div class="tech-item reveal"><div class="tech-name">SQLite WAL</div><div class="tech-category">Veritabanı</div></div>
+        <div class="tech-item reveal"><div class="tech-name">PocketBase</div><div class="tech-category">Backend</div></div>
+        <div class="tech-item reveal"><div class="tech-name">Docker</div><div class="tech-category">DevOps</div></div>
+        <div class="tech-item reveal"><div class="tech-name">Railway</div><div class="tech-category">Cloud</div></div>
+        <div class="tech-item reveal"><div class="tech-name">C99 / Vulkan</div><div class="tech-category">Sistem</div></div>
+        <div class="tech-item reveal"><div class="tech-name">PLC / SCADA</div><div class="tech-category">Otomasyon</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Process -->
+  <section class="process" id="process">
+    <div class="container">
+      <p class="section-eyebrow reveal">Metodoloji</p>
+      <h2 class="section-title reveal">Forge<br>Pipeline</h2>
+      <p class="section-subtitle reveal">
+        Her projeyi atomik adımlara bölüyoruz. Planlama, araştırma, sentez, 
+        doğrulama ve yansıtma döngüsü ile hata payını minimize ediyoruz.
+      </p>
+
+      <div class="process-steps">
+        <div class="process-step reveal">
+          <div class="step-number">1</div>
+          <h4 class="step-title">Keşif</h4>
+          <p class="step-desc">Vizyon analizi, kapsam belirleme, teknik gereksinimlerin çıkarılması</p>
+        </div>
+        <div class="process-step reveal">
+          <div class="step-number">2</div>
+          <h4 class="step-title">Tasarım</h4>
+          <p class="step-desc">Mimari planlama, veri modeli, API sözleşmeleri, UI/UX prototipleme</p>
+        </div>
+        <div class="process-step reveal">
+          <div class="step-number">3</div>
+          <h4 class="step-title">Geliştirme</h4>
+          <p class="step-desc">Atomik kod sentezi, sürekli test, hata kurtarma, dökümantasyon</p>
+        </div>
+        <div class="process-step reveal">
+          <div class="step-number">4</div>
+          <h4 class="step-title">Entegrasyon</h4>
+          <p class="step-desc">Mevcut sistemlerle birleştirme, veri taşıma, operasyonel uyum</p>
+        </div>
+        <div class="process-step reveal">
+          <div class="step-number">5</div>
+          <h4 class="step-title">Operasyon</h4>
+          <p class="step-desc">Deploy, monitoring, bakım, iterasyon ve sürekli iyileştirme</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section class="contact" id="contact">
+    <div class="container">
+      <p class="section-eyebrow reveal">İletişim</p>
+      <h2 class="section-title reveal">Projeyi<br>Başlat</h2>
+      <p class="section-subtitle reveal" style="margin: 0 auto;">
+        Büyük ölçekli endüstriyel projeler, AI entegrasyonu ve özel yazılım çözümleri için 
+        doğrudan iletişime geçin.
+      </p>
+      <a href="mailto:info@dassystems.com.tr" class="contact-email reveal">info@dassystems.com.tr</a>
+      <p class="contact-location reveal">Bursa, Türkiye</p>
+      <div class="contact-cta reveal">
+        <a href="mailto:info@dassystems.com.tr" class="nav-cta" style="display: inline-block;">Mesaj Gönder</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p class="footer-text">© 2026 DAS Systems. Tüm hakları saklıdır.</p>
+  </footer>
+
+  <script>
+    // ─── Particle Network ───
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let animationId;
+    let isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.vx = (Math.random() - 0.5) * 0.3;
+        this.vy = (Math.random() - 0.5) * 0.3;
+        this.radius = Math.random() * 1.5 + 0.5;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(201, 160, 80, 0.5)';
+        ctx.fill();
+      }
+    }
+
+    function initParticles() {
+      const count = isTouch ? 30 : 60;
+      particles = [];
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle());
+      }
+    }
+
+    function drawLines() {
+      const maxDist = 120;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < maxDist) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(201, 160, 80, ${0.15 * (1 - dist / maxDist)})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => { p.update(); p.draw(); });
+      drawLines();
+      animationId = requestAnimationFrame(animateParticles);
+    }
+
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      initParticles();
+      animateParticles();
+    }
+
+    // ─── GSAP Animations ───
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Loader
+    const loaderTl = gsap.timeline({
+      onComplete: () => {
+        gsap.to('#loader', { opacity: 0, duration: 0.5, onComplete: () => {
+          document.getElementById('loader').style.display = 'none';
+        }});
+      }
+    });
+    loaderTl.to('.loader-text', { opacity: 1, duration: 0.8, ease: 'power2.out' })
+            .to('.loader-line', { width: '120px', duration: 0.8, ease: 'power2.inOut' }, '-=0.4')
+            .to('.loader-sub', { opacity: 1, duration: 0.5 }, '-=0.2')
+            .to({}, { duration: 0.4 })
+            .to('.loader-text, .loader-sub', { opacity: 0, y: -20, duration: 0.4 }, '+=0.2')
+            .to('.loader-line', { opacity: 0, duration: 0.3 }, '<');
+
+    // Hero
+    gsap.to('.hero-eyebrow', { opacity: 1, y: 0, duration: 0.8, delay: 2.5, ease: 'power2.out' });
+    gsap.to('.hero-title', { opacity: 1, y: 0, duration: 1, delay: 2.7, ease: 'power2.out' });
+    gsap.to('.hero-subtitle', { opacity: 1, y: 0, duration: 0.8, delay: 2.9, ease: 'power2.out' });
+    gsap.to('.hero-cta', { opacity: 1, y: 0, duration: 0.8, delay: 3.1, ease: 'power2.out' });
+    gsap.to('.hero-scroll', { opacity: 1, duration: 0.8, delay: 3.5, ease: 'power2.out' });
+
+    // Scroll Reveals
+    gsap.utils.toArray('.reveal').forEach((el, i) => {
+      gsap.to(el, {
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: el,
+          start: 'top 85%',
+          toggleActions: 'play none none none'
+        }
+      });
+    });
+
+    // Counter Animation
+    gsap.utils.toArray('.stat-number').forEach(el => {
+      const target = parseInt(el.dataset.count);
+      gsap.to(el, {
+        innerHTML: target,
+        duration: 2,
+        snap: { innerHTML: 1 },
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: el,
+          start: 'top 85%'
+        }
+      });
+    });
+
+    // Navbar scroll
+    window.addEventListener('scroll', () => {
+      const nav = document.getElementById('navbar');
+      if (window.scrollY > 50) {
+        nav.classList.add('scrolled');
+      } else {
+        nav.classList.remove('scrolled');
+      }
+    });
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // Cleanup on page hide
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        cancelAnimationFrame(animationId);
+      } else if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        animateParticles();
+      }
+    });
+  </script>
 </body>
 </html>
