@@ -29,6 +29,7 @@ import type {
 import { Engine } from "./engine.js";
 import { Orchestrator } from "./orchestrator.js";
 import { AntigravityProvider, loadCredentials, getChatModels } from "./antigravity-provider.js";
+import { KimiProvider, loadKimiKey } from "./kimi-provider.js";
 import { getNextFallbackModel } from "./model-fallback.js";
 import type { LLMProvider } from "./provider.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
@@ -61,7 +62,7 @@ export class MessagingGateway {
   private engine: Engine;
   private orchestrator: Orchestrator | null = null;
   private provider: LLMProvider | null = null;
-  private activeModel: string = "gemini-3.1-pro-high";
+  private activeModel: string = "kimi-k2.6";
   private toolExecutor: ((call: ToolCall) => Promise<ToolResult>) | null = null;
   private processing: Set<string> = new Set(); // active chat IDs
   private workTracker: WorkTracker;
@@ -97,17 +98,21 @@ export class MessagingGateway {
   async start(): Promise<void> {
     console.log(`[gateway] Starting Foreman Messaging Gateway...`);
 
-    // Initialize provider — Antigravity (Opus) first for smart tool calling, Kimi fallback
+    // Initialize provider — Kimi K2.6 primary (256K context, thinking mode, cheap & fast),
+    // Antigravity as fallback if Kimi not configured.
+    const kimiKey = loadKimiKey();
     const creds = loadCredentials();
-    if (creds) {
-      const antigravityProvider = new AntigravityProvider(creds);
-      this.activeModel = "gemini-3.1-pro-high";
-      console.log(`[gateway] Using Antigravity provider (Gemini 3.1 Pro High)`);
 
-      // Only use Antigravity, no Kimi fallback
-      this.provider = antigravityProvider;
+    if (kimiKey) {
+      this.provider = new KimiProvider(kimiKey);
+      this.activeModel = "kimi-k2.6";
+      console.log(`[gateway] Using Kimi provider (kimi-k2.6, thinking enabled)`);
+    } else if (creds) {
+      this.provider = new AntigravityProvider(creds);
+      this.activeModel = "gemini-3.1-pro-high";
+      console.log(`[gateway] Using Antigravity provider (Gemini 3.1 Pro High) — no Kimi key found`);
     } else {
-      throw new Error("No API credentials. Run: foreman login");
+      throw new Error("No API credentials. Run: foreman login kimi  (or)  foreman login");
     }
 
     // Initialize tool executor with Engine subsystems
@@ -160,10 +165,11 @@ export class MessagingGateway {
       if (!chatId) chatId = process.env.FOREMAN_CHAT_ID;
 
       // Consciousness ayarlarını config'den oku
-      // Consciousness için daha hafif ve güvenilir bir model kullan
-      // claude-opus-4-6-thinking çok pahalı ve 400 hatası veriyor
-      // consciousnessModel: Use a lightweight model that actually works with streamChatWithTools
-      const consciousnessModel = 'gemini-3.1-pro-high';
+      // Consciousness loop (heartbeat) için hızlı, ucuz, güvenilir model kullan.
+      // Kimi varsa instant modu (thinking off) en uygunu — thinking sadece ağır task'larda.
+      const consciousnessModel = this.provider instanceof KimiProvider
+        ? 'kimi-k2.6-instant'
+        : 'gemini-3.1-pro-high';
 
       const consciousnessProvider = this.provider;
 

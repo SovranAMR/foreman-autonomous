@@ -23,6 +23,8 @@ export interface ForemanConfig {
   anthropic_api_key?: string;
   openai_api_key?: string;
   google_api_key?: string;
+  /** Cursor Dashboard API key (@cursor/february, Cloud Agents). */
+  cursor_api_key?: string;
   default_provider?: "anthropic" | "openai" | "google";
 }
 
@@ -45,6 +47,10 @@ export function saveConfig(config: ForemanConfig): void {
 /**
  * Returns API key from env var or config file.
  */
+export function getCursorApiKey(): string | undefined {
+  return process.env.CURSOR_API_KEY?.trim() || loadConfig().cursor_api_key?.trim();
+}
+
 export function getApiKey(provider: "anthropic" | "openai" | "google"): string | undefined {
   // Env var takes priority
   if (provider === "anthropic") {
@@ -270,6 +276,23 @@ export function printProviderStatus(): void {
   const openaiKey = getApiKey("openai");
   const googleKey = getApiKey("google");
 
+  // Kimi / Moonshot — Foreman's primary provider
+  // Imported lazily to avoid a cycle with kimi-provider.
+  let kimiKey: string | null = null;
+  try {
+    const keyFile = join(homedir(), ".foreman", "kimi-key");
+    if (process.env.KIMI_API_KEY) kimiKey = process.env.KIMI_API_KEY;
+    else if (process.env.MOONSHOT_API_KEY) kimiKey = process.env.MOONSHOT_API_KEY;
+    else if (existsSync(keyFile)) kimiKey = readFileSync(keyFile, "utf-8").trim() || null;
+  } catch { /* ignore */ }
+
+  if (kimiKey) {
+    const masked = kimiKey.slice(0, 6) + "•".repeat(8) + kimiKey.slice(-4);
+    console.log(`  ${icon.done} Kimi K2.6: ${brand.dim(masked)} ${brand.dim("(primary)")}`);
+  } else {
+    console.log(`  ${icon.pending} Kimi K2.6: ${brand.dim("Not configured")} ${brand.dim("(foreman login kimi)")}`);
+  }
+
   if (anthropicKey) {
     const masked = anthropicKey.slice(0, 10) + "•".repeat(10) + anthropicKey.slice(-4);
     console.log(`  ${icon.done} Anthropic: ${brand.dim(masked)}`);
@@ -289,6 +312,14 @@ export function printProviderStatus(): void {
     console.log(`  ${icon.done} Google:    ${brand.dim(masked)}`);
   } else {
     console.log(`  ${icon.pending} Google:    ${brand.dim("Not configured")}`);
+  }
+
+  const cursorKey = getCursorApiKey();
+  if (cursorKey) {
+    const masked = cursorKey.slice(0, 8) + "•".repeat(8) + cursorKey.slice(-4);
+    console.log(`  ${icon.done} Cursor:    ${brand.dim(masked)} ${brand.dim("(SDK / Cloud API)")}`);
+  } else {
+    console.log(`  ${icon.pending} Cursor:    ${brand.dim("Not configured")} ${brand.dim("(foreman login cursor)")}`);
   }
 
   if (!anthropicKey && !openaiKey && !googleKey) {

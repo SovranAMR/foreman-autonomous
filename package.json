@@ -15,10 +15,12 @@
     "test:engine": "npx tsx src/engine.test.ts",
     "test:orchestrator": "npx tsx src/orchestrator.test.ts",
     "test:enforce": "npx tsx src/enforce.test.ts",
-    "web": "npx tsx src/web-server.ts"
+    "web": "npx tsx src/web-server.ts",
+    "spike:cursor": "npx tsx scripts/cursor-february-spike.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@cursor/february": "^1.0.1",
     "@google/genai": "^1.42.0",
     "@mozilla/readability": "^0.6.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",

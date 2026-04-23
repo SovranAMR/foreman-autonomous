@@ -44,11 +44,23 @@ foreman repl                                       # Interactive REPL
 
 ## Aktif Konfigürasyon
 
-- **Primary Model**: `kimi-k2.5` (Moonshot AI)
-- **Fallback**: `gemini-3.1-pro-high` (Antigravity OAuth)
-- **Default Layer Config**: `gemini-3.1-pro-high` (all layers)
+- **Primary Model**: `kimi-k2.6` (Moonshot AI, 256K context, thinking mode)
+- **Secondary**: `kimi-k2.6-instant` (thinking disabled — fast path)
+- **Fallback**: `kimi-k2.5` → `composer-2` → `gemini-3.1-pro-high` → Claude/GPT chain
+- **Default Layer Config**: Kimi-first (visioner/strategist/researcher/worker all start with kimi-k2.6)
+- **Provider Priority**: Kimi → Antigravity → Anthropic → OpenAI → Gemini → Cursor
 - **Bot**: `@Foreman_DasBot` on Telegram
 - **Rate Limit**: 6s between calls, 10/min max
+
+### Kimi K2.6 Kısıtları (Moonshot official)
+- Endpoint: `https://api.moonshot.ai/v1`
+- Sabit parametreler (başka değer → 400 error):
+  - `temperature`: 1.0 (thinking) / 0.6 (instant)
+  - `top_p=0.95`, `n=1`, `presence_penalty=0`, `frequency_penalty=0`
+- `thinking: {type: "enabled"|"disabled"}` parametresi (default enabled)
+- Thinking + tools: `tool_choice` sadece `"auto"` veya `"none"`
+- Multi-step tool calling'te `reasoning_content` context'te korunmalı
+- Context window: 262,144 token (256K)
 
 ## Son Audit Sonuçları (2026-02-24)
 

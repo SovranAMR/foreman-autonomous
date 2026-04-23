@@ -1,12 +1,22 @@
 /**
- * FOREMAN — Kimi 2.5 LLM Provider
+ * FOREMAN — Kimi K2.6 LLM Provider
  *
- * OpenAI-compatible provider for Moonshot AI's Kimi K2.5 model.
+ * OpenAI-compatible provider for Moonshot AI's Kimi K2.6 (and K2.5 back-compat).
  * Endpoint: https://api.moonshot.ai/v1/chat/completions
  *
+ * K2.6 notes (platform.moonshot.ai/docs/guide/kimi-k2-6-quickstart):
+ *   - 256K context (262,144 tokens)
+ *   - `thinking: {type: "enabled"|"disabled"}` (default enabled)
+ *   - Fixed params — any other value errors out:
+ *       temperature = 1.0 (thinking) / 0.6 (instant)
+ *       top_p = 0.95, n = 1, presence_penalty = 0, frequency_penalty = 0
+ *   - Multi-step tool calls MUST preserve `reasoning_content` in assistant messages
+ *   - With thinking enabled, `tool_choice` can only be "auto" or "none"
+ *
  * Supports:
+ *   - generate: non-streaming (engine / forge_pipeline)
  *   - streamChat: basic streaming chat
- *   - streamChatWithTools: agentic loop with tool calling
+ *   - streamChatWithTools: agentic loop with tool calling + reasoning preservation
  */
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
@@ -19,13 +29,14 @@ import type { LLMProvider, LLMMessage, GenerateOptions, GenerateResult } from ".
 
 const KIMI_ENDPOINT = "https://api.moonshot.ai/v1/chat/completions";
 const KEY_FILE = join(homedir(), ".foreman", "kimi-key");
-const DEFAULT_MODEL = "kimi-k2.5";
+const DEFAULT_MODEL = "kimi-k2.6";
 
 // ─── KEY MANAGEMENT ──────────────────────────────────────────
 
 export function loadKimiKey(): string | null {
-    // Env var takes precedence
+    // Env var takes precedence — support both KIMI_API_KEY and MOONSHOT_API_KEY
     if (process.env.KIMI_API_KEY) return process.env.KIMI_API_KEY;
+    if (process.env.MOONSHOT_API_KEY) return process.env.MOONSHOT_API_KEY;
     if (!existsSync(KEY_FILE)) return null;
     try {
         return readFileSync(KEY_FILE, "utf-8").trim();
@@ -43,13 +54,78 @@ export function saveKimiKey(key: string): void {
 // ─── MODELS ──────────────────────────────────────────────────
 
 export const KIMI_MODELS = [
+    { id: "kimi-k2.6", label: "Kimi K2.6 (thinking)", model: "kimi-k2.6" },
+    { id: "kimi-k2.6-instant", label: "Kimi K2.6 (instant)", model: "kimi-k2.6" },
     { id: "kimi-k2.5", label: "Kimi K2.5", model: "kimi-k2.5" },
     { id: "kimi-k2-thinking", label: "Kimi K2 Thinking", model: "kimi-k2-thinking" },
     { id: "kimi-k2-thinking-turbo", label: "Kimi K2 Thinking Turbo", model: "kimi-k2-thinking-turbo" },
     { id: "moonshot-v1-128k", label: "Moonshot V1 128K", model: "moonshot-v1-128k" },
 ] as const;
 
-export const DEFAULT_KIMI_MODEL = "kimi-k2-thinking";
+export const DEFAULT_KIMI_MODEL = "kimi-k2.6";
+
+// ─── PARAMETER POLICY ────────────────────────────────────────
+
+/**
+ * K2.5/K2.6 use a strict parameter policy — any deviation from the
+ * documented values returns an HTTP 400 from Moonshot. This helper
+ * produces the correct body fragment for the given model + mode.
+ *
+ * Returns `thinking` param only for models that support it (k2.5/k2.6).
+ * `kimi-k2-thinking*` is the older family and does NOT accept the
+ * `thinking` parameter (it is always thinking).
+ */
+function buildSamplingParams(
+    resolvedModel: string,
+    modelId: string,
+): {
+    temperature: number;
+    top_p: number;
+    n: number;
+    presence_penalty: number;
+    frequency_penalty: number;
+    thinking?: { type: "enabled" | "disabled" };
+} {
+    const isK25or26 = /^kimi-k2\.(5|6)$/.test(resolvedModel);
+    const isK2ThinkingFamily = resolvedModel.startsWith("kimi-k2-thinking");
+
+    if (isK25or26) {
+        // instant suffix on our alias disables thinking
+        const thinkingDisabled = modelId.endsWith("-instant");
+        return {
+            temperature: thinkingDisabled ? 0.6 : 1.0,
+            top_p: 0.95,
+            n: 1,
+            presence_penalty: 0,
+            frequency_penalty: 0,
+            thinking: { type: thinkingDisabled ? "disabled" : "enabled" },
+        };
+    }
+
+    if (isK2ThinkingFamily) {
+        // Legacy thinking models — fixed temp=1 but no `thinking` param.
+        return {
+            temperature: 1,
+            top_p: 1,
+            n: 1,
+            presence_penalty: 0,
+            frequency_penalty: 0,
+        };
+    }
+
+    // moonshot-v1-* and unknown — standard sampling
+    return {
+        temperature: 0.7,
+        top_p: 1,
+        n: 1,
+        presence_penalty: 0,
+        frequency_penalty: 0,
+    };
+}
+
+function resolveModel(modelId: string): string {
+    return KIMI_MODELS.find(m => m.id === modelId)?.model ?? modelId;
+}
 
 // ─── TOOL FORMAT CONVERSION ─────────────────────────────────
 
@@ -80,18 +156,17 @@ export class KimiProvider implements LLMProvider {
      * Non-streaming generate — for engine/forge_pipeline compatibility.
      */
     async generate(messages: LLMMessage[], options: GenerateOptions): Promise<GenerateResult> {
-        const model = KIMI_MODELS.find(m => m.id === options.model)?.model ?? options.model;
+        const model = resolveModel(options.model);
+        const sampling = buildSamplingParams(model, options.model);
 
-        // Kimi k2.5 and k2-thinking models require temperature=1
-        const isK2Model = model.includes("k2");
-        const temperature = isK2Model ? 1 : (options.temperature ?? 0.7);
-
-        const body = {
+        // For K2.5/K2.6 we MUST use the fixed sampling values — ignore any
+        // caller-provided temperature/top_p. For other models, honour caller.
+        const body: Record<string, unknown> = {
             model,
             messages: messages.map(m => ({ role: m.role, content: m.content })),
             max_tokens: options.maxTokens ?? 4096,
-            temperature,
             stream: false,
+            ...sampling,
         };
 
 
@@ -138,13 +213,15 @@ export class KimiProvider implements LLMProvider {
         onToken: (token: string) => void,
         maxTokens = 4096,
     ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
-        const model = KIMI_MODELS.find(m => m.id === modelId)?.model ?? modelId;
+        const model = resolveModel(modelId);
+        const sampling = buildSamplingParams(model, modelId);
 
-        const body = {
+        const body: Record<string, unknown> = {
             model,
             messages: messages.map(m => ({ role: m.role, content: m.content })),
             max_tokens: maxTokens,
             stream: true,
+            ...sampling,
         };
 
 
@@ -184,8 +261,11 @@ export class KimiProvider implements LLMProvider {
         abortSignal?: AbortSignal,
         pollInjectedMessages?: () => Array<{ role: string; content: string }> | undefined,
     ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
-        const model = KIMI_MODELS.find(m => m.id === modelId)?.model ?? modelId;
+        const model = resolveModel(modelId);
         const tools = toOpenAITools();
+        const sampling = buildSamplingParams(model, modelId);
+        // With thinking enabled on K2.5/K2.6, tool_choice can ONLY be "auto" or "none"
+        const toolChoice: "auto" | "none" = "auto";
 
         // OpenAI-compatible message format for tool-calling conversations
         type ChatMsg = { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; reasoning_content?: string };
@@ -215,15 +295,14 @@ export class KimiProvider implements LLMProvider {
                 }
             }
 
-            const isK2 = model.includes("k2");
-            const body: any = {
+            const body: Record<string, unknown> = {
                 model,
                 messages: conversationMessages,
                 max_tokens: maxTokens,
-                temperature: isK2 ? 1 : 0.7,
                 stream: true,
                 tools,
-                tool_choice: "auto",
+                tool_choice: toolChoice,
+                ...sampling,
             };
 
 

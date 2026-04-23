@@ -2899,9 +2899,9 @@ async function executeForge(
     const { basename } = await import("node:path");
     const { loadKimiKey: loadKimi } = await import("./kimi-provider.js");
 
-    // Use Kimi model if API key is configured
+    // Use Kimi K2.6 as the forge's primary model when a key is configured.
     const kimiKey = loadKimi();
-    const engineModel = kimiKey ? "kimi-k2.5" : undefined;
+    const engineModel = kimiKey ? "kimi-k2.6" : undefined;
 
     const engine = new Engine({
       projectRoot,
@@ -2916,7 +2916,7 @@ async function executeForge(
     if (engine.providers.size === 0) {
       return {
         name: "forge_pipeline",
-        content: "Error: No LLM provider available. Run 'foreman login' or 'foreman setup' first.",
+        content: "Error: No LLM provider available. Run 'foreman login', 'foreman login cursor', or 'foreman setup' first.",
         isError: true,
       };
     }

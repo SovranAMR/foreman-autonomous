@@ -38,10 +38,12 @@ export const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   "gemini-ultra": 1_048_576,
   "gemini-3.1-pro": 1_048_576,
   "gemini-3.1-pro-high": 1_048_576,
-  // Kimi / Moonshot
-  "kimi-k2.5": 131_072,
-  "kimi-k2-thinking": 131_072,
-  "kimi-k2-thinking-turbo": 131_072,
+  // Kimi / Moonshot — K2.5/K2.6 provide 256K context windows (per platform docs)
+  "kimi-k2.6": 262_144,
+  "kimi-k2.6-instant": 262_144,
+  "kimi-k2.5": 262_144,
+  "kimi-k2-thinking": 262_144,
+  "kimi-k2-thinking-turbo": 262_144,
   "moonshot-v1-128k": 131_072,
   // Note: kimi-k2.5-thinking does not exist; use kimi-k2-thinking for thinking capability
 };

@@ -122,6 +122,8 @@ export const MODEL_COSTS: Record<string, ModelPricing> = {
   "deepseek-reasoner": { input: 0.55, output: 2.19, cacheRead: 0.14, cacheWrite: 0 },
 
   // Kimi / Moonshot
+  "kimi-k2.6": { input: 0.80, output: 3.20, cacheRead: 0.20, cacheWrite: 0 },
+  "kimi-k2.6-instant": { input: 0.80, output: 3.20, cacheRead: 0.20, cacheWrite: 0 },
   "kimi-k2.5": { input: 0.80, output: 3.20, cacheRead: 0.20, cacheWrite: 0 },
   "kimi-k2-thinking": { input: 0.80, output: 3.20, cacheRead: 0.20, cacheWrite: 0 },
   "kimi-k2-thinking-turbo": { input: 0.40, output: 1.60, cacheRead: 0.10, cacheWrite: 0 },

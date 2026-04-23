@@ -41,17 +41,17 @@ import { ThoughtManager } from "./thought-manager.js";
 import { ChainManager } from "./chain-manager.js";
 import { Engine } from "./engine.js";
 import { MockProvider } from "./provider.js";
-import { AnthropicProvider } from "./anthropic-provider.js";
-import { OpenAIProvider } from "./openai-provider.js";
-import { GeminiProvider } from "./gemini-provider.js";
 import { loginAntigravity } from "./antigravity-oauth.js";
-import { AntigravityProvider, loadCredentials, saveCredentials, getChatModels } from "./antigravity-provider.js";
+import { loadCredentials, saveCredentials, getChatModels } from "./antigravity-provider.js";
+import { bootstrapProviders } from "./provider-bootstrap.js";
+import { cursorApiGetMe, saveCursorApiKeyToConfig } from "./cursor-api.js";
 import { getCachedModels } from "./model-discovery.js";
 import { DEFAULT_LAYER_MODELS } from "./model-fallback.js";
 import { hasAnyProvider, runOnboarding } from "./onboarding.js";
 import { Orchestrator } from "./orchestrator.js";
 import { execSync } from "node:child_process";
 import { homedir } from "node:os";
+import { createInterface } from "node:readline";
 import {
   brand, icon, grad, printLogo, printForgeIntro, printForgeBanner,
   phaseHeader, thoughtLine, blockLine,
@@ -66,7 +66,8 @@ import {
   animateProgressStrike, startForgeSpinner, typeText,
 } from "./animations.js";
 import { startRepl } from "./repl.js";
-import { runSetup, getApiKey, printProviderStatus } from "./setup.js";
+import { runSetup, getCursorApiKey, printProviderStatus } from "./setup.js";
+import { loadKimiKey } from "./kimi-provider.js";
 import { TaskManager } from "./task-manager.js";
 import { ProjectManager } from "./project-manager.js";
 import { MemoryManager } from "./memory-manager.js";
@@ -205,26 +206,109 @@ program
     await runSetup();
   });
 
-// ─── LOGIN (Antigravity OAuth) ────────────────────────────────
+// ─── LOGIN (Google Antigravity OAuth · Cursor API key) ─────────
+
+function promptLine(question: string): Promise<string> {
+  return new Promise(resolve => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(question, answer => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
 
 program
-  .command("login")
-  .description("Authenticate with Google Antigravity OAuth")
-  .action(async () => {
+  .command("login [mode]")
+  .description("antigravity|google (default): browser OAuth · cursor: Dashboard key · kimi|moonshot: Kimi K2.6 key")
+  .option("--force", "Force Google / Antigravity re-authentication")
+  .action(async (mode: string | undefined, opts: { force?: boolean }) => {
+    // Commander 13: (arg..., optionsFromOpts, command) — we only need parsed options
+    const force = opts?.force ?? false;
+    const m = mode?.toLowerCase();
+
+    if (m === "kimi" || m === "moonshot") {
+      printLogo();
+      console.log("");
+      console.log(`    ${brand.gold("⚒")} ${brand.bold("Moonshot / Kimi K2.6 API key")}`);
+      console.log(`    ${brand.dim("Get a key:")} ${brand.cyan("https://platform.moonshot.ai/console/api-keys")}`);
+      console.log(`    ${brand.dim("Env var:")} ${brand.cyan("KIMI_API_KEY")} ${brand.dim("or")} ${brand.cyan("MOONSHOT_API_KEY")}`);
+      console.log("");
+      const { saveKimiKey, KimiProvider } = await import("./kimi-provider.js");
+      const key = await promptLine(`    ${brand.cyan("Kimi API key:")} `);
+      if (!key) {
+        console.log(`    ${icon.warn} ${brand.dim("Aborted.")}`);
+        return;
+      }
+      process.stdout.write(`    ${brand.dim("Validating against kimi-k2.6...")}`);
+      try {
+        const provider = new KimiProvider(key);
+        await provider.generate(
+          [{ role: "user", content: "Say OK" }],
+          { model: "kimi-k2.6", maxTokens: 16 },
+        );
+        saveKimiKey(key);
+        process.stdout.write(`\r    ${icon.done} ${brand.green("Kimi key validated and saved")}                \n`);
+        console.log(`    ${brand.dim("Saved to:")} ${brand.dim("~/.foreman/kimi-key")}`);
+        console.log("");
+      } catch (err: any) {
+        const msg = err?.message?.slice(0, 120) ?? "unknown error";
+        process.stdout.write(`\r    ${icon.fail} ${brand.red("Validation failed:")} ${brand.dim(msg)}\n`);
+        const save = await promptLine(`    ${brand.cyan("Save anyway? (y/N):")} `);
+        if (save.toLowerCase() === "y") {
+          saveKimiKey(key);
+          console.log(`    ${icon.done} ${brand.green("Saved")} ${brand.dim("(unvalidated)")}`);
+        } else {
+          console.log(`    ${brand.dim("Discarded.")}`);
+        }
+      }
+      return;
+    }
+
+    if (m === "cursor") {
+      printLogo();
+      console.log("");
+      console.log(`    ${brand.dim("Cursor IDE gibi tarayıcı OAuth yok; Dashboard API key gerekir.")}`);
+      console.log(`    ${brand.dim("Docs:")} ${brand.cyan("https://cursor.com/docs/api")}`);
+      console.log(`    ${brand.dim("Optional:")} ${brand.cyan("FOREMAN_PREFER_CURSOR_SDK=1")} ${brand.dim("registers Cursor before Antigravity.")}`);
+      console.log("");
+      const key = await promptLine(`    ${brand.cyan("Cursor API key:")} `);
+      if (!key) {
+        console.log(`    ${icon.warn} ${brand.dim("Aborted.")}`);
+        return;
+      }
+      try {
+        const me = await cursorApiGetMe(key);
+        saveCursorApiKeyToConfig(key);
+        console.log(`    ${icon.done} ${brand.green("Saved to ~/.foreman/config.json")}`);
+        if (me.userEmail) console.log(`    ${brand.dim("Account:")} ${me.userEmail}`);
+        if (me.apiKeyName) console.log(`    ${brand.dim("Key:")} ${me.apiKeyName}`);
+        console.log("");
+      } catch (err: any) {
+        console.log(`    ${icon.fail} ${brand.red(err.message ?? String(err))}`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    if (m && m !== "google" && m !== "antigravity") {
+      console.log(`    ${icon.fail} ${brand.red(`Unknown mode "${mode}". Use: foreman login | foreman login antigravity | foreman login cursor | foreman login kimi`)}`);
+      process.exit(1);
+    }
+
     printLogo();
 
     const existingCreds = loadCredentials();
-    if (existingCreds && Date.now() < existingCreds.expiresAt) {
+    if (existingCreds && Date.now() < existingCreds.expiresAt && !force) {
       console.log(`    ${icon.done} ${brand.green("Already authenticated!")}`);
       console.log(`    ${brand.dim("Email:")} ${existingCreds.email ?? "?"}`);
       console.log(`    ${brand.dim("Project:")} ${existingCreds.projectId}`);
       console.log(`    ${brand.dim("Expires:")} ${new Date(existingCreds.expiresAt).toLocaleString()}`);
       console.log("");
-      console.log(`    ${brand.dim("To re-authenticate:")} ${brand.cyan("foreman login --force")}`);
+      console.log(`    ${brand.dim("To re-authenticate:")} ${brand.cyan("foreman login google --force")}`);
       console.log("");
 
-      const args = process.argv;
-      if (!args.includes("--force")) return;
+      return;
     }
 
     try {
@@ -232,6 +316,7 @@ program
       saveCredentials(creds);
       console.log(`    ${icon.done} ${brand.green("Credentials saved!")}`);
       console.log(`    ${brand.dim("You can now use")} ${brand.cyan("foreman run")} ${brand.dim("with Antigravity models.")}`);
+      console.log(`    ${brand.dim("Cursor SDK:")} ${brand.cyan("foreman login cursor")}`);
       console.log("");
     } catch (err: any) {
       console.log(`    ${icon.fail} ${brand.red(err.message)}`);
@@ -274,15 +359,26 @@ program
     console.log("");
     printProviderStatus();
 
+    // Kimi / Moonshot
+    const kimiKey = loadKimiKey();
+    doctorItem(!!kimiKey, `Kimi K2.6 key`, kimiKey
+      ? `${kimiKey.slice(0, 6)}…${kimiKey.slice(-4)}`
+      : "foreman login kimi");
+
+    const cursorKey = getCursorApiKey();
+    doctorItem(!!cursorKey, `Cursor API key`, cursorKey
+      ? `${cursorKey.slice(0, 8)}… (SDK)`
+      : "foreman login cursor");
+
     // Antigravity OAuth
     const antigravCreds = loadCredentials();
     if (antigravCreds) {
       const expired = Date.now() >= antigravCreds.expiresAt;
       doctorItem(!expired, `Antigravity OAuth`, expired
-        ? `expired — foreman login`
+        ? `expired — foreman login google`
         : `${antigravCreds.email ?? "?"} (expires ${new Date(antigravCreds.expiresAt).toLocaleTimeString()})`);
     } else {
-      doctorItem(false, `Antigravity OAuth`, "run foreman login to authenticate");
+      doctorItem(false, `Antigravity OAuth`, "run foreman login google");
     }
 
     // Available models
@@ -465,7 +561,7 @@ program
     const engine = new Engine({
       projectRoot,
       projectName: "foreman",
-      model: "kimi-k2.5",  // Forge pipeline uses Kimi
+      model: "kimi-k2.6",  // Forge pipeline uses Kimi K2.6
     });
 
     // Register providers
@@ -473,7 +569,7 @@ program
       const mock = new MockProvider("I need more context. Please clarify the task.");
       engine.providers.register({
         name: "mock",
-        supportedModels: ["mock-model", "kimi-k2.5", "gemini-3.1-pro-high", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro"],
+        supportedModels: ["mock-model", "composer-2", "cursor-composer-2", "kimi-k2.6", "kimi-k2.6-instant", "kimi-k2.5", "gemini-3.1-pro-high", "claude-opus", "claude-sonnet", "gpt-4o", "gpt-4o-mini", "gemini-flash", "gemini-pro"],
         generate: mock.generate.bind(mock),
       });
       console.log(`  ${icon.warn} ${brand.gold("Mock provider active")}\n`);
@@ -485,78 +581,26 @@ program
         if (!success) {
           console.log("");
           console.log(`    ${icon.fail} ${brand.red("Setup could not be completed.")}`);
-          console.log(`    ${brand.cyan("foreman login")} — Google Antigravity OAuth (recommended)`);
+          console.log(`    ${brand.cyan("foreman login")} — Google Antigravity OAuth`);
+          console.log(`    ${brand.cyan("foreman login cursor")} — Cursor API key (@cursor/february)`);
           console.log(`    ${brand.cyan("foreman setup")} — configure with API key`);
           console.log(`    ${brand.dim("--mock")} — test mode`);
           process.exit(1);
         }
       }
 
-      // Get key from config or env var
-      const anthropicKey = getApiKey("anthropic");
-      const openaiKey = getApiKey("openai");
+      bootstrapProviders(engine);
 
-      if (anthropicKey) {
-        try {
-          const anthropic = new AnthropicProvider(anthropicKey);
-          engine.providers.register(anthropic);
-          console.log(`  ${icon.done} Anthropic ${brand.dim("(Claude)")}`);
-        } catch (e: any) {
-          console.log(`  ${icon.fail} Anthropic: ${brand.dim(e.message)}`);
-        }
-      }
-
-      if (openaiKey) {
-        try {
-          const openai = new OpenAIProvider(openaiKey);
-          engine.providers.register(openai);
-          console.log(`  ${icon.done} OpenAI ${brand.dim("(GPT)")}`);
-        } catch (e: any) {
-          console.log(`  ${icon.fail} OpenAI: ${brand.dim(e.message)}`);
-        }
-      }
-
-      const googleKey = getApiKey("google");
-      if (googleKey) {
-        try {
-          const gemini = new GeminiProvider(googleKey);
-          engine.providers.register(gemini);
-          console.log(`  ${icon.done} Google ${brand.dim("(Gemini API Key)")}`);
-        } catch (e: any) {
-          console.log(`  ${icon.fail} Google: ${brand.dim(e.message)}`);
-        }
-      }
-
-      // Antigravity OAuth credentials
-      const antigravCreds = loadCredentials();
-      if (antigravCreds) {
-        try {
-          const antigrav = new AntigravityProvider(antigravCreds);
-          engine.providers.register(antigrav);
-          console.log(`  ${icon.done} Antigravity ${brand.dim(`(${antigravCreds.email ?? "OAuth"})`)}`);
-        } catch (e: any) {
-          console.log(`  ${icon.fail} Antigravity: ${brand.dim(e.message)}`);
-        }
-      }
-
-      // Kimi provider (used by forge pipeline as primary model)
-      try {
-        const { KimiProvider, loadKimiKey } = await import("./kimi-provider.js");
-        const kimiKey = loadKimiKey();
-        if (kimiKey) {
-          const kimi = new KimiProvider(kimiKey);
-          engine.providers.register(kimi);
-          console.log(`  ${icon.done} Kimi ${brand.dim("(K2.5 — forge pipeline)")}`);
-        }
-      } catch (e: any) {
-        console.log(`  ${icon.fail} Kimi: ${brand.dim(e.message)}`);
+      for (const p of engine.providers.listProviders()) {
+        console.log(`  ${icon.done} Provider ${brand.dim(p.name)}`);
       }
 
       if (engine.providers.size === 0) {
         console.log("");
         console.log(`  ${icon.fail} ${brand.red("No LLM provider found.")}`);
-        console.log(`     ${brand.cyan("foreman login")} — Google Antigravity OAuth (free, recommended)`);
-        console.log(`     ${brand.cyan("foreman setup")} — configure with API key (Anthropic/OpenAI/Google)`);
+        console.log(`     ${brand.cyan("foreman login")} — Google Antigravity OAuth`);
+        console.log(`     ${brand.cyan("foreman login cursor")} — Cursor API key (Composer-2 via SDK)`);
+        console.log(`     ${brand.cyan("foreman setup")} — API keys (Anthropic/OpenAI/Google)`);
         console.log(`     or use the ${brand.dim("--mock")} flag for testing.`);
         process.exit(1);
       }
