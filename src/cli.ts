@@ -24,13 +24,32 @@
  *   foreman internals providers   — provider status
  */
 
-// Global error handlers — prevent silent crashes
+// Global error handlers — prevent silent crashes + salvage transient network errors.
+// Transient network faults (fetch failed, ECONNRESET, terminated, …) can leak
+// past Engine.withNetworkRetry if they fire inside a Node undici microtask
+// with no catch on the promise chain. Instead of letting them crash a 1h+
+// pipeline run, we log+swallow them so the inner retry / orchestrator error
+// handling can converge. Everything else (TypeError, syntax error, assertion
+// failure, …) still exits — those indicate a real bug.
+const TRANSIENT_NET_RE = /fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket hang up|\bterminated\b|network timeout|EAI_AGAIN|stream was reset/i;
+
 process.on("uncaughtException", (err) => {
-  console.error(`[foreman] Uncaught exception:`, err.message);
+  const msg = err?.message ?? String(err);
+  if (TRANSIENT_NET_RE.test(msg)) {
+    console.error(`[foreman] transient network error caught globally: ${msg.slice(0, 120)} — continuing`);
+    return;
+  }
+  console.error(`[foreman] Uncaught exception:`, err?.message ?? err);
+  if (err?.stack) console.error(err.stack.split("\n").slice(0, 10).join("\n"));
   process.exit(1);
 });
 process.on("unhandledRejection", (reason) => {
-  console.error(`[foreman] Unhandled rejection:`, reason instanceof Error ? reason.message : String(reason));
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  if (TRANSIENT_NET_RE.test(msg)) {
+    console.error(`[foreman] transient network rejection caught globally: ${msg.slice(0, 120)} — continuing`);
+    return;
+  }
+  console.error(`[foreman] Unhandled rejection:`, msg);
 });
 
 import { Command } from "commander";
@@ -548,7 +567,8 @@ program
   .description("Run a task through the full pipeline")
   .option("-m, --mock", "Use mock provider (test)")
   .option("-d, --dir <path>", "Project directory")
-  .action(async (task: string, opts: { mock?: boolean; dir?: string }) => {
+  .option("--resume", "Resume from the last pipeline checkpoint (skip completed work)")
+  .action(async (task: string, opts: { mock?: boolean; dir?: string; resume?: boolean }) => {
     const projectRoot = resolve(opts.dir ?? process.cwd());
 
     printForgeIntro();
@@ -652,7 +672,7 @@ program
     });
 
     try {
-      const result = await orchestrator.run(task);
+      const result = await orchestrator.run(task, { resume: !!opts.resume });
       if (!result.success) {
         if (process.stdout.isTTY) {
           await animateCompletion(false);
