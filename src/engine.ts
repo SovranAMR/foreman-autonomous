@@ -208,6 +208,69 @@ export class Engine {
   };
 
   /**
+   * Transient network errors that should NEVER crash the pipeline.
+   * Seen in production: Kimi API occasionally returns `TypeError: fetch failed`
+   * (undici), ECONNRESET, ETIMEDOUT, socket hang up — all recoverable with a
+   * short backoff. These are NOT 4xx/5xx status codes; those go through the
+   * model fallback chain separately.
+   */
+  private static readonly TRANSIENT_NETWORK_PATTERNS: RegExp[] = [
+    /fetch failed/i,
+    /ECONNRESET/i,
+    /ECONNREFUSED/i,
+    /ETIMEDOUT/i,
+    /socket hang up/i,
+    /network timeout/i,
+    /EAI_AGAIN/i,
+    /\bterminated\b/i, // undici's "other side closed" error
+    /aborted/i,
+    /stream was reset/i,
+    /connect\s*ECONNABORTED/i,
+  ];
+
+  private isTransientNetworkError(err: unknown): boolean {
+    if (!err) return false;
+    const msg = err instanceof Error ? err.message : String(err);
+    // Don't treat HTTP 4xx/5xx as transient — those are handled elsewhere.
+    if (/\b(4\d\d|5\d\d)\b/.test(msg) && !/50[234]/.test(msg)) return false;
+    return Engine.TRANSIENT_NETWORK_PATTERNS.some((re) => re.test(msg));
+  }
+
+  /**
+   * Wrap a call with 3-attempt exponential backoff for transient network
+   * errors (Katman 0 — Transport Resilience). Does NOT retry logical errors
+   * (4xx, validation failures, etc.). If every attempt hits the network,
+   * rethrows the last error so the caller (orchestrator) can decide.
+   */
+  private async withNetworkRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+    const backoffs = [5000, 15000, 45000];
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < backoffs.length; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        if (!this.isTransientNetworkError(err)) {
+          // Not a network hiccup — let the caller handle it (e.g. model
+          // fallback chain, validation retry).
+          throw err;
+        }
+        const wait = backoffs[attempt];
+        const msg = err instanceof Error ? err.message.slice(0, 60) : String(err).slice(0, 60);
+        console.warn(
+          `[engine] transient network error on ${label}: "${msg}" — backoff ${wait / 1000}s ` +
+          `(attempt ${attempt + 1}/${backoffs.length})`,
+        );
+        try { this.streaming.warning(`[net] ${label}: ${msg} — retry in ${wait / 1000}s`); } catch { /* streaming might not be ready */ }
+        if (attempt < backoffs.length - 1) {
+          await new Promise((r) => setTimeout(r, wait));
+        }
+      }
+    }
+    throw lastErr;
+  }
+
+  /**
    * Expand `~`, `$HOME` and resolve the given project root to an absolute
    * path. Single source of truth so Engine, tools.ts::executeForge, and
    * MessagingGateway all produce identical paths.
@@ -484,7 +547,10 @@ export class Engine {
         onFallback: () => { /* logging hook */ },
       });
 
-    let fallbackResult = await doCall(systemPrompt, userPrompt, maxTokens, temperature);
+    let fallbackResult = await this.withNetworkRetry(
+      () => doCall(systemPrompt, userPrompt, maxTokens, temperature),
+      `callLLM[${layer}]`,
+    );
     let result = fallbackResult.result;
 
     // Empty-response resilience: Kimi-k2.6 thinking can burn budget on long
@@ -503,11 +569,14 @@ export class Engine {
         `retrying with maxTokens=${retryMaxTokens}, temperature=${(temperature - 0.05).toFixed(2)}`,
       );
       try {
-        fallbackResult = await doCall(
-          systemPrompt,
-          retryUserPrompt,
-          retryMaxTokens,
-          Math.max(temperature - 0.05, 0.3),
+        fallbackResult = await this.withNetworkRetry(
+          () => doCall(
+            systemPrompt,
+            retryUserPrompt,
+            retryMaxTokens,
+            Math.max(temperature - 0.05, 0.3),
+          ),
+          `callLLM[${layer}]:empty-retry`,
         );
         if (fallbackResult.result.text && fallbackResult.result.text.trim().length > 0) {
           result = fallbackResult.result;
@@ -1429,14 +1498,20 @@ export class Engine {
         lastToolError = err;
         const msg = err instanceof Error ? err.message : String(err);
         const is429 = /429|rate.?limit|too.?many/i.test(msg);
-        const isTransient = /503|529|overload|unavail|timeout|ECONNRESET/i.test(msg);
+        const isUpstream5xx = /503|529|overload|unavail/i.test(msg);
+        // Katman 0: include fetch failed, ECONNRESET, terminated, socket hang up, etc.
+        const isTransientNet = this.isTransientNetworkError(err);
 
-        if ((is429 || isTransient) && attempt < MAX_TOOL_RETRIES - 1) {
-          // Exponential backoff: 20s, 40s, 60s, 60s for 429
+        if ((is429 || isUpstream5xx || isTransientNet) && attempt < MAX_TOOL_RETRIES - 1) {
+          // Exponential backoff:
+          //   429        → 20s, 40s, 60s, 60s
+          //   5xx/net    → 5s, 10s, 20s, 30s
           const waitMs = is429
             ? Math.min(20000 * Math.pow(2, attempt), 60000)
             : Math.min(5000 * Math.pow(2, attempt), 30000);
-          console.log(`  [engine] callLLMWithTools: ${is429 ? "429" : "transient"} error, retry ${attempt + 1}/${MAX_TOOL_RETRIES} in ${waitMs / 1000}s`);
+          const kind = is429 ? "429" : isTransientNet ? "net" : "5xx";
+          console.log(`  [engine] callLLMWithTools: ${kind} error "${msg.slice(0, 50)}", retry ${attempt + 1}/${MAX_TOOL_RETRIES} in ${waitMs / 1000}s`);
+          try { this.streaming.warning(`[net] tool-call ${kind}: ${msg.slice(0, 40)} — retry in ${waitMs / 1000}s`); } catch { /* streaming optional */ }
           await new Promise(r => setTimeout(r, waitMs));
           continue;
         }
