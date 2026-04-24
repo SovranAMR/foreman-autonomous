@@ -792,6 +792,32 @@ export interface ForemanState {
 
   /** Last update time */
   lastUpdatedAt: string;
+
+  /**
+   * Atoms that failed permanently during the main pipeline run (after
+   * full retry + rescue attempts). Populated by the orchestrator and
+   * processed in the end-of-pipeline RECOVERY phase (Katman 3).
+   */
+  recoveryQueue?: FailedAtom[];
+}
+
+/**
+ * A permanently-failed atom — carries enough context so the
+ * end-of-pipeline RECOVERY phase can decide whether to re-batch it.
+ */
+export interface FailedAtom {
+  /** Human-readable atom description. */
+  atom: string;
+  /** Source block index (0-based) where this atom originated. */
+  blockIndex: number;
+  /** Atom index within its source block (0-based). */
+  atomIndex: number;
+  /** Short reason the atom could not be completed. */
+  reason: string;
+  /** Origin: primary retry loop, rescue mini-split, or re_decompose. */
+  stage: "primary" | "rescue" | "re_decompose";
+  /** ISO timestamp when this failure was recorded. */
+  at: string;
 }
 
 // ─── ENGINE TYPES ─────────────────────────────────────────────

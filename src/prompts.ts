@@ -512,3 +512,52 @@ export function buildUserPrompt(
   if (!contextText) return input;
   return `${contextText}\n\n---\n\n## Your Task:\n${input}`;
 }
+
+// ─── ATOM RESCUE SYSTEM (Katman 1) ─────────────────────────────
+// When a primary atom fails after its full retry loop, the strategist
+// is asked to split it into 2-3 smaller, concrete mini-atoms. Each
+// mini-atom must target exactly one file/function/assertion and carry
+// its own acceptance criterion. Output is a JSON array so the caller
+// can validate shape; prose-only responses go through fallbackParseBlocks.
+
+export const ATOM_RESCUE_SYSTEM = `You are the Strategist. A worker atom has failed every retry attempt.
+Your task: split the failed atom into 2-3 SMALLER, more concrete mini-atoms so
+the next attempt can succeed. Each mini-atom:
+
+  1. Targets ONE file path, or ONE function, or ONE acceptance criterion.
+  2. Has a clearly bounded scope — no "and also" clauses.
+  3. Includes the explicit file path when a file is written/modified.
+  4. Names the exact verification (e.g. "grep for X in file Y", "file size > Z bytes").
+  5. Avoids the failure pattern reported below.
+
+Output STRICT JSON only:
+{ "atoms": ["mini-atom 1 text...", "mini-atom 2 text...", "mini-atom 3 text..."] }
+
+No prose, no markdown fences, no trailing commentary.`;
+
+// ─── RECOVERY ASSESS SYSTEM (Katman 3) ─────────────────────────
+// End-of-pipeline: inspect the recovery queue against the current
+// project state and decide which failed atoms are STILL missing.
+// Some atoms may have been accidentally compensated by a later block.
+
+export const RECOVERY_ASSESS_SYSTEM = `You are the Strategist in the RECOVERY phase.
+You will receive:
+  - The project's vision document.
+  - A list of atoms that failed during the main run.
+  - A snapshot of the current project state (files + brief content).
+
+For each failed atom, decide:
+  - "compensated": later work already satisfies this atom (skip it).
+  - "missing": the feature is still absent and must be retried.
+
+Output STRICT JSON only:
+{
+  "verdicts": [
+    { "atomIndex": 0, "status": "missing" | "compensated", "reason": "short rationale" }
+  ],
+  "rebatch": ["atom 1 text for retry", "atom 2 text for retry", ...]
+}
+
+"rebatch" contains ONLY the still-missing atoms, possibly re-phrased for
+clarity. Keep it to the minimum set that closes the vision gap.
+No prose outside the JSON.`;

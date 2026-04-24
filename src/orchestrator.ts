@@ -29,6 +29,7 @@ import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
 import { getActiveThoughts } from "./chain-repair.js";
 import { validateReasoning, validateOutput, validateConfidence, validateWorkerProtocol, validateProtocolSteps } from "./validators.js";
 import { quickReviewCheck, buildReviewPrompt, parseReviewResponse, REVIEWER_SYSTEM_PROMPT } from "./reviewer-gate.js";
+import { RECOVERY_ASSESS_SYSTEM } from "./prompts.js";
 import type { ReviewResult } from "./reviewer-gate.js";
 import { shouldCompact, compactLocal } from "./compaction-engine.js";
 import type { ConversationMessage } from "./compaction-engine.js";
@@ -1533,9 +1534,23 @@ ${visionOutput}`,
             type: "error",
             message: `Atom ${j + 1} failed after ${this.MAX_ATOM_RETRIES} attempts: ${lastRejectionFeedback.slice(0, 100)}`,
           });
-          this.engine.streaming.error(`❌ Atom ${j + 1} failed after ${this.MAX_ATOM_RETRIES} retries — skipping`);
+          this.engine.streaming.error(`❌ Atom ${j + 1} failed after ${this.MAX_ATOM_RETRIES} retries — queued for recovery`);
           blockFailedAtoms++;
           atomFailureReasons.push({ atom, reason: lastRejectionFeedback }); // F-7: collect failure
+
+          // Katman 3: queue the failed atom for end-of-pipeline recovery
+          try {
+            this.engine.state.pushRecovery({
+              atom: typeof atom === "string" ? atom.slice(0, 500) : String(atom).slice(0, 500),
+              blockIndex: i,
+              atomIndex: j,
+              reason: lastRejectionFeedback.slice(0, 300),
+              stage: "primary",
+              at: new Date().toISOString(),
+            });
+          } catch (e) {
+            console.warn("[forge] pushRecovery failed:", (e as Error)?.message);
+          }
           continue; // skip to next atom in outer loop
         }
 
@@ -2184,11 +2199,24 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
 
                 // ─── RE-ATOM RETRY EXHAUSTED ───
                 if (!reAtomPassed) {
-                  this.engine.streaming.error(`[RE] ❌ Re-atom ${rj + 1} failed after ${this.MAX_ATOM_RETRIES} retries — skipping`);
+                  this.engine.streaming.error(`[RE] ❌ Re-atom ${rj + 1} failed after ${this.MAX_ATOM_RETRIES} retries — queued for recovery`);
                   this.emit({
                     type: "error",
                     message: `[RE] Re-atom ${rj + 1} failed after ${this.MAX_ATOM_RETRIES} attempts: ${reLastRejection.slice(0, 100)}`,
                   });
+                  // Katman 3: queue failed re-decompose atom for recovery
+                  try {
+                    this.engine.state.pushRecovery({
+                      atom: typeof reAtom === "string" ? reAtom.slice(0, 500) : String(reAtom).slice(0, 500),
+                      blockIndex: i,
+                      atomIndex: rj,
+                      reason: reLastRejection.slice(0, 300),
+                      stage: "re_decompose",
+                      at: new Date().toISOString(),
+                    });
+                  } catch (e) {
+                    console.warn("[forge] pushRecovery (re_decompose) failed:", (e as Error)?.message);
+                  }
                 } else {
                   // ─── POST-REVIEW COMMIT (re-atom) ─────────────────
                   // Commit AFTER reviewer gate passes so reviewer sees real diff.
@@ -2635,6 +2663,29 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
       // Final verification is best-effort
     }
 
+    // ─── KATMAN 3: END-OF-PIPELINE RECOVERY ─────────────────
+    // Process any atoms that failed permanently during main run.
+    // This runs BEFORE the complete transition so any recovered work
+    // is counted in the final state.
+    try {
+      const recoveryResult = await this.runRecoveryPhase(
+        visionOutput,
+        visionChain.id,
+        totalThoughts,
+      );
+      totalThoughts = recoveryResult.totalThoughts;
+      if (recoveryResult.recovered > 0) {
+        this.engine.streaming.toolResult(
+          "recovery",
+          true,
+          `🩹 Recovery salvaged ${recoveryResult.recovered} atom(s)`,
+        );
+      }
+    } catch (recErr) {
+      console.warn("[forge] recovery phase failed:", (recErr as Error)?.message);
+      // Recovery is best-effort — never block pipeline completion
+    }
+
     if (this.engine.state.canTransition("complete")) {
       this.engine.state.transition("complete", "Pipeline complete");
     }
@@ -2845,6 +2896,174 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     }
 
     return blocks.length > 0 ? blocks : [text.trim()];
+  }
+
+  /**
+   * Katman 3 — END-OF-PIPELINE RECOVERY.
+   *
+   * Walks the recovery queue, asks the strategist which atoms remain
+   * genuinely missing, and re-executes the survivors with a simplified
+   * worker loop (single attempt, post-hoc extraction). The goal is to
+   * salvage work from failed atoms without blocking the pipeline's
+   * successful completion.
+   *
+   * Returns the number of recovered atoms and updated totalThoughts.
+   */
+  private async runRecoveryPhase(
+    visionOutput: string,
+    visionChainId: string,
+    totalThoughts: number,
+  ): Promise<{ recovered: number; totalThoughts: number }> {
+    const queue = this.engine.state.getRecoveryQueue();
+    if (queue.length === 0) {
+      return { recovered: 0, totalThoughts };
+    }
+
+    this.emit({
+      type: "phase_start",
+      phase: "recovery",
+      detail: `${queue.length} failed atom(s) queued — assessing`,
+    });
+    this.engine.streaming.phaseStart?.("recovery", `${queue.length} failed atom(s)`);
+
+    // ─── PROJECT STATE SNAPSHOT ──────────────────────────────
+    let snapshot = "";
+    try {
+      const { execSync } = await import("node:child_process");
+      const raw = execSync(
+        "find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/.foreman/*' -not -path '*/dist/*' -not -path '*/.next/*' 2>/dev/null | head -60",
+        { cwd: this.engine.config.projectRoot, encoding: "utf8" },
+      );
+      snapshot = raw.split("\n").filter((l) => l.trim()).slice(0, 60).join("\n");
+    } catch { /* snapshot best-effort */ }
+
+    // ─── ASSESS via Strategist ───────────────────────────────
+    const failedList = queue
+      .map((f, idx) =>
+        `${idx}. [block ${f.blockIndex + 1}, atom ${f.atomIndex + 1}, stage=${f.stage}]\n   atom: ${f.atom.slice(0, 240)}\n   reason: ${f.reason.slice(0, 180)}`,
+      )
+      .join("\n\n");
+
+    const assessUser =
+      `## Vision (truncated)\n${visionOutput.slice(0, 1200)}\n\n` +
+      `## Current project files\n${snapshot || "(snapshot unavailable)"}\n\n` +
+      `## Failed atoms\n${failedList}`;
+
+    let rebatch: string[] = [];
+    try {
+      const assessResult = await this.engine.callLLM(
+        RECOVERY_ASSESS_SYSTEM,
+        assessUser,
+        "strategist",
+      );
+      totalThoughts++;
+      const raw = assessResult.text ?? "";
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          const parsed = JSON.parse(match[0]) as { rebatch?: unknown };
+          if (Array.isArray(parsed.rebatch)) {
+            rebatch = (parsed.rebatch as unknown[])
+              .filter((x): x is string => typeof x === "string" && x.trim().length > 3)
+              .slice(0, 6);
+          }
+        } catch { /* fall through to fallback */ }
+      }
+      // Fallback: if parse failed, take the original failed-atom texts directly.
+      if (rebatch.length === 0) {
+        rebatch = queue.slice(0, 6).map((f) => f.atom);
+      }
+    } catch (err) {
+      console.warn("[recovery] assess LLM failed:", (err as Error)?.message);
+      rebatch = queue.slice(0, 6).map((f) => f.atom);
+    }
+
+    if (rebatch.length === 0) {
+      this.engine.streaming.phaseEnd?.("recovery", "no missing atoms");
+      this.engine.state.clearRecoveryQueue();
+      this.emit({ type: "phase_end", phase: "recovery", detail: "queue resolved" });
+      return { recovered: 0, totalThoughts };
+    }
+
+    this.engine.streaming.phaseEnd?.("recovery", `rebatched ${rebatch.length}`);
+    this.emit({ type: "phase_end", phase: "recovery_assess", detail: `${rebatch.length} atom(s) to retry` });
+
+    // ─── RE-EXECUTE each rebatched atom (simplified loop) ────
+    let recovered = 0;
+    for (let k = 0; k < rebatch.length; k++) {
+      const atomText = rebatch[k];
+      this.engine.streaming.phaseStart?.("recovery_execute", `atom ${k + 1}/${rebatch.length}`);
+      try {
+        const execResult = await this.engine.stepWithPhase(
+          visionChainId,
+          `RECOVERY atom (${k + 1}/${rebatch.length}). The primary pipeline could not complete this. Execute it now with full tool calls.\n\n` +
+          `## Vision context (truncated)\n${visionOutput.slice(0, 600)}\n\n` +
+          `## Atom\n${atomText}\n\n` +
+          `Rules:\n- Use real tools (write_file, edit_file, run_command).\n- Produce a verifiable artifact (file changes, or test output).\n- Fill the 8-step worker protocol honestly.`,
+          "worker",
+          "execute",
+        );
+        totalThoughts++;
+
+        const protocol = execResult.thought.workerProtocol;
+        if (protocol && needsExecution(protocol)) {
+          const ops = extractOperations(protocol);
+          if (ops.length > 0) {
+            try {
+              const summary = await executeOperations(
+                ops,
+                this.engine.exec,
+                this.engine.editEngine,
+                this.engine.config.projectRoot,
+                {
+                  hooks: this.engine.hooks,
+                  interactive: this.engine.interactive,
+                  streaming: this.engine.streaming,
+                },
+              );
+              if (summary.succeeded > 0) {
+                recovered++;
+                this.emit({
+                  type: "verification",
+                  phase: "recovery_execute",
+                  passed: true,
+                  detail: `Recovery atom ${k + 1}: ${summary.succeeded} op(s) succeeded`,
+                });
+              } else {
+                this.emit({
+                  type: "verification",
+                  phase: "recovery_execute",
+                  passed: false,
+                  detail: `Recovery atom ${k + 1}: no ops succeeded`,
+                });
+              }
+            } catch (execErr) {
+              this.emit({
+                type: "error",
+                message: `Recovery atom ${k + 1} execution failed: ${execErr instanceof Error ? execErr.message : String(execErr)}`,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        this.emit({
+          type: "error",
+          message: `Recovery atom ${k + 1} LLM step failed: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      }
+      this.engine.streaming.phaseEnd?.("recovery_execute", `atom ${k + 1} done`);
+    }
+
+    this.emit({
+      type: "phase_end",
+      phase: "recovery",
+      detail: `Recovered ${recovered}/${rebatch.length} atom(s)`,
+    });
+
+    // Clear queue regardless — one recovery pass is the MVP contract.
+    this.engine.state.clearRecoveryQueue();
+
+    return { recovered, totalThoughts };
   }
 
   /**
