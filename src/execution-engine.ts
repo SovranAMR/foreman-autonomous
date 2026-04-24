@@ -27,7 +27,8 @@ import {
   statSync,
   unlinkSync,
 } from "node:fs";
-import { join, dirname, relative } from "node:path";
+import { join, dirname, relative, resolve as resolvePath } from "node:path";
+import { homedir } from "node:os";
 import { execSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { ProcessRegistry, createSessionId } from "./process-registry.js";
@@ -209,9 +210,21 @@ const SUDO_PATTERNS = ["sudo ", "su -c", "doas "];
 
 export class ExecutionEngine {
   private projectRoot: string;
+  /**
+   * Absolute roots the engine is allowed to touch. Defaults to [projectRoot];
+   * callers that need sibling repo access (e.g. Forge scaffolding multiple
+   * projects under ~/projects) pass an explicit wider list.
+   */
+  private allowedRoots: string[];
   /** File patterns with write permission (security) */
   private allowedPaths: string[];
-  /** Denied file patterns */
+  /**
+   * Denied path components / patterns.
+   * - bare names ("node_modules", "id_rsa") are matched as whole path components
+   *   so foo/node_modules/bar.txt is blocked but "moduleloader.ts" is not.
+   * - values with "/" are matched as suffix substrings of the absolute path.
+   * - values starting with "*" are suffix matchers (e.g. "*.pem").
+   */
   private deniedPaths: string[] = [
     "node_modules",
     ".git/objects",
@@ -239,12 +252,47 @@ export class ExecutionEngine {
   /** Command queue for async serialization */
   private commandQueue: CommandQueue | null = null;
 
-  constructor(projectRoot: string, allowedPaths?: string[]) {
-    this.projectRoot = projectRoot;
+  constructor(
+    projectRoot: string,
+    allowedPaths?: string[],
+    allowedRoots?: string[],
+  ) {
+    this.projectRoot = ExecutionEngine.expandAndResolve(projectRoot);
     this.allowedPaths = allowedPaths ?? [
       "src", "public", "components", "lib", "app", "pages",
       "styles", "test", "tests", "__tests__", "scripts", "docs",
     ];
+    const rawRoots = allowedRoots && allowedRoots.length > 0
+      ? allowedRoots
+      : [this.projectRoot];
+    this.allowedRoots = Array.from(
+      new Set(rawRoots.map((r) => ExecutionEngine.expandAndResolve(r))),
+    );
+  }
+
+  /**
+   * Expand `~`, `$HOME`/`${HOME}` and resolve to an absolute path.
+   * Kept static so normalization logic is reusable (tests, tools.ts, engine.ts).
+   */
+  static expandAndResolve(p: string): string {
+    if (!p || typeof p !== "string") {
+      throw new Error(`Invalid path: ${String(p)}`);
+    }
+    if (p.includes("\0")) {
+      throw new Error(`Path contains null byte: rejected`);
+    }
+    let expanded = p;
+    if (expanded === "~") {
+      expanded = homedir();
+    } else if (expanded.startsWith("~/")) {
+      expanded = join(homedir(), expanded.slice(2));
+    } else if (expanded.startsWith("~")) {
+      throw new Error(`Unsupported tilde form (only "~" or "~/..." allowed): ${p}`);
+    }
+    expanded = expanded
+      .replace(/\$\{HOME\}/g, homedir())
+      .replace(/(^|[^\\])\$HOME/g, (_m, pre) => `${pre}${homedir()}`);
+    return resolvePath(expanded);
   }
 
   /**
@@ -274,29 +322,68 @@ export class ExecutionEngine {
   // ─── PATH SECURITY ──────────────────────────────────────
 
   /**
-   * Path security check — prevent escaping outside projectRoot.
+   * Path security check — expand tilde/$HOME, resolve absolute, and verify the
+   * result stays inside one of the explicitly allowed roots. Also blocks
+   * component-level denied names so substring bypasses (e.g. "node_modules2")
+   * are impossible.
    */
   private securePath(filePath: string): string {
-    // Null byte injection protection
+    if (filePath === undefined || filePath === null || filePath === "") {
+      throw new Error(`Empty path: rejected`);
+    }
     if (filePath.includes("\0")) {
       throw new Error(`Path contains null byte: rejected`);
     }
 
-    const resolved = filePath.startsWith("/")
-      ? filePath
-      : join(this.projectRoot, filePath);
+    // 1) Expand tilde / $HOME first (do NOT pre-join with projectRoot, or a
+    //    "~/foo" will be misread as "<projectRoot>/~/foo" — the exact bug that
+    //    caused the bot to scaffold into foreman/~/projects/…).
+    let expanded = filePath;
+    if (expanded === "~") {
+      expanded = homedir();
+    } else if (expanded.startsWith("~/")) {
+      expanded = join(homedir(), expanded.slice(2));
+    } else if (expanded.startsWith("~")) {
+      throw new Error(`Unsupported tilde form (only "~" or "~/..." allowed): ${filePath}`);
+    }
+    expanded = expanded
+      .replace(/\$\{HOME\}/g, homedir())
+      .replace(/(^|[^\\])\$HOME/g, (_m, pre) => `${pre}${homedir()}`);
 
-    const rel = relative(this.projectRoot, resolved);
-    if (rel.startsWith("..") || rel.startsWith("/")) {
-      throw new Error(`Path traversal denied: ${filePath} resolves outside project root`);
+    // 2) Resolve to an absolute path, relative paths anchor on projectRoot.
+    const resolved = expanded.startsWith("/")
+      ? resolvePath(expanded)
+      : resolvePath(this.projectRoot, expanded);
+
+    // 3) Must stay inside at least one allowed root.
+    const inAllowed = this.allowedRoots.some((root) => {
+      if (resolved === root) return true;
+      const rel = relative(root, resolved);
+      return rel !== "" && !rel.startsWith("..") && !rel.startsWith("/");
+    });
+    if (!inAllowed) {
+      throw new Error(
+        `Path denied: ${filePath} → ${resolved} is outside allowed roots ` +
+        `[${this.allowedRoots.join(", ")}]`,
+      );
     }
 
+    // 4) Denied-path check on absolute resolved path.
+    const parts = resolved.split("/").filter(Boolean);
     for (const denied of this.deniedPaths) {
       if (denied.startsWith("*")) {
         if (resolved.endsWith(denied.slice(1))) {
           throw new Error(`Access denied: ${filePath} matches denied pattern ${denied}`);
         }
-      } else if (rel.includes(denied)) {
+        continue;
+      }
+      if (denied.includes("/")) {
+        if (resolved.includes(`/${denied}`)) {
+          throw new Error(`Access denied: ${filePath} is in denied path ${denied}`);
+        }
+        continue;
+      }
+      if (parts.includes(denied)) {
         throw new Error(`Access denied: ${filePath} is in denied path ${denied}`);
       }
     }

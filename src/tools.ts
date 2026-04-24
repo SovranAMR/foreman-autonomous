@@ -1054,14 +1054,24 @@ Returns a summary of what was done.`,
 /**
  * Creates a tool executor bound to a project root via ExecutionEngine.
  * All file operations go through the engine's security checks.
+ *
+ * `allowedRoots` widens the filesystem sandbox beyond just projectRoot —
+ * needed so Forge can scaffold sibling repos under ~/projects without
+ * leaving the security model. Defaults to `[projectRoot, ~/projects]`.
  */
-export function createToolExecutor(projectRoot: string): (call: ToolCall) => Promise<ToolResult> {
-  const engine = new ExecutionEngine(projectRoot);
+export function createToolExecutor(
+  projectRoot: string,
+  allowedRoots?: string[],
+): (call: ToolCall) => Promise<ToolResult> {
+  const resolvedRoot = ExecutionEngine.expandAndResolve(projectRoot);
+  const defaultRoots = [resolvedRoot, join(homedir(), "projects")];
+  const roots = allowedRoots && allowedRoots.length > 0 ? allowedRoots : defaultRoots;
+  const engine = new ExecutionEngine(resolvedRoot, undefined, roots);
   const editEngine = new EditEngine();
   const gitEngine = new GitEngine(engine);
   const linkIntel = new LinkIntelligence();
 
-  return createToolDispatcher(projectRoot, engine, editEngine, gitEngine, linkIntel);
+  return createToolDispatcher(resolvedRoot, engine, editEngine, gitEngine, linkIntel);
 }
 
 /**
@@ -2891,13 +2901,19 @@ async function executeForge(
       };
     }
 
-    const projectRoot = (args.project_root as string) || defaultProjectRoot;
-
-    // Dynamic import to avoid circular dependency
+    // Normalize project_root: expand ~ / $HOME, resolve to absolute. The
+    // raw LLM-provided string often looks like "~/projects/dassystems-website"
+    // or "./foo" — if passed straight to `new Engine(...)` the state manager
+    // will happily create nested directories like "foreman/~/projects/…".
     const { Engine } = await import("./engine.js");
     const { Orchestrator } = await import("./orchestrator.js");
     const { basename } = await import("node:path");
     const { loadKimiKey: loadKimi } = await import("./kimi-provider.js");
+
+    const rawProjectRoot = (args.project_root as string) || defaultProjectRoot;
+    const projectRoot = Engine.normalizeProjectRoot(
+      rawProjectRoot && rawProjectRoot.trim().length > 0 ? rawProjectRoot : defaultProjectRoot,
+    );
 
     // Use Kimi model if API key is configured
     const kimiKey = loadKimi();

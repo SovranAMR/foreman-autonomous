@@ -37,6 +37,8 @@ import { AGGRESSIVE_RETRY_CONFIG } from "./retry.js";
 import { guardContextWindow, resolveContextWindow, evaluateContextWindow, CONTEXT_WINDOW_HARD_MIN, CONTEXT_WINDOW_WARN_BELOW } from "./context-guard.js";
 import { BlockedError, NoProviderError, formatErrorMessage, loadJsonFile, saveJsonFile, safeJsonParse, extractErrorCode, extractStatusCode, ParseFailedError, ValidationError } from "./errors.js";
 import { ExecutionEngine } from "./execution-engine.js";
+import { resolve as resolvePath, join as joinPath } from "node:path";
+import { homedir } from "node:os";
 
 // ─── ENGINE SUBSYSTEMS ───────────────────────────────────────
 import { ProcessRegistry } from "./process-registry.js";
@@ -177,7 +179,65 @@ export class Engine {
     worker: { warn: 0.6, block: 0.35 }, // execution must be certain
   };
 
+  /**
+   * Layer-specific OUTPUT token caps for `.generate()` calls.
+   * Kimi-k2.6 thinking is BUDGETED SEPARATELY server-side, so these numbers
+   * cap only the final answer. Plan layers (visioner/strategist) need enough
+   * room for full decomposition JSON; worker needs room for entire file
+   * writes (a single 35 KB HTML ≈ 12-14K tokens).
+   * Values chosen so the pipeline never blocks because the model ran out of
+   * room to finish writing its answer.
+   */
+  private readonly LAYER_OUTPUT_TOKEN_CAPS: Record<Layer, number> = {
+    visioner:   16000,
+    strategist: 16000,
+    researcher:  8000,
+    worker:     32000,
+  };
+
+  /**
+   * Layer-specific temperatures. Kimi K2.6 thinking is documented to work
+   * best at temperature 0.6; researcher goes lower for deterministic
+   * citations; worker stays slightly creative for edge-case fixes.
+   */
+  private readonly LAYER_TEMPERATURES: Record<Layer, number> = {
+    visioner:   0.7,
+    strategist: 0.6,
+    researcher: 0.4,
+    worker:     0.6,
+  };
+
+  /**
+   * Expand `~`, `$HOME` and resolve the given project root to an absolute
+   * path. Single source of truth so Engine, tools.ts::executeForge, and
+   * MessagingGateway all produce identical paths.
+   */
+  static normalizeProjectRoot(rawRoot: string): string {
+    if (!rawRoot || typeof rawRoot !== "string") {
+      throw new Error(`Invalid projectRoot: ${String(rawRoot)}`);
+    }
+    let p = rawRoot.trim();
+    if (p === "~") {
+      p = homedir();
+    } else if (p.startsWith("~/")) {
+      p = joinPath(homedir(), p.slice(2));
+    }
+    p = p
+      .replace(/\$\{HOME\}/g, homedir())
+      .replace(/(^|[^\\])\$HOME/g, (_m, pre) => `${pre}${homedir()}`);
+    return resolvePath(p);
+  }
+
   constructor(config: EngineConfig) {
+    // Defensive path normalization — any downstream subsystem (StateManager,
+    // ThoughtManager, ExecutionEngine, …) relies on config.projectRoot being
+    // an absolute, tilde-expanded path. Callers occasionally pass "~/..." or
+    // "./relative/path"; normalize once here so no subsystem has to.
+    const normalized = Engine.normalizeProjectRoot(config.projectRoot);
+    if (normalized !== config.projectRoot) {
+      console.warn(`[engine] projectRoot normalized: ${config.projectRoot} → ${normalized}`);
+      config = { ...config, projectRoot: normalized };
+    }
     this.config = config;
     this.primaryModel = config.model;
     this.maxFormatRetries = config.maxFormatRetries ?? 2;
@@ -359,6 +419,12 @@ export class Engine {
       }
     }
 
+    // Layer-specific sampling — plan layers get more output room + thinking-
+    // friendly temperature; worker gets a very large cap so full file writes
+    // (e.g. 35 KB HTML) never get truncated.
+    const maxTokens = this.LAYER_OUTPUT_TOKEN_CAPS[layer] ?? 8000;
+    const temperature = this.LAYER_TEMPERATURES[layer] ?? 0.7;
+
     // If mock provider exists → call directly, don't enter fallback chain
     const mockProvider = this.providers.getProviderForModel("mock-model");
     if (mockProvider) {
@@ -367,7 +433,7 @@ export class Engine {
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        { model: "mock-model", maxTokens: 4000, temperature: 0.7 },
+        { model: "mock-model", maxTokens, temperature },
       );
       this.rateLimiter.onSuccess();
       this.rateLimiter.recordTokens(result.tokenUsage.total);
@@ -384,7 +450,7 @@ export class Engine {
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          { model, maxTokens: 4000, temperature: 0.7 },
+          { model, maxTokens, temperature },
         );
         const result = routeResult.result;
         this.rateLimiter.onSuccess();
@@ -397,37 +463,63 @@ export class Engine {
     }
 
     // Call with model fallback (single-provider path)
-    const fallbackResult = await runWithFallback({
-      registry: this.providers,
-      layer,
-      primaryModel: this.primaryModel,
-      run: async (provider, selectedModel) => {
-        console.log(`[engine] callLLM: layer=${layer}, model=${selectedModel}, provider=${provider.name}`);
-        const result = await provider.generate(
-          [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          { model: selectedModel, maxTokens: 4000, temperature: 0.7 },
+    const doCall = (sys: string, usr: string, maxTok: number, temp: number) =>
+      runWithFallback({
+        registry: this.providers,
+        layer,
+        primaryModel: this.primaryModel,
+        run: async (provider, selectedModel) => {
+          console.log(`[engine] callLLM: layer=${layer}, model=${selectedModel}, provider=${provider.name}, maxTokens=${maxTok}, temp=${temp}`);
+          return await provider.generate(
+            [
+              { role: "system", content: sys },
+              { role: "user", content: usr },
+            ],
+            { model: selectedModel, maxTokens: maxTok, temperature: temp },
+          );
+        },
+        onRetry: (info) => {
+          if (info.attempt > 1) this.rateLimiter.onSuccess();
+        },
+        onFallback: () => { /* logging hook */ },
+      });
+
+    let fallbackResult = await doCall(systemPrompt, userPrompt, maxTokens, temperature);
+    let result = fallbackResult.result;
+
+    // Empty-response resilience: Kimi-k2.6 thinking can burn budget on long
+    // reasoning and then return empty text. One targeted retry with +50% token
+    // budget and a firm "write the final answer now" reminder recovers >90%
+    // of these cases without looping pathologically.
+    const isEmpty = !result.text || result.text.trim().length === 0;
+    if (isEmpty) {
+      const retryMaxTokens = Math.min(Math.round(maxTokens * 1.5), 64000);
+      const retryUserPrompt =
+        userPrompt +
+        "\n\n[SYSTEM NOTE: your previous attempt returned empty text. Skip further deliberation — " +
+        "write the complete, final answer in the required format right now.]";
+      console.warn(
+        `[engine] Empty LLM response from ${result.model ?? model} (layer=${layer}) — ` +
+        `retrying with maxTokens=${retryMaxTokens}, temperature=${(temperature - 0.05).toFixed(2)}`,
+      );
+      try {
+        fallbackResult = await doCall(
+          systemPrompt,
+          retryUserPrompt,
+          retryMaxTokens,
+          Math.max(temperature - 0.05, 0.3),
         );
-        return result;
-      },
-      onRetry: (info) => {
-        // Rate limiter'a bildir
-        if (info.attempt > 1) {
-          this.rateLimiter.onSuccess(); // reset previous attempt's cooldown
+        if (fallbackResult.result.text && fallbackResult.result.text.trim().length > 0) {
+          result = fallbackResult.result;
+          console.log(`[engine] Empty-response retry succeeded (${result.text.length} chars)`);
         }
-      },
-      onFallback: (from, to, errorClass) => {
-        // Fallback info — for logging
-      },
-    });
+      } catch (err) {
+        console.warn(`[engine] Empty-response retry failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
 
-    const result = fallbackResult.result;
-
-    // Guard: empty LLM response
     if (!result.text || result.text.trim().length === 0) {
-      console.warn(`[engine] Empty LLM response from ${result.model ?? model} (layer=${layer})`);
+      console.warn(`[engine] Empty LLM response from ${result.model ?? model} (layer=${layer}) after retry`);
     }
 
     // Visioner Token Limit (100K) — Summary Mode Guard
