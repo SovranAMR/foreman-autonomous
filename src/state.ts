@@ -230,6 +230,41 @@ export class StateManager {
     return this.state.history.slice(-n);
   }
 
+  // ─── RECOVERY QUEUE (Katman 3) ────────────────────────────
+
+  /**
+   * Push a failed atom onto the recovery queue. Deduped by (blockIndex,
+   * atomIndex, stage) so repeated rescue attempts don't bloat the queue.
+   */
+  pushRecovery(failed: import("./types.js").FailedAtom): void {
+    const queue = this.state.recoveryQueue ?? [];
+    const dup = queue.some(
+      (q) => q.blockIndex === failed.blockIndex
+        && q.atomIndex === failed.atomIndex
+        && q.stage === failed.stage,
+    );
+    if (dup) return;
+    queue.push(failed);
+    this.state.recoveryQueue = queue;
+    if (this.autoPersist) this.save();
+  }
+
+  /**
+   * Return the current recovery queue (empty array if none).
+   */
+  getRecoveryQueue(): readonly import("./types.js").FailedAtom[] {
+    return this.state.recoveryQueue ?? [];
+  }
+
+  /**
+   * Wipe the recovery queue — called after the RECOVERY phase
+   * successfully resolves all outstanding items.
+   */
+  clearRecoveryQueue(): void {
+    this.state.recoveryQueue = [];
+    if (this.autoPersist) this.save();
+  }
+
   // ─── PERSISTENCE ──────────────────────────────────────────
 
   /**
