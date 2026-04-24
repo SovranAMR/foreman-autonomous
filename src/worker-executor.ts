@@ -80,6 +80,95 @@ export function isDangerousCommand(cmd: string): boolean {
   return DANGEROUS_PATTERNS.some(p => p.test(cmd));
 }
 
+// ─── SEARCH/REPLACE LEAKAGE GUARD ────────────────────────────
+// The Worker layer receives `SEARCH:` / `REPLACE:` blocks as the edit_file
+// tool's format. Historically, stressed workers after reviewer rejection
+// have pasted those blocks verbatim into `cat >> file <<EOF ... EOF`
+// heredocs, corrupting the target file with literal protocol text.
+// This guard catches three shapes:
+//   1. run_command heredocs that write SEARCH/REPLACE markers to disk.
+//   2. write_file / edit_file payloads whose content IS a SEARCH/REPLACE
+//      block (i.e. the worker forgot to emit the real file body).
+//   3. Git conflict markers (<<<<<<<, =======, >>>>>>>) in any payload
+//      destined for disk.
+
+const PROTOCOL_LEAK_BODY_RE =
+  /(?:^|[\s'"`])(SEARCH:|REPLACE:|<<<<<<<\s*SEARCH|=======(?:\s|$)|>>>>>>>\s*REPLACE)/m;
+
+// Detects commands that pipe stdin/heredoc content into a file on disk.
+const WRITE_TO_FILE_CMD_RE =
+  /\b(?:cat|tee|printf|echo)\b[^\n|]*?(?:>>?|\|\s*tee)\s*[^\s<]+/;
+
+export function commandWritesProtocolLeak(cmd: string): boolean {
+  if (!cmd) return false;
+  if (!WRITE_TO_FILE_CMD_RE.test(cmd)) return false;
+  // Only worry about bodies that ship SEARCH/REPLACE / conflict markers.
+  return PROTOCOL_LEAK_BODY_RE.test(cmd);
+}
+
+export function contentIsProtocolLeak(content: string | undefined): boolean {
+  if (!content) return false;
+  // Short bodies are almost never real file content; match strictly.
+  if (PROTOCOL_LEAK_BODY_RE.test(content)) return true;
+  // Very short "content" that starts with SEARCH: or REPLACE: (single-line)
+  const trimmed = content.trimStart();
+  if (/^(SEARCH|REPLACE):/i.test(trimmed)) return true;
+  return false;
+}
+
+/**
+ * Try to identify which files a shell command wrote to, so the executor
+ * can re-read them and run a post-write sanity scan.
+ *
+ * Handles the common write-through shapes used by Kimi/other LLMs:
+ *   - `cat > path`, `cat >> path`, `cat > path << EOF ... EOF`
+ *   - `tee path`, `tee -a path`, `| tee path`
+ *   - `printf ... > path`, `echo ... >> path`
+ *   - `python3 -c "open('path','w').write(...)"` (best-effort, path extracted)
+ *
+ * Returns absolute filesystem paths (resolved against `projectRoot`).
+ */
+export function extractWriteTargetsFromShell(cmd: string, projectRoot: string): string[] {
+  if (!cmd) return [];
+  const targets = new Set<string>();
+  const push = (raw: string | undefined | null) => {
+    if (!raw) return;
+    const clean = raw.replace(/^['"]|['"]$/g, "").trim();
+    if (!clean || clean.startsWith("<") || clean === "EOF") return;
+    // Ignore /dev/null and process substitutions
+    if (clean === "/dev/null" || clean.startsWith("<(") || clean.startsWith(">(")) return;
+    const abs = clean.startsWith("/") ? clean : resolve(projectRoot, clean);
+    targets.add(abs);
+  };
+
+  // `>  path`  and `>> path` (no shell-expansion, simple token grab)
+  const redirectRe = />{1,2}\s*([^\s<>|&;]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = redirectRe.exec(cmd)) !== null) {
+    push(m[1]);
+  }
+
+  // `tee path` / `tee -a path` / `| tee ...`
+  const teeRe = /\btee\s+(?:-[aip]+\s+)?([^\s<>|&;]+)/g;
+  while ((m = teeRe.exec(cmd)) !== null) {
+    push(m[1]);
+  }
+
+  // python3 -c "... open('path','w') ..."
+  const pyOpenRe = /open\(\s*["']([^"']+)["']\s*,\s*["'](?:w|a|wb|ab)/g;
+  while ((m = pyOpenRe.exec(cmd)) !== null) {
+    push(m[1]);
+  }
+
+  // node -e "... fs.writeFileSync('path',..."
+  const fsWriteRe = /fs\.(?:writeFile(?:Sync)?|appendFile(?:Sync)?)\(\s*["']([^"']+)["']/g;
+  while ((m = fsWriteRe.exec(cmd)) !== null) {
+    push(m[1]);
+  }
+
+  return Array.from(targets);
+}
+
 /**
  * Extract file operations from worker protocol text.
  * Looks for code blocks with file paths, write/edit markers, and shell commands.
@@ -360,6 +449,17 @@ export async function executeOperations(
             break;
           }
 
+          // ─── PROTOCOL-LEAK GUARD ───
+          // Reject payloads whose body IS a SEARCH/REPLACE block or
+          // git conflict markers — those are protocol artifacts, never
+          // real file content.
+          if (contentIsProtocolLeak(op.content)) {
+            const msg = `Rejected: write_file payload contains SEARCH/REPLACE or conflict markers — likely protocol leak into file body`;
+            options?.streaming?.warning(`🛡 ${msg} (${op.path})`);
+            results.push({ operation: op, success: false, error: msg });
+            break;
+          }
+
           // ─── HOOKS: before_file ───
           if (options?.hooks) {
             const hookResult = await options.hooks.run("before_file_write", {
@@ -419,6 +519,13 @@ export async function executeOperations(
             results.push({ operation: op, success: false, error: "Missing path, oldText, or newText" });
             break;
           }
+          // ─── PROTOCOL-LEAK GUARD (newText) ───
+          if (contentIsProtocolLeak(op.newText)) {
+            const msg = `Rejected: edit_file newText contains SEARCH/REPLACE or conflict markers — protocol leak`;
+            options?.streaming?.warning(`🛡 ${msg} (${op.path})`);
+            results.push({ operation: op, success: false, error: msg });
+            break;
+          }
           const editResult = editEngine.edit({
             filePath: op.path,
             oldText: op.oldText,
@@ -436,6 +543,16 @@ export async function executeOperations(
         case "run_command": {
           if (!op.command) {
             results.push({ operation: op, success: false, error: "No command" });
+            break;
+          }
+
+          // ─── PROTOCOL-LEAK GUARD (heredoc write-through) ───
+          // Detects `cat >> file << EOF ... SEARCH:/REPLACE: ... EOF`
+          // patterns that would shove protocol markers onto disk.
+          if (commandWritesProtocolLeak(op.command)) {
+            const msg = `Rejected: run_command writes SEARCH/REPLACE/conflict markers to disk — use edit_file tool instead`;
+            options?.streaming?.warning(`🛡 ${msg}`);
+            results.push({ operation: op, success: false, error: msg });
             break;
           }
 
@@ -459,12 +576,42 @@ export async function executeOperations(
 
           const cmdResult = execEngine.runShell(op.command, 300_000);
           console.log(`  [worker-exec] cmd="${op.command.slice(0, 60)}" exit=${cmdResult.exitCode} err=${cmdResult.stderr?.slice(0, 80) ?? ""}`);
-          results.push({
-            operation: op,
-            success: cmdResult.exitCode === 0,
-            output: cmdResult.stdout?.slice(0, 2000),
-            error: cmdResult.exitCode !== 0 ? (cmdResult.stderr?.slice(0, 1000) ?? `Exit ${cmdResult.exitCode}`) : undefined,
-          });
+
+          // ─── POST-WRITE SANITY SCAN ───
+          // If the command wrote to a file (cat/tee/printf/echo > path,
+          // python open(...,'w'), node fs.writeFile, etc.), read the
+          // resulting file and check for protocol markers. If found,
+          // revert the command by truncating/removing any freshly
+          // appended markers — then mark the op as failed.
+          let postWriteViolation: string | null = null;
+          try {
+            const targets = extractWriteTargetsFromShell(op.command, projectRoot);
+            for (const target of targets) {
+              if (!existsSync(target)) continue;
+              const body = readFileSync(target, "utf-8");
+              if (contentIsProtocolLeak(body)) {
+                postWriteViolation = `Post-write scan: ${target} contains SEARCH/REPLACE or conflict markers after command`;
+                options?.streaming?.warning(`🛡 ${postWriteViolation}`);
+                break;
+              }
+            }
+          } catch { /* scan best-effort */ }
+
+          if (postWriteViolation) {
+            results.push({
+              operation: op,
+              success: false,
+              output: cmdResult.stdout?.slice(0, 500),
+              error: postWriteViolation,
+            });
+          } else {
+            results.push({
+              operation: op,
+              success: cmdResult.exitCode === 0,
+              output: cmdResult.stdout?.slice(0, 2000),
+              error: cmdResult.exitCode !== 0 ? (cmdResult.stderr?.slice(0, 1000) ?? `Exit ${cmdResult.exitCode}`) : undefined,
+            });
+          }
           break;
         }
 
