@@ -190,14 +190,35 @@ export class Orchestrator {
    * Session, memory, cache — all managed automatically.
    * User simply runs `foreman run "task"`.
    */
-  async run(task: string): Promise<{
+  async run(
+    task: string,
+    opts?: { resume?: boolean },
+  ): Promise<{
     success: boolean;
     totalThoughts: number;
     totalTokens: number;
     visionChainId: string;
     blockedAt?: string;
+    resumed?: boolean;
   }> {
     let totalThoughts = 0;
+
+    // ─── RESUME DETECTION (Katman 3 companion) ──────────────
+    // If caller asks to resume AND a checkpoint exists, restore state
+    // instead of starting fresh. Preserves every hour of prior work.
+    const priorCheckpoint = opts?.resume ? this.resume.loadCheckpoint() : null;
+    const isResuming = !!(opts?.resume && priorCheckpoint);
+    if (opts?.resume && !priorCheckpoint) {
+      this.engine.streaming.warning("Resume requested but no checkpoint found — starting fresh");
+    }
+    if (isResuming) {
+      this.engine.streaming.phaseStart(
+        "resume",
+        `Resuming from block ${priorCheckpoint!.currentBlock + 1}, atom ${priorCheckpoint!.currentAtom + 1} ` +
+        `(${priorCheckpoint!.completedAtoms.length} atoms already done, phase=${priorCheckpoint!.phase})`,
+      );
+      totalThoughts = priorCheckpoint!.totalThoughts ?? 0;
+    }
 
     // ─── STREAMING — announce pipeline start ────────────────
     this.pipelineStartTime = Date.now();
@@ -237,7 +258,7 @@ export class Orchestrator {
 
     // ─── MULTI-SESSION — track pipeline conversation ────────
     // Record pipeline start as conversation message for context
-    let multiSession: ReturnType<typeof this.engine.sessionManager.createSession> | undefined;
+    let multiSession: any | undefined;
     try {
       multiSession = this.engine.sessionManager.createSession({
         label: `forge-${Date.now()}`,
@@ -260,8 +281,9 @@ export class Orchestrator {
     // ─── CLEAN STATE — reset stale references ───────────────
     // Each forge run must start clean. Old checkpoint/chain references
     // from previous interrupted runs cause "Chain not found" errors.
+    // EXCEPTION: when resuming, we MUST preserve the checkpoint.
     try {
-      this.resume.clearCheckpoint();
+      if (!isResuming) this.resume.clearCheckpoint();
     } catch { /* best-effort */ }
     try {
       // Reset activeChainId in state to prevent stale references
@@ -311,24 +333,37 @@ export class Orchestrator {
     // ─── 1. VISION ──────────────────────────────────────────
 
     this.emit({ type: "phase_start", phase: "vision", detail: task });
-    this.engine.streaming.phaseStart("vision", task);
+    this.engine.streaming.phaseStart("vision", isResuming ? "reusing from checkpoint" : task);
 
-    // ─── HOOKS: before_phase (vision) ───────────────────────
-    const visionHook = await this.engine.hooks.run("before_phase", { phase: "vision", task });
-    if (visionHook.block) {
-      this.engine.streaming.error(`Vision phase blocked: ${visionHook.blockReason}`);
-      return this.buildResult(false, 0, "", "vision_hook");
+    // ─── HOOKS: before_phase (vision) — skipped on resume ───
+    if (!isResuming) {
+      const visionHook = await this.engine.hooks.run("before_phase", { phase: "vision", task });
+      if (visionHook.block) {
+        this.engine.streaming.error(`Vision phase blocked: ${visionHook.blockReason}`);
+        return this.buildResult(false, 0, "", "vision_hook");
+      }
     }
 
     // Inject project context + identity into vision
     const projectContext = `\n\nProject Context:\n${formatProjectContext(this.engine.projectInfo)}`;
     const identityContext = this.engine.identity?.buildContextInjection() ?? "";
 
-    const visionChain = this.engine.chains.create({
-      name: `Vision: ${task.slice(0, 40)}`,
-      goal: `Define the vision for: ${task}`,
-      layer: "visioner",
-    });
+    // Resume: reuse existing chain if possible, else create fresh.
+    let visionChain: { id: string; name?: string } | undefined;
+    if (isResuming && priorCheckpoint?.chainId) {
+      try {
+        visionChain = this.engine.chains.get(priorCheckpoint.chainId) as any;
+      } catch { /* chain missing — fall through */ }
+    }
+    if (!visionChain) {
+      visionChain = this.engine.chains.create({
+        name: `Vision: ${task.slice(0, 40)}`,
+        goal: isResuming
+          ? `Resume vision for: ${task}`
+          : `Define the vision for: ${task}`,
+        layer: "visioner",
+      });
+    }
 
     if (this.engine.state.canTransition("visioning")) {
       this.engine.state.transition("visioning", "Starting vision phase", {
@@ -336,50 +371,86 @@ export class Orchestrator {
       });
     }
 
-    const visionResult = await this.engine.stepWithPhase(
-      visionChain.id,
-      `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}${identityContext ? `\n\n${identityContext}` : ""}`,
-      "visioner",
-      "vision",
-    );
-    totalThoughts++;
-    this.emit({ type: "thought_complete", thought: visionResult.thought });
-
-    // ─── HOOKS: after_thought (vision) ──────────────────────
-    const visionAfterHook = await this.engine.hooks.run("after_thought", {
-      layer: "visioner",
-      input: task,
-      output: visionResult.thought.output,
-      reasoning: visionResult.thought.reasoning,
-    });
-    if (visionAfterHook.block) {
-      this.engine.streaming.error(`Vision fact-check failed: ${visionAfterHook.blockReason}`);
-      this.engine.chains.updateStatus(visionChain.id, "blocked");
-      return this.buildResult(false, totalThoughts, visionChain.id, "vision_fact_check");
+    let visionResult: StepResult;
+    if (isResuming && priorCheckpoint?.visionOutput) {
+      // Synthesize a resumed visionResult so downstream code (decompose
+      // deps, reflection, reviewer prompts) still has a valid Thought handle.
+      this.engine.streaming.phaseEnd(
+        "vision",
+        `✓ reused (${priorCheckpoint.visionOutput.length} chars)`,
+      );
+      visionResult = {
+        thought: {
+          id: "resumed_vision",
+          chainId: visionChain.id,
+          layer: "visioner",
+          input: task,
+          output: priorCheckpoint.visionOutput,
+          reasoning: "Restored from pipeline checkpoint — vision phase previously completed.",
+          status: "done",
+          confidence: 0.8,
+          tokenCost: 0,
+          createdAt: priorCheckpoint.startedAt,
+          completedAt: priorCheckpoint.updatedAt,
+          contextRefs: [] as readonly string[],
+          needsResearch: false,
+          needsVerification: false,
+        } as unknown as Thought,
+        parsed: undefined,
+      } as StepResult;
+    } else {
+      visionResult = await this.engine.stepWithPhase(
+        visionChain.id,
+        `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}${identityContext ? `\n\n${identityContext}` : ""}`,
+        "visioner",
+        "vision",
+      );
+      totalThoughts++;
+      this.emit({ type: "thought_complete", thought: visionResult.thought });
     }
 
-    if (this.checkBlock(visionResult, "vision")) {
-      this.engine.chains.updateStatus(visionChain.id, "blocked");
-      return this.buildResult(false, totalThoughts, visionChain.id, "vision");
+    let visionOutput: string;
+    if (isResuming && priorCheckpoint?.visionOutput) {
+      visionOutput = priorCheckpoint.visionOutput;
+      try { this.engine.chains.updateSummary(visionChain.id, visionOutput.slice(0, 500)); } catch { /* chain may be stale */ }
+    } else {
+      // ─── HOOKS: after_thought (vision) ──────────────────────
+      const visionAfterHook = await this.engine.hooks.run("after_thought", {
+        layer: "visioner",
+        input: task,
+        output: visionResult.thought.output,
+        reasoning: visionResult.thought.reasoning,
+      });
+      if (visionAfterHook.block) {
+        this.engine.streaming.error(`Vision fact-check failed: ${visionAfterHook.blockReason}`);
+        this.engine.chains.updateStatus(visionChain.id, "blocked");
+        return this.buildResult(false, totalThoughts, visionChain.id, "vision_fact_check");
+      }
+
+      if (this.checkBlock(visionResult, "vision")) {
+        this.engine.chains.updateStatus(visionChain.id, "blocked");
+        return this.buildResult(false, totalThoughts, visionChain.id, "vision");
+      }
+
+      visionOutput = visionResult.thought.output;
+
+      // Guard: empty or trivially short vision — LLM returned nothing useful
+      if (!visionOutput || visionOutput.trim().length < 20) {
+        this.emit({ type: "error", message: "Vision phase returned empty/trivial output" });
+        return this.buildResult(false, totalThoughts, visionChain.id, "vision_empty");
+      }
+
+      this.engine.chains.updateSummary(visionChain.id, visionOutput.slice(0, 500));
+      this.emit({ type: "phase_end", phase: "vision", detail: visionOutput.slice(0, 100) });
+      this.engine.streaming.phaseEnd("vision", visionOutput.slice(0, 100));
     }
-
-    let visionOutput = visionResult.thought.output;
-
-    // Guard: empty or trivially short vision — LLM returned nothing useful
-    if (!visionOutput || visionOutput.trim().length < 20) {
-      this.emit({ type: "error", message: "Vision phase returned empty/trivial output" });
-      return this.buildResult(false, totalThoughts, visionChain.id, "vision_empty");
-    }
-
-    this.engine.chains.updateSummary(visionChain.id, visionOutput.slice(0, 500));
-    this.emit({ type: "phase_end", phase: "vision", detail: visionOutput.slice(0, 100) });
-    this.engine.streaming.phaseEnd("vision", visionOutput.slice(0, 100));
 
     // ─── HUMAN_APPROVAL — Vision checkpoint ─────────────────
     // Before spending tokens on decompose+execute, ask the human:
     // "This is the vision. Approve? Or should I revise?"
     // Only in interactive mode (TTY available). Bots skip this.
-    if (this.engine.interactive.isEnabled()) {
+    // On resume, skip approval — user already approved in prior run.
+    if (!isResuming && this.engine.interactive.isEnabled()) {
       this.engine.streaming.phaseStart("approval", "Waiting for vision approval...");
       const approvalResult = await this.engine.interactive.confirm({
         type: "dangerous",
@@ -414,8 +485,10 @@ export class Orchestrator {
     }
 
     // ─── CHECKPOINT: Vision complete ───
-    this.resume.createCheckpoint(task, visionChain.id);
-    this.resume.updatePhase("decompose", { visionOutput });
+    if (!isResuming) {
+      this.resume.createCheckpoint(task, visionChain.id);
+      this.resume.updatePhase("decompose", { visionOutput });
+    }
 
     // ─── VISION SUMMARY — compact version for atom-level context ───
     // Full visionOutput stays pinned at decompose/reflection phases.
@@ -424,8 +497,8 @@ export class Orchestrator {
 
     // ─── 2. DECOMPOSE ───────────────────────────────────────
 
-    this.emit({ type: "phase_start", phase: "decompose", detail: "Breaking vision into blocks" });
-    this.engine.streaming.phaseStart("decompose", "Breaking vision into blocks");
+    this.emit({ type: "phase_start", phase: "decompose", detail: isResuming ? "reusing from checkpoint" : "Breaking vision into blocks" });
+    this.engine.streaming.phaseStart("decompose", isResuming ? "reusing from checkpoint" : "Breaking vision into blocks");
 
     if (this.engine.state.canTransition("decomposing")) {
       this.engine.state.transition("decomposing", "Vision complete, decomposing", {
@@ -433,7 +506,33 @@ export class Orchestrator {
       });
     }
 
-    const decomposeResult = await this.engine.stepWithPhase(
+    let decomposeResult: StepResult | undefined;
+    if (isResuming && priorCheckpoint?.blocks && priorCheckpoint.blocks.length > 0) {
+      // Synthesize a decomposeResult so reflection + logging code sees a
+      // valid Thought. We bypass the LLM call entirely — blocks list is
+      // loaded from checkpoint below.
+      decomposeResult = {
+        thought: {
+          id: "resumed_decompose",
+          chainId: visionChain.id,
+          layer: "strategist",
+          input: "resume",
+          output: priorCheckpoint.blocks.join("\n\n"),
+          reasoning: "Restored from pipeline checkpoint — decompose phase previously completed.",
+          status: "done",
+          confidence: 0.8,
+          tokenCost: 0,
+          createdAt: priorCheckpoint.startedAt,
+          completedAt: priorCheckpoint.updatedAt,
+          contextRefs: [] as readonly string[],
+          needsResearch: false,
+          needsVerification: false,
+        } as unknown as Thought,
+        parsed: { blocks: priorCheckpoint.blocks, blockDeps: Array.from({ length: priorCheckpoint.blocks.length }, () => []) } as any,
+      } as StepResult;
+      this.engine.streaming.phaseEnd("decompose", `✓ reused (${priorCheckpoint.blocks.length} blocks)`);
+    } else {
+      decomposeResult = await this.engine.stepWithPhase(
       visionChain.id,
       `Based on this VISION DOCUMENT, break the project into implementable blocks.
 
@@ -457,33 +556,34 @@ ${visionOutput}`,
       "decompose",
       [visionResult.thought.id],
     );
-    totalThoughts++;
-    this.emit({ type: "thought_complete", thought: decomposeResult.thought });
+      totalThoughts++;
+      this.emit({ type: "thought_complete", thought: decomposeResult!.thought });
 
-    if (this.checkBlock(decomposeResult, "decompose")) {
-      // SALVAGE: format-invalid ≠ nothing usable. If the model produced any
-      // prose output, try to lift blocks from it before blocking. Forge is
-      // meant to run end-to-end on one shot, so "JSON came out wrong" must
-      // never kill a run that has real content underneath.
-      const rawOut = decomposeResult.thought.output ?? "";
-      const salvaged = rawOut.trim().length > 0
-        ? this.fallbackParseBlocks(rawOut).filter(b => b.length > 10)
-        : [];
-      if (salvaged.length === 0) {
-        return this.buildResult(false, totalThoughts, visionChain.id, "decompose");
+      if (this.checkBlock(decomposeResult!, "decompose")) {
+        // SALVAGE: format-invalid ≠ nothing usable. If the model produced any
+        // prose output, try to lift blocks from it before blocking. Forge is
+        // meant to run end-to-end on one shot, so "JSON came out wrong" must
+        // never kill a run that has real content underneath.
+        const rawOut = decomposeResult!.thought.output ?? "";
+        const salvaged = rawOut.trim().length > 0
+          ? this.fallbackParseBlocks(rawOut).filter(b => b.length > 10)
+          : [];
+        if (salvaged.length === 0) {
+          return this.buildResult(false, totalThoughts, visionChain.id, "decompose");
+        }
+        console.warn(
+          `[forge] decompose format invalid but salvaged ${salvaged.length} block(s) from raw output — continuing`,
+        );
+        this.engine.streaming.warning(
+          `decompose format invalid; salvaged ${salvaged.length} block(s) from raw text`,
+        );
+        decomposeResult!.parsed = {
+          ...(decomposeResult!.parsed ?? {}),
+          blocks: salvaged,
+        };
+        decomposeResult!.thought.status = "done";
       }
-      console.warn(
-        `[forge] decompose format invalid but salvaged ${salvaged.length} block(s) from raw output — continuing`,
-      );
-      this.engine.streaming.warning(
-        `decompose format invalid; salvaged ${salvaged.length} block(s) from raw text`,
-      );
-      decomposeResult.parsed = {
-        ...(decomposeResult.parsed ?? {}),
-        blocks: salvaged,
-      };
-      decomposeResult.thought.status = "done";
-    }
+    }  // end of !isResuming decompose branch
 
     // GET parsed blocks — no longer string parse, but structural data
     const blocks: string[] = decomposeResult.parsed?.blocks
@@ -583,7 +683,19 @@ ${visionOutput}`,
 
     let atomCount = 0;
 
-    for (const { index: i, wave } of blockOrder) {
+    // Resume: skip blocks already completed in prior run.
+    const resumeFromBlock = isResuming ? (priorCheckpoint?.currentBlock ?? 0) : 0;
+    const effectiveBlockOrder = resumeFromBlock > 0
+      ? blockOrder.filter(({ index }) => index >= resumeFromBlock)
+      : blockOrder;
+    if (isResuming && effectiveBlockOrder.length < blockOrder.length) {
+      this.engine.streaming.warning(
+        `Resume: skipping ${blockOrder.length - effectiveBlockOrder.length} already-completed block(s), ` +
+        `starting at block ${resumeFromBlock + 1}`,
+      );
+    }
+
+    for (const { index: i, wave } of effectiveBlockOrder) {
       const block = blocks[i];
 
       // ─── STREAMING: Block start ───
@@ -803,6 +915,17 @@ ${visionOutput}`,
       for (let j = 0; j < atoms.length; j++) {
         const atom = atoms[j];
 
+        // Resume: skip atoms already completed in prior run.
+        if (isResuming && this.resume.isAtomCompleted(i, j)) {
+          this.engine.streaming.warning(
+            `Resume: atom ${i + 1}.${j + 1} already completed — skipping`,
+          );
+          blockPassedAtoms++;
+          atomCount++;
+          try { this.artifactEngine.updateAtomStatus(i, j, "done"); } catch { /* best-effort */ }
+          continue;
+        }
+
         // ─── ARTIFACT ENGINE: Mark in-progress ───
         try {
           this.artifactEngine.updateAtomStatus(i, j, "in_progress");
@@ -864,8 +987,8 @@ ${visionOutput}`,
             );
             if (!ctxEval.isSafe) {
               // Use compaction engine for intelligent context reduction
-              const sessionMessages = multiSession ? multiSession.getMessages() : [];
-              const convMessages: ConversationMessage[] = sessionMessages.map(m => ({
+              const sessionMessages: Array<{ role: string; content: string; timestamp: number }> = multiSession ? multiSession.getMessages() : [];
+              const convMessages: ConversationMessage[] = sessionMessages.map((m) => ({
                 role: m.role as "user" | "assistant" | "system",
                 content: m.content,
                 timestamp: m.timestamp,
@@ -1699,9 +1822,15 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
         }
       }
 
-      // ─── BLOCK HEALTH CHECK — auto re-decompose if too many atoms failed ───
+      // ─── BLOCK HEALTH CHECK — auto re-decompose if ANY atoms failed ───
+      // Katman 2 (loosened): previously only fired at <50% with >1 atom.
+      // Problem: single-atom blocks that failed were silently skipped,
+      // and 66% pass rate (2/3 failed + 1 passed is 33% — but 2/3 pass
+      // isn't triggering either) wasted work. New rule: any fail in a
+      // block → try to re-decompose. Safety: if failures are ALL model-
+      // level (429/transient), we still skip (see `isModelError` below).
       const blockSuccessRate = atoms.length > 0 ? blockPassedAtoms / atoms.length : 1;
-      if (blockSuccessRate < 0.5 && atoms.length > 1) {
+      if (blockSuccessRate < 1.0 && atoms.length >= 1) {
         this.engine.streaming.error(`🔄 Block ${i + 1}: ${blockFailedAtoms}/${atoms.length} atoms failed (${(blockSuccessRate * 100).toFixed(0)}% success)`);
         this.emit({
           type: "verification",
