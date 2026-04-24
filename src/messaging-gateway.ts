@@ -34,6 +34,8 @@ import { getNextFallbackModel } from "./model-fallback.js";
 import type { LLMProvider } from "./provider.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
+import { homedir } from "node:os";
+import { join as joinPath } from "node:path";
 import { EditEngine } from "./edit-engine.js";
 import { GitEngine } from "./git-engine.js";
 import { LinkIntelligence } from "./link-intelligence.js";
@@ -115,8 +117,16 @@ export class MessagingGateway {
       throw new Error("No API credentials. Run: foreman login kimi  (or)  foreman login");
     }
 
-    // Initialize tool executor with Engine subsystems
-    const execEngine = new ExecutionEngine(this.config.projectRoot);
+    // Initialize tool executor with Engine subsystems.
+    // allowedRoots includes ~/projects so the bot can legitimately work on
+    // sibling repos (dassystems-website, kobikom, …) — without it, any
+    // write to ~/projects/foo fails with "Path denied".
+    const userProjects = joinPath(homedir(), "projects");
+    const execEngine = new ExecutionEngine(
+      this.config.projectRoot,
+      undefined,
+      [this.config.projectRoot, userProjects],
+    );
     const editEngine = new EditEngine();
     const gitEngine = new GitEngine(execEngine);
     const linkIntel = new LinkIntelligence();
@@ -1368,11 +1378,55 @@ Rules:
             continue;
           }
 
-          // Sanitize: only keep text messages — tool call/response parts
-          // cause API 400 errors when replayed from persisted state
-          const sanitizedMessages = (data.messages ?? []).filter(
-            (m: any) => typeof m.content === "string" && m.content.trim()
-          );
+          // ─── Conversation history hygiene ────────────────────────
+          // We strip:
+          //  1. Non-string / empty content entries (they 400 the API).
+          //  2. Assistant messages whose ENTIRE body is the UI-echo tool
+          //     summary (e.g. "🔧 bash×24, browser_navigate×2 (9 error)").
+          //     These are a visual-only artifact the channel renderer adds;
+          //     feeding them back to the model makes it hallucinate that the
+          //     work already happened and refuse to re-engage ("Devam et" →
+          //     "iş tamam ✅" no-op pathology).
+          //  3. Leading "🔧 …\n\n" headers on assistant messages that *also*
+          //     contain real text — we strip the header and keep the rest.
+          const rawMessages = Array.isArray(data.messages) ? data.messages : [];
+          const toolEchoWholeRegex = /^\s*🔧[^\n]*(?:\n\s*🔧[^\n]*)*\s*$/;
+          const toolEchoHeaderRegex = /^🔧[^\n]*\n{1,2}/;
+
+          let droppedToolEchoes = 0;
+          let strippedHeaders = 0;
+          const sanitizedMessages: Array<{ role: string; content: string }> = [];
+
+          for (const m of rawMessages) {
+            if (typeof m?.content !== "string" || m.content.trim().length === 0) continue;
+            let text: string = m.content;
+            const role: string = m.role ?? "user";
+
+            if (role === "assistant") {
+              if (toolEchoWholeRegex.test(text.trim())) {
+                droppedToolEchoes++;
+                continue;
+              }
+              if (toolEchoHeaderRegex.test(text)) {
+                text = text.replace(toolEchoHeaderRegex, "").trimStart();
+                // also drop additional "🔧 ..." header lines that may follow
+                while (toolEchoHeaderRegex.test(text)) {
+                  text = text.replace(toolEchoHeaderRegex, "").trimStart();
+                }
+                strippedHeaders++;
+                if (text.trim().length === 0) continue;
+              }
+            }
+
+            sanitizedMessages.push({ role, content: text });
+          }
+
+          if (droppedToolEchoes > 0 || strippedHeaders > 0) {
+            console.log(
+              `[gateway] history hygiene on ${file}: dropped ${droppedToolEchoes} tool-echo message(s), ` +
+              `stripped header from ${strippedHeaders} message(s)`,
+            );
+          }
 
           const conv: ConversationState = {
             chatId: data.chatId,

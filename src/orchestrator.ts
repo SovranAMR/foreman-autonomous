@@ -461,7 +461,28 @@ ${visionOutput}`,
     this.emit({ type: "thought_complete", thought: decomposeResult.thought });
 
     if (this.checkBlock(decomposeResult, "decompose")) {
-      return this.buildResult(false, totalThoughts, visionChain.id, "decompose");
+      // SALVAGE: format-invalid ≠ nothing usable. If the model produced any
+      // prose output, try to lift blocks from it before blocking. Forge is
+      // meant to run end-to-end on one shot, so "JSON came out wrong" must
+      // never kill a run that has real content underneath.
+      const rawOut = decomposeResult.thought.output ?? "";
+      const salvaged = rawOut.trim().length > 0
+        ? this.fallbackParseBlocks(rawOut).filter(b => b.length > 10)
+        : [];
+      if (salvaged.length === 0) {
+        return this.buildResult(false, totalThoughts, visionChain.id, "decompose");
+      }
+      console.warn(
+        `[forge] decompose format invalid but salvaged ${salvaged.length} block(s) from raw output — continuing`,
+      );
+      this.engine.streaming.warning(
+        `decompose format invalid; salvaged ${salvaged.length} block(s) from raw text`,
+      );
+      decomposeResult.parsed = {
+        ...(decomposeResult.parsed ?? {}),
+        blocks: salvaged,
+      };
+      decomposeResult.thought.status = "done";
     }
 
     // GET parsed blocks — no longer string parse, but structural data
@@ -727,7 +748,27 @@ ${visionOutput}`,
       this.emit({ type: "thought_complete", thought: atomizeResult.thought });
 
       if (this.checkBlock(atomizeResult, "atomize")) {
-        return this.buildResult(false, totalThoughts, visionChain.id, `atomize_block_${i + 1}`);
+        // SALVAGE: same philosophy as decompose — if the model wrote usable
+        // text but missed the exact JSON shape, lift atoms from it instead of
+        // killing the pipeline.
+        const rawOut = atomizeResult.thought.output ?? "";
+        const salvaged = rawOut.trim().length > 0
+          ? this.fallbackParseBlocks(rawOut).filter(a => a.length > 10)
+          : [];
+        if (salvaged.length === 0) {
+          return this.buildResult(false, totalThoughts, visionChain.id, `atomize_block_${i + 1}`);
+        }
+        console.warn(
+          `[forge] atomize_block_${i + 1} format invalid but salvaged ${salvaged.length} atom(s) — continuing`,
+        );
+        this.engine.streaming.warning(
+          `atomize format invalid; salvaged ${salvaged.length} atom(s) from raw text`,
+        );
+        atomizeResult.parsed = {
+          ...(atomizeResult.parsed ?? {}),
+          atoms: salvaged,
+        };
+        atomizeResult.thought.status = "done";
       }
 
       // GET parsed atoms
