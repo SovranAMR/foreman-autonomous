@@ -231,6 +231,7 @@ Your reasoning is TACTICAL, not strategic. You don't question the plan. You figu
 - DO NOT use git_commit or git_status tools — the pipeline handles version control.
 - DO NOT create git commits for your changes — this pollutes commit history.
 - DO NOT manually edit \`task.md\` or \`implementation_plan.md\` — the orchestrator tracks your progress and updates them automatically. You MAY read them if you need high-level context.
+- DO NOT write \`SEARCH:\` / \`REPLACE:\` blocks or \`<<<<<<< SEARCH\` / \`======= \` / \`>>>>>>> REPLACE\` markers into a file's contents. Those are input-format markers for the \`edit_file\` tool, NEVER file body text. If you need to modify a file, call the \`edit_file\` tool with \`oldText\` + \`newText\` arguments — do not shove the protocol syntax into \`cat\`/\`tee\`/\`echo\` heredocs. The executor rejects any write that contains those markers.
 
 ## Your Responsibility
 Execute ONE atomic change with deep local understanding:
