@@ -1,43 +1,38 @@
 # Implementation Plan
 
 ## Goal
-Kullanıcıdan bir bilgi istendiğinde (örneğin bir ekran görüntüsü) ve bu bilgi gelmediğinde, akışı tamamen durdurmak yerine proaktif bir varsayımda bulunarak göreve devam etme yeteneği geliştir. Bu, görevin bağlamını analiz edip (örneğin, dosya yolları, hata mesajları), en olası senaryo üzerinden bir "sahte" veri üreterek Foreman'ın çalışmaya devam etmesini sağlamalıdır. Bu mekanizma, Foreman'ın daha otonom ve akıcı çalışmasını sağlayarak kullanıcı bekleme sürelerini ortadan kaldırmayı hedefler.
+Build a world-class corporate website for DAS Systems at public/index.html. Replace the existing file completely.
+
+Requirements:
+- Single-file HTML with inline CSS/JS — no external dependencies except Google Fonts, GSAP CDN, Lucide icons
+- Cinematic, industrial, premium aesthetic — black (#050505) + amber/gold (#D4A574) theme
+- Fonts: Playfair Display (headings) + Inter (body)
+- GSAP ScrollTrigger animations for section reveals
+- Canvas particle network background (connecting nodes, amber color)
+- NO team info, NO client references/logos, NO ads/small services mentioned
+- Target: factories, large enterprises, 300K-1M+ USD projects
+
+Sections:
+1. Hero: "Endüstriyel Geleceği Kodluyoruz" — large typography, particle canvas, CTAs
+2. Capabilities (4 cards): AI Güvenlik & Fiziksel İzleme (DASVision), Endüstriyel Otomasyon (Mace/PLC/SCADA), Özel Yazılım & Entegrasyon (Eyrice Genel Takip), Veri & Kognitif Sistemler (Foreman/OpenClaw/Kobikom)
+3. Technology Stack: 18 cells with icons — Next.js 16, React 19, TypeScript ESM, Python, C99/Vulkan, YOLO, ONNX, PostgreSQL, SQLite WAL, PocketBase, WebSocket, Docker, Railway, GSAP, Three.js, Tailwind v4, Framer Motion
+4. Process: 5-step Forge Pipeline (Vision → Strategy → Research → Execution → Verify)
+5. Contact: Minimal — email (ali@dassystems.com.tr), location (Bursa), direct CTA
+
+Meta: Schema.org Organization, OpenGraph, Twitter Card, canonical, theme-color
+SEO: Turkish language, proper meta tags, semantic HTML
+
+After creating the file: git add public/index.html, commit with proper message, push to origin main. Fix Railway deployment if needed (currently dassystems.com.tr shows old site).
 
 ## Vision
-**EMOTION TARGET**: Calculated Self-Reliance. The user should feel they are observing a senior, expert system that anticipates roadblocks and autonomously fabricates the necessary components to overcome them without breaking stride. It's not guessing; it's engineering a solution from first principles based on available data. The feeling is trust and awe in its ability to handle ambiguity intelligently.
-
-**FOCAL POINT**: The Assumption Declaration. In the execution trace (the primary UI), the focal point is the single, clear, machine-readable log entry that declares an assumption has been made. It is the critical "signal" that a non-standard event has occurred, and it must contain the what and the why. Example: `ASSUMPTION :: Synthesizing plausible file content for './src/app.test.js' based on sibling component API. Reason: User-requested screenshot of file content was not provided.`.
-
-**COLOR PHILOSOPHY**: This applies to log output styling, not a visual UI.
-1.  **Assumption Yellow (#FFD700 - Gold/Bold):** The `ASSUMPTION ::` prefix and its summary line. This color signifies a significant, non-standard but successful event. It is not an error (Red) or a warning (Orange). It is a declaration of intelligent adaptation.
-2.  **Synthesized Data Gray (#888888):** Any multi-line synthesized data (e.g., generated code, mock JSON) that is printed to the log should be in a muted gray. It is secondary information, the *result* of the assumption, not the event itself.
-3.  **Standard Execution White (#F9F9F9):** All other standard, successful log entries. This maintains the "pure signal" aesthetic.
-
-**MOTION BUDGET**: The only "motion" is the flow of the execution trace.
--   **Zero Pauses:** The core principle. The introduction of an assumption must *prevent* a pause or a blocking `prompt`. The log stream should continue seamlessly.
--   **Traceability Markers:** The assumption must be given a unique ID (e.g., `ASMP-001`) that is then tagged on subsequent operations that rely on it. This creates a clear, traceable "fork" in the logic within the execution stream.
-
-**TYPOGRAPHY HIERARCHY**: Applies to log output formatting.
-1.  **The Declaration (H1):** `[TIMESTAMP] [ASSUMPTION::ASMP-001] Synthesizing data...` The most prominent line.
-2.  **The Justification (H2):** ` -> Reason: {Why the assumption was needed}`
-3.  **The Evidence (H3):** ` -> Context: {What data was used to make the assumption}`
-4.  **The Result (Code Block):** The pretty-printed, grayed-out synthesized data itself.
-
-**SPACE PHILOSOPHY**: Refers to log verbosity and signal-to-noise ratio.
--   **Declarative, not Conversational:** The engine states what it's doing, why, and shows the result. It does not explain its internal thought process or
+**EMOTION TARGET**: Precision Power. The immediate, visceral sense that every pixel was CNC-machined rather than drawn in a design tool. The viewer should feel the same
 
 ## Proposed Changes (Blocks)
 ### Block 1
-Create the foundational data models for the Assumption Engine. The file `src/foreman/assumptions/models.ts` must define and export the `Assumption` interface (containing a unique ID, reason, context, and synthesized data), the `AssumptionContext` type, and a `AssumptionReason` enum. Acceptance Criteria: The file is created, and the TypeScript types/interfaces are exported and compile without error.
+Create `public/index.html` as the complete, self-contained DAS Systems corporate website. The file must replace any existing content and include: Turkish-language semantic HTML5; inline CSS enforcing the black (#050505) and amber/gold (#D4A574) theme with Playfair Display headings and Inter body text; a full-screen Canvas particle-network background; GSAP ScrollTrigger reveal animations loaded from CDN; Lucide icons from CDN; Schema.org Organization JSON-LD, OpenGraph, Twitter Card, canonical, and theme-color meta tags; and all five specified sections (Hero with "Endüstriyel Geleceği Kodluyoruz", 4 capability cards, 18-cell technology stack, 5-step Forge Pipeline, minimal Contact). Forbidden content (team info, client references/logos, ads) must be absent. Acceptance Criteria: `public/index.html` exists and its MD5 checksum matches a file containing all required sections; `grep -E '<link.*stylesheet|<script.*src'` returns only Google Fonts, GSAP/ScrollTrigger, and Lucide CDN URLs; `grep -iE 'team|client|logo|referans'` returns zero matches inside the file; all five semantic section IDs are present.
 
 ### Block 2
-Implement the core logic of the standalone Assumption Engine. The file `src/foreman/assumptions/engine.ts` must import models from Block 1 and export a pure function `generateAssumption(context: AssumptionContext): Assumption`. Initially, this function will contain placeholder logic to generate a plausible assumption based on the context. Acceptance Criteria: The file is created, the function is exported, and it correctly returns an object matching the `Assumption` interface.
-
-### Block 3
-Develop the specialized logger for assumption declarations. The file `src/foreman/assumptions/logger.ts` will import models from Block 1 and export a `logAssumption(assumption: Assumption)` function. This function must format and print the assumption to the execution trace, strictly adhering to the vision's Typography, Color, and Traceability ID (`ASMP-XXX`) specifications. Acceptance Criteria: Calling the function produces a multi-line string that perfectly matches the structure and style defined in the vision's "Typography Hierarchy".
-
-### Block 4
-Integrate the Assumption Engine into the main orchestrator control loop. Modify the core Foreman orchestrator file to detect when a task is about to block for user input. Instead of blocking, it will now gather context, call `generateAssumption` (from Block 2), pass the result to `logAssumption` (from Block 3), and use the synthesized data to continue the task seamlessly. Acceptance Criteria: The orchestrator no longer pauses on the targeted scenarios and instead logs an assumption and continues execution.
+Execute git workflow and verify Railway deployment. Stage `public/index.html`, commit with a message matching `^DAS Systems.*(rewrite|replace|corporate site)`, push to `origin main`, and verify that `dassystems.com.tr` serves the new content. If the live site still shows the old version, diagnose the Railway deployment configuration (e.g., build output directory, custom domain caching, or missing `public/` mapping) and apply deterministic fixes until the new site is live. Acceptance Criteria: `git log origin/main --oneline -1` contains the commit; `git push` exits with code 0; `curl -s https://dassystems.com.tr | grep -c "Endüstriyel Geleceği Kodluyoruz"` returns ≥1 (or equivalent DOM evidence of the new hero).
 
 ## Verification Plan
 Automated tests and manual visual inspection.
