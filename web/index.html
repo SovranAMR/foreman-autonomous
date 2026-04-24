@@ -1,129 +1,801 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Foreman — AI Forge</title>
-  <meta name="description" content="Foreman AI Agent — Atomic thought chains with vision, research, and tactical reasoning">
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚒️</text></svg>">
+  <title>DAS Systems — Endüstriyel Geleceği Kodluyoruz</title>
+  <meta name="description" content="AI güvenlik, endüstriyel otomasyon ve özel yazılım entegrasyonu. 300K$ - 1M$+ ölçekli endüstriyel projeler için Bursa merkezli mühendislik ofisi.">
+  <meta name="keywords" content="endüstriyel otomasyon, AI güvenlik, özel yazılım, SCADA, PLC, DASVision, fabrika otomasyonu">
+  <meta name="author" content="DAS Systems">
+  <meta name="theme-color" content="#050505">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://dassystems.com.tr">
+  <meta property="og:title" content="DAS Systems — Endüstriyel Geleceği Kodluyoruz">
+  <meta property="og:description" content="AI güvenlik, endüstriyel otomasyon ve özel yazılım entegrasyonu. 300K$ - 1M$+ ölçekli projeler.">
+  <meta property="og:locale" content="tr_TR">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DAS Systems — Endüstriyel Geleceği Kodluyoruz">
+  <meta name="twitter:description" content="AI güvenlik, endüstriyel otomasyon ve özel yazılım entegrasyonu.">
+
+  <link rel="canonical" href="https://dassystems.com.tr">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "DAS Systems",
+    "url": "https://dassystems.com.tr",
+    "description": "AI güvenlik, endüstriyel otomasyon ve özel yazılım entegrasyonu.",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Bursa",
+      "addressCountry": "TR"
+    },
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "ali@dassystems.com.tr",
+      "contactType": "sales",
+      "availableLanguage": ["Turkish", "English"]
+    }
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #050505;
+      --bg-secondary: #0a0a0a;
+      --surface: #111111;
+      --surface-hover: #1a1a1a;
+      --amber: #D4A574;
+      --amber-light: #E8C9A8;
+      --amber-dark: #A67C52;
+      --text: #F5F5F0;
+      --text-secondary: #888880;
+      --text-muted: #555550;
+      --border: #222220;
+      --border-subtle: #1a1a18;
+      --gradient-gold: linear-gradient(135deg, #D4A574 0%, #E8C9A8 50%, #A67C52 100%);
+      --font-heading: 'Playfair Display', Georgia, serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection { background: rgba(212, 165, 116, 0.3); color: var(--text); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--amber-dark); border-radius: 3px; }
+
+    /* Canvas Background */
+    #particle-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 1.5rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(5, 5, 5, 0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      transition: padding 0.3s ease;
+    }
+
+    nav.scrolled { padding: 1rem 3rem; }
+
+    .logo {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: var(--gradient-gold);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: color 0.3s ease;
+      position: relative;
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px; left: 0;
+      width: 0; height: 1px;
+      background: var(--amber);
+      transition: width 0.3s ease;
+    }
+
+    .nav-links a:hover { color: var(--amber); }
+    .nav-links a:hover::after { width: 100%; }
+
+    /* Mobile Nav */
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 8rem 2rem 4rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-eyebrow {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 1.5rem;
+      opacity: 0;
+    }
+
+    .hero h1 {
+      font-family: var(--font-heading);
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      max-width: 900px;
+      margin-bottom: 1.5rem;
+      opacity: 0;
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      background: var(--gradient-gold);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin-bottom: 3rem;
+      line-height: 1.7;
+      opacity: 0;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      opacity: 0;
+    }
+
+    .btn {
+      padding: 1rem 2.5rem;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      text-decoration: none;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--gradient-gold);
+      color: var(--bg);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 40px rgba(212, 165, 116, 0.3);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    /* Sections */
+    section {
+      position: relative;
+      z-index: 1;
+      padding: 8rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 5rem;
+    }
+
+    .section-eyebrow {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-family: var(--font-heading);
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 1rem;
+    }
+
+    .section-desc {
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+      font-size: 1.1rem;
+    }
+
+    /* Capabilities */
+    .capabilities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .cap-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2.5rem;
+      transition: all 0.4s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cap-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 2px;
+      background: var(--gradient-gold);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+
+    .cap-card:hover {
+      border-color: var(--amber-dark);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .cap-card:hover::before { transform: scaleX(1); }
+
+    .cap-icon {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .cap-card h3 {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: var(--amber-light);
+    }
+
+    .cap-card p {
+      color: var(--text-secondary);
+      font-size: 0.9375rem;
+      line-height: 1.7;
+    }
+
+    .cap-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .cap-tag {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0.375rem 0.75rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      color: var(--text-muted);
+    }
+
+    /* Technology Stack */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem;
+    }
+
+    .tech-cell {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1.5rem 1rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .tech-cell:hover {
+      border-color: var(--amber-dark);
+      background: var(--surface-hover);
+    }
+
+    .tech-cell .tech-name {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 0.75rem;
+    }
+
+    .tech-cell .tech-category {
+      font-size: 0.6875rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Process */
+    .process-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .process-step {
+      display: flex;
+      gap: 2rem;
+      padding: 2.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      position: relative;
+    }
+
+    .process-step:last-child {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .step-number {
+      font-family: var(--font-heading);
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--amber);
+      opacity: 0.4;
+      line-height: 1;
+      min-width: 60px;
+    }
+
+    .step-content h3 {
+      font-family: var(--font-heading);
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+      color: var(--amber-light);
+    }
+
+    .step-content p {
+      color: var(--text-secondary);
+      font-size: 0.9375rem;
+    }
+
+    /* Contact */
+    .contact-section {
+      text-align: center;
+      padding: 8rem 2rem;
+    }
+
+    .contact-email {
+      font-family: var(--font-heading);
+      font-size: clamp(1.25rem, 3vw, 2rem);
+      color: var(--amber);
+      text-decoration: none;
+      display: inline-block;
+      margin: 1.5rem 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .contact-email:hover { opacity: 0.8; }
+
+    .contact-location {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 0.8125rem;
+    }
+
+    /* Animations */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      nav { padding: 1rem 1.5rem; }
+      .nav-links { display: none; }
+      .mobile-menu-btn { display: block; }
+      .hero { padding: 6rem 1.5rem 3rem; }
+      section { padding: 5rem 1.5rem; }
+      .process-step { flex-direction: column; gap: 1rem; }
+      .capabilities-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+      .reveal { opacity: 1; transform: none; }
+      .hero-eyebrow, .hero h1, .hero-subtitle, .hero-cta { opacity: 1; }
+    }
+  </style>
 </head>
 <body>
-  <div class="app">
-    <!-- ─── Sidebar: Pipeline Monitor ─── -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <span class="logo">⚒️</span>
-        <div>
-          <h1>Foreman</h1>
-        </div>
-        <span class="version">v0.1</span>
-      </div>
+  <canvas id="particle-canvas"></canvas>
 
-      <div class="pipeline-section">
-        <h3>Pipeline Progress</h3>
-        <div class="phase-list" id="phaseList">
-          <div class="phase-item pending" data-phase="vision">
-            <span class="phase-icon">👁️</span>
-            <span class="phase-name">Vision</span>
-            <span class="phase-status" id="phaseStatusVision">—</span>
-          </div>
-          <div class="phase-item pending" data-phase="decompose">
-            <span class="phase-icon">🔪</span>
-            <span class="phase-name">Decompose</span>
-            <span class="phase-status" id="phaseStatusDecompose">—</span>
-          </div>
-          <div class="phase-item pending" data-phase="research">
-            <span class="phase-icon">🔍</span>
-            <span class="phase-name">Research</span>
-            <span class="phase-status" id="phaseStatusResearch">—</span>
-          </div>
-          <div class="phase-item pending" data-phase="atomize">
-            <span class="phase-icon">⚛️</span>
-            <span class="phase-name">Atomize</span>
-            <span class="phase-status" id="phaseStatusAtomize">—</span>
-          </div>
-          <div class="phase-item pending" data-phase="execute">
-            <span class="phase-icon">⚡</span>
-            <span class="phase-name">Execute</span>
-            <span class="phase-status" id="phaseStatusExecute">—</span>
-          </div>
-          <div class="phase-item pending" data-phase="verify">
-            <span class="phase-icon">✅</span>
-            <span class="phase-name">Verify</span>
-            <span class="phase-status" id="phaseStatusVerify">—</span>
-          </div>
-          <div class="phase-item pending" data-phase="reflect">
-            <span class="phase-icon">🪞</span>
-            <span class="phase-name">Reflect</span>
-            <span class="phase-status" id="phaseStatusReflect">—</span>
-          </div>
-        </div>
+  <nav id="navbar">
+    <div class="logo">DAS Systems</div>
+    <ul class="nav-links">
+      <li><a href="#capabilities">Kabiliyetler</a></li>
+      <li><a href="#technology">Teknoloji</a></li>
+      <li><a href="#process">Süreç</a></li>
+      <li><a href="#contact">İletişim</a></li>
+    </ul>
+    <button class="mobile-menu-btn" onclick="document.querySelector('.nav-links').classList.toggle('active')">☰</button>
+  </nav>
 
-        <div style="margin-top: 16px;">
-          <h3>Atoms</h3>
-          <div id="atomList" class="pipeline-events" style="max-height: 200px; overflow-y: auto;"></div>
+  <section class="hero" id="hero">
+    <div class="hero-eyebrow">Endüstriyel Otomasyon · AI Güvenlik · Özel Yazılım</div>
+    <h1>Endüstriyel Geleceği <em>Kodluyoruz</em></h1>
+    <p class="hero-subtitle">300.000$ - 1.000.000$+ ölçekli projeler için kapsamlı mühendislik çözümleri. AI tabanlı güvenlik sistemlerinden özel yazılım entegrasyonuna, endüstriyel otomasyondan kognitif veri sistemlerine.</p>
+    <div class="hero-cta">
+      <a href="#contact" class="btn btn-primary">Projeye Başlayın</a>
+      <a href="#capabilities" class="btn btn-secondary">Kabiliyetleri İnceleyin</a>
+    </div>
+  </section>
+
+  <section id="capabilities">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">Uzmanlık Alanları</div>
+      <h2 class="section-title">Teknolojiyi Endüstriyle <em>Bulışturuyoruz</em></h2>
+      <p class="section-desc">Her projede A'dan Z'ye tam kapsamlı çözümler üretiyoruz.</p>
+    </div>
+
+    <div class="capabilities-grid">
+      <div class="cap-card reveal">
+        <div class="cap-icon">🛡️</div>
+        <h3>AI Güvenlik & Fiziksel İzleme</h3>
+        <p>YOLO, InsightFace ve Pose Estimation ile gerçek zamanlı kamera analizi. Personel takibi, anomali tespiti, verimlilik analizi ve otomatik raporlama.</p>
+        <div class="cap-tags">
+          <span class="cap-tag">DASVision</span>
+          <span class="cap-tag">Computer Vision</span>
+          <span class="cap-tag">Edge AI</span>
         </div>
       </div>
 
-      <div class="stats">
-        <div class="stat">
-          <span class="stat-label">Tokens</span>
-          <span class="stat-value" id="statTokens">0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Time</span>
-          <span class="stat-value" id="statTime">0s</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Tools</span>
-          <span class="stat-value" id="statTools">0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Errors</span>
-          <span class="stat-value" id="statErrors">0</span>
+      <div class="cap-card reveal">
+        <div class="cap-icon">⚙️</div>
+        <h3>Endüstriyel Otomasyon</h3>
+        <p>PLC/SCADA/HMI sistemleri, servo sürücü entegrasyonu, haberleşme protokolleri ve endüstriyel IoT çözümleri. Siemens, Delta, Mitsubishi deneyimi.</p>
+        <div class="cap-tags">
+          <span class="cap-tag">PLC</span>
+          <span class="cap-tag">SCADA</span>
+          <span class="cap-tag">HMI</span>
         </div>
       </div>
 
-      <div class="connection">
-        <span class="connection-dot" id="connectionDot"></span>
-        <span id="connectionText">Disconnected</span>
-      </div>
-    </aside>
-
-    <!-- ─── Main: Chat Area ─── -->
-    <main class="main">
-      <header class="main-header">
-        <span>📂</span>
-        <span class="project-name" id="projectName">Foreman</span>
-        <span class="project-path" id="projectPath">~/projects/foreman</span>
-      </header>
-
-      <div class="messages" id="messages">
-        <div class="welcome" id="welcome">
-          <div class="welcome-icon">⚒️</div>
-          <h2>The Forge Awaits</h2>
-          <p>Ask anything or launch the Forge Pipeline to build, fix, or refactor your project.</p>
-          <div class="welcome-actions">
-            <button class="welcome-action" onclick="setInput('Explain the project structure')">📁 Explain project</button>
-            <button class="welcome-action" onclick="setInput('/forge Build a beautiful landing page')">⚒️ Forge pipeline</button>
-            <button class="welcome-action" onclick="setInput('Find and fix bugs')">🐛 Find bugs</button>
-          </div>
+      <div class="cap-card reveal">
+        <div class="cap-icon">💻</div>
+        <h3>Özel Yazılım & Entegrasyon</h3>
+        <p>Next.js 16, React 19, TypeScript ESM tabanlı enterprise uygulamalar. 21GB+ veritabanı, panel entegrasyonu, muhasebe mutabakatı, AI raporlama.</p>
+        <div class="cap-tags">
+          <span class="cap-tag">Full-Stack</span>
+          <span class="cap-tag">ETL</span>
+          <span class="cap-tag">API</span>
         </div>
       </div>
 
-      <div class="input-area">
-        <div class="input-row">
-          <button class="btn btn-forge" id="forgeBtn" onclick="toggleForge()" title="Toggle Forge Pipeline mode">⚒️</button>
-          <div class="input-wrapper">
-            <textarea id="chatInput" rows="1" placeholder="Message Foreman... (Shift+Enter for newline)" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-          </div>
-          <button class="btn btn-send" id="sendBtn" onclick="sendMessage()" title="Send">➤</button>
+      <div class="cap-card reveal">
+        <div class="cap-icon">🧠</div>
+        <h3>Veri & Kognitif Sistemler</h3>
+        <p>Çok kanallı AI asistanları (WhatsApp, Telegram, Slack), PBX transkripsiyon, duygu analizi, vektör veritabanları, kognitif orchestration.</p>
+        <div class="cap-tags">
+          <span class="cap-tag">OpenClaw</span>
+          <span class="cap-tag">Kobikom</span>
+          <span class="cap-tag">Foreman</span>
         </div>
       </div>
-    </main>
-  </div>
+    </div>
+  </section>
 
-  <script src="app.js"></script>
+  <section id="technology">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">Teknoloji Stack'i</div>
+      <h2 class="section-title">Üretim Seviyesi <em>Teknolojiler</em></h2>
+      <p class="section-desc">Her projede en güncel ve güvenilir teknolojileri kullanıyoruz.</p>
+    </div>
+
+    <div class="tech-grid reveal">
+      <div class="tech-cell"><div class="tech-name">Next.js 16</div><div class="tech-category">Frontend</div></div>
+      <div class="tech-cell"><div class="tech-name">React 19</div><div class="tech-category">Frontend</div></div>
+      <div class="tech-cell"><div class="tech-name">TypeScript ESM</div><div class="tech-category">Backend</div></div>
+      <div class="tech-cell"><div class="tech-name">Python</div><div class="tech-category">AI/ML</div></div>
+      <div class="tech-cell"><div class="tech-name">C99 / Vulkan</div><div class="tech-category">Compute</div></div>
+      <div class="tech-cell"><div class="tech-name">YOLO</div><div class="tech-category">Computer Vision</div></div>
+      <div class="tech-cell"><div class="tech-name">ONNX</div><div class="tech-category">Inference</div></div>
+      <div class="tech-cell"><div class="tech-name">PostgreSQL</div><div class="tech-category">Database</div></div>
+      <div class="tech-cell"><div class="tech-name">SQLite WAL</div><div class="tech-category">Database</div></div>
+      <div class="tech-cell"><div class="tech-name">PocketBase</div><div class="tech-category">Backend</div></div>
+      <div class="tech-cell"><div class="tech-name">WebSocket</div><div class="tech-category">Realtime</div></div>
+      <div class="tech-cell"><div class="tech-name">Docker</div><div class="tech-category">DevOps</div></div>
+      <div class="tech-cell"><div class="tech-name">Railway</div><div class="tech-category">Cloud</div></div>
+      <div class="tech-cell"><div class="tech-name">GSAP</div><div class="tech-category">Animation</div></div>
+      <div class="tech-cell"><div class="tech-name">Three.js</div><div class="tech-category">3D/WebGL</div></div>
+      <div class="tech-cell"><div class="tech-name">Tailwind v4</div><div class="tech-category">Styling</div></div>
+      <div class="tech-cell"><div class="tech-name">Framer Motion</div><div class="tech-category">Animation</div></div>
+      <div class="tech-cell"><div class="tech-name">WebGL</div><div class="tech-category">Graphics</div></div>
+    </div>
+  </section>
+
+  <section id="process">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">Çalışma Metodolojimiz</div>
+      <h2 class="section-title">Forge <em>Pipeline</em></h2>
+      <p class="section-desc">Her projeyi atomik adımlara bölüp, sistematik olarak ilerletiyoruz.</p>
+    </div>
+
+    <div class="process-steps reveal">
+      <div class="process-step">
+        <div class="step-number">01</div>
+        <div class="step-content">
+          <h3>Vizyon</h3>
+          <p>Projenin kapsamını, hedeflerini ve başarı kriterlerini netleştiriyoruz. Teknik gereksinimleri ve kısıtları belirliyoruz.</p>
+        </div>
+      </div>
+      <div class="process-step">
+        <div class="step-number">02</div>
+        <div class="step-content">
+          <h3>Strateji</h3>
+          <p>Mimariyi planlıyor, teknoloji stack'ini belirliyor ve uygulanabilirlik analizi yapıyoruz.</p>
+        </div>
+      </div>
+      <div class="process-step">
+        <div class="step-number">03</div>
+        <div class="step-content">
+          <h3>Araştırma</h3>
+          <p>En iyi pratikleri, kütüphaneleri ve yaklaşımları inceliyoruz. Teknik borçları önceden tespit ediyoruz.</p>
+        </div>
+      </div>
+      <div class="process-step">
+        <div class="step-number">04</div>
+        <div class="step-content">
+          <h3>Üretim</h3>
+          <p>Kodu yazıyor, test ediyor ve sürekli entegrasyon ile iteratif olarak geliştiriyoruz.</p>
+        </div>
+      </div>
+      <div class="process-step">
+        <div class="step-number">05</div>
+        <div class="step-content">
+          <h3>Doğrulama</h3>
+          <p>Kapsamlı testler, performans optimizasyonu ve canlı ortama güvenli deploy süreci.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact-section" id="contact">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">İletişim</div>
+      <h2 class="section-title">Projeye <em>Başlayalım</em></h2>
+      <p class="section-desc">Endüstriyel dönüşümünüz için doğru ortağı buldunuz.</p>
+    </div>
+    <div class="reveal">
+      <a href="mailto:ali@dassystems.com.tr" class="contact-email">ali@dassystems.com.tr</a>
+      <p class="contact-location">Bursa, Türkiye · Türkçe & English</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 DAS Systems. Tüm hakları saklıdır.</p>
+  </footer>
+
+  <script>
+    // Particle Network Canvas
+    (function() {
+      const canvas = document.getElementById('particle-canvas');
+      const ctx = canvas.getContext('2d');
+      let width, height, particles = [];
+      const PARTICLE_COUNT = 60;
+      const CONNECTION_DISTANCE = 150;
+      const MAX_CONNECTIONS = 3;
+
+      function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+      }
+
+      class Particle {
+        constructor() {
+          this.x = Math.random() * width;
+          this.y = Math.random() * height;
+          this.vx = (Math.random() - 0.5) * 0.3;
+          this.vy = (Math.random() - 0.5) * 0.3;
+          this.radius = Math.random() * 1.5 + 0.5;
+        }
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          if (this.x < 0 || this.x > width) this.vx *= -1;
+          if (this.y < 0 || this.y > height) this.vy *= -1;
+        }
+        draw() {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(212, 165, 116, 0.5)';
+          ctx.fill();
+        }
+      }
+
+      function init() {
+        resize();
+        particles = [];
+        for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, width, height);
+        particles.forEach(p => { p.update(); p.draw(); });
+
+        for (let i = 0; i < particles.length; i++) {
+          let connections = 0;
+          for (let j = i + 1; j < particles.length && connections < MAX_CONNECTIONS; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < CONNECTION_DISTANCE) {
+              const opacity = (1 - dist / CONNECTION_DISTANCE) * 0.3;
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = `rgba(212, 165, 116, ${opacity})`;
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+              connections++;
+            }
+          }
+        }
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener('resize', resize);
+      init();
+      animate();
+    })();
+
+    // GSAP Animations
+    if (typeof gsap !== 'undefined') {
+      gsap.registerPlugin(ScrollTrigger);
+
+      // Hero entrance
+      gsap.to('.hero-eyebrow', { opacity: 1, y: 0, duration: 0.8, delay: 0.2, ease: 'power2.out' });
+      gsap.to('.hero h1', { opacity: 1, y: 0, duration: 1, delay: 0.4, ease: 'power2.out' });
+      gsap.to('.hero-subtitle', { opacity: 1, y: 0, duration: 0.8, delay: 0.6, ease: 'power2.out' });
+      gsap.to('.hero-cta', { opacity: 1, y: 0, duration: 0.8, delay: 0.8, ease: 'power2.out' });
+
+      // Section reveals
+      gsap.utils.toArray('.reveal').forEach(elem => {
+        gsap.to(elem, {
+          scrollTrigger: {
+            trigger: elem,
+            start: 'top 85%',
+            toggleActions: 'play none none none'
+          },
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: 'power2.out'
+        });
+      });
+
+      // Nav scroll effect
+      ScrollTrigger.create({
+        start: 'top -100',
+        onUpdate: (self) => {
+          document.getElementById('navbar').classList.toggle('scrolled', self.progress > 0);
+        }
+      });
+    }
+
+    // Smooth scroll for nav links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  </script>
 </body>
 </html>
