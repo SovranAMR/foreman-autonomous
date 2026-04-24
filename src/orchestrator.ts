@@ -684,14 +684,35 @@ ${visionOutput}`,
     let atomCount = 0;
 
     // Resume: skip blocks already completed in prior run.
-    const resumeFromBlock = isResuming ? (priorCheckpoint?.currentBlock ?? 0) : 0;
+    //
+    // SAFETY: `priorCheckpoint.currentBlock` can be optimistic — e.g. waves
+    // might have advanced the counter past blocks whose atoms never actually
+    // ran (because dep-ordering jumped around, or a crash happened mid-wave).
+    // To avoid silently dropping whole blocks, we back up to the earliest
+    // block that has ZERO recorded atom completions. Atom-level resume takes
+    // care of skipping the few atoms that were genuinely done.
+    let resumeFromBlock = 0;
+    if (isResuming && priorCheckpoint) {
+      const hasAtomsFor = (i: number) =>
+        priorCheckpoint.completedAtoms.some((a) => Math.floor(a / 1000) === i);
+      let earliestIncomplete = priorCheckpoint.currentBlock;
+      for (let i = 0; i < priorCheckpoint.currentBlock; i++) {
+        if (!hasAtomsFor(i)) { earliestIncomplete = i; break; }
+      }
+      resumeFromBlock = earliestIncomplete;
+    }
     const effectiveBlockOrder = resumeFromBlock > 0
       ? blockOrder.filter(({ index }) => index >= resumeFromBlock)
       : blockOrder;
     if (isResuming && effectiveBlockOrder.length < blockOrder.length) {
       this.engine.streaming.warning(
         `Resume: skipping ${blockOrder.length - effectiveBlockOrder.length} already-completed block(s), ` +
-        `starting at block ${resumeFromBlock + 1}`,
+        `starting at block ${resumeFromBlock + 1} (checkpoint said ${(priorCheckpoint?.currentBlock ?? 0) + 1})`,
+      );
+    } else if (isResuming) {
+      this.engine.streaming.warning(
+        `Resume: re-running from block 1 — checkpoint's currentBlock=${(priorCheckpoint?.currentBlock ?? 0) + 1} ` +
+        `but earlier blocks have no recorded atom completions`,
       );
     }
 
