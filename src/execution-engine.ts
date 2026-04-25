@@ -1205,8 +1205,10 @@ export class ExecutionEngine {
       result.branch = branch.stdout.trim() || "HEAD";
     }
 
-    // Status
-    const status = this.runShell("git status --porcelain=v1");
+    // Status — scope to projectRoot. Without `-- .`, an enclosing git repo
+    // (e.g. `~` initialized as a git repo for dotfiles) would expose every
+    // sibling directory's changes, polluting reviewer evidence.
+    const status = this.runShell("git status --porcelain=v1 -- .");
     if (status.success && status.stdout) {
       const lines = status.stdout.split("\n").filter((l) => l.length >= 3);
       for (const line of lines) {

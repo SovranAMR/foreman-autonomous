@@ -237,13 +237,17 @@ export class Engine {
   }
 
   /**
-   * Wrap a call with 3-attempt exponential backoff for transient network
+   * Wrap a call with 7-attempt exponential backoff for transient network
    * errors (Katman 0 — Transport Resilience). Does NOT retry logical errors
    * (4xx, validation failures, etc.). If every attempt hits the network,
    * rethrows the last error so the caller (orchestrator) can decide.
+   *
+   * Backoff schedule (~5 minutes total): 3s → 8s → 20s → 45s → 90s → 120s →
+   * 120s. Tuned for residential-grade network instability where DNS hiccups
+   * and TCP resets can cluster for 1-2 minutes before recovering.
    */
   private async withNetworkRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
-    const backoffs = [5000, 15000, 45000];
+    const backoffs = [3000, 8000, 20000, 45000, 90000, 120000, 120000];
     let lastErr: unknown;
     for (let attempt = 0; attempt < backoffs.length; attempt++) {
       try {

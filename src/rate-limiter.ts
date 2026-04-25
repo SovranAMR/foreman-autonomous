@@ -48,9 +48,14 @@ export const DEFAULT_RATE_LIMIT_CONFIG: InternalConfig = {
     rotateOn429: true,
   },
   budget: {
-    perThought: 200000,
-    perChain: 1024000,
-    perSession: 2000000,
+    // Sized for Kimi K2.6's 256K context window and the long-running Forge
+    // pipelines that span many blocks (vision → decompose → research →
+    // atomize → execute → reflect → recovery). The previous 1M chain cap
+    // forced "extraction mode" mid-run on large multi-block projects,
+    // degrading worker output and triggering reviewer false-positives.
+    perThought: 300000,
+    perChain: 5000000,
+    perSession: 10000000,
   },
 };
 
