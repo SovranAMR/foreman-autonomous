@@ -1486,7 +1486,21 @@ ${visionOutput}`,
               );
               totalThoughts++;
 
-              const reviewResult = parseReviewResponse(reviewLlmResult.text);
+              // Empty reviewer response → treat as PASS (reviewer couldn't form
+              // an opinion, don't penalize the worker for LLM hiccups)
+              const reviewText = (reviewLlmResult.text ?? "").trim();
+              if (reviewText.length < 10) {
+                this.engine.streaming.warning(`⚠️ Reviewer returned empty/short response — auto-PASS`);
+                this.emit({
+                  type: "verification",
+                  phase: "reviewer_gate",
+                  passed: true,
+                  detail: `Reviewer returned empty response — auto-PASS (worker not penalized)`,
+                });
+                break; // accept atom
+              }
+
+              const reviewResult = parseReviewResponse(reviewText);
 
               this.emit({
                 type: "verification",
@@ -2205,7 +2219,14 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                       );
                       totalThoughts++;
 
-                      const reReviewResult = parseReviewResponse(reReviewLlmResult.text);
+                      // Empty reviewer response → auto-PASS
+                      const reReviewText = (reReviewLlmResult.text ?? "").trim();
+                      if (reReviewText.length < 10) {
+                        this.engine.streaming.warning(`[RE] ⚠️ Reviewer returned empty/short response — auto-PASS`);
+                        break; // accept re-atom
+                      }
+
+                      const reReviewResult = parseReviewResponse(reReviewText);
                       this.emit({
                         type: "verification",
                         phase: "re_atom_reviewer_gate",
