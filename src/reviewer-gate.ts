@@ -130,11 +130,17 @@ export function buildReviewPrompt(request: ReviewRequest): string {
     `4. Does STEP7_VERIFY contain actual evidence (build output, test results)?`,
     `5. Does this change serve the vision's EMOTION TARGET?`,
     ``,
-    `IMPORTANT: When "FILESYSTEM EVIDENCE" is provided instead of "CODE DIFF",`,
-    `it means the project lives in a gitignored subtree and git diff is unavailable.`,
-    `In that case, use the filesystem evidence (write_file results, file sizes,`,
-    `timestamps, command outputs) as your ground truth instead of git diff.`,
-    `A successful write_file with real file size and timestamp IS valid evidence.`,
+    `IMPORTANT: When "FILESYSTEM EVIDENCE" is provided instead of "CODE DIFF":`,
+    `- The project lives in a gitignored subtree; git diff is unavailable.`,
+    `- Use the filesystem evidence (write_file results, file sizes, timestamps,`,
+    `  command outputs like cat/wc/grep) as your ground truth.`,
+    `- A successful write_file with a real file size and timestamp IS valid evidence`,
+    `  that the file was written. Do NOT claim "hallucinated file read" when the`,
+    `  evidence shows successful write_file and run_command operations.`,
+    `- run_command results (cat, wc -l, grep -c, tail) are REAL filesystem reads.`,
+    `  Their presence in STEP1_READ/STEP2_CONTEXT proves genuine file interaction.`,
+    `- Focus your review on: (1) does the code serve the vision, (2) is the logic`,
+    `  correct, (3) are there obvious bugs. Do NOT reject based on evidence format.`,
   );
 
   return parts.join("\n");
