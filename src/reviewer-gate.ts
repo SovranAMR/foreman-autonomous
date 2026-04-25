@@ -69,6 +69,14 @@ You use a DIFFERENT AI model than the Worker to avoid echo chamber bias.
 - Are there obvious bugs or missing imports?
 - Is there dead code or unnecessary complexity?
 
+### 4. EVIDENCE TYPES
+- **CODE DIFF** = standard git diff output (preferred, shows exact line changes)
+- **FILESYSTEM EVIDENCE** = executor results when git diff is unavailable (project
+  in a gitignored subtree). This includes write_file success/fail, file byte sizes,
+  modification timestamps, and command outputs. Treat successful write_file operations
+  with real file sizes as VALID evidence of code changes — do NOT reject solely
+  because git diff is empty when filesystem evidence confirms the write.
+
 ## Verdicts
 - PASS: Everything checks out. Ship it.
 - REJECT: Vision violation, shallow reasoning, or broken code. Must retry.
@@ -109,7 +117,8 @@ export function buildReviewPrompt(request: ReviewRequest): string {
   ];
 
   if (request.codeDiff) {
-    parts.push(``, `== CODE DIFF ==`, request.codeDiff.slice(0, 3000));
+    const isFilesystemEvidence = request.codeDiff.startsWith("[Filesystem evidence");
+    parts.push(``, `== ${isFilesystemEvidence ? "FILESYSTEM EVIDENCE" : "CODE DIFF"} ==`, request.codeDiff.slice(0, 4000));
   }
 
   parts.push(
@@ -120,6 +129,12 @@ export function buildReviewPrompt(request: ReviewRequest): string {
     `3. Is the tactical reasoning real or just format-filling?`,
     `4. Does STEP7_VERIFY contain actual evidence (build output, test results)?`,
     `5. Does this change serve the vision's EMOTION TARGET?`,
+    ``,
+    `IMPORTANT: When "FILESYSTEM EVIDENCE" is provided instead of "CODE DIFF",`,
+    `it means the project lives in a gitignored subtree and git diff is unavailable.`,
+    `In that case, use the filesystem evidence (write_file results, file sizes,`,
+    `timestamps, command outputs) as your ground truth instead of git diff.`,
+    `A successful write_file with real file size and timestamp IS valid evidence.`,
   );
 
   return parts.join("\n");

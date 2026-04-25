@@ -1439,6 +1439,36 @@ ${visionOutput}`,
               let codeDiff = "";
               try { codeDiff = this.engine.git.summarizeChanges() || ""; } catch { /* non-git */ }
 
+              // FILESYSTEM EVIDENCE FALLBACK: when projectRoot lives inside an
+              // enclosing git repo that gitignores it (e.g. `~/projects/` in
+              // `~/.gitignore`), `git diff` returns empty even after successful
+              // writes. Build evidence from executor results so the reviewer
+              // has something real to audit.
+              if ((!codeDiff || codeDiff === "No changes") && lastExecSummary && lastExecSummary.succeeded > 0) {
+                const fsLines: string[] = ["[Filesystem evidence — git diff unavailable for this project subtree]"];
+                for (const r of lastExecSummary.operations) {
+                  const op = r.operation;
+                  const status = r.success ? "✔" : "✖";
+                  if (op.type === "write_file") {
+                    let fileStat = "";
+                    try {
+                      const { statSync } = await import("node:fs");
+                      const st = statSync(op.path!);
+                      fileStat = ` (${st.size} bytes, mtime=${st.mtime.toISOString()})`;
+                    } catch { /* best-effort */ }
+                    fsLines.push(`${status} write_file: ${op.path}${fileStat}`);
+                    if (r.output) fsLines.push(`    preview: ${r.output.slice(0, 200)}`);
+                  } else if (op.type === "edit_file") {
+                    fsLines.push(`${status} edit_file: ${op.path} — oldText→newText`);
+                  } else if (op.type === "run_command") {
+                    fsLines.push(`${status} run_command: ${op.command?.slice(0, 120)}`);
+                    if (r.output) fsLines.push(`    output: ${r.output.slice(0, 200)}`);
+                  }
+                  if (r.error) fsLines.push(`    error: ${r.error.slice(0, 150)}`);
+                }
+                codeDiff = fsLines.join("\n");
+              }
+
               const reviewPrompt = buildReviewPrompt({
                 protocol,
                 atom,
@@ -2133,6 +2163,32 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                     try {
                       let reCodeDiff = "";
                       try { reCodeDiff = this.engine.git.summarizeChanges() || ""; } catch { /* non-git */ }
+
+                      // FILESYSTEM EVIDENCE FALLBACK (same as primary atom reviewer)
+                      if ((!reCodeDiff || reCodeDiff === "No changes") && reLastExecSummary && reLastExecSummary.succeeded > 0) {
+                        const fsLines: string[] = ["[Filesystem evidence — git diff unavailable for this project subtree]"];
+                        for (const r of reLastExecSummary.operations) {
+                          const op = r.operation;
+                          const status = r.success ? "✔" : "✖";
+                          if (op.type === "write_file") {
+                            let fileStat = "";
+                            try {
+                              const { statSync } = await import("node:fs");
+                              const st = statSync(op.path!);
+                              fileStat = ` (${st.size} bytes, mtime=${st.mtime.toISOString()})`;
+                            } catch { /* best-effort */ }
+                            fsLines.push(`${status} write_file: ${op.path}${fileStat}`);
+                            if (r.output) fsLines.push(`    preview: ${r.output.slice(0, 200)}`);
+                          } else if (op.type === "edit_file") {
+                            fsLines.push(`${status} edit_file: ${op.path} — oldText→newText`);
+                          } else if (op.type === "run_command") {
+                            fsLines.push(`${status} run_command: ${op.command?.slice(0, 120)}`);
+                            if (r.output) fsLines.push(`    output: ${r.output.slice(0, 200)}`);
+                          }
+                          if (r.error) fsLines.push(`    error: ${r.error.slice(0, 150)}`);
+                        }
+                        reCodeDiff = fsLines.join("\n");
+                      }
 
                       const reReviewPrompt = buildReviewPrompt({
                         protocol: reProtocol,
