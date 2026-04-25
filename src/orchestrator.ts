@@ -1497,7 +1497,11 @@ ${visionOutput}`,
                   passed: true,
                   detail: `Reviewer returned empty response — auto-PASS (worker not penalized)`,
                 });
-                break; // accept atom
+                atomPassed = true;
+                blockPassedAtoms++;
+                try { this.artifactEngine.updateAtomStatus(i, j, "done"); } catch { /* best-effort */ }
+                passedAttempt = attempt;
+                break; // accept atom — break retry loop
               }
 
               const reviewResult = parseReviewResponse(reviewText);
@@ -2223,6 +2227,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                       const reReviewText = (reReviewLlmResult.text ?? "").trim();
                       if (reReviewText.length < 10) {
                         this.engine.streaming.warning(`[RE] ⚠️ Reviewer returned empty/short response — auto-PASS`);
+                        reAtomPassed = true;
                         break; // accept re-atom
                       }
 
