@@ -383,9 +383,16 @@ export class GitEngine {
    */
   classifyChanges(staged = false): ClassifiedChange[] {
     // Get file status
+    // PROJECT-SCOPE GUARD: when projectRoot is a sub-directory of an enclosing
+    // git repo (common in monorepos / `~` as a git repo), an unscoped
+    // `git diff` will leak unrelated changes from sibling directories into the
+    // reviewer's evidence — causing false-positive REJECT verdicts ("CODE DIFF
+    // shows modifications to unrelated files"). Restricting to `-- .` scopes
+    // the diff to the current working dir (which is set to projectRoot in
+    // ExecutionEngine.runShell) and any subtree below it.
     const statusFlag = staged ? "--cached" : "";
-    const nameStatus = this.exec.runShell(`git diff ${statusFlag} --name-status`);
-    const numstat = this.exec.runShell(`git diff ${statusFlag} --numstat`);
+    const nameStatus = this.exec.runShell(`git diff ${statusFlag} --name-status -- .`);
+    const numstat = this.exec.runShell(`git diff ${statusFlag} --numstat -- .`);
 
     if (!nameStatus.success || !numstat.success) return [];
 
