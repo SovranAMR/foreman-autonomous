@@ -748,8 +748,23 @@ export class Engine {
       ?? DEFAULT_LAYER_CONFIGS[layer].defaultModel;
     const { tokens: contextWindowTokens } = resolveContextWindow(resolvedModel);
 
+    // For worker layer with many prior thoughts, keep vision/strategist/researcher
+    // thoughts (they carry critical signal) but drop old worker thoughts (their
+    // atomContext is redundant noise). This cuts O(n) worker duplication while
+    // preserving the vision and research that give each atom its soul.
+    let contextThoughts = allChainThoughts;
+    if (layer === "worker" && allChainThoughts.length > 10) {
+      const essentialThoughts = allChainThoughts.filter(
+        t => t.layer !== "worker"
+      );
+      const recentWorkers = allChainThoughts.filter(
+        t => t.layer === "worker"
+      ).slice(-2);
+      contextThoughts = [...essentialThoughts, ...recentWorkers];
+    }
+
     const intelligentCtx = buildIntelligentContext({
-      thoughts: allChainThoughts,
+      thoughts: contextThoughts,
       currentInput: input,
       currentLayer: layer,
       contextWindowTokens,

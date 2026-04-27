@@ -934,6 +934,8 @@ ${visionOutput}`,
       let blockFailedAtoms = 0;
       const atomFailureReasons: Array<{ atom: string; reason: string }> = []; // F-7: track per-atom failures
       const blockStartTime = Date.now();
+      // File manifest — tracks files written/edited by each atom for coordination
+      const fileManifest: Array<{ atomIndex: number; path: string; op: string; size: number; lines: number }> = [];
       for (let j = 0; j < atoms.length; j++) {
         const atom = atoms[j];
 
@@ -1084,40 +1086,49 @@ ${visionOutput}`,
             );
 
             // Build context for tool-enabled LLM call
-            // Build compressed summaries of completed atoms (Context Pruning)
-            // Completed atoms → single line each. Vision document → NEVER truncated.
+            // Build rich summaries of completed atoms including file manifest
             const completedAtomLines: string[] = [];
             for (let k = 0; k < j; k++) {
-              completedAtomLines.push(`[✅ Atom ${k + 1}] ${atoms[k].slice(0, 60)}`);
+              const atomFiles = fileManifest.filter(f => f.atomIndex === k);
+              const fileSummary = atomFiles.length > 0
+                ? ` → ${atomFiles.map(f => `${f.path} (${f.lines} lines)`).join(", ")}`
+                : "";
+              completedAtomLines.push(`[✅ Atom ${k + 1}] ${atoms[k].slice(0, 60)}${fileSummary}`);
             }
             const prevAtomContext = completedAtomLines.length > 0
               ? `COMPLETED ATOMS:\n${completedAtomLines.join("\n")}`
               : "";
 
             // ─── PRE-EXECUTION FILE ANALYSIS ───────────────────
-            // Extract file paths from atom description and pre-read them
-            // Worker gets REAL file contents — no hallucination possible
+            // Auto pre-read ALL files from manifest + files mentioned in atom description
             let preReadContext = "";
             try {
-              const fileMatches = atom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g);
-              if (fileMatches && fileMatches.length > 0) {
-                const uniqueFiles = [...new Set(fileMatches)].slice(0, 3); // max 3 files
-                const fileParts: string[] = [];
-                for (const filePath of uniqueFiles) {
-                  try {
-                    const fullPath = `${this.engine.config.projectRoot}/${filePath}`;
-                    const { readFileSync } = await import("node:fs");
-                    const content = readFileSync(fullPath, "utf-8");
-                    const lines = content.split("\n");
-                    const preview = lines.length > 50
-                      ? `${lines.slice(0, 50).join("\n")}\n... (${lines.length} total lines)`
-                      : content;
-                    fileParts.push(`[FILE: ${filePath}] (${lines.length} lines)\n${preview}`);
-                  } catch { /* file not found — OK, Worker will create it */ }
-                }
-                if (fileParts.length > 0) {
-                  preReadContext = `PRE-READ FILES (real contents — do NOT hallucinate):\n${fileParts.join("\n\n")}`;
-                }
+              const { readFileSync } = await import("node:fs");
+              // Collect files to pre-read: manifest files + atom description mentions
+              const manifestPaths = [...new Set(fileManifest.map(f => f.path))];
+              const descMatches = atom.match(/(?:[\w./\\-]+\.(?:tsx?|jsx?|css|scss|html|json|md|vue|svelte))/g) ?? [];
+              const allPaths = [...new Set([...manifestPaths, ...descMatches])].slice(0, 5);
+
+              const fileParts: string[] = [];
+              let totalLines = 0;
+              const MAX_PREREAD_LINES = 100;
+
+              for (const filePath of allPaths) {
+                if (totalLines >= MAX_PREREAD_LINES) break;
+                try {
+                  const fullPath = `${this.engine.config.projectRoot}/${filePath}`;
+                  const content = readFileSync(fullPath, "utf-8");
+                  const lines = content.split("\n");
+                  const remaining = MAX_PREREAD_LINES - totalLines;
+                  const preview = lines.length > remaining
+                    ? `${lines.slice(0, remaining).join("\n")}\n... (${lines.length} total lines)`
+                    : content;
+                  fileParts.push(`[FILE: ${filePath}] (${lines.length} lines)\n${preview}`);
+                  totalLines += Math.min(lines.length, remaining);
+                } catch { /* file not found — OK, Worker will create it */ }
+              }
+              if (fileParts.length > 0) {
+                preReadContext = `PRE-READ FILES (real contents — do NOT hallucinate):\n${fileParts.join("\n\n")}`;
               }
             } catch { /* pre-read best-effort */ }
 
@@ -1139,9 +1150,22 @@ ${visionOutput}`,
               ? `⚠️ PREVIOUS ATTEMPT REJECTED (attempt ${attempt}/${this.MAX_ATOM_RETRIES}):\n${lastRejectionFeedback}\n\nFix the issues above. Do NOT repeat the same mistakes.`
               : "";
 
+            // ─── WRITE COORDINATION INSTRUCTION ───────────────
+            // If prior atoms created files, tell this atom NOT to overwrite them
+            let writeCoordinationCtx = "";
+            if (fileManifest.length > 0) {
+              const uniqueFiles = [...new Set(fileManifest.map(f => f.path))];
+              writeCoordinationCtx = [
+                `EXISTING FILES IN PROJECT: ${uniqueFiles.map(p => { const m = fileManifest.filter(f => f.path === p).pop()!; return `${p} (${m.lines} lines)`; }).join(", ")}`,
+                `RULE: If a file already exists, use edit_file to APPEND or MODIFY specific sections.`,
+                `Do NOT use write_file on existing files — it will OVERWRITE everything previous atoms wrote.`,
+              ].join("\n");
+            }
+
             const atomContext = [
               `YOUR TASK (Atom ${j + 1}/${atoms.length}): ${atom}`,
               retryContext,
+              writeCoordinationCtx,
               preReadContext,
               taskTrackerContext,
               `BLOCK: ${block}`,
@@ -1262,7 +1286,41 @@ ${visionOutput}`,
             const protocol = execResult?.thought.workerProtocol;
 
             if (needsExecution(protocol)) {
-              const ops = extractOperations(protocol);
+              let ops = extractOperations(protocol);
+
+              // ─── FALLBACK EXTRACTION ───
+              // If primary extraction found write_file ops with empty content
+              // (regex matched fence boundary but captured nothing), retry
+              // extraction using step7_verify + step8_report as source text.
+              const hasEmptyWrite = ops.some(o => o.type === "write_file" && (!o.content || o.content.trim().length === 0));
+              if (hasEmptyWrite && (protocol.step7_verify || protocol.step8_report)) {
+                this.engine.streaming.warning(`⚠️ Primary extraction has empty write_file — trying fallback from step7+step8`);
+                const fallbackProtocol = {
+                  ...protocol,
+                  step4_decide: [protocol.step4_decide, protocol.step7_verify, protocol.step8_report].filter(Boolean).join("\n"),
+                  step6_execute: [protocol.step6_execute, protocol.step7_verify, protocol.step8_report].filter(Boolean).join("\n"),
+                };
+                const fallbackOps = extractOperations(fallbackProtocol);
+                const fallbackWrites = fallbackOps.filter(o => o.type === "write_file" && o.content && o.content.trim().length > 0);
+                if (fallbackWrites.length > 0) {
+                  // Replace empty writes with fallback writes, keep non-empty ops
+                  ops = [
+                    ...ops.filter(o => !(o.type === "write_file" && (!o.content || o.content.trim().length === 0))),
+                    ...fallbackWrites,
+                    ...fallbackOps.filter(o => o.type !== "write_file"),
+                  ];
+                  this.engine.streaming.toolCall("fallback_extraction", `Recovered ${fallbackWrites.length} write(s) from step7+step8`);
+                }
+              }
+
+              // Filter out any remaining empty write_file ops
+              ops = ops.filter(o => {
+                if (o.type === "write_file" && (!o.content || o.content.trim().length === 0)) {
+                  this.engine.streaming.warning(`⚠️ Dropping empty write_file for ${o.path} — extraction failed`);
+                  return false;
+                }
+                return true;
+              });
 
               // Debug: log extracted operations
               for (const op of ops) {
@@ -1560,9 +1618,68 @@ ${visionOutput}`,
             }
           }
 
+          // ─── GROUND TRUTH GATE (inside retry loop) ──────────────
+          // Runs AFTER reviewer PASS but BEFORE marking atom as done.
+          // Critical failures (0-byte files, build errors) trigger retry.
+          if (execResult?.thought.workerProtocol) {
+            try {
+              const gtValidation = validateWorkerOutput(
+                execResult.thought.workerProtocol,
+                lastExecSummary,
+                this.engine.git.executor,
+                this.engine.config.projectRoot,
+              );
+
+              this.emit({
+                type: "verification",
+                phase: "ground_truth",
+                passed: gtValidation.passed,
+                detail: gtValidation.summary,
+              });
+
+              const criticalFailures = gtValidation.checks.filter(c => !c.passed && c.severity === "critical");
+              if (criticalFailures.length > 0) {
+                this.engine.streaming.error(`🔍 Ground truth GATE: ${criticalFailures.length} critical check(s) failed`);
+                for (const check of criticalFailures) {
+                  this.engine.streaming.error(`  ${check.detail}`);
+                }
+                // Rollback + retry with feedback
+                try { this.engine.rollback.rollbackLastAtom(); } catch { /* best-effort */ }
+                lastRejectionFeedback = `Ground truth FAILED (score: ${(gtValidation.score * 100).toFixed(0)}%): ${criticalFailures.map(c => c.detail).join("; ").slice(0, 300)}`;
+                break; // break retry attempt — will retry with ground truth feedback
+              } else {
+                this.engine.streaming.toolCall("ground_truth", `✅ ${gtValidation.checks.length} checks passed (${(gtValidation.score * 100).toFixed(0)}%)`);
+              }
+            } catch { /* ground truth gate is best-effort */ }
+          }
+
           // ─── ATOM PASSED ALL GATES ────────────────────────────
           atomPassed = true;
           blockPassedAtoms++;
+
+          // ─── UPDATE FILE MANIFEST ──────────────────────────
+          // Record which files this atom wrote/edited for coordination
+          if (lastExecSummary) {
+            try {
+              const { statSync } = await import("node:fs");
+              for (const r of lastExecSummary.operations) {
+                if (r.success && r.operation.path && (r.operation.type === "write_file" || r.operation.type === "edit_file")) {
+                  try {
+                    const fullPath = `${this.engine.config.projectRoot}/${r.operation.path}`;
+                    const stat = statSync(fullPath);
+                    const content = (await import("node:fs")).readFileSync(fullPath, "utf-8");
+                    fileManifest.push({
+                      atomIndex: j,
+                      path: r.operation.path,
+                      op: r.operation.type === "write_file" ? "write" : "edit",
+                      size: stat.size,
+                      lines: content.split("\n").length,
+                    });
+                  } catch { /* stat/read failed — skip manifest entry */ }
+                }
+              }
+            } catch { /* manifest update best-effort */ }
+          }
           
           try {
             this.artifactEngine.updateAtomStatus(i, j, "done");
@@ -1729,37 +1846,25 @@ ${visionOutput}`,
           }
         }
 
-        // ── GROUND TRUTH VALIDATION — verify worker claims against reality ──
-        // Don't trust Worker's self-reported step7_verify — validate independently
-        if (execResult?.thought.workerProtocol) {
+        // ── GROUND TRUTH (advisory) — log non-critical warnings post-loop ──
+        // Critical checks are now handled INSIDE the retry loop as a gate.
+        // This post-loop block only logs advisory warnings for passed atoms.
+        if (atomPassed && execResult?.thought.workerProtocol) {
           try {
-            const validation = validateWorkerOutput(
+            const advisoryValidation = validateWorkerOutput(
               execResult.thought.workerProtocol,
-              // Pass execution summary if available (from extraction mode)
-              lastExecSummary, // real execution results for validation
+              lastExecSummary,
               this.engine.git.executor,
               this.engine.config.projectRoot,
             );
-
-            this.emit({
-              type: "verification",
-              phase: "ground_truth",
-              passed: validation.passed,
-              detail: validation.summary,
-            });
-
-            if (!validation.passed) {
-              const failedChecks = validation.checks.filter(c => !c.passed && c.severity === "critical");
-              this.engine.streaming.error(`🔍 Ground truth: ${failedChecks.length} critical checks failed`);
-              for (const check of failedChecks) {
-                this.engine.streaming.error(`  ${check.detail}`);
+            const warnings = advisoryValidation.checks.filter(c => !c.passed && c.severity !== "critical");
+            if (warnings.length > 0) {
+              this.engine.streaming.warning(`🔍 Ground truth advisory: ${warnings.length} non-critical warning(s)`);
+              for (const w of warnings) {
+                this.engine.streaming.warning(`  ${w.detail}`);
               }
-              // Feed validation results back as rejection feedback for retry
-              lastRejectionFeedback = `Ground truth validation failed (score: ${(validation.score * 100).toFixed(0)}%): ${failedChecks.map(c => c.detail).join("; ").slice(0, 300)}`;
-            } else {
-              this.engine.streaming.toolCall("ground_truth", `✅ ${validation.checks.length} checks passed (${(validation.score * 100).toFixed(0)}%)`);
             }
-          } catch { /* ground truth validation best-effort */ }
+          } catch { /* advisory — best-effort */ }
         }
 
         // ── ADAPTIVE REFLECTION — Visioner as Art Director ──

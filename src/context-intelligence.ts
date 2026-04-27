@@ -239,9 +239,13 @@ export function scoreThoughts(
 export function formatThoughtAtTier(thought: Thought, tier: ContextTier): string {
   switch (tier) {
     case "full": {
+      // Worker thought inputs are atomContext (10K+) — truncate heavily to
+      // avoid re-embedding prior atoms' full context. But visioner/strategist/
+      // researcher inputs carry critical vision + research signal — keep more.
+      const inputLimit = thought.layer === "worker" ? 200 : 2000;
       const parts = [
         `### ${thought.id} [${thought.layer}] — ${thought.status}`,
-        `**Task:** ${thought.input}`,
+        `**Task:** ${thought.input.slice(0, inputLimit)}`,
       ];
       if (thought.reasoning) {
         parts.push(`**Reasoning:** ${thought.reasoning.slice(0, 500)}`);
@@ -262,7 +266,12 @@ export function formatThoughtAtTier(thought: Thought, tier: ContextTier): string
       const output = thought.output
         ? thought.output.slice(0, 200) + (thought.output.length > 200 ? "…" : "")
         : "(no output)";
-      return `- **${thought.id}** [${thought.layer}]: ${thought.input.slice(0, 100)} → ${output}`;
+      // For worker thoughts: show reasoning summary (atomContext is noise at condensed tier)
+      // For vision/strategy/research: keep input — it carries critical signal
+      const label = thought.layer === "worker"
+        ? (thought.reasoning ? thought.reasoning.slice(0, 80) : thought.input.slice(0, 80))
+        : thought.input.slice(0, 200);
+      return `- **${thought.id}** [${thought.layer}]: ${label} → ${output}`;
     }
 
     case "headline": {
@@ -281,10 +290,15 @@ function estimateThoughtTokensForTier(thought: Thought, tier: ContextTier): numb
   switch (tier) {
     case "full":
       return estimateThoughtTokens(thought);
-    case "condensed":
+    case "condensed": {
+      const labelLen = thought.layer === "worker" ? 80 : 200;
+      const label = thought.layer === "worker"
+        ? (thought.reasoning ?? thought.input).slice(0, labelLen)
+        : thought.input.slice(0, labelLen);
       return estimateTokens(
-        thought.input.slice(0, 100) + (thought.output ?? "").slice(0, 200),
+        label + (thought.output ?? "").slice(0, 200),
       ) + 20; // overhead
+    }
     case "headline":
       return estimateTokens(
         thought.input.slice(0, 50) + (thought.output ?? "").slice(0, 60),

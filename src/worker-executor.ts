@@ -449,6 +449,18 @@ export async function executeOperations(
             break;
           }
 
+          // ─── EMPTY CONTENT GUARD ───
+          // If extraction produced content="" it means the regex matched a
+          // fence boundary but captured nothing inside. Writing a 0-byte
+          // file would silently destroy existing content. Reject so the
+          // orchestrator can retry or use fallback extraction.
+          if (op.content.trim().length === 0) {
+            const msg = `Rejected: write_file has empty content — extraction likely failed to capture fence body`;
+            options?.streaming?.warning(`🛡 ${msg} (${op.path})`);
+            results.push({ operation: op, success: false, error: msg });
+            break;
+          }
+
           // ─── PROTOCOL-LEAK GUARD ───
           // Reject payloads whose body IS a SEARCH/REPLACE block or
           // git conflict markers — those are protocol artifacts, never
@@ -475,15 +487,29 @@ export async function executeOperations(
 
           const fullPath = op.path.startsWith("/") ? op.path : `${projectRoot}/${op.path}`;
 
-          // Track diff for reporting
+          // ─── OVERWRITE PROTECTION ───
+          // If the file already exists and has content, check if the new
+          // content is a superset (contains the existing content). If not,
+          // merge by prepending existing content to prevent atom A's work
+          // from being destroyed by atom B's blind write_file.
           let diffInfo = "";
           try {
             const resolvedPath = resolve(projectRoot, op.path);
             if (existsSync(resolvedPath)) {
-              const old = readFileSync(resolvedPath, "utf-8");
-              const oldLines = old.split("\n").length;
+              const existingContent = readFileSync(resolvedPath, "utf-8");
+              const oldLines = existingContent.split("\n").length;
               const newLines = op.content.split("\n").length;
               diffInfo = ` (${oldLines}→${newLines} lines)`;
+
+              if (existingContent.trim().length > 0 && !op.content.includes(existingContent.trim())) {
+                // New content does NOT include existing — merge to prevent data loss
+                const mergedContent = existingContent + "\n" + op.content;
+                options?.streaming?.warning(
+                  `🔀 write_file merge: ${op.path} already has ${oldLines} lines — prepending existing content to prevent overwrite`,
+                );
+                op.content = mergedContent;
+                diffInfo = ` (${oldLines}→${mergedContent.split("\n").length} lines, merged)`;
+              }
             } else {
               diffInfo = ` (new file, ${op.content.split("\n").length} lines)`;
             }

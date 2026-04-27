@@ -51,3 +51,43 @@ dasvision_deploy/cache/
 get_hadith_data.mjs
 hadith-data/
 hadith_api_search_results.json
+
+# Alien project files (belong in their own repos)
+bebek-isim-app
+claude-code-source
+dasvision_deploy/
+dasvision_upgrade/
+dasvision_v3/
+eyrice-hero
+fitrat-repo/
+fitrat2.ckpt
+omni-app/
+src/mock-a/
+src/cursor-*.ts
+scripts/cursor-*.ts
+
+# Misc dev artifacts
+engine_copy.ts
+foreman.mjs
+hello-forge.txt
+implementation_plan.md
+walkthrough.md
+task.md
+count-tools.*
+continuous_dev.sh
+discover-models.ts
+list_files.sh
+patch.cjs
+read-void.sh
+test-404.ts
+anlatim_uslubu_prototipi.md
+FOREMAN_GERCEK_KABILIYETLER.md
+FOREMAN_TAM_KABILIYETLER.md
+FOREMAN_VS_OPENCLAW_ANALYSIS.md
+OMNI_MASTER_SPEC.md
+TELEGRAM_AUTO_ACTIVATION.md
+
+# Credentials (never commit)
+*.key
+*credentials*
+*secret*
