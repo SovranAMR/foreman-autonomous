@@ -5,10 +5,12 @@ import {
   runPipelineInvariantEngineProbes,
   runPipelineInvariantEngineProductionSlice,
   runPipelineInvariantEngineBoundarySlice,
+  runPipelineInvariantEngineFailureRecoverySlice,
   validatePipelineInvariantEngineFixture,
   validatePipelineInvariantEngineFixtureAgainstContract,
   validatePipelineInvariantEngineProbeMatrix,
   validatePipelineInvariantEngineBoundaryProbeMatrix,
+  validatePipelineInvariantEngineFailureRecoveryProbeMatrix,
   summarizePipelineInvariantEngineMatrix,
   summarizePipelineInvariantEngineContractCoverage,
   getActivePipelineInvariantEngineContract,
@@ -16,9 +18,11 @@ import {
   listPipelineInvariantEngineContractProbeIds,
   listPipelineInvariantEngineProbesByCategory,
   listPipelineInvariantEngineProbesByDisposition,
+  listPipelineInvariantEngineFailureRecoveryProbeIds,
   listPipelineInvariantEngineKnownGaps,
   listPipelineInvariantEngineProbesByExpected,
   PIPELINE_INVARIANT_ENGINE_CATEGORIES,
+  PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-pipeline-invariant-engine-harness.js";
 
 function formatMismatchReport(mismatches: { id: string; expected: string; actual: string; detail: string }[]): string {
@@ -38,7 +42,7 @@ describe("Forge Pipeline Invariant Engine — P01-B05-A01", () => {
     assert.equal(fixture.sourcePhaseEventSchema.probeCount, 35);
     assert.equal(fixture.sourcePhaseEventSchema.schemaCategories, 10);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
-    assert.equal(fixture.probes.length, 23);
+    assert.equal(fixture.probes.length, 32);
   });
 
   it("measures orchestrator pipeline invariant probes with documented FAIL gaps", () => {
@@ -46,11 +50,11 @@ describe("Forge Pipeline Invariant Engine — P01-B05-A01", () => {
     const summary = summarizePipelineInvariantEngineMatrix(results);
 
     assert.equal(summary.total, results.length);
-    assert.equal(summary.total, 23);
+    assert.equal(summary.total, 32);
     assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
 
     const documentedFail = listPipelineInvariantEngineProbesByExpected("FAIL", loadPipelineInvariantEngineFixture());
-    assert.equal(documentedFail.length, 7);
+    assert.equal(documentedFail.length, 10);
     assert.ok(documentedFail.some(p => p.id === "inv.runtime_phase_balance_checker"));
     assert.ok(documentedFail.some(p => p.id === "inv.event_order_validator"));
     assert.ok(documentedFail.some(p => p.id === "inv.reflection_cadence_invariant"));
@@ -85,7 +89,10 @@ describe("Forge Pipeline Invariant Engine — P01-B05-A01", () => {
     assert.deepEqual(ids, [
       "inv.block_invariant_module",
       "inv.event_order_validator",
+      "inv.failure_invariant_engine_on_block",
       "inv.invariant_engine_orchestrator_wired",
+      "inv.nogo_invariant_on_reject",
+      "inv.recovery_invariant_engine_wired",
       "inv.reflection_cadence_invariant",
       "inv.runtime_phase_balance_checker",
       "inv.state_phase_coherence_checker",
@@ -100,7 +107,10 @@ describe("Forge Pipeline Invariant Engine — P01-B05-A01", () => {
           g.category === "state_coherence" ||
           g.category === "block_halt" ||
           g.category === "verification_gate" ||
-          g.category === "boundary",
+          g.category === "boundary" ||
+          g.category === "failure_path" ||
+          g.category === "recovery_path" ||
+          g.category === "nogo_path",
       ),
       "documented gaps are runtime invariant engine probes",
     );
@@ -108,7 +118,7 @@ describe("Forge Pipeline Invariant Engine — P01-B05-A01", () => {
 });
 
 describe("Forge Pipeline Invariant Engine Contract — P01-B05-A02", () => {
-  it("defines typed acceptance for all eight pipeline invariant categories", () => {
+  it("defines typed acceptance for all eleven pipeline invariant categories", () => {
     const contract = getActivePipelineInvariantEngineContract();
     assert.equal(contract.version, "1.0.0");
     assert.equal(contract.atom, "P01-B05-A05");
@@ -123,22 +133,29 @@ describe("Forge Pipeline Invariant Engine Contract — P01-B05-A02", () => {
         assert.ok(probe.criterion.length > 10, `${probe.id} missing measurable criterion`);
         assert.ok(probe.expected === "PASS" || probe.expected === "FAIL");
         assert.ok(
-          probe.disposition === "observed" || probe.disposition === "gap",
+          probe.disposition === "observed" ||
+            probe.disposition === "gap" ||
+            probe.disposition === "failure" ||
+            probe.disposition === "recovery" ||
+            probe.disposition === "nogo",
           `${probe.id} missing disposition`,
         );
       }
     }
   });
 
-  it("maps 23 probes with seven documented gap dispositions from A01 baseline", () => {
+  it("maps 32 probes with ten documented gap dispositions from A01 baseline", () => {
     const contract = getActivePipelineInvariantEngineContract();
     const summary = summarizePipelineInvariantEngineContractCoverage(contract);
 
-    assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 16);
-    assert.equal(summary.expectedFail, 7);
+    assert.equal(summary.totalProbes, 32);
+    assert.equal(summary.expectedPass, 22);
+    assert.equal(summary.expectedFail, 10);
     assert.equal(summary.byDisposition.observed, 16);
-    assert.equal(summary.byDisposition.gap, 7);
+    assert.equal(summary.byDisposition.gap, 10);
+    assert.equal(summary.byDisposition.failure, 2);
+    assert.equal(summary.byDisposition.recovery, 2);
+    assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.phase_lifecycle.probeCount, 3);
     assert.equal(summary.byCategory.event_ordering.probeCount, 3);
     assert.equal(summary.byCategory.reflection_cadence.probeCount, 3);
@@ -147,15 +164,21 @@ describe("Forge Pipeline Invariant Engine Contract — P01-B05-A02", () => {
     assert.equal(summary.byCategory.verification_gate.probeCount, 3);
     assert.equal(summary.byCategory.baseline_link.probeCount, 2);
     assert.equal(summary.byCategory.boundary.probeCount, 3);
+    assert.equal(summary.byCategory.failure_path.probeCount, 3);
+    assert.equal(summary.byCategory.recovery_path.probeCount, 3);
+    assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
 
-  it("lists seven documented gap probes for runtime invariant engine wiring", () => {
+  it("lists ten documented gap probes for runtime invariant engine wiring", () => {
     const gaps = listPipelineInvariantEngineProbesByDisposition("gap");
     const ids = gaps.map(p => p.id).sort();
     assert.deepEqual(ids, [
       "inv.block_invariant_module",
       "inv.event_order_validator",
+      "inv.failure_invariant_engine_on_block",
       "inv.invariant_engine_orchestrator_wired",
+      "inv.nogo_invariant_on_reject",
+      "inv.recovery_invariant_engine_wired",
       "inv.reflection_cadence_invariant",
       "inv.runtime_phase_balance_checker",
       "inv.state_phase_coherence_checker",
@@ -208,10 +231,10 @@ describe("Forge Pipeline Invariant Engine Production Slice — P01-B05-A03", () 
     assert.equal(slice.fixtureValid, true);
     assert.equal(slice.contractAligned, true);
     assert.equal(slice.matrixValid, true);
-    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.summary.total, 32);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 16);
-    assert.equal(slice.matrixValidation.gapAligned, 7);
+    assert.equal(slice.matrixValidation.passAligned, 22);
+    assert.equal(slice.matrixValidation.gapAligned, 10);
 
     for (const contractProbe of contract.probes) {
       const result = slice.results.find(r => r.id === contractProbe.id);
@@ -230,13 +253,16 @@ describe("Forge Pipeline Invariant Engine Production Slice — P01-B05-A03", () 
     );
 
     assert.equal(slice.summary.mismatches.length, 0);
-    assert.equal(slice.summary.knownGaps.length, 7);
+    assert.equal(slice.summary.knownGaps.length, 10);
     assert.deepEqual(
       slice.summary.knownGaps.map(g => g.id).sort(),
       [
         "inv.block_invariant_module",
         "inv.event_order_validator",
+        "inv.failure_invariant_engine_on_block",
         "inv.invariant_engine_orchestrator_wired",
+        "inv.nogo_invariant_on_reject",
+        "inv.recovery_invariant_engine_wired",
         "inv.reflection_cadence_invariant",
         "inv.runtime_phase_balance_checker",
         "inv.state_phase_coherence_checker",
@@ -324,5 +350,75 @@ describe("Forge Pipeline Invariant Engine Boundary Slice — P01-B05-A04", () =>
     assert.ok(formatRetry);
     assert.equal(formatRetry!.expected, "PASS");
     assert.equal(formatRetry!.actual, "PASS");
+  });
+});
+
+describe("Forge Pipeline Invariant Engine Failure/Recovery Slice — P01-B05-A05", () => {
+  it("defines failure, recovery and NO-GO categories with invariant probes", () => {
+    const failure = listPipelineInvariantEngineProbesByDisposition("failure");
+    const recovery = listPipelineInvariantEngineProbesByDisposition("recovery");
+    const nogo = listPipelineInvariantEngineProbesByDisposition("nogo");
+    const failurePath = listPipelineInvariantEngineProbesByCategory("failure_path");
+    const recoveryPath = listPipelineInvariantEngineProbesByCategory("recovery_path");
+    const nogoPath = listPipelineInvariantEngineProbesByCategory("nogo_path");
+
+    assert.ok(failure.some(p => p.id === "inv.failure_block_halt_invariant"));
+    assert.ok(failure.some(p => p.id === "inv.failure_error_recovery_queue"));
+    assert.ok(recovery.some(p => p.id === "inv.recovery_phase_events_balanced"));
+    assert.ok(recovery.some(p => p.id === "inv.recovery_re_decompose_wired"));
+    assert.ok(nogo.some(p => p.id === "inv.nogo_reviewer_reject_rollback"));
+    assert.ok(nogo.some(p => p.id === "inv.nogo_format_retry_gate"));
+    assert.equal(failurePath.length, 3);
+    assert.equal(recoveryPath.length, 3);
+    assert.equal(nogoPath.length, 3);
+    assert.deepEqual(
+      [...PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActivePipelineInvariantEngineContract();
+    const slice = runPipelineInvariantEngineFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P01-B05-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 9);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 9);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 3);
+
+    for (const category of PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listPipelineInvariantEngineProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validatePipelineInvariantEngineFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented gaps while exercising failure/recovery/NO-GO paths", () => {
+    const results = runPipelineInvariantEngineProbes();
+    const summary = summarizePipelineInvariantEngineMatrix(results);
+
+    assert.equal(summary.total, 32);
+    assert.equal(summary.knownGaps.length, 10);
+    assert.equal(summary.mismatches.length, 0, formatMismatchReport(summary.mismatches));
+
+    const probeIds = listPipelineInvariantEngineFailureRecoveryProbeIds();
+    assert.equal(probeIds.length, 9);
+    assert.ok(probeIds.every(id => results.find(r => r.id === id)?.aligned));
   });
 });

@@ -20,9 +20,12 @@ import {
   validatePipelineInvariantEngineFixtureAgainstContract,
   validatePipelineInvariantEngineProbeMatrix,
   validatePipelineInvariantEngineBoundaryProbeMatrix,
+  validatePipelineInvariantEngineFailureRecoveryProbeMatrix,
   summarizePipelineInvariantEngineMatrix,
   getActivePipelineInvariantEngineContract,
   listPipelineInvariantEngineProbesByCategory,
+  listPipelineInvariantEngineFailureRecoveryProbeIds,
+  PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES,
   listPipelineInvariantEngineProbesByExpected,
   type PipelineInvariantEngineCategory,
   type PipelineInvariantEngineFixture,
@@ -40,16 +43,19 @@ export {
   validatePipelineInvariantEngineFixtureAgainstContract,
   validatePipelineInvariantEngineProbeMatrix,
   validatePipelineInvariantEngineBoundaryProbeMatrix,
+  validatePipelineInvariantEngineFailureRecoveryProbeMatrix,
   summarizePipelineInvariantEngineMatrix,
   getActivePipelineInvariantEngineContract,
   getPipelineInvariantEngineCategoryContract,
   listPipelineInvariantEngineContractProbeIds,
   listPipelineInvariantEngineProbesByCategory,
+  listPipelineInvariantEngineFailureRecoveryProbeIds,
   listPipelineInvariantEngineProbesByDisposition,
   listPipelineInvariantEngineProbesByExpected,
   summarizePipelineInvariantEngineContractCoverage,
   FORGE_PIPELINE_INVARIANT_ENGINE_CONTRACT_V1,
   PIPELINE_INVARIANT_ENGINE_CATEGORIES,
+  PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES,
   PIPELINE_INVARIANT_ENGINE_A01_MIN_PROBES,
   buildDefaultPipelineInvariantEngineSourcePhaseEventSchema,
 } from "./forge-pipeline-invariant-engine.js";
@@ -513,6 +519,170 @@ function probeBoundary(
   }
 }
 
+function probeFailurePath(
+  id: string,
+  category: PipelineInvariantEngineCategory,
+  expected: ForgeAcceptanceOutcome,
+): PipelineInvariantEngineProbeResult {
+  const src = orchestratorSource();
+
+  switch (id) {
+    case "inv.failure_block_halt_invariant": {
+      const ok =
+        /type:\s*"block_detected"[\s\S]{0,500}return this\.buildResult/.test(src) ||
+        /type:\s*"block_detected"[\s\S]{0,300}return \{ success: false/.test(src);
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `blockHaltInvariant=${ok}`,
+        "block_detected emission halts forward pipeline without premature pipeline_complete",
+      );
+    }
+    case "inv.failure_error_recovery_queue": {
+      const ok =
+        src.includes('type: "error"') &&
+        src.includes("MAX_ATOM_RETRIES") &&
+        src.includes("queued for recovery");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `errorRecoveryQueue=${ok}`,
+        "MAX_ATOM_RETRIES exhaustion emits error and queues recovery",
+      );
+    }
+    case "inv.failure_invariant_engine_on_block": {
+      const emitBlock = src.slice(
+        src.indexOf("private emit(event: OrchestratorEvent)"),
+        src.indexOf("private emit(event: OrchestratorEvent)") + 800,
+      );
+      const ok =
+        emitBlock.includes("validateBlockHalt") ||
+        (src.includes("forge-pipeline-invariant-engine") &&
+          emitBlock.includes("block_detected") &&
+          emitBlock.includes("invariantEngine"));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `invariantOnBlock=${ok}`,
+        "Invariant engine validates state on block_detected emission",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown failure_path probe");
+  }
+}
+
+function probeRecoveryPath(
+  id: string,
+  category: PipelineInvariantEngineCategory,
+  expected: ForgeAcceptanceOutcome,
+): PipelineInvariantEngineProbeResult {
+  const src = orchestratorSource();
+
+  switch (id) {
+    case "inv.recovery_phase_events_balanced": {
+      const ok =
+        src.includes("runRecoveryPhase") &&
+        (src.includes('phaseStart?.("recovery"') || src.includes('phaseStart("recovery"')) &&
+        (src.includes('phaseEnd?.("recovery"') || src.includes('phaseEnd("recovery"'));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recoveryPhaseBalanced=${ok}`,
+        'runRecoveryPhase emits phaseStart/phaseEnd for "recovery" phase',
+      );
+    }
+    case "inv.recovery_re_decompose_wired": {
+      const ok =
+        src.includes('phaseStart("re_decompose"') || src.includes('phaseStart?.("re_decompose"');
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `reDecomposeWired=${ok}`,
+        'orchestrator calls phaseStart("re_decompose") after block failure threshold',
+      );
+    }
+    case "inv.recovery_invariant_engine_wired": {
+      const ok =
+        src.includes("forge-pipeline-invariant-engine") &&
+        (src.includes("validateRecoveryPhase") || src.includes("recoveryInvariant"));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recoveryInvariantEngine=${ok}`,
+        "Invariant engine validates recovery phase transitions at runtime",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown recovery_path probe");
+  }
+}
+
+function probeNogoPath(
+  id: string,
+  category: PipelineInvariantEngineCategory,
+  expected: ForgeAcceptanceOutcome,
+): PipelineInvariantEngineProbeResult {
+  const src = orchestratorSource();
+
+  switch (id) {
+    case "inv.nogo_reviewer_reject_rollback": {
+      const ok =
+        src.includes('reviewResult.verdict === "REJECT"') &&
+        src.includes("rollbackLastAtom");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `rejectRollback=${ok}`,
+        'reviewResult.verdict === "REJECT" triggers rollbackLastAtom before retry',
+      );
+    }
+    case "inv.nogo_format_retry_gate": {
+      const ok =
+        src.includes('type: "format_retry"') &&
+        src.includes("attempt:") &&
+        src.includes("missing:");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `formatRetryGate=${ok}`,
+        "format_retry emitted with attempt and missing fields before atom retry",
+      );
+    }
+    case "inv.nogo_invariant_on_reject": {
+      const ok =
+        src.includes("forge-pipeline-invariant-engine") &&
+        (src.includes("validateNogoReject") || src.includes("nogoInvariant"));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `nogoInvariantOnReject=${ok}`,
+        "Invariant engine validates NO-GO ordering on reviewer REJECT",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown nogo_path probe");
+  }
+}
+
 function runSingleProbe(
   id: string,
   category: PipelineInvariantEngineCategory,
@@ -535,6 +705,12 @@ function runSingleProbe(
       return probeBaselineLink(id, category, expected);
     case "boundary":
       return probeBoundary(id, category, expected);
+    case "failure_path":
+      return probeFailurePath(id, category, expected);
+    case "recovery_path":
+      return probeRecoveryPath(id, category, expected);
+    case "nogo_path":
+      return probeNogoPath(id, category, expected);
     default:
       return probe(id, category, expected, false, `unknown category: ${category}`);
   }
@@ -627,6 +803,41 @@ export function runPipelineInvariantEngineBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface PipelineInvariantEngineFailureRecoverySliceResult {
+  atom: "P01-B05-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: PipelineInvariantEngineProbeResult[];
+  failureRecoveryResults: PipelineInvariantEngineProbeResult[];
+  matrixValidation: PipelineInvariantEngineProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runPipelineInvariantEngineFailureRecoverySlice(
+  fixture: PipelineInvariantEngineFixture = loadPipelineInvariantEngineFixture(),
+): PipelineInvariantEngineFailureRecoverySliceResult {
+  const contract = getActivePipelineInvariantEngineContract();
+  const results = runPipelineInvariantEngineProbes(fixture);
+  const failureRecoveryProbes = PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listPipelineInvariantEngineProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validatePipelineInvariantEngineFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B05-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

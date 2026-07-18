@@ -148,6 +148,60 @@
       "category": "boundary",
       "description": "Orchestrator imports and wires pipeline invariant engine for live validation",
       "expected": "FAIL"
+    },
+    {
+      "id": "inv.failure_block_halt_invariant",
+      "category": "failure_path",
+      "description": "block_detected halts forward progress preserving pipeline invariant state",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.failure_error_recovery_queue",
+      "category": "failure_path",
+      "description": "Atom exhaust emits error and queues recovery without breaking invariants",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.failure_invariant_engine_on_block",
+      "category": "failure_path",
+      "description": "Pipeline invariant engine validates cross-cutting invariants on block_detected path",
+      "expected": "FAIL"
+    },
+    {
+      "id": "inv.recovery_phase_events_balanced",
+      "category": "recovery_path",
+      "description": "runRecoveryPhase emits balanced recovery phase_start and phase_end events",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.recovery_re_decompose_wired",
+      "category": "recovery_path",
+      "description": "re_decompose phase wired on block failure threshold for replan recovery",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.recovery_invariant_engine_wired",
+      "category": "recovery_path",
+      "description": "Pipeline invariant engine validates recovery phase transition invariants",
+      "expected": "FAIL"
+    },
+    {
+      "id": "inv.nogo_reviewer_reject_rollback",
+      "category": "nogo_path",
+      "description": "Reviewer REJECT verdict triggers rollback before atom retry (NO-GO gate)",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.nogo_format_retry_gate",
+      "category": "nogo_path",
+      "description": "format_retry acts as validation NO-GO gate before atom re-execution",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.nogo_invariant_on_reject",
+      "category": "nogo_path",
+      "description": "Pipeline invariant engine enforces NO-GO ordering on reviewer REJECT path",
+      "expected": "FAIL"
     }
   ]
 }

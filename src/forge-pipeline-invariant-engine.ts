@@ -13,9 +13,14 @@ import {
   PHASE_EVENT_SCHEMA_CATEGORIES,
 } from "./forge-phase-event-schema.js";
 
-export const FORGE_PIPELINE_INVARIANT_ENGINE_HARNESS_VERSION = "1.0.0-a04";
+export const FORGE_PIPELINE_INVARIANT_ENGINE_HARNESS_VERSION = "1.0.0-a05";
 
-export type PipelineInvariantEngineProbeDisposition = "observed" | "gap";
+export type PipelineInvariantEngineProbeDisposition =
+  | "observed"
+  | "gap"
+  | "failure"
+  | "recovery"
+  | "nogo";
 
 export const PIPELINE_INVARIANT_ENGINE_CATEGORIES = [
   "phase_lifecycle",
@@ -26,6 +31,9 @@ export const PIPELINE_INVARIANT_ENGINE_CATEGORIES = [
   "verification_gate",
   "baseline_link",
   "boundary",
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
 ] as const;
 
 export type PipelineInvariantEngineCategory = (typeof PIPELINE_INVARIANT_ENGINE_CATEGORIES)[number];
@@ -126,6 +134,9 @@ export const PIPELINE_INVARIANT_ENGINE_A01_MIN_PROBES: Readonly<
   verification_gate: 3,
   baseline_link: 2,
   boundary: 3,
+  failure_path: 3,
+  recovery_path: 3,
+  nogo_path: 3,
 };
 
 function flattenPipelineInvariantEngineCategoryProbes(
@@ -410,6 +421,111 @@ const PIPELINE_INVARIANT_ENGINE_CATEGORY_CONTRACTS: Record<
       },
     ],
   },
+  failure_path: {
+    category: "failure_path",
+    acceptance: {
+      invariant:
+        "Pipeline invariant probes cover block_detected halt, atom-exhaust recovery queue, and runtime invariant validation on failure paths.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "inv.failure_block_halt_invariant",
+        category: "failure_path",
+        description: "block_detected halts forward progress preserving pipeline invariant state",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "block_detected emission halts forward pipeline without premature pipeline_complete",
+      },
+      {
+        id: "inv.failure_error_recovery_queue",
+        category: "failure_path",
+        description: "Atom exhaust emits error and queues recovery without breaking invariants",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "MAX_ATOM_RETRIES exhaustion emits error and queues recovery",
+      },
+      {
+        id: "inv.failure_invariant_engine_on_block",
+        category: "failure_path",
+        description: "Pipeline invariant engine validates cross-cutting invariants on block_detected path",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Invariant engine validates state on block_detected emission",
+      },
+    ],
+  },
+  recovery_path: {
+    category: "recovery_path",
+    acceptance: {
+      invariant:
+        "Recovery phase events maintain phase balance, queue clearing, and runtime invariant validation on recovery paths.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "inv.recovery_phase_events_balanced",
+        category: "recovery_path",
+        description: "runRecoveryPhase emits balanced recovery phase_start and phase_end events",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: 'runRecoveryPhase emits phaseStart/phaseEnd for "recovery" phase',
+      },
+      {
+        id: "inv.recovery_re_decompose_wired",
+        category: "recovery_path",
+        description: "re_decompose phase wired on block failure threshold for replan recovery",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: 'orchestrator calls phaseStart("re_decompose") after block failure threshold',
+      },
+      {
+        id: "inv.recovery_invariant_engine_wired",
+        category: "recovery_path",
+        description: "Pipeline invariant engine validates recovery phase transition invariants",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Invariant engine validates recovery phase transitions at runtime",
+      },
+    ],
+  },
+  nogo_path: {
+    category: "nogo_path",
+    acceptance: {
+      invariant:
+        "NO-GO gates enforce reviewer REJECT rollback, format_retry validation, and runtime invariant rejection ordering.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "inv.nogo_reviewer_reject_rollback",
+        category: "nogo_path",
+        description: "Reviewer REJECT verdict triggers rollback before atom retry (NO-GO gate)",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: 'reviewResult.verdict === "REJECT" triggers rollbackLastAtom before retry',
+      },
+      {
+        id: "inv.nogo_format_retry_gate",
+        category: "nogo_path",
+        description: "format_retry acts as validation NO-GO gate before atom re-execution",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: "format_retry emitted with attempt and missing fields before atom retry",
+      },
+      {
+        id: "inv.nogo_invariant_on_reject",
+        category: "nogo_path",
+        description: "Pipeline invariant engine enforces NO-GO ordering on reviewer REJECT path",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Invariant engine validates NO-GO ordering on reviewer REJECT",
+      },
+    ],
+  },
 };
 
 /** Typed pipeline invariant engine contract v1 — source of truth for cross-cutting acceptance. */
@@ -469,6 +585,9 @@ export function summarizePipelineInvariantEngineContractCoverage(
   const byDisposition: Record<PipelineInvariantEngineProbeDisposition, number> = {
     observed: 0,
     gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
   };
   let totalProbes = 0;
   let expectedPass = 0;
@@ -524,6 +643,9 @@ export function validatePipelineInvariantEngineFixture(
     verification_gate: 0,
     baseline_link: 0,
     boundary: 0,
+    failure_path: 0,
+    recovery_path: 0,
+    nogo_path: 0,
   };
 
   for (const probe of fixture.probes) {
@@ -804,4 +926,45 @@ export function validatePipelineInvariantEngineBoundaryProbeMatrix(
   const boundaryIds = new Set(boundaryProbes.map(p => p.id));
   const boundaryResults = results.filter(r => boundaryIds.has(r.id));
   return validatePipelineInvariantEngineProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly PipelineInvariantEngineCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes and documented FAIL gaps must align; zero unexpected mismatches.
+ */
+export function validatePipelineInvariantEngineFailureRecoveryProbeMatrix(
+  results: PipelineInvariantEngineProbeResult[],
+  contract: PipelineInvariantEngineContract = getActivePipelineInvariantEngineContract(),
+): PipelineInvariantEngineProbeMatrixValidationResult {
+  const failureRecoveryProbes = PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listPipelineInvariantEngineProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: PipelineInvariantEngineContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validatePipelineInvariantEngineProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listPipelineInvariantEngineFailureRecoveryProbeIds(
+  contract: PipelineInvariantEngineContract = getActivePipelineInvariantEngineContract(),
+): string[] {
+  return PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listPipelineInvariantEngineProbesByCategory(category, contract).map(p => p.id),
+  );
 }
