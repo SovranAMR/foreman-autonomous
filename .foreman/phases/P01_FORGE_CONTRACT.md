@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 51
+completed_atoms: 52
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -82,7 +82,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P01-B06-A01 — Benchmark ve eval harness: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B06-A02 — Benchmark ve eval harness: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P01-B06-A03 — Benchmark ve eval harness: en küçük üretim dikey dilimini uygula
+- [x] P01-B06-A03 — Benchmark ve eval harness: en küçük üretim dikey dilimini uygula
 - [ ] P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B06-A05 — Benchmark ve eval harness: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B06-A06 — Benchmark ve eval harness: evidence, telemetry ve provenance kaydını ekle
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B06-A02
-last_commit: bea364a
-tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (9/9)
+last_atom: P01-B06-A03
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (10/10)
 evidence: |
-  P01-B06-A02 contract: FORGE_BENCHMARK_EVAL_CONTRACT_V1 with 26 probes across 9 categories
-  (18 PASS / 8 FAIL gaps); fixture ↔ contract 1:1 alignment; probe criteria wired from contract
-  source of truth; byDisposition observed=12 gap=8 failure=2 recovery=2 nogo=2.
-next: P01-B06-A03
+  P01-B06-A03 production slice: runBenchmarkEvalProductionSlice with fixtureValid/contractAligned/matrixValid;
+  validateBenchmarkEvalProbeMatrix gate — 18 passAligned, 8 gapAligned, zero unexpected mismatches;
+  contract-wired criteria on all 26 probes; 8 documented FAIL gaps preserved.
+next: P01-B06-A04

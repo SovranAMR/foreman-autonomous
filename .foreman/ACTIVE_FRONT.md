@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B06
-active_atom: P01-B06-A03
+active_atom: P01-B06-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 51/1000
+program_progress: 52/1000
 phase_progress: 51/100
-block_progress: 2/10
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B06-A03 — Benchmark ve eval harness: en küçük üretim dikey dilimini uygula.
+P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla.
 
-objective: A02 typed contract üzerine contract-wired probe production slice uygula.
-target: runBenchmarkEvalProductionSlice; zero unexpected PASS mismatches.
-hypothesis: Contract-wired probes A01 baseline ile uyumlu çalışır.
-acceptance: production slice test PASS; contract matrix validation PASS.
+objective: A03 production slice üzerine boundary-category probe matrix slice uygula.
+target: runBenchmarkEvalBoundarySlice; zero unexpected PASS mismatches.
+hypothesis: Boundary probes contract-wired çalışır; documented FAIL gaps korunur.
+acceptance: boundary slice test PASS; boundary matrix validation PASS.
 commands: npx tsx --test src/forge-benchmark-eval-harness.test.ts
 blast_radius: forge-benchmark-eval-harness*.ts
-rollback: A03 production slice değişikliklerini geri al.
+rollback: A04 boundary slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B06-A02
-last_commit: bea364a
-tests: PASS — forge-benchmark-eval-harness.test.ts (9/9)
-evidence: FORGE_BENCHMARK_EVAL_CONTRACT_V1; 26 probes / 9 categories; fixture ↔ contract aligned; criteria wired
-next: P01-B06-A03
+last_atom: P01-B06-A03
+last_commit: PENDING
+tests: PASS — forge-benchmark-eval-harness.test.ts (10/10)
+evidence: runBenchmarkEvalProductionSlice; validateBenchmarkEvalProbeMatrix; 18 passAligned / 8 gapAligned; zero unexpected mismatches
+next: P01-B06-A04
