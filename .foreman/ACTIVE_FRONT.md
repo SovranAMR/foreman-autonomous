@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B02-A10
-last_commit: pending
+last_commit: e35f241
 tests: PASS — forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (17/17), forge-pipeline-behavior-map.guard (8/8), forge-pipeline-behavior-map.property-fuzz (4/4), forge-pipeline-regression.integration (8/8)
 evidence: runForgeBehaviorMapBlockGate seals P01-B02 (10/10 atom seals), FORGE_P01_B02_TO_B03_HANDOFF_V1 valid, orchestrator verifyForgeBehaviorMapBlockGate emits behavior_map_block_gate verification event
 next: P01-B03-A01

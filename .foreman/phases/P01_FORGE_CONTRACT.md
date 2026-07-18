@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B02-A10
-last_commit: pending
+last_commit: e35f241
 tests: PASS — `npx tsx --test src/forge-behavior-map-block-gate.test.ts` (6/6), `src/forge-pipeline-behavior-map.test.ts` (17/17), `src/forge-pipeline-behavior-map.guard.test.ts` (8/8), `src/forge-pipeline-regression.integration.test.ts` (8/8)
 evidence: |
   P01-B02-A10 block gate slice: runForgeBehaviorMapBlockGate seals 10/10 atom seals with regression/guard PASS,
