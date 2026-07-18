@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B04
-active_atom: P01-B04-A09
+active_atom: P01-B04-A10
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 38/1000
-phase_progress: 38/100
-block_progress: 7/10
+program_progress: 39/1000
+phase_progress: 39/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B04-A09 — Typed phase/event schema: adversarial, performance, cost ve safety kontrolünü geçir.
+P01-B04-A10 — Typed phase/event schema: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: Typed phase/event schema için adversarial, performance, cost ve safety kontrolünü geçir.
-target: Guard gate rejects tampered records, enforces perf/cost/safety bounds on canonical schema matrix.
-hypothesis: A08 regression wires guard; A09 validates guard controls pass standalone adversarial scenarios.
-acceptance: guard gate passes; adversarial scenarios rejected; perf/cost/safety within bounds.
-commands: npx tsx --test src/forge-phase-event-schema.test.ts src/forge-phase-event-schema.guard.test.ts
+objective: Typed phase/event schema block gate kanıtını mühürle ve P01-B05 handoff'unu hazırla.
+target: Block gate validates A01–A09 deliverables, regression, guard, and B05 handoff.
+hypothesis: A09 guard PASS sonrası block gate tüm atom deliverable'larını doğrular ve handoff üretir.
+acceptance: block gate passes; all A01–A09 checks sealed; B05 handoff contract ready.
+commands: npx tsx --test src/forge-phase-event-schema-block-gate.test.ts
 blast_radius: forge-phase-event-schema*.ts
-rollback: A09 değişikliklerini geri al.
+rollback: A10 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B04-A08
+last_atom: P01-B04-A09
 last_commit: pending
-tests: PASS — forge-phase-event-schema (30/30)
-evidence: regression gate 35/35 probes aligned; detectPhaseEventSchemaProbeRegression flags misalignment; prior-record compare no false regression; orchestrator verifyForgePhaseEventSchemaRegression emits phase_event_schema_regression; guard integrated (adversarial 3/3)
-next: P01-B04-A09
+tests: PASS — forge-phase-event-schema guard (38/38)
+evidence: adversarial 3/3 rejected; perf/cost/safety bounds enforced; validateForgePhaseEventSchemaGuard PASS; orchestrator verifyForgePhaseEventSchemaGuard emits phase_event_schema_guard verification
+next: P01-B04-A10

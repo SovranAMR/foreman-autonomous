@@ -270,6 +270,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge phase/event schema guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B04-A09).
+   */
+  async verifyForgePhaseEventSchemaGuard(
+    priorRecord?: import("./forge-phase-event-schema.js").PhaseEventSchemaRunRecord,
+  ): Promise<import("./forge-phase-event-schema-harness.js").ForgePhaseEventSchemaRegressionResult> {
+    const { runForgePhaseEventSchemaRegressionGate } = await import("./forge-phase-event-schema-harness.js");
+    const result = runForgePhaseEventSchemaRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "phase_event_schema_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge formal state machine guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B03-A09).
    */
   async verifyForgeFormalStateMachineGuard(

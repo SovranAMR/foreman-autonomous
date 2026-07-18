@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 38
+completed_atoms: 39
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -62,7 +62,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B04-A06 — Typed phase/event schema: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B04-A07 — Typed phase/event schema: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B04-A08 — Typed phase/event schema: Forge entegrasyonu ile regression testini tamamla
-- [ ] P01-B04-A09 — Typed phase/event schema: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P01-B04-A09 — Typed phase/event schema: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B04-A10 — Typed phase/event schema: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B05 — Pipeline invariant engine
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B04-A08
+last_atom: P01-B04-A09
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts src/forge-phase-event-schema.property-fuzz.test.ts` (30/30)
+tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts src/forge-phase-event-schema.guard.test.ts` (38/38)
 evidence: |
-  P01-B04-A08 regression gate: runForgePhaseEventSchemaRegressionGate 35/35 probes aligned;
-  detectPhaseEventSchemaProbeRegression flags misaligned probes; prior-record compare no false regression;
-  orchestrator verifyForgePhaseEventSchemaRegression emits phase_event_schema_regression verification;
-  validateForgePhaseEventSchemaGuard integrated (adversarial 3/3 rejected, perf/cost/safety bounds).
-next: P01-B04-A09
+  P01-B04-A09 guard gate: runPhaseEventSchemaAdversarialGuardChecks 3/3 tampered records rejected;
+  detectPhaseEventSchemaFalseAlignment and detectPhaseEventSchemaEvidenceSummaryMismatch flag attacks;
+  validateForgePhaseEventSchemaGuard enforces perf/cost/safety bounds on canonical 35-probe matrix;
+  orchestrator verifyForgePhaseEventSchemaGuard emits phase_event_schema_guard verification event.
+next: P01-B04-A10
