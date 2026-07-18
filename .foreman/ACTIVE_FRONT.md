@@ -44,7 +44,7 @@ fallback: block gate uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B06-A09
-last_commit: PENDING
+last_commit: 90e4f34
 tests: PASS — forge-benchmark-eval-harness.guard.test.ts (8/8); forge-benchmark-eval-harness.test.ts (22/22); forge-pipeline-regression.integration.test.ts (B06 slice 5/5)
 evidence: validateForgeBenchmarkEvalGuard; verifyForgeBenchmarkEvalGuard orchestrator seam; adversarial/perf/cost/safety guard; runForgeBenchmarkEvalRegressionGate guard PASS; bench.forge_guard_exports probe wired
 next: P01-B06-A10

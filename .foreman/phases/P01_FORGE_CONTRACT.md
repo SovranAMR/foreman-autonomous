@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B06-A09
-last_commit: PENDING
+last_commit: 90e4f34
 tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.guard.test.ts` (8/8); `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (22/22); `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (B06 slice 5/5)
 evidence: |
   P01-B06-A09 guard gate: validateForgeBenchmarkEvalGuard + verifyForgeBenchmarkEvalGuard orchestrator seam;
