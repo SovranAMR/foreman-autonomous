@@ -1,0 +1,171 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B06-A01",
+  "contractAtom": "P01-B06-A05",
+  "purpose": "Benchmark and eval harness baseline measured against orchestrator latency, cost, eval suite and reproducibility probes (includes documented FAIL gaps).",
+  "sourcePipelineInvariantEngine": {
+    "version": "1.0.0",
+    "atom": "P01-B05-A10",
+    "contractVersion": "1.0.0",
+    "probeCount": 32,
+    "invariantCategories": 11
+  },
+  "probes": [
+    {
+      "id": "bench.pipeline_duration_logged",
+      "category": "latency_timing",
+      "description": "Pipeline completion logs duration derived from pipelineStartTime",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.pipeline_start_time_set",
+      "category": "latency_timing",
+      "description": "pipelineStartTime initialized at pipeline run start",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.phase_timing_collector",
+      "category": "latency_timing",
+      "description": "phaseTimings map populated during pipeline phases for latency eval",
+      "expected": "FAIL"
+    },
+    {
+      "id": "bench.phase_token_map",
+      "category": "token_cost",
+      "description": "Orchestrator tracks per-phase token usage in phaseTokens map",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.session_budget_gate",
+      "category": "token_cost",
+      "description": "Session token budget gate halts pipeline when exceeded",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.phase_budget_caps",
+      "category": "token_cost",
+      "description": "Phase-level token budget caps enforced via PHASE_BUDGET_PCT",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.forge_regression_exports",
+      "category": "eval_suite",
+      "description": "Orchestrator exports verifyForge*Regression gate methods",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.forge_guard_exports",
+      "category": "eval_suite",
+      "description": "Orchestrator exports verifyForge*Guard gate methods",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.benchmark_regression_export",
+      "category": "eval_suite",
+      "description": "Orchestrator exports verifyForgeBenchmarkEvalRegression eval gate",
+      "expected": "FAIL"
+    },
+    {
+      "id": "bench.pipeline_resume_checkpoint",
+      "category": "reproducibility",
+      "description": "PipelineResumeEngine checkpoints pipeline phase for reproducible resume",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.deterministic_eval_seed",
+      "category": "reproducibility",
+      "description": "Orchestrator accepts deterministic eval seed for reproducible benchmark runs",
+      "expected": "FAIL"
+    },
+    {
+      "id": "bench.fixture_hash_provenance",
+      "category": "reproducibility",
+      "description": "Eval harness records fixture hash provenance on benchmark runs",
+      "expected": "FAIL"
+    },
+    {
+      "id": "bench.b05_handoff_target",
+      "category": "baseline_link",
+      "description": "FORGE_P01_B05_TO_B06_HANDOFF_V1 targets P01-B06-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.b05_invariant_sealed",
+      "category": "baseline_link",
+      "description": "Sealed B05 pipeline invariant engine probe count matches handoff artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.quality_metrics_tracked",
+      "category": "boundary",
+      "description": "Orchestrator emits atom_quality verification with tokenCost metrics",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.observer_wired",
+      "category": "boundary",
+      "description": "PipelineObserver receives orchestrator events for observability",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.eval_harness_orchestrator_wired",
+      "category": "boundary",
+      "description": "Orchestrator imports and wires benchmark eval harness for live validation",
+      "expected": "FAIL"
+    },
+    {
+      "id": "bench.failure_pipeline_timing_on_block",
+      "category": "failure_path",
+      "description": "Block path preserves pipeline timing finalization for benchmark capture",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.failure_cost_on_block",
+      "category": "failure_path",
+      "description": "Cost tracker remains available when block_detected halts pipeline",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.failure_eval_harness_on_block",
+      "category": "failure_path",
+      "description": "Benchmark eval harness validates metrics capture on block_detected path",
+      "expected": "FAIL"
+    },
+    {
+      "id": "bench.recovery_resume_wired",
+      "category": "recovery_path",
+      "description": "Recovery phase wired for pipeline resume after failure",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.recovery_re_decompose",
+      "category": "recovery_path",
+      "description": "re_decompose phase wired on block failure threshold for replan recovery",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.recovery_eval_baseline_reset",
+      "category": "recovery_path",
+      "description": "Benchmark eval harness resets baseline metrics on recovery transition",
+      "expected": "FAIL"
+    },
+    {
+      "id": "bench.nogo_reviewer_reject",
+      "category": "nogo_path",
+      "description": "reviewResult.verdict === REJECT triggers rollbackLastAtom before retry",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.nogo_format_retry",
+      "category": "nogo_path",
+      "description": "format_retry emitted with attempt and missing fields before atom retry",
+      "expected": "PASS"
+    },
+    {
+      "id": "bench.nogo_eval_gate_on_reject",
+      "category": "nogo_path",
+      "description": "Benchmark eval harness enforces NO-GO metrics gate on reviewer REJECT",
+      "expected": "FAIL"
+    }
+  ]
+}

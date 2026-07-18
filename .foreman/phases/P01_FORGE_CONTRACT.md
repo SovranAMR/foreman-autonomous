@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 49
+completed_atoms: 50
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -80,7 +80,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B06 — Benchmark ve eval harness
 
-- [ ] P01-B06-A01 — Benchmark ve eval harness: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B06-A01 — Benchmark ve eval harness: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B06-A02 — Benchmark ve eval harness: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B06-A03 — Benchmark ve eval harness: en küçük üretim dikey dilimini uygula
 - [ ] P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B05-A10
-last_commit: 7014f3d
-tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine-block-gate.test.ts src/forge-pipeline-invariant-engine.guard.test.ts src/forge-pipeline-invariant-engine.test.ts` (36/36)
+last_atom: P01-B06-A01
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (3/3)
 evidence: |
-  P01-B05-A10 block gate: runForgePipelineInvariantEngineBlockGate seals 10/10 atom seals with regression+guard PASS;
-  FORGE_P01_B05_TO_B06_HANDOFF_V1 targets P01-B06-A01; verifyForgePipelineInvariantEngineBlockGate emits
-  pipeline_invariant_engine_block_gate verification with handoff=PASS→P01-B06.
-next: P01-B06-A01
+  P01-B06-A01 baseline: forge-benchmark-eval-harness-v1 fixture with 26 probes (18 PASS / 8 FAIL gaps) aligned to
+  B05 handoff; runBenchmarkEvalHarnessProbes measures orchestrator latency/cost/eval/repro seam with zero PASS mismatches;
+  documented gaps: phase_timing_collector, benchmark_regression_export, deterministic_eval_seed, fixture_hash_provenance,
+  eval_harness_orchestrator_wired, failure_eval_harness_on_block, recovery_eval_baseline_reset, nogo_eval_gate_on_reject.
+next: P01-B06-A02

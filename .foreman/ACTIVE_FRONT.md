@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B06
-active_atom: P01-B06-A01
+active_atom: P01-B06-A02
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 49/1000
-phase_progress: 48/100
-block_progress: 0/10
+program_progress: 50/1000
+phase_progress: 50/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B06-A01 — Benchmark ve eval harness: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P01-B06-A02 — Benchmark ve eval harness: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: B05 sealed artifacts üzerine benchmark/eval harness baseline fixture ve probe matrix oluştur.
-target: forge-benchmark-eval-harness fixture; orchestrator benchmark probe seam.
-hypothesis: B05 block gate handoff ile B06-A01 failing baseline ölçülebilir.
-acceptance: benchmark eval harness fixture test PASS; baseline gaps documented.
+objective: A01 baseline fixture üzerine typed benchmark eval contract ve category acceptance tanımla.
+target: FORGE_BENCHMARK_EVAL_CONTRACT_V1; fixture ↔ contract alignment.
+hypothesis: A01 26-probe matrix A02 contract ile birebir eşleşebilir.
+acceptance: contract coverage test PASS; fixture validates against contract.
 commands: npx tsx --test src/forge-benchmark-eval-harness.test.ts
-blast_radius: forge-benchmark-eval-harness*.ts, fixtures/
-rollback: A01 değişikliklerini geri al.
+blast_radius: forge-benchmark-eval-harness*.ts
+rollback: A02 contract değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B05-A10
-last_commit: 7014f3d
-tests: PASS — forge-pipeline-invariant-engine-block-gate.test.ts + guard + core (36/36)
-evidence: runForgePipelineInvariantEngineBlockGate seals P01-B05; verifyForgePipelineInvariantEngineBlockGate emits pipeline_invariant_engine_block_gate; B06 handoff ready
-next: P01-B06-A01
+last_atom: P01-B06-A01
+last_commit: pending
+tests: PASS — forge-benchmark-eval-harness.test.ts (3/3)
+evidence: 26-probe benchmark eval baseline; 8 documented FAIL gaps; B05 handoff aligned
+next: P01-B06-A02
