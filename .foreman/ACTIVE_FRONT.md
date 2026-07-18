@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B04-A04
-last_commit: PENDING
+last_commit: a4c4d31
 tests: PASS — forge-phase-event-schema (14/14)
 evidence: boundary slice; 6 boundary probes (5 PASS + 1 documented FAIL gap); validatePhaseEventSchemaBoundaryProbeMatrix zero unexpected mismatches; runPhaseEventSchemaBoundarySlice gate
 next: P01-B04-A05

@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B04-A04
-last_commit: PENDING
+last_commit: a4c4d31
 tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (14/14)
 evidence: |
   P01-B04-A04 boundary slice: validatePhaseEventSchemaBoundaryProbeMatrix + runPhaseEventSchemaBoundarySlice;
