@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B05-A09
-last_commit: pending
+last_commit: 1c81301
 tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.guard.test.ts src/forge-pipeline-invariant-engine.test.ts` (30/30)
 evidence: |
   P01-B05-A09 guard slice: validateForgePipelineInvariantEngineGuard PASS with bounded perf/cost/safety metrics;
