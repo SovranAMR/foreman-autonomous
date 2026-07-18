@@ -44,7 +44,7 @@ fallback: kontrol path seçilemezse BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A08
-last_commit: PENDING
+last_commit: 11514b1
 tests: PASS — forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
 evidence: runForgeBaselineRegressionGate (27/27 aligned), detectBaselineProbeRegression (misaligned probe flagged), Orchestrator.verifyForgeBaselineRegression emits baseline_regression verification event
 next: P01-B01-A09
