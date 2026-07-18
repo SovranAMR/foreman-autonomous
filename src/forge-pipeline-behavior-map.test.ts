@@ -6,6 +6,11 @@ import {
   summarizeBehaviorMapMatrix,
   validateBehaviorMapFixtureAgainstContract,
   getActivePipelineBehaviorMapContract,
+  getBehaviorMapCategoryContract,
+  listBehaviorMapProbeIds,
+  listBehaviorMapProbesByDisposition,
+  summarizeBehaviorMapContractCoverage,
+  PIPELINE_BEHAVIOR_CATEGORIES,
 } from "./forge-pipeline-behavior-map-harness.js";
 
 describe("Forge Pipeline Behavior Map — P01-B02-A01", () => {
@@ -59,3 +64,76 @@ function formatMismatchReport(mismatches: ReturnType<typeof runPipelineBehaviorM
     .map(m => `${m.id}: expected=${m.expected} actual=${m.actual} (${m.detail})`)
     .join("\n");
 }
+
+describe("Forge Pipeline Behavior Map Contract — P01-B02-A02", () => {
+  it("defines typed acceptance for all five behavior categories", () => {
+    const contract = getActivePipelineBehaviorMapContract();
+    assert.equal(contract.version, "1.0.0");
+    assert.equal(contract.atom, "P01-B02-A02");
+
+    for (const category of PIPELINE_BEHAVIOR_CATEGORIES) {
+      const categoryContract = getBehaviorMapCategoryContract(category);
+      assert.ok(categoryContract.acceptance.invariant.length > 20, `${category} invariant too short`);
+      assert.ok(categoryContract.probes.length >= categoryContract.acceptance.minProbeCount);
+      assert.equal(categoryContract.acceptance.requireFullAlignment, true);
+
+      for (const probe of categoryContract.probes) {
+        assert.ok(probe.criterion.length > 10, `${probe.id} missing measurable criterion`);
+        assert.ok(probe.expected === "PASS" || probe.expected === "FAIL");
+        assert.ok(
+          probe.disposition === "observed" || probe.disposition === "gap",
+          `${probe.id} missing disposition`,
+        );
+      }
+    }
+  });
+
+  it("maps 16 probes with observed/gap disposition and category coverage", () => {
+    const contract = getActivePipelineBehaviorMapContract();
+    const summary = summarizeBehaviorMapContractCoverage(contract);
+
+    assert.equal(summary.totalProbes, 16);
+    assert.equal(summary.expectedPass, 14);
+    assert.equal(summary.expectedFail, 2);
+    assert.ok(summary.byDisposition.observed >= 14, "observed probes required");
+    assert.ok(summary.byDisposition.gap >= 2, "documented gap probes required");
+    assert.equal(summary.byCategory.phase_presence.probeCount, 7);
+    assert.equal(summary.byCategory.state_sync.probeCount, 6);
+    assert.equal(summary.byCategory.checkpoint_type.probeCount, 1);
+    assert.equal(summary.byCategory.stream_seam.probeCount, 1);
+    assert.equal(summary.byCategory.baseline_link.probeCount, 1);
+  });
+
+  it("lists documented FAIL gaps by gap disposition", () => {
+    const gaps = listBehaviorMapProbesByDisposition("gap");
+    const gapIds = gaps.map(p => p.id).sort();
+
+    assert.deepEqual(gapIds, ["map.atomize_state_sync", "map.registry_export"]);
+    for (const gap of gaps) {
+      assert.equal(gap.expected, "FAIL");
+      assert.equal(gap.disposition, "gap");
+    }
+  });
+
+  it("enforces fixture ↔ contract probe mapping with category alignment", () => {
+    const fixture = loadPipelineBehaviorMapFixture();
+    const contract = getActivePipelineBehaviorMapContract();
+    const validation = validateBehaviorMapFixtureAgainstContract(fixture, contract);
+
+    assert.equal(
+      validation.valid,
+      true,
+      validation.issues.map(i => `${i.kind}:${i.probeId ?? i.category ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const contractIds = new Set(listBehaviorMapProbeIds(contract));
+    const fixtureIds = fixture.probes.map(p => p.id);
+    assert.deepEqual([...fixtureIds].sort(), [...contractIds].sort());
+    assert.equal(fixture.contractAtom, contract.atom);
+  });
+
+  it("each behavior map probe id is globally unique", () => {
+    const ids = listBehaviorMapProbeIds();
+    assert.equal(new Set(ids).size, ids.length);
+  });
+});

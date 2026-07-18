@@ -28,8 +28,13 @@ export type {
 
 export {
   getActivePipelineBehaviorMapContract,
+  getBehaviorMapCategoryContract,
+  listBehaviorMapProbeIds,
+  listBehaviorMapProbesByDisposition,
+  summarizeBehaviorMapContractCoverage,
   validateBehaviorMapFixtureAgainstContract,
   buildDefaultBehaviorMapSourceBaseline,
+  PIPELINE_BEHAVIOR_CATEGORIES,
 } from "./forge-pipeline-behavior-map.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

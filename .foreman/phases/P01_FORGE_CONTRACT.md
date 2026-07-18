@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 1
-completed_atoms: 11
+completed_atoms: 12
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -29,7 +29,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P01-B02 — Mevcut pipeline davranış haritası
 
 - [x] P01-B02-A01 — Mevcut pipeline davranış haritası: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P01-B02-A02 — Mevcut pipeline davranış haritası: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P01-B02-A02 — Mevcut pipeline davranış haritası: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B02-A03 — Mevcut pipeline davranış haritası: en küçük üretim dikey dilimini uygula
 - [ ] P01-B02-A04 — Mevcut pipeline davranış haritası: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B02-A05 — Mevcut pipeline davranış haritası: failure, recovery ve NO-GO yollarını uygula
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B02-A01
-last_commit: 69170d5
-tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (2/2), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
+last_atom: P01-B02-A02
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (7/7), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
-  forge-pipeline-behavior-map-v1.json fixture (16 probes, B01 handoff probeCount=27),
-  runPipelineBehaviorMapProbes 16/16 aligned with 2 known FAIL gaps (map.atomize_state_sync, map.registry_export),
-  harness probe seam reads live orchestrator/pipeline-resume/streaming sources without LLM.
-next: P01-B02-A02
+  FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1: 5 category acceptance invariants, 16 probes (14 observed / 2 gap),
+  summarizeBehaviorMapContractCoverage + listBehaviorMapProbeIds + validateBehaviorMapFixtureAgainstContract sealed,
+  fixture contractAtom=P01-B02-A02 aligned, runPipelineBehaviorMapProbes 16/16 with 2 known FAIL gaps.
+next: P01-B02-A03
