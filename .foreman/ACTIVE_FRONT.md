@@ -44,7 +44,7 @@ fallback: dikey dilim seçilemezse BLOCKED raporla, fixture/contract genişletme
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A02
-last_commit: (pending)
+last_commit: 4a99597
 tests: PASS — forge-baseline-contract (4/4), forge-pipeline-baseline (2/2)
 evidence: FORGE_BASELINE_CONTRACT_V1 typed contract; 6 path invariants; 20 probe↔criterion mappings; fixture↔contract validation enforced at load
 next: P01-B01-A03

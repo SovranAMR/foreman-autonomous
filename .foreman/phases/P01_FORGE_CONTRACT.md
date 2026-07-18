@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A02
-last_commit: (pending)
+last_commit: 4a99597
 tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2)
 evidence: |
   Typed contract module `src/forge-baseline-contract.ts` — FORGE_BASELINE_CONTRACT_V1.
