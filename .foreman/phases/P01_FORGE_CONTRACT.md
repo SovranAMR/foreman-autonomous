@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 34
+completed_atoms: 35
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -58,7 +58,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B04-A02 — Typed phase/event schema: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B04-A03 — Typed phase/event schema: en küçük üretim dikey dilimini uygula
 - [x] P01-B04-A04 — Typed phase/event schema: boundary ve edge-case davranışlarını tamamla
-- [ ] P01-B04-A05 — Typed phase/event schema: failure, recovery ve NO-GO yollarını uygula
+- [x] P01-B04-A05 — Typed phase/event schema: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B04-A06 — Typed phase/event schema: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B04-A07 — Typed phase/event schema: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B04-A08 — Typed phase/event schema: Forge entegrasyonu ile regression testini tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B04-A04
-last_commit: a4c4d31
-tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (14/14)
+last_atom: P01-B04-A05
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (17/17)
 evidence: |
-  P01-B04-A04 boundary slice: validatePhaseEventSchemaBoundaryProbeMatrix + runPhaseEventSchemaBoundarySlice;
-  6 boundary probes execute with zero unexpected mismatches (5 PASS aligned, 1 documented FAIL gap aligned);
-  edge probes: block_detected_payload typed payload + hallucination_unused_variant unused variant gap.
-next: P01-B04-A05
+  P01-B04-A05 failure/recovery slice: validatePhaseEventSchemaFailureRecoveryProbeMatrix + runPhaseEventSchemaFailureRecoverySlice;
+  9 path probes execute with zero unexpected mismatches (failure_path×3, recovery_path×3, nogo_path×3 all PASS aligned);
+  6 documented FAIL gaps preserved from A01 baseline.
+next: P01-B04-A06

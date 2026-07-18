@@ -14,7 +14,7 @@ import {
 } from "./forge-formal-state-machine.js";
 import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
 
-export const FORGE_PHASE_EVENT_SCHEMA_HARNESS_VERSION = "1.0.0-a04";
+export const FORGE_PHASE_EVENT_SCHEMA_HARNESS_VERSION = "1.0.0-a05";
 
 export type PhaseEventSchemaProbeDisposition =
   | "observed"
@@ -31,6 +31,9 @@ export const PHASE_EVENT_SCHEMA_CATEGORIES = [
   "stream_seam",
   "baseline_link",
   "boundary",
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
 ] as const;
 
 export type PhaseEventSchemaCategory = (typeof PHASE_EVENT_SCHEMA_CATEGORIES)[number];
@@ -130,6 +133,9 @@ export const PHASE_EVENT_SCHEMA_A01_MIN_PROBES: Readonly<
   stream_seam: 3,
   baseline_link: 2,
   boundary: 4,
+  failure_path: 3,
+  recovery_path: 3,
+  nogo_path: 3,
 };
 
 function flattenPhaseEventSchemaCategoryProbes(
@@ -428,6 +434,113 @@ const PHASE_EVENT_SCHEMA_CATEGORY_CONTRACTS: Record<
       },
     ],
   },
+  failure_path: {
+    category: "failure_path",
+    acceptance: {
+      invariant:
+        "Orchestrator emits typed failure events (block_detected, error, format_retry) on worker blocks, atom exhaustion, and validation retries.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "schema.failure_block_detected_on_worker",
+        category: "failure_path",
+        description: "Orchestrator emits block_detected when worker thought.status is blocked",
+        expected: "PASS",
+        disposition: "failure",
+        criterion:
+          'orchestrator emits type: "block_detected" when execResult?.thought.status === "blocked"',
+      },
+      {
+        id: "schema.failure_error_on_atom_exhaust",
+        category: "failure_path",
+        description: "Orchestrator emits error when atom exhausts MAX_ATOM_RETRIES",
+        expected: "PASS",
+        disposition: "failure",
+        criterion:
+          'orchestrator emits type: "error" after atom fails MAX_ATOM_RETRIES and queues recovery',
+      },
+      {
+        id: "schema.failure_format_retry_validation",
+        category: "failure_path",
+        description: "Orchestrator emits format_retry on atom validation retry path",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: 'orchestrator emits type: "format_retry" on validation failure retry',
+      },
+    ],
+  },
+  recovery_path: {
+    category: "recovery_path",
+    acceptance: {
+      invariant:
+        "Orchestrator emits recovery phase events for re_decompose, runRecoveryPhase, and recovery_assess rebatching.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "schema.recovery_re_decompose_events",
+        category: "recovery_path",
+        description: "Orchestrator emits re_decompose phase streaming events on block failure",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: 'orchestrator calls phaseStart("re_decompose") after block failure threshold',
+      },
+      {
+        id: "schema.recovery_phase_runner",
+        category: "recovery_path",
+        description: "runRecoveryPhase emits recovery phase_start and phase_end events",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: 'runRecoveryPhase emits phaseStart/phaseEnd for "recovery" phase',
+      },
+      {
+        id: "schema.recovery_assess_phase_end",
+        category: "recovery_path",
+        description: "Recovery assess emits recovery_assess phase_end after rebatching",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: 'orchestrator emits phase_end with phase "recovery_assess"',
+      },
+    ],
+  },
+  nogo_path: {
+    category: "nogo_path",
+    acceptance: {
+      invariant:
+        "Orchestrator enforces NO-GO gates via reviewer REJECT handling, rollback-on-reject, and format_retry validation gates.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "schema.nogo_reviewer_reject_branch",
+        category: "nogo_path",
+        description: "Orchestrator handles reviewer REJECT verdict as NO-GO with event emission",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: 'reviewResult.verdict === "REJECT" branch emits error or block events',
+      },
+      {
+        id: "schema.nogo_rollback_on_reject",
+        category: "nogo_path",
+        description: "Orchestrator rolls back atom on reviewer REJECT verdict",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: 'REJECT verdict triggers rollbackLastAtom before retry',
+      },
+      {
+        id: "schema.nogo_format_retry_gate",
+        category: "nogo_path",
+        description: "format_retry event acts as validation NO-GO gate before re-execution",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: "format_retry emitted with attempt and missing fields before atom retry",
+      },
+    ],
+  },
 };
 
 /** Typed phase/event schema contract v1 — source of truth for schema probe acceptance. */
@@ -544,6 +657,9 @@ export function validatePhaseEventSchemaFixture(
     stream_seam: 0,
     baseline_link: 0,
     boundary: 0,
+    failure_path: 0,
+    recovery_path: 0,
+    nogo_path: 0,
   };
 
   for (const probe of fixture.probes) {
@@ -780,6 +896,47 @@ export function validatePhaseEventSchemaBoundaryProbeMatrix(
   const boundaryIds = new Set(boundaryProbes.map(p => p.id));
   const boundaryResults = results.filter(r => boundaryIds.has(r.id));
   return validatePhaseEventSchemaProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly PhaseEventSchemaCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes and documented FAIL gaps must align; zero unexpected mismatches.
+ */
+export function validatePhaseEventSchemaFailureRecoveryProbeMatrix(
+  results: PhaseEventSchemaProbeResult[],
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): PhaseEventSchemaProbeMatrixValidationResult {
+  const failureRecoveryProbes = PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listPhaseEventSchemaProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: PhaseEventSchemaContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validatePhaseEventSchemaProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listPhaseEventSchemaFailureRecoveryProbeIds(
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): string[] {
+  return PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listPhaseEventSchemaProbesByCategory(category, contract).map(p => p.id),
+  );
 }
 
 export function summarizePhaseEventSchemaMatrix(

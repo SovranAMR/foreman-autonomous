@@ -15,10 +15,15 @@ import {
   summarizePhaseEventSchemaContractCoverage,
   runPhaseEventSchemaProductionSlice,
   runPhaseEventSchemaBoundarySlice,
+  runPhaseEventSchemaFailureRecoverySlice,
   validatePhaseEventSchemaProbeMatrix,
   validatePhaseEventSchemaBoundaryProbeMatrix,
+  validatePhaseEventSchemaFailureRecoveryProbeMatrix,
   listPhaseEventSchemaProbesByCategory,
+  listPhaseEventSchemaProbesByDisposition,
+  listPhaseEventSchemaFailureRecoveryProbeIds,
   PHASE_EVENT_SCHEMA_CATEGORIES,
+  PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-phase-event-schema-harness.js";
 
 describe("Forge Phase/Event Schema — P01-B04-A01", () => {
@@ -47,7 +52,7 @@ describe("Forge Phase/Event Schema — P01-B04-A01", () => {
     const summary = summarizePhaseEventSchemaMatrix(results);
 
     assert.equal(summary.total, results.length);
-    assert.equal(summary.total, 26);
+    assert.equal(summary.total, 35);
     assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
 
     const documentedFail = listPhaseEventSchemaProbesByExpected("FAIL");
@@ -104,10 +109,13 @@ describe("Forge Phase/Event Schema — P01-B04-A01", () => {
 
   it("declares typed contract probes across seven schema categories", () => {
     const coverage = summarizePhaseEventSchemaContractCoverage();
-    assert.equal(coverage.totalProbes, 26);
-    assert.equal(coverage.expectedPass, 20);
+    assert.equal(coverage.totalProbes, 35);
+    assert.equal(coverage.expectedPass, 29);
     assert.equal(coverage.expectedFail, 6);
     assert.equal(coverage.byDisposition.gap, 6);
+    assert.equal(coverage.byDisposition.failure, 3);
+    assert.equal(coverage.byDisposition.recovery, 3);
+    assert.equal(coverage.byDisposition.nogo, 3);
     assert.equal(coverage.byCategory.event_type_union.probeCount, 4);
     assert.equal(coverage.byCategory.phase_typing.probeCount, 3);
     assert.equal(coverage.byCategory.phase_registry.probeCount, 4);
@@ -149,11 +157,14 @@ describe("Forge Phase/Event Schema Contract — P01-B04-A02", () => {
     const contract = getActivePhaseEventSchemaContract();
     const summary = summarizePhaseEventSchemaContractCoverage(contract);
 
-    assert.equal(summary.totalProbes, 26);
-    assert.equal(summary.expectedPass, 20);
+    assert.equal(summary.totalProbes, 35);
+    assert.equal(summary.expectedPass, 29);
     assert.equal(summary.expectedFail, 6);
     assert.equal(summary.byDisposition.observed, 20);
     assert.equal(summary.byDisposition.gap, 6);
+    assert.equal(summary.byDisposition.failure, 3);
+    assert.equal(summary.byDisposition.recovery, 3);
+    assert.equal(summary.byDisposition.nogo, 3);
     assert.equal(summary.byCategory.event_type_union.probeCount, 4);
     assert.equal(summary.byCategory.phase_typing.probeCount, 3);
     assert.equal(summary.byCategory.phase_registry.probeCount, 4);
@@ -209,9 +220,9 @@ describe("Forge Phase/Event Schema Production Slice — P01-B04-A03", () => {
     assert.equal(slice.fixtureValid, true);
     assert.equal(slice.contractAligned, true);
     assert.equal(slice.matrixValid, true);
-    assert.equal(slice.summary.total, 26);
+    assert.equal(slice.summary.total, 35);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 20);
+    assert.equal(slice.matrixValidation.passAligned, 29);
     assert.equal(slice.matrixValidation.gapAligned, 6);
 
     for (const contractProbe of contract.probes) {
@@ -322,6 +333,76 @@ describe("Forge Phase/Event Schema Boundary Slice — P01-B04-A04", () => {
     assert.ok(payloadProbe);
     assert.equal(payloadProbe!.expected, "PASS");
     assert.equal(payloadProbe!.actual, "PASS");
+  });
+});
+
+describe("Forge Phase/Event Schema Failure/Recovery/NO-GO — P01-B04-A05", () => {
+  it("lists failure, recovery and NO-GO probes by disposition and category", () => {
+    const failure = listPhaseEventSchemaProbesByDisposition("failure");
+    const recovery = listPhaseEventSchemaProbesByDisposition("recovery");
+    const nogo = listPhaseEventSchemaProbesByDisposition("nogo");
+    const failurePath = listPhaseEventSchemaProbesByCategory("failure_path");
+    const recoveryPath = listPhaseEventSchemaProbesByCategory("recovery_path");
+    const nogoPath = listPhaseEventSchemaProbesByCategory("nogo_path");
+
+    assert.ok(failure.some(p => p.id === "schema.failure_block_detected_on_worker"));
+    assert.ok(failure.some(p => p.id === "schema.failure_error_on_atom_exhaust"));
+    assert.ok(recovery.some(p => p.id === "schema.recovery_re_decompose_events"));
+    assert.ok(recovery.some(p => p.id === "schema.recovery_phase_runner"));
+    assert.ok(nogo.some(p => p.id === "schema.nogo_reviewer_reject_branch"));
+    assert.ok(nogo.some(p => p.id === "schema.nogo_rollback_on_reject"));
+    assert.equal(failurePath.length, 3);
+    assert.equal(recoveryPath.length, 3);
+    assert.equal(nogoPath.length, 3);
+    assert.deepEqual(
+      [...PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActivePhaseEventSchemaContract();
+    const slice = runPhaseEventSchemaFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P01-B04-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 9);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 9);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 9);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listPhaseEventSchemaProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validatePhaseEventSchemaFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented gaps while exercising failure/recovery/NO-GO paths", () => {
+    const results = runPhaseEventSchemaProbes();
+    const summary = summarizePhaseEventSchemaMatrix(results);
+
+    assert.equal(summary.total, 35);
+    assert.equal(summary.knownGaps.length, 6);
+    assert.equal(summary.mismatches.length, 0, formatMismatchReport(summary.mismatches));
+
+    const probeIds = listPhaseEventSchemaFailureRecoveryProbeIds();
+    assert.equal(probeIds.length, 9);
+    assert.ok(probeIds.every(id => results.find(r => r.id === id)?.aligned));
   });
 });
 

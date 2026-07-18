@@ -166,6 +166,60 @@
       "category": "boundary",
       "description": "hallucination variant defined but orchestrator never emits it",
       "expected": "FAIL"
+    },
+    {
+      "id": "schema.failure_block_detected_on_worker",
+      "category": "failure_path",
+      "description": "Orchestrator emits block_detected when worker thought.status is blocked",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.failure_error_on_atom_exhaust",
+      "category": "failure_path",
+      "description": "Orchestrator emits error when atom exhausts MAX_ATOM_RETRIES",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.failure_format_retry_validation",
+      "category": "failure_path",
+      "description": "Orchestrator emits format_retry on atom validation retry path",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.recovery_re_decompose_events",
+      "category": "recovery_path",
+      "description": "Orchestrator emits re_decompose phase streaming events on block failure",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.recovery_phase_runner",
+      "category": "recovery_path",
+      "description": "runRecoveryPhase emits recovery phase_start and phase_end events",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.recovery_assess_phase_end",
+      "category": "recovery_path",
+      "description": "Recovery assess emits recovery_assess phase_end after rebatching",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.nogo_reviewer_reject_branch",
+      "category": "nogo_path",
+      "description": "Orchestrator handles reviewer REJECT verdict as NO-GO with event emission",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.nogo_rollback_on_reject",
+      "category": "nogo_path",
+      "description": "Orchestrator rolls back atom on reviewer REJECT verdict",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.nogo_format_retry_gate",
+      "category": "nogo_path",
+      "description": "format_retry event acts as validation NO-GO gate before re-execution",
+      "expected": "PASS"
     }
   ]
 }

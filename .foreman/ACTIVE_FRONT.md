@@ -6,9 +6,9 @@ active_phase: P01
 active_block: P01-B04
 active_atom: P01-B04-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 34/1000
-phase_progress: 33/100
-block_progress: 3/10
+program_progress: 35/1000
+phase_progress: 34/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B04-A05 — Typed phase/event schema: failure, recovery ve NO-GO yollarını uygula.
+P01-B04-A06 — Typed phase/event schema: evidence, telemetry ve provenance kaydını ekle.
 
-objective: Typed phase/event schema için failure, recovery ve NO-GO yollarını uygula.
-target: Contract-wired failure/recovery probes execute with zero unexpected mismatches.
-hypothesis: A04 boundary slice validates edge probes; A05 extends failure/recovery coverage.
-acceptance: failure/recovery slice executes; NO-GO probes aligned; documented gaps preserved.
+objective: Typed phase/event schema için evidence, telemetry ve provenance kaydını ekle.
+target: Failure/recovery slice run record bundles evidence, telemetry and provenance for audit.
+hypothesis: A05 failure/recovery slice validates path probes; A06 adds auditable run records.
+acceptance: run record validates; evidence per probe; telemetry non-negative; provenance lineage.
 commands: npx tsx --test src/forge-phase-event-schema.test.ts
 blast_radius: forge-phase-event-schema*.ts
-rollback: A05 değişikliklerini geri al.
+rollback: A06 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B04-A04
-last_commit: a4c4d31
-tests: PASS — forge-phase-event-schema (14/14)
-evidence: boundary slice; 6 boundary probes (5 PASS + 1 documented FAIL gap); validatePhaseEventSchemaBoundaryProbeMatrix zero unexpected mismatches; runPhaseEventSchemaBoundarySlice gate
-next: P01-B04-A05
+last_atom: P01-B04-A05
+last_commit: pending
+tests: PASS — forge-phase-event-schema (17/17)
+evidence: failure/recovery slice; 9 path probes (failure_path×3, recovery_path×3, nogo_path×3); validatePhaseEventSchemaFailureRecoveryProbeMatrix zero unexpected mismatches; runPhaseEventSchemaFailureRecoverySlice gate; 6 documented FAIL gaps preserved
+next: P01-B04-A06

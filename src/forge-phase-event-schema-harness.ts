@@ -21,10 +21,12 @@ import {
   validatePhaseEventSchemaFixtureAgainstContract,
   validatePhaseEventSchemaProbeMatrix,
   validatePhaseEventSchemaBoundaryProbeMatrix,
+  validatePhaseEventSchemaFailureRecoveryProbeMatrix,
   summarizePhaseEventSchemaMatrix,
   getActivePhaseEventSchemaContract,
   listPhaseEventSchemaProbesByCategory,
   listPhaseEventSchemaProbesByExpected,
+  PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
   type PhaseEventSchemaCategory,
   type PhaseEventSchemaFixture,
   type PhaseEventSchemaProbeResult,
@@ -43,6 +45,7 @@ export {
   validatePhaseEventSchemaFixtureAgainstContract,
   validatePhaseEventSchemaProbeMatrix,
   validatePhaseEventSchemaBoundaryProbeMatrix,
+  validatePhaseEventSchemaFailureRecoveryProbeMatrix,
   summarizePhaseEventSchemaMatrix,
   getActivePhaseEventSchemaContract,
   getPhaseEventSchemaCategoryContract,
@@ -50,9 +53,11 @@ export {
   listPhaseEventSchemaProbesByDisposition,
   listPhaseEventSchemaProbesByCategory,
   listPhaseEventSchemaProbesByExpected,
+  listPhaseEventSchemaFailureRecoveryProbeIds,
   summarizePhaseEventSchemaContractCoverage,
   FORGE_PHASE_EVENT_SCHEMA_CONTRACT_V1,
   PHASE_EVENT_SCHEMA_CATEGORIES,
+  PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
   buildDefaultPhaseEventSchemaSourceFormalStateMachine,
 } from "./forge-phase-event-schema.js";
 
@@ -523,6 +528,161 @@ function probeBoundary(
   }
 }
 
+function probeFailurePath(
+  id: string,
+  category: PhaseEventSchemaCategory,
+  expected: ForgeAcceptanceOutcome,
+): PhaseEventSchemaProbeResult {
+  const src = orchestratorSource();
+
+  switch (id) {
+    case "schema.failure_block_detected_on_worker": {
+      const ok =
+        src.includes('type: "block_detected"') &&
+        (src.includes('thought.status === "blocked"') ||
+          src.includes("execResult?.thought.status === \"blocked\""));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `blockDetectedOnWorker=${ok}`,
+        'orchestrator emits type: "block_detected" when execResult?.thought.status === "blocked"',
+      );
+    }
+    case "schema.failure_error_on_atom_exhaust": {
+      const ok =
+        src.includes('type: "error"') &&
+        src.includes("MAX_ATOM_RETRIES") &&
+        src.includes("queued for recovery");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `errorOnExhaust=${ok}`,
+        'orchestrator emits type: "error" after atom fails MAX_ATOM_RETRIES and queues recovery',
+      );
+    }
+    case "schema.failure_format_retry_validation": {
+      const ok = src.includes('type: "format_retry"') && src.includes("missing:");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `formatRetry=${ok}`,
+        'orchestrator emits type: "format_retry" on validation failure retry',
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown failure_path probe");
+  }
+}
+
+function probeRecoveryPath(
+  id: string,
+  category: PhaseEventSchemaCategory,
+  expected: ForgeAcceptanceOutcome,
+): PhaseEventSchemaProbeResult {
+  const src = orchestratorSource();
+
+  switch (id) {
+    case "schema.recovery_re_decompose_events": {
+      const ok =
+        src.includes('phaseStart("re_decompose"') || src.includes('phaseStart?.("re_decompose"');
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `reDecompose=${ok}`,
+        'orchestrator calls phaseStart("re_decompose") after block failure threshold',
+      );
+    }
+    case "schema.recovery_phase_runner": {
+      const ok =
+        src.includes("runRecoveryPhase") &&
+        (src.includes('phaseStart?.("recovery"') || src.includes('phaseStart("recovery"')) &&
+        (src.includes('phaseEnd?.("recovery"') || src.includes('phaseEnd("recovery"'));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recoveryRunner=${ok}`,
+        'runRecoveryPhase emits phaseStart/phaseEnd for "recovery" phase',
+      );
+    }
+    case "schema.recovery_assess_phase_end": {
+      const ok = src.includes('phase: "recovery_assess"');
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recoveryAssessEnd=${ok}`,
+        'orchestrator emits phase_end with phase "recovery_assess"',
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown recovery_path probe");
+  }
+}
+
+function probeNogoPath(
+  id: string,
+  category: PhaseEventSchemaCategory,
+  expected: ForgeAcceptanceOutcome,
+): PhaseEventSchemaProbeResult {
+  const src = orchestratorSource();
+
+  switch (id) {
+    case "schema.nogo_reviewer_reject_branch": {
+      const ok =
+        src.includes('reviewResult.verdict === "REJECT"') &&
+        (src.includes('type: "error"') || src.includes('type: "block_detected"'));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `reviewerReject=${ok}`,
+        'reviewResult.verdict === "REJECT" branch emits error or block events',
+      );
+    }
+    case "schema.nogo_rollback_on_reject": {
+      const ok =
+        src.includes('reviewResult.verdict === "REJECT"') &&
+        src.includes("rollbackLastAtom");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `rollbackOnReject=${ok}`,
+        "REJECT verdict triggers rollbackLastAtom before retry",
+      );
+    }
+    case "schema.nogo_format_retry_gate": {
+      const ok =
+        src.includes('type: "format_retry"') &&
+        src.includes("attempt:") &&
+        src.includes("missing:");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `formatRetryGate=${ok}`,
+        "format_retry emitted with attempt and missing fields before atom retry",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown nogo_path probe");
+  }
+}
+
 function runSingleProbe(
   id: string,
   category: PhaseEventSchemaCategory,
@@ -543,6 +703,12 @@ function runSingleProbe(
       return probeBaselineLink(id, category, expected);
     case "boundary":
       return probeBoundary(id, category, expected);
+    case "failure_path":
+      return probeFailurePath(id, category, expected);
+    case "recovery_path":
+      return probeRecoveryPath(id, category, expected);
+    case "nogo_path":
+      return probeNogoPath(id, category, expected);
     default:
       return probe(id, category, expected, false, `unknown category: ${category}`);
   }
@@ -635,6 +801,41 @@ export function runPhaseEventSchemaBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface PhaseEventSchemaFailureRecoverySliceResult {
+  atom: "P01-B04-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: PhaseEventSchemaProbeResult[];
+  failureRecoveryResults: PhaseEventSchemaProbeResult[];
+  matrixValidation: PhaseEventSchemaProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery/NO-GO slice: contract-wired failure events, recovery phase
+ * emissions, and NO-GO rejection probes with zero unexpected mismatches.
+ */
+export function runPhaseEventSchemaFailureRecoverySlice(
+  fixture: PhaseEventSchemaFixture = loadPhaseEventSchemaFixture(),
+): PhaseEventSchemaFailureRecoverySliceResult {
+  const contract = getActivePhaseEventSchemaContract();
+  const results = runPhaseEventSchemaProbes(fixture);
+  const failureRecoveryProbes = PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listPhaseEventSchemaProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validatePhaseEventSchemaFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B04-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }
