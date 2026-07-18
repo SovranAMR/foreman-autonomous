@@ -1,0 +1,17 @@
+---
+description: Foreman Cursor Automation — ACTIVE_FRONT odaklı doğrulanmış tek atom döngüsü
+alwaysApply: true
+---
+
+# Foreman Automation Disiplini
+
+- Her turda `.foreman/automation-prompt.md` dosyasını uygula.
+- Tek güncel iş emri `.foreman/ACTIVE_FRONT.md`; eski sohbet veya README aktif görev değildir.
+- Bir turda yalnız bir doğrulanabilir atom tamamla.
+- Kod + test + kanıt olmadan ACTIVE_FRONT ilerletme ve PASS yazma.
+- Automation'ın verdiği branch üzerinde çalış; force-push veya main'e otomatik merge yapma.
+- Yalnız ilgili dosyaları commit et; mevcut kullanıcı değişikliklerini koru.
+- Docs-only/status-only commit, kör global replace ve unrelated refactor yapma.
+- Secret veya canlı API çıktısı commit etme.
+- K3 ana model, K2.6-instant arka-plan modeli olabilir; bu iki yolu sessizce birbirine çevirme.
+- Resmi API sözleşmesiyle çelişen K2.x parametrelerini K3 isteklerine taşıma.
