@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B04
-active_atom: P01-B04-A03
+active_atom: P01-B04-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 32/1000
-phase_progress: 31/100
-block_progress: 2/10
+program_progress: 33/1000
+phase_progress: 32/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B04-A03 — Typed phase/event schema: en küçük üretim dikey dilimini uygula.
+P01-B04-A04 — Typed phase/event schema: boundary ve edge-case davranışlarını tamamla.
 
-objective: Typed phase/event schema için en küçük üretim dikey dilimini uygula.
-target: Contract-wired probe execution with zero unexpected mismatches on PASS probes.
-hypothesis: A02 typed contract defines the acceptance surface; A03 wires live probes to contract criteria.
-acceptance: production slice executes; PASS probes aligned; gap probes documented.
+objective: Typed phase/event schema için boundary ve edge-case davranışlarını tamamla.
+target: Contract-wired boundary probes execute with zero unexpected mismatches.
+hypothesis: A03 production slice validates matrix alignment; A04 extends boundary coverage.
+acceptance: boundary slice executes; edge probes aligned; documented gaps preserved.
 commands: npx tsx --test src/forge-phase-event-schema.test.ts
 blast_radius: forge-phase-event-schema*.ts
-rollback: A03 değişikliklerini geri al.
+rollback: A04 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B04-A02
-last_commit: efbf9fe
-tests: PASS — forge-phase-event-schema (9/9)
-evidence: 24-probe typed contract v1 across 7 categories; fixture↔contract mapping validated; 5 gap dispositions (phase typing, registry, pairing) declared with measurable criteria
-next: P01-B04-A03
+last_atom: P01-B04-A03
+last_commit: pending
+tests: PASS — forge-phase-event-schema (11/11)
+evidence: contract-wired production slice; 19 PASS + 5 gap probes aligned; validatePhaseEventSchemaProbeMatrix zero unexpected mismatches; runPhaseEventSchemaProductionSlice gate
+next: P01-B04-A04

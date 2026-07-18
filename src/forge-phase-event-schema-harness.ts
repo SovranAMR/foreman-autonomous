@@ -19,12 +19,14 @@ import {
 import {
   validatePhaseEventSchemaFixture,
   validatePhaseEventSchemaFixtureAgainstContract,
+  validatePhaseEventSchemaProbeMatrix,
   summarizePhaseEventSchemaMatrix,
   getActivePhaseEventSchemaContract,
   listPhaseEventSchemaProbesByExpected,
   type PhaseEventSchemaCategory,
   type PhaseEventSchemaFixture,
   type PhaseEventSchemaProbeResult,
+  type PhaseEventSchemaProbeMatrixValidationResult,
 } from "./forge-phase-event-schema.js";
 
 export type {
@@ -37,6 +39,7 @@ export type {
 export {
   validatePhaseEventSchemaFixture,
   validatePhaseEventSchemaFixtureAgainstContract,
+  validatePhaseEventSchemaProbeMatrix,
   summarizePhaseEventSchemaMatrix,
   getActivePhaseEventSchemaContract,
   getPhaseEventSchemaCategoryContract,
@@ -540,4 +543,39 @@ export function listPhaseEventSchemaKnownGaps(
   results: PhaseEventSchemaProbeResult[] = runPhaseEventSchemaProbes(),
 ): PhaseEventSchemaProbeResult[] {
   return summarizePhaseEventSchemaMatrix(results).knownGaps;
+}
+
+export interface PhaseEventSchemaProductionSliceResult {
+  atom: "P01-B04-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: PhaseEventSchemaProbeResult[];
+  summary: ReturnType<typeof summarizePhaseEventSchemaMatrix>;
+  matrixValidation: PhaseEventSchemaProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: fixture ↔ contract validation, contract-wired probe
+ * execution, and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runPhaseEventSchemaProductionSlice(
+  fixture: PhaseEventSchemaFixture = loadPhaseEventSchemaFixture(),
+): PhaseEventSchemaProductionSliceResult {
+  const contract = getActivePhaseEventSchemaContract();
+  const fixtureValidation = validatePhaseEventSchemaFixture(fixture);
+  const contractValidation = validatePhaseEventSchemaFixtureAgainstContract(fixture, contract);
+  const results = runPhaseEventSchemaProbes(fixture);
+  const summary = summarizePhaseEventSchemaMatrix(results);
+  const matrixValidation = validatePhaseEventSchemaProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B04-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

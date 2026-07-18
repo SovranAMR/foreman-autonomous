@@ -13,6 +13,8 @@ import {
   listPhaseEventSchemaProbesByDisposition,
   listPhaseEventSchemaProbesByExpected,
   summarizePhaseEventSchemaContractCoverage,
+  runPhaseEventSchemaProductionSlice,
+  validatePhaseEventSchemaProbeMatrix,
   PHASE_EVENT_SCHEMA_CATEGORIES,
 } from "./forge-phase-event-schema-harness.js";
 
@@ -183,6 +185,63 @@ describe("Forge Phase/Event Schema Contract — P01-B04-A02", () => {
   it("each phase/event schema probe id is globally unique", () => {
     const ids = listPhaseEventSchemaContractProbeIds();
     assert.equal(new Set(ids).size, ids.length);
+  });
+});
+
+describe("Forge Phase/Event Schema Production Slice — P01-B04-A03", () => {
+  it("executes contract-wired probes with zero unexpected mismatches", () => {
+    const contract = getActivePhaseEventSchemaContract();
+    const slice = runPhaseEventSchemaProductionSlice();
+
+    assert.equal(slice.atom, "P01-B04-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 24);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 19);
+    assert.equal(slice.matrixValidation.gapAligned, 5);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validatePhaseEventSchemaProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 5);
+    assert.deepEqual(
+      slice.summary.knownGaps.map(g => g.id).sort(),
+      [
+        "schema.orch_phase_field_typed",
+        "schema.recovery_assess_unpaired",
+        "schema.registry_covers_core",
+        "schema.stream_phase_field_typed",
+        "schema.unregistered_phase_literals",
+      ],
+    );
+  });
+
+  it("wires harness probe criteria from typed contract source of truth", () => {
+    const results = runPhaseEventSchemaProbes();
+    const contract = getActivePhaseEventSchemaContract();
+
+    assert.equal(results.length, contract.probes.length);
+    for (const result of results) {
+      const contractProbe = contract.probes.find(p => p.id === result.id)!;
+      assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
+      assert.equal(result.criterion, contractProbe.criterion);
+    }
   });
 });
 

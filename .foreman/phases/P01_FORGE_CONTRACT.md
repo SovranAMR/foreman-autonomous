@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 32
+completed_atoms: 33
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -56,7 +56,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P01-B04-A01 — Typed phase/event schema: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B04-A02 — Typed phase/event schema: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P01-B04-A03 — Typed phase/event schema: en küçük üretim dikey dilimini uygula
+- [x] P01-B04-A03 — Typed phase/event schema: en küçük üretim dikey dilimini uygula
 - [ ] P01-B04-A04 — Typed phase/event schema: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B04-A05 — Typed phase/event schema: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B04-A06 — Typed phase/event schema: evidence, telemetry ve provenance kaydını ekle
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B04-A02
-last_commit: efbf9fe
-tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (9/9)
+last_atom: P01-B04-A03
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (11/11)
 evidence: |
-  P01-B04-A02 typed contract: 24 probes across 7 categories with measurable criteria and disposition
-  (19 observed PASS, 5 gap FAIL: orch/stream phase typing, unregistered literals, verify phase_start,
-  recovery_assess pairing); fixture↔contract mapping validated via validatePhaseEventSchemaFixtureAgainstContract.
-next: P01-B04-A03
+  P01-B04-A03 production slice: validatePhaseEventSchemaProbeMatrix + runPhaseEventSchemaProductionSlice;
+  24 contract-wired probes execute with zero unexpected mismatches (19 PASS aligned, 5 documented FAIL gaps aligned);
+  harness criteria wired from FORGE_PHASE_EVENT_SCHEMA_CONTRACT_V1 source of truth.
+next: P01-B04-A04
