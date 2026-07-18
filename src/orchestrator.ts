@@ -194,6 +194,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge formal state machine regression gate and emit verification event (P01-B03-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeFormalStateMachineRegression(
+    priorRecord?: import("./forge-formal-state-machine.js").FormalStateMachineRunRecord,
+  ): Promise<import("./forge-formal-state-machine-harness.js").ForgeFormalStateMachineRegressionResult> {
+    const { runForgeFormalStateMachineRegressionGate } = await import("./forge-formal-state-machine-harness.js");
+    const result = runForgeFormalStateMachineRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "formal_state_machine_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge baseline guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B01-A09).
    */
   async verifyForgeBaselineGuard(

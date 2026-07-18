@@ -37,6 +37,8 @@ import {
   listFormalStateMachineFailureRecoveryProbeIds,
   getActiveFormalStateMachineContract,
   listFormalStateMachineProbesByCategory,
+  detectFormalStateMachineProbeRegression,
+  validateForgeFormalStateMachineGuard,
   FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
   FORMAL_STATE_MACHINE_CATEGORIES,
   type FormalStateMachineCategory,
@@ -46,6 +48,8 @@ import {
   type FormalStateMachineProbeMatrixValidationResult,
   type FormalStateMachineRunRecord,
   type FormalStateMachineProbeDisposition,
+  type FormalStateMachineProbeRegressionReport,
+  type FormalStateMachineGuardCheckResult,
 } from "./forge-formal-state-machine.js";
 
 export type {
@@ -84,8 +88,27 @@ export {
   runFormalStateMachineFuzzValidation,
   runFormalStateMachineRunRecordFuzzValidation,
   createFormalStateMachineFuzzRng,
+  detectFormalStateMachineProbeRegression,
+  validateForgeFormalStateMachineGuard,
   type FormalStateMachineRunRecord,
+  type FormalStateMachineProbeRegressionReport,
+  type FormalStateMachineGuardCheckResult,
 } from "./forge-formal-state-machine.js";
+
+export type {
+  FormalStateMachineProbeRegressionReport,
+  FormalStateMachineGuardCheckResult,
+} from "./forge-formal-state-machine.js";
+
+export interface ForgeFormalStateMachineRegressionResult {
+  passed: boolean;
+  record: FormalStateMachineRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: FormalStateMachineProbeRegressionReport | null;
+  guard: FormalStateMachineGuardCheckResult;
+  detail: string;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = join(__dirname);
@@ -842,4 +865,50 @@ export function listFormalStateMachineProbesByExpected(
   fixture: FormalStateMachineFixture = loadFormalStateMachineFixture(),
 ): FormalStateMachineFixture["probes"] {
   return fixture.probes.filter(p => p.expected === expected);
+}
+
+/**
+ * Execute formal state machine probes, validate run record, and optionally detect regression vs prior run.
+ * Forge pipeline integration gate (P01-B03-A08).
+ */
+export function runForgeFormalStateMachineRegressionGate(
+  priorRecord?: FormalStateMachineRunRecord,
+): ForgeFormalStateMachineRegressionResult {
+  const record = runFormalStateMachineProbesWithRecord();
+  const validation = validateFormalStateMachineRunRecord(record);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectFormalStateMachineProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeFormalStateMachineGuard(record, { totalCostUsd: 0, llmCalls: 0 });
+  const passed = recordValid && !alignmentRegression && guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    passed,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    guard,
+    detail: detailParts.join(" | "),
+  };
 }

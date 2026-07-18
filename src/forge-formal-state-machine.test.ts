@@ -1,5 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
   loadFormalStateMachineFixture,
   runFormalStateMachineProbes,
@@ -8,6 +11,7 @@ import {
   runFormalStateMachineFailureRecoverySlice,
   runFormalStateMachineProbesWithRecord,
   runFormalStateMachineFailureRecoverySliceWithRecord,
+  runForgeFormalStateMachineRegressionGate,
   validateFormalStateMachineRunRecord,
   validateFormalStateMachineFailureRecoveryRunRecord,
   buildFormalStateMachineProbeEvidence,
@@ -36,7 +40,10 @@ import {
   runFormalStateMachineFuzzValidation,
   runFormalStateMachinePropertyChecks,
   runFormalStateMachineRunRecordFuzzValidation,
+  detectFormalStateMachineProbeRegression,
 } from "./forge-formal-state-machine.js";
+import { Orchestrator } from "./orchestrator.js";
+import type { OrchestratorEvent } from "./orchestrator.js";
 
 describe("Forge Formal State Machine — P01-B03-A01", () => {
   it("loads versioned formal state machine fixture aligned with B02 handoff", () => {
@@ -483,6 +490,80 @@ describe("Forge Formal State Machine Property/Fuzz — P01-B03-A07", () => {
     assert.equal(runFuzz.validBaseline, true);
     assert.equal(runFuzz.mutationsAccepted, 0);
     assert.equal(runFuzz.mutationsRejected, 3);
+  });
+});
+
+describe("Forge Formal State Machine Regression — P01-B03-A08", () => {
+  it("runForgeFormalStateMachineRegressionGate passes on canonical formal state machine matrix", () => {
+    const result = runForgeFormalStateMachineRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 28);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("28/28 probes aligned"));
+    assert.ok(result.detail.includes("guard:"));
+  });
+
+  it("detectFormalStateMachineProbeRegression flags newly misaligned probes", () => {
+    const prior = runFormalStateMachineProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectFormalStateMachineProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeFormalStateMachineRegressionGate compares against prior record without false regression", () => {
+    const prior = runFormalStateMachineProbesWithRecord();
+    const result = runForgeFormalStateMachineRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("orchestrator verifyForgeFormalStateMachineRegression emits formal_state_machine_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-fsm-regression-orch-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "formal-state-machine" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeFormalStateMachineRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "formal_state_machine_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("28/28 probes aligned"));
+    }
   });
 });
 

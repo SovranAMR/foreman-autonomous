@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 27
+completed_atoms: 28
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -48,7 +48,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B03-A05 — Formal state machine: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B03-A06 — Formal state machine: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle
-- [ ] P01-B03-A08 — Formal state machine: Forge entegrasyonu ile regression testini tamamla
+- [x] P01-B03-A08 — Formal state machine: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B03-A09 — Formal state machine: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B03-A10 — Formal state machine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B03-A07
-last_commit: 9121f38
-tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts src/forge-formal-state-machine.property-fuzz.test.ts` (25/25)
+last_atom: P01-B03-A08
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (25/25)
 evidence: |
-  P01-B03-A07 property/fuzz: runFormalStateMachinePropertyChecks 7/7 structural properties PASS;
-  runFormalStateMachineFuzzValidation rejects 24/24 fixture mutations per seed (42, 99, 20260718);
-  runFormalStateMachineRunRecordFuzzValidation validBaseline PASS, mutationsAccepted=0, mutationsRejected=3;
-  integration gate in forge-formal-state-machine.test.ts confirms property + fixture fuzz + run record fuzz.
-next: P01-B03-A08
+  P01-B03-A08 regression: runForgeFormalStateMachineRegressionGate 28/28 probes aligned with guard PASS;
+  detectFormalStateMachineProbeRegression flags newly misaligned probes;
+  runForgeFormalStateMachineRegressionGate compares prior record without false regression;
+  orchestrator verifyForgeFormalStateMachineRegression emits formal_state_machine_regression verification.
+next: P01-B03-A09

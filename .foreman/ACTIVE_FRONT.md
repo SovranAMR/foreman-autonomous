@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B03
-active_atom: P01-B03-A07
+active_atom: P01-B03-A09
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 27/1000
-phase_progress: 26/100
-block_progress: 6/10
+program_progress: 28/1000
+phase_progress: 27/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B03-A08 — Formal state machine: Forge entegrasyonu ile regression testini tamamla.
+P01-B03-A09 — Formal state machine: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: Formal state machine Forge entegrasyonu ile regression testini tamamla.
-target: Regression gate passes on canonical formal state machine matrix.
-hypothesis: A07 property/fuzz gates enable regression integration on FSM artifacts.
-acceptance: Regression gate passes; canonical matrix record validates.
-commands: npx tsx --test src/forge-formal-state-machine.test.ts
+objective: Formal state machine adversarial, performance, cost ve safety kontrolünü geçir.
+target: Guard gate passes on canonical formal state machine run record.
+hypothesis: A08 regression gate + A07 fuzz enable guard integration on FSM artifacts.
+acceptance: Guard gate passes; adversarial tampered records rejected.
+commands: npx tsx --test src/forge-formal-state-machine.test.ts src/forge-formal-state-machine.guard.test.ts
 blast_radius: forge-formal-state-machine*.ts
-rollback: A08 değişikliklerini geri al.
+rollback: A09 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: regression slice uygulanamazsa BLOCKED raporla.
+fallback: guard slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B03-A07
-last_commit: 9121f38
-tests: PASS — forge-formal-state-machine (21/21 main + 4/4 property-fuzz)
-evidence: runFormalStateMachinePropertyChecks 7/7 PASS; runFormalStateMachineFuzzValidation rejects 24/24 mutations per seed; runFormalStateMachineRunRecordFuzzValidation rejects 3/3 run record mutations; validateFormalStateMachineRunRecord baseline PASS
-next: P01-B03-A08
+last_atom: P01-B03-A08
+last_commit: pending
+tests: PASS — forge-formal-state-machine (25/25 incl. 4/4 regression)
+evidence: runForgeFormalStateMachineRegressionGate 28/28 probes aligned; detectFormalStateMachineProbeRegression flags misalignment; verifyForgeFormalStateMachineRegression emits formal_state_machine_regression verification; validateForgeFormalStateMachineGuard adversarial=3/3
+next: P01-B03-A09
