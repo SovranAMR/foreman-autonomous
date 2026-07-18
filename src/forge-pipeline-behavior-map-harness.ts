@@ -6,33 +6,51 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import behaviorMapFixture from "./fixtures/forge-pipeline-behavior-map-v1.json" with { type: "json" };
 import {
+  buildBehaviorMapProbeEvidence,
+  buildBehaviorMapProbeTelemetry,
+  buildBehaviorMapProvenance,
+  buildBehaviorMapRunRecord,
   buildDefaultBehaviorMapSourceBaseline,
   getActivePipelineBehaviorMapContract,
   validateBehaviorMapFixtureAgainstContract,
+  validateBehaviorMapRunRecord,
   type BehaviorMapProbeResult,
   type BehaviorMapProbeSummary,
+  type BehaviorMapRunRecord,
   type ForgeAcceptanceOutcome,
   type PipelineBehaviorCategory,
   type PipelineBehaviorMapFixture,
+  type PipelineBehaviorProbeDisposition,
 } from "./forge-pipeline-behavior-map.js";
 
 export type {
+  BehaviorMapProbeEvidence,
   BehaviorMapProbeResult,
   BehaviorMapProbeSummary,
+  BehaviorMapProbeTelemetry,
+  BehaviorMapProvenance,
+  BehaviorMapRunRecord,
   PipelineBehaviorMapFixture,
 } from "./forge-pipeline-behavior-map.js";
 
 export {
+  buildBehaviorMapProbeEvidence,
+  buildBehaviorMapProbeTelemetry,
+  buildBehaviorMapProvenance,
+  buildBehaviorMapRunRecord,
   getActivePipelineBehaviorMapContract,
   getBehaviorMapCategoryContract,
   listBehaviorMapProbeIds,
   listBehaviorMapProbesByDisposition,
   summarizeBehaviorMapContractCoverage,
   validateBehaviorMapFixtureAgainstContract,
+  validateBehaviorMapRunRecord,
   buildDefaultBehaviorMapSourceBaseline,
   PIPELINE_BEHAVIOR_CATEGORIES,
 } from "./forge-pipeline-behavior-map.js";
@@ -299,6 +317,35 @@ export function loadPipelineBehaviorMapFixture(): PipelineBehaviorMapFixture {
   return behaviorMapFixture as PipelineBehaviorMapFixture;
 }
 
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runProbeWithTiming(
+  entry: PipelineBehaviorMapFixture["probes"][number],
+  contractProbe: { criterion: string; disposition: PipelineBehaviorProbeDisposition } | undefined,
+  sequenceIndex: number,
+): { result: BehaviorMapProbeResult; durationMs: number; disposition: PipelineBehaviorProbeDisposition } {
+  const start = performance.now();
+  const result = runSingleProbe(
+    entry.id,
+    entry.phase,
+    entry.category,
+    entry.expected,
+    contractProbe?.criterion,
+  );
+  const durationMs = performance.now() - start;
+  return {
+    result,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
 export function runPipelineBehaviorMapProbes(
   fixture: PipelineBehaviorMapFixture = loadPipelineBehaviorMapFixture(),
 ): BehaviorMapProbeResult[] {
@@ -313,6 +360,53 @@ export function runPipelineBehaviorMapProbes(
       contractProbe?.criterion,
     );
   });
+}
+
+/** Run behavior map probes and emit auditable evidence, telemetry and provenance (P01-B02-A06). */
+export function runPipelineBehaviorMapProbesWithRecord(
+  fixture: PipelineBehaviorMapFixture = loadPipelineBehaviorMapFixture(),
+): BehaviorMapRunRecord {
+  const contract = getActivePipelineBehaviorMapContract();
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildBehaviorMapProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildBehaviorMapProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of fixture.probes) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runProbeWithTiming(entry, contractProbe, sequenceIndex);
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildBehaviorMapProbeEvidence(
+        result.id,
+        entry.phase,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(buildBehaviorMapProbeTelemetry(result.id, result.category, sequenceIndex, durationMs));
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildBehaviorMapProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    resolveGitCommit(),
+  );
+
+  return buildBehaviorMapRunRecord(provenance, evidence, telemetry);
 }
 
 export function summarizeBehaviorMapMatrix(

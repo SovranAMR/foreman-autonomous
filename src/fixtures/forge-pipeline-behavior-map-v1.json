@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P01-B02-A01",
-  "contractAtom": "P01-B02-A05",
+  "contractAtom": "P01-B02-A06",
   "purpose": "Observable pipeline phase→behavior map measured from live orchestrator (includes documented FAIL gaps).",
   "sourceBaseline": {
     "version": "1.0.0",

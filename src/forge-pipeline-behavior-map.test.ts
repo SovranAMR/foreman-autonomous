@@ -3,13 +3,19 @@ import assert from "node:assert/strict";
 import {
   loadPipelineBehaviorMapFixture,
   runPipelineBehaviorMapProbes,
+  runPipelineBehaviorMapProbesWithRecord,
   summarizeBehaviorMapMatrix,
   validateBehaviorMapFixtureAgainstContract,
+  validateBehaviorMapRunRecord,
   getActivePipelineBehaviorMapContract,
   getBehaviorMapCategoryContract,
   listBehaviorMapProbeIds,
   listBehaviorMapProbesByDisposition,
   summarizeBehaviorMapContractCoverage,
+  buildBehaviorMapProbeEvidence,
+  buildBehaviorMapProbeTelemetry,
+  buildBehaviorMapProvenance,
+  buildBehaviorMapRunRecord,
   PIPELINE_BEHAVIOR_CATEGORIES,
 } from "./forge-pipeline-behavior-map-harness.js";
 
@@ -74,7 +80,7 @@ describe("Forge Pipeline Behavior Map Contract — P01-B02-A02", () => {
   it("defines typed acceptance for all eight behavior categories", () => {
     const contract = getActivePipelineBehaviorMapContract();
     assert.equal(contract.version, "1.0.0");
-    assert.equal(contract.atom, "P01-B02-A05");
+    assert.equal(contract.atom, "P01-B02-A06");
 
     for (const category of PIPELINE_BEHAVIOR_CATEGORIES) {
       const categoryContract = getBehaviorMapCategoryContract(category);
@@ -233,5 +239,117 @@ describe("Forge Pipeline Behavior Map Failure/Recovery/NO-GO — P01-B02-A05", (
     assert.equal(recoveryProbes.every(p => p.aligned), true);
     const nogoProbes = results.filter(r => r.category === "nogo_path");
     assert.equal(nogoProbes.every(p => p.aligned), true);
+  });
+});
+
+describe("Forge Pipeline Behavior Map Evidence — P01-B02-A06", () => {
+  it("builds typed probe evidence with disposition and criterion", () => {
+    const evidence = buildBehaviorMapProbeEvidence(
+      "map.vision_phase_presence",
+      "vision",
+      "phase_presence",
+      "PASS",
+      "PASS",
+      true,
+      'orchestrator.ts contains phase_start with phase "vision"',
+      "vision_start=true",
+      "observed",
+      "2026-07-18T22:00:00.000Z",
+    );
+    assert.equal(evidence.probeId, "map.vision_phase_presence");
+    assert.equal(evidence.category, "phase_presence");
+    assert.equal(evidence.disposition, "observed");
+    assert.equal(evidence.aligned, true);
+    assert.equal(evidence.recordedAt, "2026-07-18T22:00:00.000Z");
+  });
+
+  it("builds telemetry with non-negative duration and sequence index", () => {
+    const telemetry = buildBehaviorMapProbeTelemetry("map.atom_retry_loop", "failure_path", 18, 4.2);
+    assert.equal(telemetry.sequenceIndex, 18);
+    assert.equal(telemetry.durationMs, 4.2);
+    assert.equal(telemetry.category, "failure_path");
+  });
+
+  it("validates complete run record against contract probe count", () => {
+    const fixture = loadPipelineBehaviorMapFixture();
+    const contract = getActivePipelineBehaviorMapContract();
+    const probeIds = listBehaviorMapProbeIds(contract);
+    const startedAt = "2026-07-18T22:00:00.000Z";
+    const completedAt = "2026-07-18T22:00:01.000Z";
+
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildBehaviorMapProbeEvidence(
+        id,
+        probe.phase,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "synthetic",
+        probe.disposition,
+        startedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildBehaviorMapProbeTelemetry(id, probe.category, index, index * 0.1);
+    });
+
+    const provenance = buildBehaviorMapProvenance(
+      "test-run-id",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      "abc1234",
+    );
+
+    const record = buildBehaviorMapRunRecord(provenance, evidence, telemetry);
+    const validation = validateBehaviorMapRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 26);
+    assert.equal(record.summary.mismatches, 0);
+    assert.ok(record.summary.byDisposition.failure >= 3);
+    assert.ok(record.summary.byDisposition.recovery >= 3);
+    assert.ok(record.summary.byDisposition.nogo >= 3);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBaselineAtom, fixture.sourceBaseline.atom);
+  });
+
+  it("records evidence, telemetry and provenance for full behavior map run", () => {
+    const record = runPipelineBehaviorMapProbesWithRecord();
+    const validation = validateBehaviorMapRunRecord(record);
+
+    assert.equal(record.evidence.length, 26);
+    assert.equal(record.telemetry.length, 26);
+    assert.equal(record.provenance.totalProbes, 26);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, "1.0.0");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.ok(item.recordedAt.length > 10);
+      assert.ok(
+        item.disposition === "observed" ||
+          item.disposition === "gap" ||
+          item.disposition === "failure" ||
+          item.disposition === "recovery" ||
+          item.disposition === "nogo",
+      );
+    }
   });
 });

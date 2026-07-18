@@ -447,10 +447,226 @@ const BEHAVIOR_MAP_CATEGORIES: Record<PipelineBehaviorCategory, PipelineBehavior
   },
 };
 
+/** Per-probe evidence artifact — auditable proof of behavior map probe outcome (P01-B02-A06). */
+export interface BehaviorMapProbeEvidence {
+  probeId: string;
+  phase: ForgePipelineCorePhase | "registry";
+  category: PipelineBehaviorCategory;
+  disposition: PipelineBehaviorProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for behavior map runs (P01-B02-A06). */
+export interface BehaviorMapProbeTelemetry {
+  probeId: string;
+  category: PipelineBehaviorCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P01-B02-A06). */
+export interface BehaviorMapProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBaselineVersion: string;
+  sourceBaselineAtom: string;
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated behavior map run record bundling evidence, telemetry and provenance. */
+export interface BehaviorMapRunRecord {
+  provenance: BehaviorMapProvenance;
+  evidence: BehaviorMapProbeEvidence[];
+  telemetry: BehaviorMapProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<PipelineBehaviorCategory, number>;
+    byDisposition: Record<PipelineBehaviorProbeDisposition, number>;
+  };
+}
+
+export interface BehaviorMapRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface BehaviorMapRunValidationResult {
+  valid: boolean;
+  issues: BehaviorMapRunValidationIssue[];
+}
+
+export const FORGE_BEHAVIOR_MAP_HARNESS_VERSION = "1.0.0";
+
+export function buildBehaviorMapProbeEvidence(
+  probeId: string,
+  phase: ForgePipelineCorePhase | "registry",
+  category: PipelineBehaviorCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: PipelineBehaviorProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): BehaviorMapProbeEvidence {
+  return {
+    probeId,
+    phase,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildBehaviorMapProbeTelemetry(
+  probeId: string,
+  category: PipelineBehaviorCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): BehaviorMapProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildBehaviorMapProvenance(
+  runId: string,
+  fixture: PipelineBehaviorMapFixture,
+  contract: PipelineBehaviorMapContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  gitCommit?: string,
+): BehaviorMapProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_BEHAVIOR_MAP_HARNESS_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBaselineVersion: fixture.sourceBaseline.version,
+    sourceBaselineAtom: fixture.sourceBaseline.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}
+
+export function buildBehaviorMapRunRecord(
+  provenance: BehaviorMapProvenance,
+  evidence: BehaviorMapProbeEvidence[],
+  telemetry: BehaviorMapProbeTelemetry[],
+): BehaviorMapRunRecord {
+  const byCategory = {} as Record<PipelineBehaviorCategory, number>;
+  const byDisposition: Record<PipelineBehaviorProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of PIPELINE_BEHAVIOR_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+export function validateBehaviorMapRunRecord(
+  record: BehaviorMapRunRecord,
+  contract: PipelineBehaviorMapContract = getActivePipelineBehaviorMapContract(),
+): BehaviorMapRunValidationResult {
+  const issues: BehaviorMapRunValidationIssue[] = [];
+  const expectedProbeCount = listBehaviorMapProbeIds(contract).length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of listBehaviorMapProbeIds(contract)) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
 /** Typed pipeline behavior map contract v1 — source of truth for phase→behavior acceptance. */
 export const FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1: PipelineBehaviorMapContract = {
   version: "1.0.0",
-  atom: "P01-B02-A05",
+  atom: "P01-B02-A06",
   purpose:
     "Measurable acceptance criteria for orchestrator pipeline phase→behavior map (presence, state sync, checkpoint, stream, B01 link, failure/recovery/NO-GO paths).",
   categories: BEHAVIOR_MAP_CATEGORIES,
