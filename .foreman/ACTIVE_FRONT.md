@@ -6,9 +6,9 @@ active_phase: P01
 active_block: P01-B04
 active_atom: P01-B04-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 35/1000
+program_progress: 36/1000
 phase_progress: 34/100
-block_progress: 4/10
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B04-A06 — Typed phase/event schema: evidence, telemetry ve provenance kaydını ekle.
+P01-B04-A07 — Typed phase/event schema: unit, property ve fuzz doğrulamasını ekle.
 
-objective: Typed phase/event schema için evidence, telemetry ve provenance kaydını ekle.
-target: Failure/recovery slice run record bundles evidence, telemetry and provenance for audit.
-hypothesis: A05 failure/recovery slice validates path probes; A06 adds auditable run records.
-acceptance: run record validates; evidence per probe; telemetry non-negative; provenance lineage.
+objective: Typed phase/event schema için unit, property ve fuzz doğrulamasını ekle.
+target: Structural property checks and fuzz mutations reject invalid run records.
+hypothesis: A06 run records provide auditable substrate; A07 adds property/fuzz gates.
+acceptance: property checks pass; fuzz rejects tampered records; no benchmark leakage.
 commands: npx tsx --test src/forge-phase-event-schema.test.ts
 blast_radius: forge-phase-event-schema*.ts
-rollback: A06 değişikliklerini geri al.
+rollback: A07 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B04-A05
-last_commit: 0726ca9
-tests: PASS — forge-phase-event-schema (17/17)
-evidence: failure/recovery slice; 9 path probes (failure_path×3, recovery_path×3, nogo_path×3); validatePhaseEventSchemaFailureRecoveryProbeMatrix zero unexpected mismatches; runPhaseEventSchemaFailureRecoverySlice gate; 6 documented FAIL gaps preserved
-next: P01-B04-A06
+last_atom: P01-B04-A06
+last_commit: pending
+tests: PASS — forge-phase-event-schema (20/20)
+evidence: run record validates; evidence per probe with criterion/disposition; telemetry non-negative; provenance lineage (fixture, contract, sourceFormalStateMachine); failure/recovery slice record sliceAtom=P01-B04-A06 with 9 probes
+next: P01-B04-A07

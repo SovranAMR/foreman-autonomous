@@ -14,7 +14,7 @@ import {
 } from "./forge-formal-state-machine.js";
 import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
 
-export const FORGE_PHASE_EVENT_SCHEMA_HARNESS_VERSION = "1.0.0-a05";
+export const FORGE_PHASE_EVENT_SCHEMA_HARNESS_VERSION = "1.0.0-a06";
 
 export type PhaseEventSchemaProbeDisposition =
   | "observed"
@@ -973,6 +973,365 @@ export function listPhaseEventSchemaProbesByExpected(
   contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
 ): PhaseEventSchemaProbeContract[] {
   return contract.probes.filter(p => p.expected === expected);
+}
+
+/** Per-probe evidence artifact — auditable proof of phase/event schema probe outcome (P01-B04-A06). */
+export interface PhaseEventSchemaProbeEvidence {
+  probeId: string;
+  category: PhaseEventSchemaCategory;
+  disposition: PhaseEventSchemaProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for phase/event schema runs (P01-B04-A06). */
+export interface PhaseEventSchemaProbeTelemetry {
+  probeId: string;
+  category: PhaseEventSchemaCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P01-B04-A06). */
+export interface PhaseEventSchemaProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceFormalStateMachineVersion: string;
+  sourceFormalStateMachineAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly PhaseEventSchemaCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated phase/event schema run record bundling evidence, telemetry and provenance. */
+export interface PhaseEventSchemaRunRecord {
+  provenance: PhaseEventSchemaProvenance;
+  evidence: PhaseEventSchemaProbeEvidence[];
+  telemetry: PhaseEventSchemaProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<PhaseEventSchemaCategory, number>;
+    byDisposition: Record<PhaseEventSchemaProbeDisposition, number>;
+  };
+}
+
+export interface PhaseEventSchemaRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface PhaseEventSchemaRunValidationResult {
+  valid: boolean;
+  issues: PhaseEventSchemaRunValidationIssue[];
+}
+
+export function buildPhaseEventSchemaProbeEvidence(
+  probeId: string,
+  category: PhaseEventSchemaCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: PhaseEventSchemaProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): PhaseEventSchemaProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildPhaseEventSchemaProbeTelemetry(
+  probeId: string,
+  category: PhaseEventSchemaCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): PhaseEventSchemaProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildPhaseEventSchemaProvenance(
+  runId: string,
+  fixture: PhaseEventSchemaFixture,
+  contract: PhaseEventSchemaContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly PhaseEventSchemaCategory[];
+  },
+): PhaseEventSchemaProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_PHASE_EVENT_SCHEMA_HARNESS_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceFormalStateMachineVersion: fixture.sourceFormalStateMachine.version,
+    sourceFormalStateMachineAtom: fixture.sourceFormalStateMachine.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildPhaseEventSchemaRunRecord(
+  provenance: PhaseEventSchemaProvenance,
+  evidence: PhaseEventSchemaProbeEvidence[],
+  telemetry: PhaseEventSchemaProbeTelemetry[],
+): PhaseEventSchemaRunRecord {
+  const byCategory = {} as Record<PhaseEventSchemaCategory, number>;
+  const byDisposition: Record<PhaseEventSchemaProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of PHASE_EVENT_SCHEMA_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validatePhaseEventSchemaRunRecordAgainstProbeIds(
+  record: PhaseEventSchemaRunRecord,
+  expectedProbeIds: string[],
+  contract: PhaseEventSchemaContract,
+): PhaseEventSchemaRunValidationResult {
+  const issues: PhaseEventSchemaRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  for (const item of record.telemetry) {
+    if (item.durationMs < 0 || !Number.isFinite(item.durationMs)) {
+      issues.push({
+        kind: "missing_telemetry",
+        probeId: item.probeId,
+        detail: `${item.probeId} telemetry durationMs=${item.durationMs}`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validatePhaseEventSchemaRunRecord(
+  record: PhaseEventSchemaRunRecord,
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): PhaseEventSchemaRunValidationResult {
+  return validatePhaseEventSchemaRunRecordAgainstProbeIds(
+    record,
+    listPhaseEventSchemaContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validatePhaseEventSchemaFailureRecoveryRunRecord(
+  record: PhaseEventSchemaRunRecord,
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): PhaseEventSchemaRunValidationResult {
+  const issues: PhaseEventSchemaRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P01-B04-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P01-B04-A06`,
+    });
+  }
+
+  const expectedCategories = [...PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validatePhaseEventSchemaRunRecordAgainstProbeIds(
+    record,
+    listPhaseEventSchemaFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface PhaseEventSchemaProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare phase/event schema run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectPhaseEventSchemaProbeRegression(
+  prior: PhaseEventSchemaRunRecord,
+  current: PhaseEventSchemaRunRecord,
+): PhaseEventSchemaProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+export function summarizePhaseEventSchemaTelemetry(
+  telemetry: PhaseEventSchemaProbeTelemetry[],
+): {
+  suiteDurationMs: number;
+  maxProbeDurationMs: number;
+} {
+  let suiteDurationMs = 0;
+  let maxProbeDurationMs = 0;
+  for (const item of telemetry) {
+    suiteDurationMs += item.durationMs;
+    if (item.durationMs > maxProbeDurationMs) maxProbeDurationMs = item.durationMs;
+  }
+  return { suiteDurationMs, maxProbeDurationMs };
 }
 
 /** Re-export for harness probe registry checks. */

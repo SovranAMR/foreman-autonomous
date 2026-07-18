@@ -8,6 +8,8 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
 import phaseEventSchemaFixture from "./fixtures/forge-phase-event-schema-v1.json" with { type: "json" };
 import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
@@ -27,10 +29,19 @@ import {
   listPhaseEventSchemaProbesByCategory,
   listPhaseEventSchemaProbesByExpected,
   PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
+  listPhaseEventSchemaFailureRecoveryProbeIds,
+  buildPhaseEventSchemaProbeEvidence,
+  buildPhaseEventSchemaProbeTelemetry,
+  buildPhaseEventSchemaProvenance,
+  buildPhaseEventSchemaRunRecord,
+  validatePhaseEventSchemaRunRecord,
+  validatePhaseEventSchemaFailureRecoveryRunRecord,
   type PhaseEventSchemaCategory,
   type PhaseEventSchemaFixture,
   type PhaseEventSchemaProbeResult,
   type PhaseEventSchemaProbeMatrixValidationResult,
+  type PhaseEventSchemaRunRecord,
+  type PhaseEventSchemaProbeDisposition,
 } from "./forge-phase-event-schema.js";
 
 export type {
@@ -59,6 +70,15 @@ export {
   PHASE_EVENT_SCHEMA_CATEGORIES,
   PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
   buildDefaultPhaseEventSchemaSourceFormalStateMachine,
+  buildPhaseEventSchemaProbeEvidence,
+  buildPhaseEventSchemaProbeTelemetry,
+  buildPhaseEventSchemaProvenance,
+  buildPhaseEventSchemaRunRecord,
+  validatePhaseEventSchemaRunRecord,
+  validatePhaseEventSchemaFailureRecoveryRunRecord,
+  detectPhaseEventSchemaProbeRegression,
+  summarizePhaseEventSchemaTelemetry,
+  type PhaseEventSchemaRunRecord,
 } from "./forge-phase-event-schema.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -838,4 +858,111 @@ export function runPhaseEventSchemaFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runPhaseEventSchemaProbeWithTiming(
+  entry: PhaseEventSchemaFixture["probes"][number],
+  contractProbe:
+    | { criterion: string; disposition: PhaseEventSchemaProbeDisposition }
+    | undefined,
+): {
+  result: PhaseEventSchemaProbeResult;
+  durationMs: number;
+  disposition: PhaseEventSchemaProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildPhaseEventSchemaRecordFromEntries(
+  entries: PhaseEventSchemaFixture["probes"],
+  fixture: PhaseEventSchemaFixture,
+  contract: ReturnType<typeof getActivePhaseEventSchemaContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly PhaseEventSchemaCategory[];
+  },
+): PhaseEventSchemaRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildPhaseEventSchemaProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildPhaseEventSchemaProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runPhaseEventSchemaProbeWithTiming(entry, contractProbe);
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildPhaseEventSchemaProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildPhaseEventSchemaProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildPhaseEventSchemaProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildPhaseEventSchemaRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all phase/event schema probes and emit auditable evidence, telemetry and provenance (P01-B04-A06). */
+export function runPhaseEventSchemaProbesWithRecord(
+  fixture: PhaseEventSchemaFixture = loadPhaseEventSchemaFixture(),
+): PhaseEventSchemaRunRecord {
+  const contract = getActivePhaseEventSchemaContract();
+  return buildPhaseEventSchemaRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P01-B04-A06). */
+export function runPhaseEventSchemaFailureRecoverySliceWithRecord(
+  fixture: PhaseEventSchemaFixture = loadPhaseEventSchemaFixture(),
+): PhaseEventSchemaRunRecord {
+  const contract = getActivePhaseEventSchemaContract();
+  const failureRecoveryIds = new Set(listPhaseEventSchemaFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildPhaseEventSchemaRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P01-B04-A06",
+    sliceCategories: PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
+  });
 }

@@ -24,6 +24,14 @@ import {
   listPhaseEventSchemaFailureRecoveryProbeIds,
   PHASE_EVENT_SCHEMA_CATEGORIES,
   PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
+  runPhaseEventSchemaProbesWithRecord,
+  runPhaseEventSchemaFailureRecoverySliceWithRecord,
+  validatePhaseEventSchemaRunRecord,
+  validatePhaseEventSchemaFailureRecoveryRunRecord,
+  buildPhaseEventSchemaProbeEvidence,
+  buildPhaseEventSchemaProbeTelemetry,
+  buildPhaseEventSchemaProvenance,
+  buildPhaseEventSchemaRunRecord,
 } from "./forge-phase-event-schema-harness.js";
 
 describe("Forge Phase/Event Schema — P01-B04-A01", () => {
@@ -403,6 +411,125 @@ describe("Forge Phase/Event Schema Failure/Recovery/NO-GO — P01-B04-A05", () =
     const probeIds = listPhaseEventSchemaFailureRecoveryProbeIds();
     assert.equal(probeIds.length, 9);
     assert.ok(probeIds.every(id => results.find(r => r.id === id)?.aligned));
+  });
+});
+
+describe("Forge Phase/Event Schema Evidence — P01-B04-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadPhaseEventSchemaFixture();
+    const contract = getActivePhaseEventSchemaContract();
+    const probeIds = listPhaseEventSchemaFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-18T00:00:00.000Z";
+    const completedAt = "2026-07-18T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildPhaseEventSchemaProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildPhaseEventSchemaProbeTelemetry(probeId, contractProbe.category, index, index * 0.5);
+    });
+
+    const provenance = buildPhaseEventSchemaProvenance(
+      "run-schema-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P01-B04-A06",
+        sliceCategories: PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildPhaseEventSchemaRunRecord(provenance, evidence, telemetry);
+    const validation = validatePhaseEventSchemaFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 9);
+    assert.equal(record.summary.mismatches, 0);
+    assert.ok(record.summary.byDisposition.failure >= 3);
+    assert.ok(record.summary.byDisposition.recovery >= 3);
+    assert.ok(record.summary.byDisposition.nogo >= 3);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(
+      record.provenance.sourceFormalStateMachineAtom,
+      fixture.sourceFormalStateMachine.atom,
+    );
+  });
+
+  it("records evidence, telemetry and provenance for failure/recovery slice run", () => {
+    const contract = getActivePhaseEventSchemaContract();
+    const record = runPhaseEventSchemaFailureRecoverySliceWithRecord();
+    const validation = validatePhaseEventSchemaFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 9);
+    assert.equal(record.telemetry.length, 9);
+    assert.equal(record.provenance.totalProbes, 9);
+    assert.equal(record.provenance.sliceAtom, "P01-B04-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.equal(item.aligned, true);
+      assert.ok(item.recordedAt.length > 10);
+    }
+  });
+
+  it("records evidence, telemetry and provenance for full phase/event schema run", () => {
+    const record = runPhaseEventSchemaProbesWithRecord();
+    const validation = validatePhaseEventSchemaRunRecord(record);
+
+    assert.equal(record.evidence.length, 35);
+    assert.equal(record.telemetry.length, 35);
+    assert.equal(record.provenance.totalProbes, 35);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.summary.byDisposition.gap, 6);
+
+    for (const item of record.evidence) {
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion provenance`);
+      assert.ok(
+        item.disposition === "observed" ||
+          item.disposition === "gap" ||
+          item.disposition === "failure" ||
+          item.disposition === "recovery" ||
+          item.disposition === "nogo",
+      );
+    }
   });
 });
 
