@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 37
+completed_atoms: 38
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -61,7 +61,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B04-A05 — Typed phase/event schema: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B04-A06 — Typed phase/event schema: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B04-A07 — Typed phase/event schema: unit, property ve fuzz doğrulamasını ekle
-- [ ] P01-B04-A08 — Typed phase/event schema: Forge entegrasyonu ile regression testini tamamla
+- [x] P01-B04-A08 — Typed phase/event schema: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B04-A09 — Typed phase/event schema: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B04-A10 — Typed phase/event schema: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B04-A07
+last_atom: P01-B04-A08
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts src/forge-phase-event-schema.property-fuzz.test.ts` (26/26)
+tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts src/forge-phase-event-schema.property-fuzz.test.ts` (30/30)
 evidence: |
-  P01-B04-A07 property/fuzz: runPhaseEventSchemaPropertyChecks (7 structural properties);
-  runPhaseEventSchemaFuzzValidation rejects 24/24 fixture mutations per seed (42, 99, 20260718);
-  runPhaseEventSchemaRunRecordFuzzValidation rejects drop_evidence, drop_telemetry, wrong_total;
-  canonical contract and run record baselines pass validation.
-next: P01-B04-A08
+  P01-B04-A08 regression gate: runForgePhaseEventSchemaRegressionGate 35/35 probes aligned;
+  detectPhaseEventSchemaProbeRegression flags misaligned probes; prior-record compare no false regression;
+  orchestrator verifyForgePhaseEventSchemaRegression emits phase_event_schema_regression verification;
+  validateForgePhaseEventSchemaGuard integrated (adversarial 3/3 rejected, perf/cost/safety bounds).
+next: P01-B04-A09

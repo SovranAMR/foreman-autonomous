@@ -20,7 +20,6 @@ import {
   validatePhaseEventSchemaBoundaryProbeMatrix,
   validatePhaseEventSchemaFailureRecoveryProbeMatrix,
   listPhaseEventSchemaProbesByCategory,
-  listPhaseEventSchemaProbesByDisposition,
   listPhaseEventSchemaFailureRecoveryProbeIds,
   PHASE_EVENT_SCHEMA_CATEGORIES,
   PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
@@ -32,12 +31,19 @@ import {
   buildPhaseEventSchemaProbeTelemetry,
   buildPhaseEventSchemaProvenance,
   buildPhaseEventSchemaRunRecord,
+  runForgePhaseEventSchemaRegressionGate,
+  detectPhaseEventSchemaProbeRegression,
 } from "./forge-phase-event-schema-harness.js";
 import {
   runPhaseEventSchemaFuzzValidation,
   runPhaseEventSchemaPropertyChecks,
   runPhaseEventSchemaRunRecordFuzzValidation,
 } from "./forge-phase-event-schema.js";
+import { Orchestrator } from "./orchestrator.js";
+import type { OrchestratorEvent } from "./orchestrator.js";
+import { mkdtempSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 describe("Forge Phase/Event Schema — P01-B04-A01", () => {
   it("loads versioned phase/event schema fixture aligned with B03 handoff", () => {
@@ -557,6 +563,80 @@ describe("Forge Phase/Event Schema Property/Fuzz — P01-B04-A07", () => {
     assert.equal(runFuzz.validBaseline, true);
     assert.equal(runFuzz.mutationsAccepted, 0);
     assert.equal(runFuzz.mutationsRejected, 3);
+  });
+});
+
+describe("Forge Phase/Event Schema Regression — P01-B04-A08", () => {
+  it("runForgePhaseEventSchemaRegressionGate passes on canonical phase/event schema matrix", () => {
+    const result = runForgePhaseEventSchemaRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 35);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("35/35 probes aligned"));
+    assert.ok(result.detail.includes("guard:"));
+  });
+
+  it("detectPhaseEventSchemaProbeRegression flags newly misaligned probes", () => {
+    const prior = runPhaseEventSchemaProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectPhaseEventSchemaProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgePhaseEventSchemaRegressionGate compares against prior record without false regression", () => {
+    const prior = runPhaseEventSchemaProbesWithRecord();
+    const result = runForgePhaseEventSchemaRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("orchestrator verifyForgePhaseEventSchemaRegression emits phase_event_schema_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-phase-event-schema-regression-orch-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "phase-event-schema" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgePhaseEventSchemaRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "phase_event_schema_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("35/35 probes aligned"));
+    }
   });
 });
 

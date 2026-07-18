@@ -36,6 +36,8 @@ import {
   buildPhaseEventSchemaRunRecord,
   validatePhaseEventSchemaRunRecord,
   validatePhaseEventSchemaFailureRecoveryRunRecord,
+  detectPhaseEventSchemaProbeRegression,
+  validateForgePhaseEventSchemaGuard,
   type PhaseEventSchemaCategory,
   type PhaseEventSchemaFixture,
   type PhaseEventSchemaProbeResult,
@@ -78,8 +80,23 @@ export {
   validatePhaseEventSchemaFailureRecoveryRunRecord,
   detectPhaseEventSchemaProbeRegression,
   summarizePhaseEventSchemaTelemetry,
+  validateForgePhaseEventSchemaGuard,
+  type PhaseEventSchemaGuardCheckResult,
+  type PhaseEventSchemaProbeRegressionReport,
   type PhaseEventSchemaRunRecord,
 } from "./forge-phase-event-schema.js";
+
+export type { PhaseEventSchemaProbeRegressionReport } from "./forge-phase-event-schema.js";
+
+export interface ForgePhaseEventSchemaRegressionResult {
+  passed: boolean;
+  record: PhaseEventSchemaRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: import("./forge-phase-event-schema.js").PhaseEventSchemaProbeRegressionReport | null;
+  guard: import("./forge-phase-event-schema.js").PhaseEventSchemaGuardCheckResult;
+  detail: string;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = join(__dirname);
@@ -965,4 +982,50 @@ export function runPhaseEventSchemaFailureRecoverySliceWithRecord(
     sliceAtom: "P01-B04-A06",
     sliceCategories: PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
   });
+}
+
+/**
+ * Execute phase/event schema probes, validate run record, and optionally detect regression vs prior run.
+ * Forge pipeline integration gate (P01-B04-A08).
+ */
+export function runForgePhaseEventSchemaRegressionGate(
+  priorRecord?: PhaseEventSchemaRunRecord,
+): ForgePhaseEventSchemaRegressionResult {
+  const record = runPhaseEventSchemaProbesWithRecord();
+  const validation = validatePhaseEventSchemaRunRecord(record);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectPhaseEventSchemaProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgePhaseEventSchemaGuard(record, { totalCostUsd: 0, llmCalls: 0 });
+  const passed = recordValid && !alignmentRegression && guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    passed,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    guard,
+    detail: detailParts.join(" | "),
+  };
 }

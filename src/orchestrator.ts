@@ -212,6 +212,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge phase/event schema regression gate and emit verification event (P01-B04-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgePhaseEventSchemaRegression(
+    priorRecord?: import("./forge-phase-event-schema.js").PhaseEventSchemaRunRecord,
+  ): Promise<import("./forge-phase-event-schema-harness.js").ForgePhaseEventSchemaRegressionResult> {
+    const { runForgePhaseEventSchemaRegressionGate } = await import("./forge-phase-event-schema-harness.js");
+    const result = runForgePhaseEventSchemaRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "phase_event_schema_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge baseline guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B01-A09).
    */
   async verifyForgeBaselineGuard(
