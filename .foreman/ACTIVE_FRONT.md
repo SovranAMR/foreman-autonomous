@@ -44,7 +44,7 @@ fallback: guard uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B06-A08
-last_commit: PENDING
+last_commit: 81eefe5
 tests: PASS — forge-pipeline-regression.integration.test.ts (5/5 B06-A08 slice); forge-benchmark-eval-harness.test.ts (22/22)
 evidence: runForgeBenchmarkEvalRegressionGate; runBenchmarkEvalRegressionIntegration; detectBenchmarkEvalProbeRegression; verifyForgeBenchmarkEvalRegression orchestrator seam; 26/26 probes aligned; benchmark_regression_export + eval_harness_orchestrator_wired gap closed
 next: P01-B06-A09

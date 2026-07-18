@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B06-A08
-last_commit: PENDING
+last_commit: 81eefe5
 tests: PASS — `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (B06-A08 slice 5/5); `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (22/22)
 evidence: |
   P01-B06-A08 regression integration: runForgeBenchmarkEvalRegressionGate + runBenchmarkEvalRegressionIntegration;
