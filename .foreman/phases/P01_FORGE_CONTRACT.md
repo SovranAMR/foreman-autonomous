@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B03-A07
-last_commit: PENDING
+last_commit: 9121f38
 tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts src/forge-formal-state-machine.property-fuzz.test.ts` (25/25)
 evidence: |
   P01-B03-A07 property/fuzz: runFormalStateMachinePropertyChecks 7/7 structural properties PASS;

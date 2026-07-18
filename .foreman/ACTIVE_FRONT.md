@@ -44,7 +44,7 @@ fallback: regression slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B03-A07
-last_commit: PENDING
+last_commit: 9121f38
 tests: PASS — forge-formal-state-machine (21/21 main + 4/4 property-fuzz)
 evidence: runFormalStateMachinePropertyChecks 7/7 PASS; runFormalStateMachineFuzzValidation rejects 24/24 mutations per seed; runFormalStateMachineRunRecordFuzzValidation rejects 3/3 run record mutations; validateFormalStateMachineRunRecord baseline PASS
 next: P01-B03-A08
