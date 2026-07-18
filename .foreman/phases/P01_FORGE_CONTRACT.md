@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A03
-last_commit: (pending)
+last_commit: 089e6fc
 tests: PASS — `npx tsx --test src/reviewer-gate.test.ts` (10/10), `npx tsx --test src/forge-baseline-contract.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2)
 evidence: |
   P01-B01-A03 vertical slice: reviewer empty LLM response no longer auto-PASSes.

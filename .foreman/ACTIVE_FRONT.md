@@ -44,7 +44,7 @@ fallback: edge-case seçilemezse BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A03
-last_commit: (pending)
+last_commit: 089e6fc
 tests: PASS — reviewer-gate (10/10), forge-baseline-contract (4/4), forge-pipeline-baseline (2/2)
 evidence: classifyReviewerLlmResponse; orchestrator no auto-PASS on empty reviewer; contract probe reviewer.empty_llm_response_passes → PASS
 next: P01-B01-A04
