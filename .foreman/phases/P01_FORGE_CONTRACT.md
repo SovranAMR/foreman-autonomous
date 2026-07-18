@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A10
-last_commit: pending
+last_commit: 3d9f84b
 tests: PASS — `npx tsx --test src/forge-baseline-block-gate.test.ts` (6/6), forge-baseline-contract.guard (8/8), forge-pipeline-regression.integration (4/4), forge-pipeline-baseline (3/3), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
 evidence: |
   P01-B01 block gate sealed via runForgeBaselineBlockGate (10/10 atom seals PASS),

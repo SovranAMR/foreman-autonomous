@@ -44,7 +44,7 @@ fallback: pipeline map çıkarılamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A10
-last_commit: pending
+last_commit: 3d9f84b
 tests: PASS — forge-baseline-block-gate (6/6), forge-baseline-contract.guard (8/8), forge-pipeline-regression.integration (4/4), forge-pipeline-baseline (3/3), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
 evidence: runForgeBaselineBlockGate 10/10 atom seals, FORGE_P01_B01_TO_B02_HANDOFF_V1→P01-B02-A01, Orchestrator.verifyForgeBaselineBlockGate baseline_block_gate event
 next: P01-B02-A01
