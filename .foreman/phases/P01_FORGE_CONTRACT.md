@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 57
+completed_atoms: 58
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -88,7 +88,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B06-A06 — Benchmark ve eval harness: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B06-A07 — Benchmark ve eval harness: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B06-A08 — Benchmark ve eval harness: Forge entegrasyonu ile regression testini tamamla
-- [ ] P01-B06-A09 — Benchmark ve eval harness: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P01-B06-A09 — Benchmark ve eval harness: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B06-A10 — Benchmark ve eval harness: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B07 — Reproducible fixture sistemi
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B06-A08
-last_commit: 81eefe5
-tests: PASS — `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (B06-A08 slice 5/5); `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (22/22)
+last_atom: P01-B06-A09
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.guard.test.ts` (8/8); `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (22/22); `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (B06 slice 5/5)
 evidence: |
-  P01-B06-A08 regression integration: runForgeBenchmarkEvalRegressionGate + runBenchmarkEvalRegressionIntegration;
-  detectBenchmarkEvalProbeRegression; runBenchmarkEvalHarnessProbesWithRecord; orchestrator verifyForgeBenchmarkEvalRegression
-  emits benchmark_eval_regression verification; 26/26 probes aligned; benchmark_regression_export and eval_harness_orchestrator_wired
-  gaps closed; failure/recovery/nogo eval probes tightened against import-path false positives.
-next: P01-B06-A09
+  P01-B06-A09 guard gate: validateForgeBenchmarkEvalGuard + verifyForgeBenchmarkEvalGuard orchestrator seam;
+  adversarial false-alignment/summary-mismatch/dropped-probe scenarios rejected; perf/cost/safety budgets enforced;
+  runForgeBenchmarkEvalRegressionGate includes guard PASS; bench.forge_guard_exports probe includes verifyForgeBenchmarkEvalGuard.
+next: P01-B06-A10

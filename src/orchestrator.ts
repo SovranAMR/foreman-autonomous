@@ -266,6 +266,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge benchmark eval harness guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B06-A09).
+   */
+  async verifyForgeBenchmarkEvalGuard(
+    priorRecord?: import("./forge-benchmark-eval-harness.js").BenchmarkEvalRunRecord,
+  ): Promise<import("./forge-benchmark-eval-harness.probe.js").ForgeBenchmarkEvalRegressionResult> {
+    const { runForgeBenchmarkEvalRegressionGate } = await import("./forge-benchmark-eval-harness.probe.js");
+    const result = runForgeBenchmarkEvalRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "benchmark_eval_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge pipeline invariant engine guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B05-A09).
    */
   async verifyForgePipelineInvariantEngineGuard(

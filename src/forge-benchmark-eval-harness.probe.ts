@@ -38,6 +38,7 @@ import {
   runBenchmarkEvalRunRecordFuzzValidation,
   createBenchmarkEvalFuzzRng,
   detectBenchmarkEvalProbeRegression,
+  validateForgeBenchmarkEvalGuard,
   type BenchmarkEvalCategory,
   type BenchmarkEvalFixture,
   type BenchmarkEvalProbeMatrixValidationResult,
@@ -67,6 +68,7 @@ export {
   runBenchmarkEvalRunRecordFuzzValidation,
   createBenchmarkEvalFuzzRng,
   detectBenchmarkEvalProbeRegression,
+  validateForgeBenchmarkEvalGuard,
   summarizeBenchmarkEvalHarnessMatrix,
   summarizeBenchmarkEvalContractCoverage,
   listBenchmarkEvalHarnessProbesByExpected,
@@ -249,7 +251,8 @@ function probeEvalSuite(
         src.includes("verifyForgeBehaviorMapGuard") &&
         src.includes("verifyForgePhaseEventSchemaGuard") &&
         src.includes("verifyForgeFormalStateMachineGuard") &&
-        src.includes("verifyForgePipelineInvariantEngineGuard");
+        src.includes("verifyForgePipelineInvariantEngineGuard") &&
+        src.includes("verifyForgeBenchmarkEvalGuard");
       return probe(
         id,
         category,
@@ -842,6 +845,7 @@ export interface ForgeBenchmarkEvalRegressionResult {
   recordValid: boolean;
   validationIssues: string[];
   probeRegression: BenchmarkEvalProbeRegressionReport | null;
+  guard: import("./forge-benchmark-eval-harness.js").BenchmarkEvalGuardCheckResult;
   detail: string;
 }
 
@@ -859,7 +863,8 @@ export function runForgeBenchmarkEvalRegressionGate(
 
   const probeRegression = priorRecord ? detectBenchmarkEvalProbeRegression(priorRecord, record) : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
-  const passed = recordValid && !alignmentRegression;
+  const guard = validateForgeBenchmarkEvalGuard(record, { totalCostUsd: 0, llmCalls: 0 });
+  const passed = recordValid && !alignmentRegression && guard.passed;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
@@ -867,6 +872,15 @@ export function runForgeBenchmarkEvalRegressionGate(
     detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
   }
   if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   return {
     passed,
@@ -874,6 +888,7 @@ export function runForgeBenchmarkEvalRegressionGate(
     recordValid,
     validationIssues,
     probeRegression,
+    guard,
     detail: detailParts.join(" | "),
   };
 }

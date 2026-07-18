@@ -255,6 +255,7 @@ describe("Forge Pipeline Regression — P01-B06-A08", () => {
     assert.equal(result.record.summary.mismatches, 0);
     assert.equal(result.record.evidence.length, 26);
     assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
     assert.ok(result.detail.includes("26/26 probes aligned"));
   });
 
@@ -263,7 +264,10 @@ describe("Forge Pipeline Regression — P01-B06-A08", () => {
     const integration = runBenchmarkEvalRegressionIntegration();
 
     assert.equal(integration.passed, gate.passed);
-    assert.equal(integration.detail, gate.detail);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
+    assert.ok(integration.detail.includes("26/26 probes aligned"));
+    assert.ok(integration.detail.includes("guard:"));
     assert.equal(integration.record.summary.total, 26);
   });
 
