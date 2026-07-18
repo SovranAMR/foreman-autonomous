@@ -10,6 +10,9 @@ import {
   runPipelineInvariantEngineFailureRecoverySliceWithRecord,
   validatePipelineInvariantEngineRunRecord,
   validatePipelineInvariantEngineFailureRecoveryRunRecord,
+  runPipelineInvariantEnginePropertyChecks,
+  runPipelineInvariantEngineFuzzValidation,
+  runPipelineInvariantEngineRunRecordFuzzValidation,
   buildPipelineInvariantEngineProbeEvidence,
   buildPipelineInvariantEngineProbeTelemetry,
   buildPipelineInvariantEngineProvenance,
@@ -544,5 +547,27 @@ describe("Forge Pipeline Invariant Engine Evidence — P01-B05-A06", () => {
           item.disposition === "nogo",
       );
     }
+  });
+});
+
+describe("Forge Pipeline Invariant Engine Property/Fuzz — P01-B05-A07", () => {
+  it("passes structural property checks on canonical contract", () => {
+    const contract = getActivePipelineInvariantEngineContract();
+    const result = runPipelineInvariantEnginePropertyChecks(contract);
+    assert.equal(result.allPassed, true, result.failed.map(f => `${f.propertyId}: ${f.detail}`).join("\n"));
+  });
+
+  it("rejects fuzz-mutated fixtures and corrupted run records", () => {
+    const fixture = loadPipelineInvariantEngineFixture();
+    const contract = getActivePipelineInvariantEngineContract();
+    const record = runPipelineInvariantEngineProbesWithRecord();
+
+    const fuzz = runPipelineInvariantEngineFuzzValidation(fixture, contract, 42, 24);
+    assert.equal(fuzz.allMutationsRejected, true);
+
+    const runFuzz = runPipelineInvariantEngineRunRecordFuzzValidation(record, contract);
+    assert.equal(runFuzz.validBaseline, true);
+    assert.equal(runFuzz.mutationsAccepted, 0);
+    assert.equal(runFuzz.mutationsRejected, 3);
   });
 });

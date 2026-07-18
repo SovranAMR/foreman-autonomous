@@ -1249,3 +1249,411 @@ export function validatePipelineInvariantEngineFailureRecoveryRunRecord(
     issues: [...issues, ...probeValidation.issues],
   };
 }
+
+export interface PipelineInvariantEnginePropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface PipelineInvariantEnginePropertyResult {
+  passed: number;
+  failed: PipelineInvariantEnginePropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type PipelineInvariantEnginePropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: PipelineInvariantEngineContract) => string | null;
+};
+
+const PIPELINE_INVARIANT_ENGINE_STRUCTURAL_PROPERTIES: readonly PipelineInvariantEnginePropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All eleven pipeline invariant categories are declared",
+    check: contract => {
+      for (const category of PIPELINE_INVARIANT_ENGINE_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listPipelineInvariantEngineContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of PIPELINE_INVARIANT_ENGINE_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description:
+      "summarizePipelineInvariantEngineContractCoverage totals match listPipelineInvariantEngineContractProbeIds",
+    check: contract => {
+      const summary = summarizePipelineInvariantEngineContractCoverage(contract);
+      const ids = listPipelineInvariantEngineContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with inv. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("inv.")) {
+          return `${probe.id} missing inv. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const probeIds = listPipelineInvariantEngineContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildPipelineInvariantEngineProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildPipelineInvariantEngineProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildPipelineInvariantEngineRunRecord(
+        buildPipelineInvariantEngineProvenance(
+          "property-check",
+          {
+            version: "0",
+            atom: "x",
+            purpose: "x",
+            sourcePhaseEventSchema: buildDefaultPipelineInvariantEngineSourcePhaseEventSchema(),
+            probes: [],
+          },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runPipelineInvariantEnginePropertyChecks(
+  contract: PipelineInvariantEngineContract = getActivePipelineInvariantEngineContract(),
+): PipelineInvariantEnginePropertyResult {
+  const failed: PipelineInvariantEnginePropertyViolation[] = [];
+  for (const property of PIPELINE_INVARIANT_ENGINE_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = PIPELINE_INVARIANT_ENGINE_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type PipelineInvariantEngineFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface PipelineInvariantEngineFuzzMutationCase {
+  seed: number;
+  kind: PipelineInvariantEngineFuzzMutationKind;
+  probeId?: string;
+  category?: PipelineInvariantEngineCategory;
+}
+
+export interface PipelineInvariantEngineFuzzValidationCaseResult {
+  mutation: PipelineInvariantEngineFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface PipelineInvariantEngineFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: PipelineInvariantEngineFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createPipelineInvariantEngineFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function clonePipelineInvariantEngineFixture(fixture: PipelineInvariantEngineFixture): PipelineInvariantEngineFixture {
+  return {
+    ...fixture,
+    sourcePhaseEventSchema: { ...fixture.sourcePhaseEventSchema },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickPipelineInvariantEngineFuzzTarget(
+  fixture: PipelineInvariantEngineFixture,
+  rng: () => number,
+): { category: PipelineInvariantEngineCategory; index: number; entry: PipelineInvariantEngineFixtureEntry } {
+  const category =
+    PIPELINE_INVARIANT_ENGINE_CATEGORIES[Math.floor(rng() * PIPELINE_INVARIANT_ENGINE_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyPipelineInvariantEngineFuzzMutation(
+  fixture: PipelineInvariantEngineFixture,
+  mutation: PipelineInvariantEngineFuzzMutationCase,
+): PipelineInvariantEngineFixture {
+  const mutated = clonePipelineInvariantEngineFixture(fixture);
+  const targetCategory = mutation.category ?? PIPELINE_INVARIANT_ENGINE_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `inv.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = PIPELINE_INVARIANT_ENGINE_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generatePipelineInvariantEngineFuzzMutationCases(
+  fixture: PipelineInvariantEngineFixture,
+  seed: number,
+  iterations: number,
+): PipelineInvariantEngineFuzzMutationCase[] {
+  const rng = createPipelineInvariantEngineFuzzRng(seed);
+  const kinds: PipelineInvariantEngineFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: PipelineInvariantEngineFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickPipelineInvariantEngineFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P01-B05-A07). */
+export function runPipelineInvariantEngineFuzzValidation(
+  fixture: PipelineInvariantEngineFixture,
+  contract: PipelineInvariantEngineContract = getActivePipelineInvariantEngineContract(),
+  seed = 42,
+  iterations = 24,
+): PipelineInvariantEngineFuzzValidationResult {
+  const cases = generatePipelineInvariantEngineFuzzMutationCases(fixture, seed, iterations);
+  const results: PipelineInvariantEngineFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyPipelineInvariantEngineFuzzMutation(fixture, mutation);
+    const validation = validatePipelineInvariantEngineFixtureAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type PipelineInvariantEngineRunRecordFuzzKind = "drop_evidence" | "drop_telemetry" | "wrong_total";
+
+export interface PipelineInvariantEngineRunRecordFuzzCase {
+  kind: PipelineInvariantEngineRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyPipelineInvariantEngineRunRecordFuzzMutation(
+  record: PipelineInvariantEngineRunRecord,
+  mutation: PipelineInvariantEngineRunRecordFuzzCase,
+): PipelineInvariantEngineRunRecord {
+  const cloned: PipelineInvariantEngineRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+  }
+
+  cloned.summary = buildPipelineInvariantEngineRunRecord(
+    cloned.provenance,
+    cloned.evidence,
+    cloned.telemetry,
+  ).summary;
+  return cloned;
+}
+
+export function runPipelineInvariantEngineRunRecordFuzzValidation(
+  record: PipelineInvariantEngineRunRecord,
+  contract: PipelineInvariantEngineContract = getActivePipelineInvariantEngineContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const baseline = validatePipelineInvariantEngineRunRecord(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: PipelineInvariantEngineRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyPipelineInvariantEngineRunRecordFuzzMutation(record, mutation);
+    const validation = validatePipelineInvariantEngineRunRecord(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}
