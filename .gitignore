@@ -4,7 +4,16 @@ dist
 *.env
 *.log
 state.json
-.foreman/
+# Runtime state stays local; Cursor Automation control files are versioned.
+.foreman/*
+!.foreman/MISSION.md
+!.foreman/ACTIVE_FRONT.md
+!.foreman/automation-prompt.md
+!.foreman/MASTER_PLAN.md
+!.foreman/DECOMPOSITION_CONTRACT.md
+!.foreman/phases/
+.foreman/phases/*
+!.foreman/phases/*.md
 thoughts/
 chains/
 memory/
