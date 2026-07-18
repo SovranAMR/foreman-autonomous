@@ -19,8 +19,10 @@ import {
   validatePipelineInvariantEngineFixture,
   validatePipelineInvariantEngineFixtureAgainstContract,
   validatePipelineInvariantEngineProbeMatrix,
+  validatePipelineInvariantEngineBoundaryProbeMatrix,
   summarizePipelineInvariantEngineMatrix,
   getActivePipelineInvariantEngineContract,
+  listPipelineInvariantEngineProbesByCategory,
   listPipelineInvariantEngineProbesByExpected,
   type PipelineInvariantEngineCategory,
   type PipelineInvariantEngineFixture,
@@ -37,10 +39,12 @@ export {
   validatePipelineInvariantEngineFixture,
   validatePipelineInvariantEngineFixtureAgainstContract,
   validatePipelineInvariantEngineProbeMatrix,
+  validatePipelineInvariantEngineBoundaryProbeMatrix,
   summarizePipelineInvariantEngineMatrix,
   getActivePipelineInvariantEngineContract,
   getPipelineInvariantEngineCategoryContract,
   listPipelineInvariantEngineContractProbeIds,
+  listPipelineInvariantEngineProbesByCategory,
   listPipelineInvariantEngineProbesByDisposition,
   listPipelineInvariantEngineProbesByExpected,
   summarizePipelineInvariantEngineContractCoverage,
@@ -590,6 +594,39 @@ export function runPipelineInvariantEngineProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface PipelineInvariantEngineBoundarySliceResult {
+  atom: "P01-B05-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: PipelineInvariantEngineProbeResult[];
+  boundaryResults: PipelineInvariantEngineProbeResult[];
+  matrixValidation: PipelineInvariantEngineProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (empty vision, format_retry,
+ * invariant engine wiring) with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runPipelineInvariantEngineBoundarySlice(
+  fixture: PipelineInvariantEngineFixture = loadPipelineInvariantEngineFixture(),
+): PipelineInvariantEngineBoundarySliceResult {
+  const contract = getActivePipelineInvariantEngineContract();
+  const results = runPipelineInvariantEngineProbes(fixture);
+  const boundaryProbes = listPipelineInvariantEngineProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validatePipelineInvariantEngineBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B05-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

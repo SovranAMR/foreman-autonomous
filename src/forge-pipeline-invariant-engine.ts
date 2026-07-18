@@ -13,7 +13,7 @@ import {
   PHASE_EVENT_SCHEMA_CATEGORIES,
 } from "./forge-phase-event-schema.js";
 
-export const FORGE_PIPELINE_INVARIANT_ENGINE_HARNESS_VERSION = "1.0.0-a03";
+export const FORGE_PIPELINE_INVARIANT_ENGINE_HARNESS_VERSION = "1.0.0-a04";
 
 export type PipelineInvariantEngineProbeDisposition = "observed" | "gap";
 
@@ -446,6 +446,13 @@ export function listPipelineInvariantEngineProbesByDisposition(
   return contract.probes.filter(p => p.disposition === disposition);
 }
 
+export function listPipelineInvariantEngineProbesByCategory(
+  category: PipelineInvariantEngineCategory,
+  contract: PipelineInvariantEngineContract = getActivePipelineInvariantEngineContract(),
+): PipelineInvariantEngineProbeContract[] {
+  return contract.categories[category].probes;
+}
+
 export function summarizePipelineInvariantEngineContractCoverage(
   contract: PipelineInvariantEngineContract = getActivePipelineInvariantEngineContract(),
 ): {
@@ -775,4 +782,26 @@ export function validatePipelineInvariantEngineProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validatePipelineInvariantEngineBoundaryProbeMatrix(
+  results: PipelineInvariantEngineProbeResult[],
+  contract: PipelineInvariantEngineContract = getActivePipelineInvariantEngineContract(),
+): PipelineInvariantEngineProbeMatrixValidationResult {
+  const boundaryProbes = listPipelineInvariantEngineProbesByCategory("boundary", contract);
+  const boundaryContract: PipelineInvariantEngineContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validatePipelineInvariantEngineProbeMatrix(boundaryResults, boundaryContract);
 }

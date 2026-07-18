@@ -4,14 +4,17 @@ import {
   loadPipelineInvariantEngineFixture,
   runPipelineInvariantEngineProbes,
   runPipelineInvariantEngineProductionSlice,
+  runPipelineInvariantEngineBoundarySlice,
   validatePipelineInvariantEngineFixture,
   validatePipelineInvariantEngineFixtureAgainstContract,
   validatePipelineInvariantEngineProbeMatrix,
+  validatePipelineInvariantEngineBoundaryProbeMatrix,
   summarizePipelineInvariantEngineMatrix,
   summarizePipelineInvariantEngineContractCoverage,
   getActivePipelineInvariantEngineContract,
   getPipelineInvariantEngineCategoryContract,
   listPipelineInvariantEngineContractProbeIds,
+  listPipelineInvariantEngineProbesByCategory,
   listPipelineInvariantEngineProbesByDisposition,
   listPipelineInvariantEngineKnownGaps,
   listPipelineInvariantEngineProbesByExpected,
@@ -252,5 +255,74 @@ describe("Forge Pipeline Invariant Engine Production Slice — P01-B05-A03", () 
       assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
       assert.equal(result.criterion, contractProbe.criterion);
     }
+  });
+});
+
+describe("Forge Pipeline Invariant Engine Boundary Slice — P01-B05-A04", () => {
+  it("defines boundary category with empty vision, format_retry and wiring edge probes", () => {
+    const boundary = listPipelineInvariantEngineProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 3);
+    assert.deepEqual(ids, [
+      "inv.error_on_empty_vision",
+      "inv.format_retry_handling",
+      "inv.invariant_engine_orchestrator_wired",
+    ]);
+    assert.equal(boundary.filter(p => p.expected === "PASS").length, 2);
+    assert.equal(boundary.filter(p => p.disposition === "gap").length, 1);
+    assert.ok(boundary.some(p => p.id === "inv.error_on_empty_vision"));
+    assert.ok(boundary.some(p => p.id === "inv.format_retry_handling"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActivePipelineInvariantEngineContract();
+    const slice = runPipelineInvariantEngineBoundarySlice();
+
+    assert.equal(slice.atom, "P01-B05-A04");
+    assert.equal(slice.boundaryProbeCount, 3);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 3);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 2);
+    assert.equal(slice.matrixValidation.gapAligned, 1);
+
+    for (const boundaryProbe of listPipelineInvariantEngineProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validatePipelineInvariantEngineBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented boundary gap for invariant engine orchestrator wiring", () => {
+    const results = runPipelineInvariantEngineProbes();
+    const boundary = results.filter(r => r.category === "boundary");
+
+    assert.equal(boundary.length, 3);
+    assert.equal(boundary.every(r => r.aligned), true);
+
+    const wiringGap = boundary.find(r => r.id === "inv.invariant_engine_orchestrator_wired");
+    assert.ok(wiringGap);
+    assert.equal(wiringGap!.expected, "FAIL");
+    assert.equal(wiringGap!.actual, "FAIL");
+
+    const emptyVision = boundary.find(r => r.id === "inv.error_on_empty_vision");
+    assert.ok(emptyVision);
+    assert.equal(emptyVision!.expected, "PASS");
+    assert.equal(emptyVision!.actual, "PASS");
+
+    const formatRetry = boundary.find(r => r.id === "inv.format_retry_handling");
+    assert.ok(formatRetry);
+    assert.equal(formatRetry!.expected, "PASS");
+    assert.equal(formatRetry!.actual, "PASS");
   });
 });
