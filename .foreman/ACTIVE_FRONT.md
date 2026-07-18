@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B02
-active_atom: P01-B02-A01
+active_atom: P01-B02-A02
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 10/1000
-phase_progress: 10/100
-block_progress: 0/10
+program_progress: 11/1000
+phase_progress: 11/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B02-A01 — Mevcut pipeline davranış haritası: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P01-B02-A02 — Mevcut pipeline davranış haritası: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: Orchestrator pipeline fazlarının gözlemlenebilir davranış haritasını çıkar; B01 handoff baseline'ına dayalı failing fixture oluştur.
-target: Pipeline behavior map fixture + harness probe seam.
-hypothesis: P01-B01 block gate sealed; B02-A01 live pipeline phase→behavior eşlemesini ölçer.
-acceptance: Behavior map fixture yüklenir, en az bir bilinen gap FAIL olarak yakalanır, hedefli test PASS.
-commands: B02-A01 kapsamında belirlenecek.
-blast_radius: B02-A01 kapsamında belirlenecek tek seam.
-rollback: B02-A01 değişikliklerini geri al.
+objective: Pipeline behavior map için typed contract ile ölçülebilir acceptance kriterlerini tanımla.
+target: FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1 genişletmesi + fixture doğrulama.
+hypothesis: B02-A01 fixture/harness sealed; A02 contract kapsamını genişletir.
+acceptance: Contract tüm probe'ları tanımlar, fixture ile hizalı, hedefli test PASS.
+commands: npx tsx --test src/forge-pipeline-behavior-map.test.ts
+blast_radius: forge-pipeline-behavior-map*.ts
+rollback: B02-A02 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: pipeline map çıkarılamazsa BLOCKED raporla.
+fallback: contract tanımlanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B01-A10
-last_commit: 3d9f84b
-tests: PASS — forge-baseline-block-gate (6/6), forge-baseline-contract.guard (8/8), forge-pipeline-regression.integration (4/4), forge-pipeline-baseline (3/3), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
-evidence: runForgeBaselineBlockGate 10/10 atom seals, FORGE_P01_B01_TO_B02_HANDOFF_V1→P01-B02-A01, Orchestrator.verifyForgeBaselineBlockGate baseline_block_gate event
-next: P01-B02-A01
+last_atom: P01-B02-A01
+last_commit: pending
+tests: PASS — forge-pipeline-behavior-map (2/2), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
+evidence: forge-pipeline-behavior-map-v1.json (16 probes, 2 known FAIL gaps), runPipelineBehaviorMapProbes 16/16 aligned, B01 handoff probeCount=27
+next: P01-B02-A02

@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 1
-completed_atoms: 10
+completed_atoms: 11
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -28,7 +28,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B02 — Mevcut pipeline davranış haritası
 
-- [ ] P01-B02-A01 — Mevcut pipeline davranış haritası: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B02-A01 — Mevcut pipeline davranış haritası: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B02-A02 — Mevcut pipeline davranış haritası: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B02-A03 — Mevcut pipeline davranış haritası: en küçük üretim dikey dilimini uygula
 - [ ] P01-B02-A04 — Mevcut pipeline davranış haritası: boundary ve edge-case davranışlarını tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B01-A10
-last_commit: 3d9f84b
-tests: PASS — `npx tsx --test src/forge-baseline-block-gate.test.ts` (6/6), forge-baseline-contract.guard (8/8), forge-pipeline-regression.integration (4/4), forge-pipeline-baseline (3/3), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
+last_atom: P01-B02-A01
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (2/2), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
-  P01-B01 block gate sealed via runForgeBaselineBlockGate (10/10 atom seals PASS),
-  FORGE_P01_B01_TO_B02_HANDOFF_V1 validates B02 entry baseline (probeCount=27, pathCategories=6),
-  Orchestrator.verifyForgeBaselineBlockGate emits baseline_block_gate verification event.
-next: P01-B02-A01
+  forge-pipeline-behavior-map-v1.json fixture (16 probes, B01 handoff probeCount=27),
+  runPipelineBehaviorMapProbes 16/16 aligned with 2 known FAIL gaps (map.atomize_state_sync, map.registry_export),
+  harness probe seam reads live orchestrator/pipeline-resume/streaming sources without LLM.
+next: P01-B02-A02

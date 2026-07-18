@@ -1,0 +1,127 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B02-A01",
+  "contractAtom": "P01-B02-A02",
+  "purpose": "Observable pipeline phase→behavior map measured from live orchestrator (includes documented FAIL gaps).",
+  "sourceBaseline": {
+    "version": "1.0.0",
+    "atom": "P01-B01-A10",
+    "contractVersion": "1.0.0",
+    "probeCount": 27,
+    "pathCategories": 6
+  },
+  "probes": [
+    {
+      "id": "map.vision_phase_presence",
+      "phase": "vision",
+      "category": "phase_presence",
+      "description": "Orchestrator emits phase_start for vision",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.decompose_phase_presence",
+      "phase": "decompose",
+      "category": "phase_presence",
+      "description": "Orchestrator emits phase_start for decompose",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.research_phase_presence",
+      "phase": "research",
+      "category": "phase_presence",
+      "description": "Orchestrator emits phase_start for research",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.atomize_phase_presence",
+      "phase": "atomize",
+      "category": "phase_presence",
+      "description": "Orchestrator emits phase_start for atomize",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.execute_phase_presence",
+      "phase": "execute",
+      "category": "phase_presence",
+      "description": "Orchestrator emits phase_start for execute",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.reflect_phase_presence",
+      "phase": "reflect",
+      "category": "phase_presence",
+      "description": "Orchestrator emits phase_start for reflect",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.vision_state_sync",
+      "phase": "vision",
+      "category": "state_sync",
+      "description": "Vision phase transitions SystemState to visioning",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.decompose_state_sync",
+      "phase": "decompose",
+      "category": "state_sync",
+      "description": "Decompose phase transitions SystemState to decomposing",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.research_state_sync",
+      "phase": "research",
+      "category": "state_sync",
+      "description": "Research phase transitions SystemState to researching",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.atomize_state_sync",
+      "phase": "atomize",
+      "category": "state_sync",
+      "description": "Atomize phase has dedicated SystemState (known gap: uses decomposing)",
+      "expected": "FAIL"
+    },
+    {
+      "id": "map.execute_state_sync",
+      "phase": "execute",
+      "category": "state_sync",
+      "description": "Execute phase transitions SystemState to executing",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.reflect_state_sync",
+      "phase": "reflect",
+      "category": "state_sync",
+      "description": "Reflect phase transitions SystemState to reflecting",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.verify_checkpoint_type",
+      "phase": "verify",
+      "category": "checkpoint_type",
+      "description": "PipelinePhase type includes verify for checkpoint resume",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.vision_stream_icon",
+      "phase": "vision",
+      "category": "stream_seam",
+      "description": "StreamingPipeline PHASE_ICONS includes vision",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.registry_export",
+      "phase": "registry",
+      "category": "phase_presence",
+      "description": "Orchestrator exports canonical FORGE_PIPELINE_PHASES registry (known gap)",
+      "expected": "FAIL"
+    },
+    {
+      "id": "map.b01_baseline_handoff",
+      "phase": "registry",
+      "category": "baseline_link",
+      "description": "Behavior map fixture references sealed B01 baseline artifacts",
+      "expected": "PASS"
+    }
+  ]
+}
