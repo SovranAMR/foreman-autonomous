@@ -44,7 +44,7 @@ fallback: failure path seçilemezse BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A04
-last_commit: (this commit)
+last_commit: e854136
 tests: PASS — forge-baseline-contract (4/4), forge-pipeline-baseline (2/2), forge-engines rollback edge-case
 evidence: isGitRepository(); createPoint null without git; contract probe rollback.point_without_git → PASS (20/20 matrix)
 next: P01-B01-A05

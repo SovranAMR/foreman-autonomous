@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A04
-last_commit: (this commit)
+last_commit: e854136
 tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2), rollback no-git edge-case in forge-engines.test.ts
 evidence: |
   P01-B01-A04 boundary slice: RollbackEngine.isGitRepository() guards createPoint on non-git roots.
