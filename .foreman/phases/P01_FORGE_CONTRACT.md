@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 1
-completed_atoms: 18
+completed_atoms: 19
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -36,7 +36,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B02-A06 — Mevcut pipeline davranış haritası: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B02-A07 — Mevcut pipeline davranış haritası: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B02-A08 — Mevcut pipeline davranış haritası: Forge entegrasyonu ile regression testini tamamla
-- [ ] P01-B02-A09 — Mevcut pipeline davranış haritası: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P01-B02-A09 — Mevcut pipeline davranış haritası: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B02-A10 — Mevcut pipeline davranış haritası: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B03 — Formal state machine
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B02-A08
-last_commit: 3fa372b
-tests: PASS — `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (8/8), `src/forge-pipeline-behavior-map.test.ts` (17/17), `src/forge-pipeline-behavior-map.property-fuzz.test.ts` (4/4), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3)
+last_atom: P01-B02-A09
+last_commit: ff263bb
+tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.guard.test.ts` (8/8), `src/forge-pipeline-behavior-map.test.ts` (17/17), `src/forge-pipeline-regression.integration.test.ts` (8/8)
 evidence: |
-  P01-B02-A08 regression integration slice: detectBehaviorMapProbeRegression (probe alignment diff),
-  runForgeBehaviorMapRegressionGate (26/26 probes aligned, record valid),
-  orchestrator verifyForgeBehaviorMapRegression emits behavior_map_regression verification event.
-next: P01-B02-A09
+  P01-B02-A09 guard integration slice: validateForgeBehaviorMapGuard (adversarial 3/3 rejected, zero-cost perf/safety PASS),
+  runForgeBehaviorMapRegressionGate includes guard detail,
+  orchestrator verifyForgeBehaviorMapGuard emits behavior_map_guard verification event.
+next: P01-B02-A10
