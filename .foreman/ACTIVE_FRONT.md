@@ -44,7 +44,7 @@ fallback: contract tanımlanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B02-A01
-last_commit: pending
+last_commit: 69170d5
 tests: PASS — forge-pipeline-behavior-map (2/2), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: forge-pipeline-behavior-map-v1.json (16 probes, 2 known FAIL gaps), runPipelineBehaviorMapProbes 16/16 aligned, B01 handoff probeCount=27
 next: P01-B02-A02
