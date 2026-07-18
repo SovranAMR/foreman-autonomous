@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B02-A08
-last_commit: bfe5f9e
+last_commit: 3fa372b
 tests: PASS — forge-pipeline-behavior-map (17/17), forge-pipeline-behavior-map.property-fuzz (4/4), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (8/8)
 evidence: runForgeBehaviorMapRegressionGate (26/26 probes aligned), detectBehaviorMapProbeRegression (regression detection), orchestrator verifyForgeBehaviorMapRegression emits behavior_map_regression verification event; contract atom P01-B02-A08
 next: P01-B02-A09

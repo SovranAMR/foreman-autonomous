@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B02-A08
-last_commit: bfe5f9e
+last_commit: 3fa372b
 tests: PASS — `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (8/8), `src/forge-pipeline-behavior-map.test.ts` (17/17), `src/forge-pipeline-behavior-map.property-fuzz.test.ts` (4/4), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3)
 evidence: |
   P01-B02-A08 regression integration slice: detectBehaviorMapProbeRegression (probe alignment diff),
