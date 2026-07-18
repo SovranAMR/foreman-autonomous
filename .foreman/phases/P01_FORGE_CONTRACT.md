@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 4
-completed_atoms: 42
+completed_atoms: 43
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -69,7 +69,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P01-B05-A01 — Pipeline invariant engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B05-A02 — Pipeline invariant engine: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P01-B05-A03 — Pipeline invariant engine: en küçük üretim dikey dilimini uygula
+- [x] P01-B05-A03 — Pipeline invariant engine: en küçük üretim dikey dilimini uygula
 - [ ] P01-B05-A04 — Pipeline invariant engine: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B05-A05 — Pipeline invariant engine: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B05-A06 — Pipeline invariant engine: evidence, telemetry ve provenance kaydını ekle
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B05-A02
+last_atom: P01-B05-A03
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts` (9/9)
+tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts` (11/11)
 evidence: |
-  P01-B05-A02 contract: FORGE_PIPELINE_INVARIANT_ENGINE_CONTRACT_V1 with 23 probes across 8 categories
-  (phase_lifecycle, event_ordering, reflection_cadence, state_coherence, block_halt, verification_gate,
-  baseline_link, boundary); 16 observed + 7 gap dispositions; validatePipelineInvariantEngineFixtureAgainstContract
-  locks fixture↔contract mapping; harness wires probe criteria from contract source of truth.
-next: P01-B05-A03
+  P01-B05-A03 production slice: runPipelineInvariantEngineProductionSlice with validatePipelineInvariantEngineProbeMatrix;
+  fixture↔contract aligned; 16 passAligned + 7 gapAligned; zero unexpected mismatches; harness version 1.0.0-a03;
+  7 documented runtime wiring gaps preserved (phase balance, event order, reflection cadence, state coherence,
+  block halt, verification gate, orchestrator wiring).
+next: P01-B05-A04

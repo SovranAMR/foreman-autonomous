@@ -18,12 +18,14 @@ import {
 import {
   validatePipelineInvariantEngineFixture,
   validatePipelineInvariantEngineFixtureAgainstContract,
+  validatePipelineInvariantEngineProbeMatrix,
   summarizePipelineInvariantEngineMatrix,
   getActivePipelineInvariantEngineContract,
   listPipelineInvariantEngineProbesByExpected,
   type PipelineInvariantEngineCategory,
   type PipelineInvariantEngineFixture,
   type PipelineInvariantEngineProbeResult,
+  type PipelineInvariantEngineProbeMatrixValidationResult,
 } from "./forge-pipeline-invariant-engine.js";
 
 export type {
@@ -34,6 +36,7 @@ export type {
 export {
   validatePipelineInvariantEngineFixture,
   validatePipelineInvariantEngineFixtureAgainstContract,
+  validatePipelineInvariantEngineProbeMatrix,
   summarizePipelineInvariantEngineMatrix,
   getActivePipelineInvariantEngineContract,
   getPipelineInvariantEngineCategoryContract,
@@ -554,4 +557,39 @@ export function listPipelineInvariantEngineKnownGaps(
   results: PipelineInvariantEngineProbeResult[] = runPipelineInvariantEngineProbes(),
 ): PipelineInvariantEngineProbeResult[] {
   return summarizePipelineInvariantEngineMatrix(results).knownGaps;
+}
+
+export interface PipelineInvariantEngineProductionSliceResult {
+  atom: "P01-B05-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: PipelineInvariantEngineProbeResult[];
+  summary: ReturnType<typeof summarizePipelineInvariantEngineMatrix>;
+  matrixValidation: PipelineInvariantEngineProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: fixture ↔ contract validation, contract-wired probe
+ * execution, and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runPipelineInvariantEngineProductionSlice(
+  fixture: PipelineInvariantEngineFixture = loadPipelineInvariantEngineFixture(),
+): PipelineInvariantEngineProductionSliceResult {
+  const contract = getActivePipelineInvariantEngineContract();
+  const fixtureValidation = validatePipelineInvariantEngineFixture(fixture);
+  const contractValidation = validatePipelineInvariantEngineFixtureAgainstContract(fixture, contract);
+  const results = runPipelineInvariantEngineProbes(fixture);
+  const summary = summarizePipelineInvariantEngineMatrix(results);
+  const matrixValidation = validatePipelineInvariantEngineProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B05-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

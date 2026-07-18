@@ -6,9 +6,9 @@ active_phase: P01
 active_block: P01-B05
 active_atom: P01-B05-A03
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 41/1000
-phase_progress: 41/100
-block_progress: 2/10
+program_progress: 42/1000
+phase_progress: 42/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B05-A03 — Pipeline invariant engine: en küçük üretim dikey dilimini uygula.
+P01-B05-A04 — Pipeline invariant engine: boundary ve edge-case davranışlarını tamamla.
 
-objective: Pipeline invariant engine için en küçük üretim dikey dilimini uygula.
-target: Sealed P01-B05-A02 typed contract üzerinde production slice.
-hypothesis: A02 contract sonrası A03 ilk runtime invariant wiring dilimini kapatabilir.
-acceptance: production slice exists; contract aligned; matrix valid; zero unexpected mismatches on PASS probes.
+objective: Pipeline invariant engine boundary kategorisi için edge-case probe dilimini uygula.
+target: Sealed P01-B05-A03 production slice üzerinde boundary matrix validation.
+hypothesis: A03 matrix gate sonrası A04 boundary-only slice sıfır unexpected mismatch ile kapanabilir.
+acceptance: boundary probes declared; matrix valid; documented FAIL gaps preserved; zero unexpected mismatches.
 commands: npx tsx --test src/forge-pipeline-invariant-engine.test.ts
 blast_radius: forge-pipeline-invariant-engine*.ts
-rollback: A03 değişikliklerini geri al.
+rollback: A04 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B05-A02
+last_atom: P01-B05-A03
 last_commit: pending
-tests: PASS — forge-pipeline-invariant-engine A02 contract (9/9)
-evidence: FORGE_PIPELINE_INVARIANT_ENGINE_CONTRACT_V1 with 23 probes across 8 categories; validatePipelineInvariantEngineFixtureAgainstContract aligns fixture to contract; harness wires probe criteria from contract source of truth; 7 documented gap dispositions preserved
-next: P01-B05-A03
+tests: PASS — forge-pipeline-invariant-engine A03 production slice (11/11)
+evidence: runPipelineInvariantEngineProductionSlice with validatePipelineInvariantEngineProbeMatrix; fixture↔contract aligned; 16 passAligned + 7 gapAligned; zero unexpected mismatches; 7 documented runtime wiring gaps preserved
+next: P01-B05-A04

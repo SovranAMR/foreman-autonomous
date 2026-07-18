@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   loadPipelineInvariantEngineFixture,
   runPipelineInvariantEngineProbes,
+  runPipelineInvariantEngineProductionSlice,
   validatePipelineInvariantEngineFixture,
   validatePipelineInvariantEngineFixtureAgainstContract,
+  validatePipelineInvariantEngineProbeMatrix,
   summarizePipelineInvariantEngineMatrix,
   summarizePipelineInvariantEngineContractCoverage,
   getActivePipelineInvariantEngineContract,
@@ -179,6 +181,65 @@ describe("Forge Pipeline Invariant Engine Contract — P01-B05-A02", () => {
   it("each pipeline invariant probe id is globally unique", () => {
     const ids = listPipelineInvariantEngineContractProbeIds();
     assert.equal(new Set(ids).size, ids.length);
+  });
+
+  it("wires harness probe criteria from typed contract source of truth", () => {
+    const results = runPipelineInvariantEngineProbes();
+    const contract = getActivePipelineInvariantEngineContract();
+
+    assert.equal(results.length, contract.probes.length);
+    for (const result of results) {
+      const contractProbe = contract.probes.find(p => p.id === result.id)!;
+      assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
+      assert.equal(result.criterion, contractProbe.criterion);
+    }
+  });
+});
+
+describe("Forge Pipeline Invariant Engine Production Slice — P01-B05-A03", () => {
+  it("executes contract-wired probes with zero unexpected mismatches", () => {
+    const contract = getActivePipelineInvariantEngineContract();
+    const slice = runPipelineInvariantEngineProductionSlice();
+
+    assert.equal(slice.atom, "P01-B05-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 16);
+    assert.equal(slice.matrixValidation.gapAligned, 7);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validatePipelineInvariantEngineProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 7);
+    assert.deepEqual(
+      slice.summary.knownGaps.map(g => g.id).sort(),
+      [
+        "inv.block_invariant_module",
+        "inv.event_order_validator",
+        "inv.invariant_engine_orchestrator_wired",
+        "inv.reflection_cadence_invariant",
+        "inv.runtime_phase_balance_checker",
+        "inv.state_phase_coherence_checker",
+        "inv.verification_gate_invariant",
+      ],
+    );
   });
 
   it("wires harness probe criteria from typed contract source of truth", () => {
