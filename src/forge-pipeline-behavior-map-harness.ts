@@ -20,6 +20,7 @@ import {
   getActivePipelineBehaviorMapContract,
   validateBehaviorMapFixtureAgainstContract,
   validateBehaviorMapRunRecord,
+  detectBehaviorMapProbeRegression,
   type BehaviorMapProbeResult,
   type BehaviorMapProbeSummary,
   type BehaviorMapRunRecord,
@@ -51,9 +52,22 @@ export {
   summarizeBehaviorMapContractCoverage,
   validateBehaviorMapFixtureAgainstContract,
   validateBehaviorMapRunRecord,
+  detectBehaviorMapProbeRegression,
   buildDefaultBehaviorMapSourceBaseline,
   PIPELINE_BEHAVIOR_CATEGORIES,
+  type BehaviorMapProbeRegressionReport,
 } from "./forge-pipeline-behavior-map.js";
+
+export type { BehaviorMapProbeRegressionReport } from "./forge-pipeline-behavior-map.js";
+
+export interface ForgeBehaviorMapRegressionResult {
+  passed: boolean;
+  record: BehaviorMapRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: BehaviorMapProbeRegressionReport | null;
+  detail: string;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = join(__dirname);
@@ -407,6 +421,37 @@ export function runPipelineBehaviorMapProbesWithRecord(
   );
 
   return buildBehaviorMapRunRecord(provenance, evidence, telemetry);
+}
+
+/**
+ * Execute behavior map probes, validate run record, and optionally detect regression vs prior run.
+ * Forge pipeline integration gate (P01-B02-A08).
+ */
+export function runForgeBehaviorMapRegressionGate(
+  priorRecord?: BehaviorMapRunRecord,
+): ForgeBehaviorMapRegressionResult {
+  const record = runPipelineBehaviorMapProbesWithRecord();
+  const validation = validateBehaviorMapRunRecord(record);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord ? detectBehaviorMapProbeRegression(priorRecord, record) : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const passed = recordValid && !alignmentRegression;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!recordValid) detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+
+  return {
+    passed,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    detail: detailParts.join(" | "),
+  };
 }
 
 export function summarizeBehaviorMapMatrix(

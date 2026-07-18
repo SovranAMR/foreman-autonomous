@@ -176,6 +176,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge behavior map regression gate and emit verification event (P01-B02-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeBehaviorMapRegression(
+    priorRecord?: import("./forge-pipeline-behavior-map.js").BehaviorMapRunRecord,
+  ): Promise<import("./forge-pipeline-behavior-map-harness.js").ForgeBehaviorMapRegressionResult> {
+    const { runForgeBehaviorMapRegressionGate } = await import("./forge-pipeline-behavior-map-harness.js");
+    const result = runForgeBehaviorMapRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "behavior_map_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge baseline guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B01-A09).
    */
   async verifyForgeBaselineGuard(

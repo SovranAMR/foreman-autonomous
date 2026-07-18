@@ -8,6 +8,11 @@ import {
   runForgeBaselineProbesWithRecord,
   detectBaselineProbeRegression,
 } from "./forge-baseline-harness.js";
+import {
+  runForgeBehaviorMapRegressionGate,
+  runPipelineBehaviorMapProbesWithRecord,
+} from "./forge-pipeline-behavior-map-harness.js";
+import { detectBehaviorMapProbeRegression } from "./forge-pipeline-behavior-map.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -81,6 +86,77 @@ describe("Forge Pipeline Regression — P01-B01-A08", () => {
     if (verification?.type === "verification") {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("27/27 probes aligned"));
+    }
+  });
+});
+
+describe("Forge Pipeline Regression — P01-B02-A08", () => {
+  it("runForgeBehaviorMapRegressionGate passes on canonical behavior map matrix", () => {
+    const result = runForgeBehaviorMapRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.probeRegression, null);
+    assert.ok(result.detail.includes(`${result.record.summary.total}/${result.record.summary.total} probes aligned`));
+  });
+
+  it("detectBehaviorMapProbeRegression flags newly misaligned probes", () => {
+    const prior = runPipelineBehaviorMapProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectBehaviorMapProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeBehaviorMapRegressionGate compares against prior record without false regression", () => {
+    const prior = runPipelineBehaviorMapProbesWithRecord();
+    const result = runForgeBehaviorMapRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("orchestrator verifyForgeBehaviorMapRegression emits behavior_map_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-behavior-map-regression-orch-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "behavior-map" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeBehaviorMapRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "behavior_map_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("probes aligned"));
     }
   });
 });
