@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B06-A07
-last_commit: 9a8473c
+last_commit: c51d773
 tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (22/22)
 evidence: |
   P01-B06-A07 property/fuzz slice: runBenchmarkEvalPropertyChecks (8 structural properties including failure_recovery_run_record_gate);

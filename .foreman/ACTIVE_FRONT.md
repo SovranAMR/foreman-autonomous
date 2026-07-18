@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B06-A07
-last_commit: 9a8473c
+last_commit: c51d773
 tests: PASS — forge-benchmark-eval-harness.test.ts (22/22)
 evidence: runBenchmarkEvalPropertyChecks; runBenchmarkEvalFuzzValidation; runBenchmarkEvalRunRecordFuzzValidation; validateBenchmarkEvalFailureRecoveryRunRecord property gate; 8 properties; 24 fixture mutations rejected; 5 run record mutations rejected on A06 slice
 next: P01-B06-A08
