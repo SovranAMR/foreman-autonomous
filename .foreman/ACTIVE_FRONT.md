@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B02-A06
-last_commit: pending
+last_commit: 802e991
 tests: PASS — forge-pipeline-behavior-map (15/15), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: BehaviorMapRunRecord with evidence/telemetry/provenance; runPipelineBehaviorMapProbesWithRecord; validateBehaviorMapRunRecord; 26/26 probes with disposition/category summary; sourceBaseline lineage in provenance
 next: P01-B02-A07

@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B02-A06
-last_commit: pending
+last_commit: 802e991
 tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (15/15), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
   P01-B02-A06 evidence/telemetry/provenance slice: BehaviorMapProbeEvidence, BehaviorMapProbeTelemetry,
