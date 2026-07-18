@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P01-B02-A01",
-  "contractAtom": "P01-B02-A04",
+  "contractAtom": "P01-B02-A05",
   "purpose": "Observable pipeline phase→behavior map measured from live orchestrator (includes documented FAIL gaps).",
   "sourceBaseline": {
     "version": "1.0.0",
@@ -128,6 +128,69 @@
       "phase": "registry",
       "category": "baseline_link",
       "description": "Behavior map fixture references sealed B01 baseline artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.worker_blocked_handling",
+      "phase": "execute",
+      "category": "failure_path",
+      "description": "Orchestrator handles worker thought.status === blocked during execute",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.atom_retry_loop",
+      "phase": "execute",
+      "category": "failure_path",
+      "description": "Orchestrator retries failed atoms up to MAX_ATOM_RETRIES",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.block_abandon_threshold",
+      "phase": "execute",
+      "category": "failure_path",
+      "description": "Orchestrator abandons block when majority of atoms fail",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.re_decompose_phase_presence",
+      "phase": "decompose",
+      "category": "recovery_path",
+      "description": "Orchestrator emits re_decompose phase after block failure",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.recovery_phase_runner",
+      "phase": "reflect",
+      "category": "recovery_path",
+      "description": "Orchestrator runs runRecoveryPhase for queued failed atoms",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.rollback_on_reject",
+      "phase": "execute",
+      "category": "recovery_path",
+      "description": "Orchestrator rolls back atom on reviewer REJECT verdict",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.reviewer_reject_handling",
+      "phase": "verify",
+      "category": "nogo_path",
+      "description": "Orchestrator handles reviewer REJECT verdict as NO-GO",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.rejection_feedback_injection",
+      "phase": "execute",
+      "category": "nogo_path",
+      "description": "Orchestrator injects PREVIOUS ATTEMPT REJECTED feedback on retry",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.hook_block_early_exit",
+      "phase": "registry",
+      "category": "nogo_path",
+      "description": "before_pipeline hook block returns early with blockedAt hooks",
       "expected": "PASS"
     }
   ]

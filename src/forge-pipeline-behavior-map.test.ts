@@ -48,7 +48,16 @@ describe("Forge Pipeline Behavior Map — P01-B02-A01", () => {
     assert.equal(atomizeSync.actual, "PASS");
     assert.equal(atomizeSync.aligned, true);
 
-    for (const cat of ["phase_presence", "state_sync", "checkpoint_type", "stream_seam", "baseline_link"] as const) {
+    for (const cat of [
+      "phase_presence",
+      "state_sync",
+      "checkpoint_type",
+      "stream_seam",
+      "baseline_link",
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ] as const) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
     }
   });
@@ -62,10 +71,10 @@ function formatMismatchReport(mismatches: ReturnType<typeof runPipelineBehaviorM
 }
 
 describe("Forge Pipeline Behavior Map Contract — P01-B02-A02", () => {
-  it("defines typed acceptance for all five behavior categories", () => {
+  it("defines typed acceptance for all eight behavior categories", () => {
     const contract = getActivePipelineBehaviorMapContract();
     assert.equal(contract.version, "1.0.0");
-    assert.equal(contract.atom, "P01-B02-A04");
+    assert.equal(contract.atom, "P01-B02-A05");
 
     for (const category of PIPELINE_BEHAVIOR_CATEGORIES) {
       const categoryContract = getBehaviorMapCategoryContract(category);
@@ -77,27 +86,37 @@ describe("Forge Pipeline Behavior Map Contract — P01-B02-A02", () => {
         assert.ok(probe.criterion.length > 10, `${probe.id} missing measurable criterion`);
         assert.ok(probe.expected === "PASS" || probe.expected === "FAIL");
         assert.ok(
-          probe.disposition === "observed" || probe.disposition === "gap",
+          probe.disposition === "observed" ||
+            probe.disposition === "gap" ||
+            probe.disposition === "failure" ||
+            probe.disposition === "recovery" ||
+            probe.disposition === "nogo",
           `${probe.id} missing disposition`,
         );
       }
     }
   });
 
-  it("maps 17 probes with observed disposition and category coverage", () => {
+  it("maps 26 probes with failure/recovery/NO-GO disposition coverage", () => {
     const contract = getActivePipelineBehaviorMapContract();
     const summary = summarizeBehaviorMapContractCoverage(contract);
 
-    assert.equal(summary.totalProbes, 17);
-    assert.equal(summary.expectedPass, 17);
+    assert.equal(summary.totalProbes, 26);
+    assert.equal(summary.expectedPass, 26);
     assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 17);
     assert.equal(summary.byDisposition.gap, 0);
+    assert.ok(summary.byDisposition.failure >= 3, "failure disposition probes required");
+    assert.ok(summary.byDisposition.recovery >= 3, "recovery disposition probes required");
+    assert.ok(summary.byDisposition.nogo >= 3, "NO-GO disposition probes required");
     assert.equal(summary.byCategory.phase_presence.probeCount, 7);
     assert.equal(summary.byCategory.state_sync.probeCount, 7);
     assert.equal(summary.byCategory.checkpoint_type.probeCount, 1);
     assert.equal(summary.byCategory.stream_seam.probeCount, 1);
     assert.equal(summary.byCategory.baseline_link.probeCount, 1);
+    assert.equal(summary.byCategory.failure_path.probeCount, 3);
+    assert.equal(summary.byCategory.recovery_path.probeCount, 3);
+    assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
 
   it("lists no documented FAIL gaps when boundary state sync is sealed", () => {
@@ -173,8 +192,46 @@ describe("Forge Pipeline Behavior Map Boundary Slice — P01-B02-A04", () => {
     assert.equal(verifySync.aligned, true);
 
     const summary = summarizeBehaviorMapMatrix(results);
-    assert.equal(summary.total, 17);
-    assert.equal(summary.aligned, 17);
+    assert.equal(summary.total, 26);
+    assert.equal(summary.aligned, 26);
     assert.equal(summary.mismatches.length, 0, formatMismatchReport(summary.mismatches));
+  });
+});
+
+describe("Forge Pipeline Behavior Map Failure/Recovery/NO-GO — P01-B02-A05", () => {
+  it("lists failure, recovery and NO-GO probes by disposition", () => {
+    const failure = listBehaviorMapProbesByDisposition("failure");
+    const recovery = listBehaviorMapProbesByDisposition("recovery");
+    const nogo = listBehaviorMapProbesByDisposition("nogo");
+
+    assert.ok(failure.some(p => p.id === "map.worker_blocked_handling"));
+    assert.ok(failure.some(p => p.id === "map.atom_retry_loop"));
+    assert.ok(recovery.some(p => p.id === "map.re_decompose_phase_presence"));
+    assert.ok(recovery.some(p => p.id === "map.recovery_phase_runner"));
+    assert.ok(nogo.some(p => p.id === "map.reviewer_reject_handling"));
+    assert.ok(nogo.some(p => p.id === "map.hook_block_early_exit"));
+  });
+
+  it("exercises failure/recovery/NO-GO path probes with full alignment", () => {
+    const results = runPipelineBehaviorMapProbes();
+    const summary = summarizeBehaviorMapMatrix(results);
+
+    assert.equal(summary.total, 26);
+    assert.equal(summary.mismatches.length, 0, formatMismatchReport(summary.mismatches));
+    assert.equal(summary.knownGaps.length, 0);
+
+    for (const cat of ["failure_path", "recovery_path", "nogo_path"] as const) {
+      const bucket = summary.byCategory[cat];
+      assert.ok(bucket, `missing category summary: ${cat}`);
+      assert.equal(bucket.total, 3);
+      assert.equal(bucket.aligned, 3);
+    }
+
+    const failureProbes = results.filter(r => r.category === "failure_path");
+    assert.equal(failureProbes.every(p => p.aligned), true);
+    const recoveryProbes = results.filter(r => r.category === "recovery_path");
+    assert.equal(recoveryProbes.every(p => p.aligned), true);
+    const nogoProbes = results.filter(r => r.category === "nogo_path");
+    assert.equal(nogoProbes.every(p => p.aligned), true);
   });
 });

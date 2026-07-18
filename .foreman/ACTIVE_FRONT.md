@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B02
-active_atom: P01-B02-A04
+active_atom: P01-B02-A06
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 14/1000
-phase_progress: 14/100
-block_progress: 4/10
+program_progress: 15/1000
+phase_progress: 15/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B02-A05 — Mevcut pipeline davranış haritası: failure, recovery ve NO-GO yollarını uygula.
+P01-B02-A06 — Mevcut pipeline davranış haritası: evidence, telemetry ve provenance kaydını ekle.
 
-objective: Pipeline behavior map failure, recovery ve NO-GO yollarını uygula.
-target: Behavior map harness ve contract için failure/recovery/NO-GO probe yolları.
-hypothesis: B02-A04 boundary sealed; A05 failure/recovery slice.
-acceptance: Failure/recovery probe coverage, hedefli test PASS.
+objective: Pipeline behavior map evidence, telemetry ve provenance kaydını ekle.
+target: Behavior map harness için probe evidence/telemetry/provenance kayıt yolları.
+hypothesis: B02-A05 failure/recovery/NO-GO sealed; A06 evidence slice.
+acceptance: Evidence/telemetry/provenance coverage, hedefli test PASS.
 commands: npx tsx --test src/forge-pipeline-behavior-map.test.ts
-blast_radius: forge-pipeline-behavior-map*.ts, orchestrator.ts
-rollback: A05 değişikliklerini geri al.
+blast_radius: forge-pipeline-behavior-map*.ts
+rollback: A06 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B02-A04
-last_commit: 81514e3
-tests: PASS — forge-pipeline-behavior-map (9/9), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
-evidence: atomizing SystemState + VALID_TRANSITIONS; orchestrator atomize→atomizing; engine phase-aware state sync; map.atomize_state_sync + map.verify_state_sync sealed (17/17 PASS)
-next: P01-B02-A05
+last_atom: P01-B02-A05
+last_commit: PENDING
+tests: PASS — forge-pipeline-behavior-map (11/11), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
+evidence: failure_path/recovery_path/nogo_path categories; 9 new probes (worker_blocked, atom_retry, block_abandon, re_decompose, recovery_runner, rollback_on_reject, reviewer_reject, rejection_feedback, hook_block); 26/26 aligned
+next: P01-B02-A06

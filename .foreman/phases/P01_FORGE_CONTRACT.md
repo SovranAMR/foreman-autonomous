@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 1
-completed_atoms: 14
+completed_atoms: 15
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -32,7 +32,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B02-A02 — Mevcut pipeline davranış haritası: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B02-A03 — Mevcut pipeline davranış haritası: en küçük üretim dikey dilimini uygula
 - [x] P01-B02-A04 — Mevcut pipeline davranış haritası: boundary ve edge-case davranışlarını tamamla
-- [ ] P01-B02-A05 — Mevcut pipeline davranış haritası: failure, recovery ve NO-GO yollarını uygula
+- [x] P01-B02-A05 — Mevcut pipeline davranış haritası: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B02-A06 — Mevcut pipeline davranış haritası: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B02-A07 — Mevcut pipeline davranış haritası: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B02-A08 — Mevcut pipeline davranış haritası: Forge entegrasyonu ile regression testini tamamla
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B02-A04
-last_commit: 81514e3
-tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (9/9), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
+last_atom: P01-B02-A05
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (11/11), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
-  P01-B02-A04 boundary slice: added atomizing SystemState + VALID_TRANSITIONS; orchestrator atomize phase transitions to atomizing;
-  engine stepWithPhase uses phase-aware state sync; map.atomize_state_sync gap closed; map.verify_state_sync boundary probe added.
-  runPipelineBehaviorMapProbes 17/17 aligned, 0 documented FAIL gaps.
-next: P01-B02-A05
+  P01-B02-A05 failure/recovery/NO-GO slice: added failure_path, recovery_path, nogo_path categories with 9 probes;
+  extended PipelineBehaviorProbeDisposition (failure/recovery/nogo); harness probes for worker block, atom retry,
+  block abandon, re_decompose, recovery runner, rollback-on-reject, reviewer REJECT, rejection feedback, hook block.
+  runPipelineBehaviorMapProbes 26/26 aligned, 0 documented FAIL gaps.
+next: P01-B02-A06

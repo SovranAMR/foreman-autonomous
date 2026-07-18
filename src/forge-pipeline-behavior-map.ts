@@ -13,10 +13,18 @@ export type PipelineBehaviorCategory =
   | "state_sync"
   | "checkpoint_type"
   | "stream_seam"
-  | "baseline_link";
+  | "baseline_link"
+  | "failure_path"
+  | "recovery_path"
+  | "nogo_path";
 
-/** Probe disposition — observed behavior vs documented known gap. */
-export type PipelineBehaviorProbeDisposition = "observed" | "gap";
+/** Probe disposition — observed behavior, documented gap, or resilience path class. */
+export type PipelineBehaviorProbeDisposition =
+  | "observed"
+  | "gap"
+  | "failure"
+  | "recovery"
+  | "nogo";
 
 export const FORGE_PIPELINE_CORE_PHASES = [
   "vision",
@@ -36,6 +44,9 @@ export const PIPELINE_BEHAVIOR_CATEGORIES: readonly PipelineBehaviorCategory[] =
   "checkpoint_type",
   "stream_seam",
   "baseline_link",
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
 ] as const;
 
 export interface PipelineBehaviorFixtureEntry {
@@ -320,14 +331,128 @@ const BEHAVIOR_MAP_CATEGORIES: Record<PipelineBehaviorCategory, PipelineBehavior
       },
     ],
   },
+  failure_path: {
+    category: "failure_path",
+    acceptance: {
+      invariant:
+        "Execute phase detects worker blocks, retries atoms up to MAX_ATOM_RETRIES, and abandons blocks on failure threshold.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "map.worker_blocked_handling",
+        phase: "execute",
+        category: "failure_path",
+        description: "Orchestrator handles worker thought.status === blocked during execute",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: 'orchestrator checks execResult?.thought.status === "blocked"',
+      },
+      {
+        id: "map.atom_retry_loop",
+        phase: "execute",
+        category: "failure_path",
+        description: "Orchestrator retries failed atoms up to MAX_ATOM_RETRIES",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "MAX_ATOM_RETRIES loop wraps atom execution attempts",
+      },
+      {
+        id: "map.block_abandon_threshold",
+        phase: "execute",
+        category: "failure_path",
+        description: "Orchestrator abandons block when majority of atoms fail",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "blockFailedAtoms threshold skips remaining atoms in block",
+      },
+    ],
+  },
+  recovery_path: {
+    category: "recovery_path",
+    acceptance: {
+      invariant:
+        "Pipeline exposes re-decompose, rollback-on-reject, and end-of-pipeline recovery phase runners.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "map.re_decompose_phase_presence",
+        phase: "decompose",
+        category: "recovery_path",
+        description: "Orchestrator emits re_decompose phase after block failure",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: 'orchestrator.ts contains phaseStart("re_decompose"',
+      },
+      {
+        id: "map.recovery_phase_runner",
+        phase: "reflect",
+        category: "recovery_path",
+        description: "Orchestrator runs runRecoveryPhase for queued failed atoms",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: "runRecoveryPhase emits recovery phase_start events",
+      },
+      {
+        id: "map.rollback_on_reject",
+        phase: "execute",
+        category: "recovery_path",
+        description: "Orchestrator rolls back atom on reviewer REJECT verdict",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: 'verdict === "REJECT" triggers rollbackLastAtom',
+      },
+    ],
+  },
+  nogo_path: {
+    category: "nogo_path",
+    acceptance: {
+      invariant:
+        "Pipeline enforces NO-GO gates via hook blocks, reviewer REJECT handling, and rejection feedback injection.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "map.reviewer_reject_handling",
+        phase: "verify",
+        category: "nogo_path",
+        description: "Orchestrator handles reviewer REJECT verdict as NO-GO",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: 'reviewResult.verdict === "REJECT" branch in execute loop',
+      },
+      {
+        id: "map.rejection_feedback_injection",
+        phase: "execute",
+        category: "nogo_path",
+        description: "Orchestrator injects PREVIOUS ATTEMPT REJECTED feedback on retry",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: "lastRejectionFeedback injected into worker retry prompt",
+      },
+      {
+        id: "map.hook_block_early_exit",
+        phase: "registry",
+        category: "nogo_path",
+        description: "before_pipeline hook block returns early with blockedAt hooks",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: 'blockedAt: "hooks" early return on hook block',
+      },
+    ],
+  },
 };
 
 /** Typed pipeline behavior map contract v1 — source of truth for phase→behavior acceptance. */
 export const FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1: PipelineBehaviorMapContract = {
   version: "1.0.0",
-  atom: "P01-B02-A04",
+  atom: "P01-B02-A05",
   purpose:
-    "Measurable acceptance criteria for orchestrator pipeline phase→behavior map (presence, state sync, checkpoint, stream, B01 link).",
+    "Measurable acceptance criteria for orchestrator pipeline phase→behavior map (presence, state sync, checkpoint, stream, B01 link, failure/recovery/NO-GO paths).",
   categories: BEHAVIOR_MAP_CATEGORIES,
   probes: flattenCategoryProbes(BEHAVIOR_MAP_CATEGORIES),
 };
@@ -369,6 +494,9 @@ export function summarizeBehaviorMapContractCoverage(
   const byDisposition: Record<PipelineBehaviorProbeDisposition, number> = {
     observed: 0,
     gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
   };
   let totalProbes = 0;
   let expectedPass = 0;

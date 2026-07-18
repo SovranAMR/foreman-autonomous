@@ -179,6 +179,117 @@ function runSingleProbe(
         criterion,
       );
     }
+    case "map.worker_blocked_handling": {
+      const handlesBlocked =
+        orchestrator.includes('execResult?.thought.status === "blocked"') ||
+        orchestrator.includes('reExecResult.thought.status === "blocked"');
+      return probe(
+        id,
+        phase,
+        category,
+        expected,
+        handlesBlocked,
+        `worker_blocked_handling=${handlesBlocked}`,
+        criterion,
+      );
+    }
+    case "map.atom_retry_loop": {
+      const hasRetries =
+        orchestrator.includes("MAX_ATOM_RETRIES") &&
+        orchestrator.includes("attempt < this.MAX_ATOM_RETRIES");
+      return probe(id, phase, category, expected, hasRetries, `atom_retry_loop=${hasRetries}`, criterion);
+    }
+    case "map.block_abandon_threshold": {
+      const hasThreshold =
+        orchestrator.includes("blockFailedAtoms") &&
+        orchestrator.includes("abandoned: too many failures");
+      return probe(
+        id,
+        phase,
+        category,
+        expected,
+        hasThreshold,
+        `block_abandon_threshold=${hasThreshold}`,
+        criterion,
+      );
+    }
+    case "map.re_decompose_phase_presence": {
+      const hasReDecompose = orchestrator.includes('phaseStart("re_decompose"');
+      return probe(
+        id,
+        phase,
+        category,
+        expected,
+        hasReDecompose,
+        `re_decompose_phase=${hasReDecompose}`,
+        criterion,
+      );
+    }
+    case "map.recovery_phase_runner": {
+      const hasRecovery =
+        orchestrator.includes("runRecoveryPhase") &&
+        (orchestrator.includes('phase: "recovery"') ||
+          orchestrator.includes('phaseStart?.("recovery"'));
+      return probe(
+        id,
+        phase,
+        category,
+        expected,
+        hasRecovery,
+        `recovery_phase_runner=${hasRecovery}`,
+        criterion,
+      );
+    }
+    case "map.rollback_on_reject": {
+      const hasRollbackOnReject =
+        orchestrator.includes('verdict === "REJECT"') &&
+        orchestrator.includes("rollbackLastAtom");
+      return probe(
+        id,
+        phase,
+        category,
+        expected,
+        hasRollbackOnReject,
+        `rollback_on_reject=${hasRollbackOnReject}`,
+        criterion,
+      );
+    }
+    case "map.reviewer_reject_handling": {
+      const handlesReject = orchestrator.includes('reviewResult.verdict === "REJECT"');
+      return probe(
+        id,
+        phase,
+        category,
+        expected,
+        handlesReject,
+        `reviewer_reject=${handlesReject}`,
+        criterion,
+      );
+    }
+    case "map.rejection_feedback_injection": {
+      const hasFeedback = orchestrator.includes("PREVIOUS ATTEMPT REJECTED");
+      return probe(
+        id,
+        phase,
+        category,
+        expected,
+        hasFeedback,
+        `rejection_feedback=${hasFeedback}`,
+        criterion,
+      );
+    }
+    case "map.hook_block_early_exit": {
+      const hasHookBlock = orchestrator.includes('blockedAt: "hooks"');
+      return probe(
+        id,
+        phase,
+        category,
+        expected,
+        hasHookBlock,
+        `hook_block_exit=${hasHookBlock}`,
+        criterion,
+      );
+    }
     default:
       return probe(id, phase, category, expected, false, `unknown probe ${id}`, criterion);
   }
@@ -216,6 +327,9 @@ export function summarizeBehaviorMapMatrix(
     "checkpoint_type",
     "stream_seam",
     "baseline_link",
+    "failure_path",
+    "recovery_path",
+    "nogo_path",
   ];
 
   const byCategory = {} as BehaviorMapProbeSummary["byCategory"];
