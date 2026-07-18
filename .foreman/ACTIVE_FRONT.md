@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B04-A05
-last_commit: pending
+last_commit: 0726ca9
 tests: PASS — forge-phase-event-schema (17/17)
 evidence: failure/recovery slice; 9 path probes (failure_path×3, recovery_path×3, nogo_path×3); validatePhaseEventSchemaFailureRecoveryProbeMatrix zero unexpected mismatches; runPhaseEventSchemaFailureRecoverySlice gate; 6 documented FAIL gaps preserved
 next: P01-B04-A06

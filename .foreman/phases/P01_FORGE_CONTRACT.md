@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B04-A05
-last_commit: pending
+last_commit: 0726ca9
 tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (17/17)
 evidence: |
   P01-B04-A05 failure/recovery slice: validatePhaseEventSchemaFailureRecoveryProbeMatrix + runPhaseEventSchemaFailureRecoverySlice;
