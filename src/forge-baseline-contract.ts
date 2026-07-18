@@ -503,3 +503,204 @@ export function listProbesByDisposition(
   }
   return probes;
 }
+
+/** Per-probe evidence artifact — auditable proof of baseline probe outcome (P01-B01-A06). */
+export interface ForgeProbeEvidence {
+  probeId: string;
+  path: ForgeBaselinePath;
+  disposition: ForgeProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for baseline runs (P01-B01-A06). */
+export interface ForgeProbeTelemetry {
+  probeId: string;
+  path: ForgeBaselinePath;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P01-B01-A06). */
+export interface ForgeBaselineProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated baseline run record bundling evidence, telemetry and provenance. */
+export interface ForgeBaselineRunRecord {
+  provenance: ForgeBaselineProvenance;
+  evidence: ForgeProbeEvidence[];
+  telemetry: ForgeProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byDisposition: Record<ForgeProbeDisposition, number>;
+  };
+}
+
+export interface BaselineRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface BaselineRunValidationResult {
+  valid: boolean;
+  issues: BaselineRunValidationIssue[];
+}
+
+export const FORGE_BASELINE_HARNESS_VERSION = "1.0.0";
+
+export function buildProbeEvidence(
+  probeId: string,
+  path: ForgeBaselinePath,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ForgeProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ForgeProbeEvidence {
+  return {
+    probeId,
+    path,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildProbeTelemetry(
+  probeId: string,
+  path: ForgeBaselinePath,
+  sequenceIndex: number,
+  durationMs: number,
+): ForgeProbeTelemetry {
+  return {
+    probeId,
+    path,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildBaselineProvenance(
+  runId: string,
+  fixture: ForgeBaselineFixture,
+  contract: ForgeBaselineContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  gitCommit?: string,
+): ForgeBaselineProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_BASELINE_HARNESS_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}
+
+export function buildBaselineRunRecord(
+  provenance: ForgeBaselineProvenance,
+  evidence: ForgeProbeEvidence[],
+  telemetry: ForgeProbeTelemetry[],
+): ForgeBaselineRunRecord {
+  const byDisposition: Record<ForgeProbeDisposition, number> = {
+    happy: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let aligned = 0;
+  for (const item of evidence) {
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byDisposition,
+    },
+  };
+}
+
+export function validateBaselineRunRecord(
+  record: ForgeBaselineRunRecord,
+  contract: ForgeBaselineContract = getActiveForgeBaselineContract(),
+): BaselineRunValidationResult {
+  const issues: BaselineRunValidationIssue[] = [];
+  const expectedProbeCount = listContractProbeIds(contract).length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of listContractProbeIds(contract)) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  return { valid: issues.length === 0, issues };
+}

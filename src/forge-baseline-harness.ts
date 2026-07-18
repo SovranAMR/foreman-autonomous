@@ -8,6 +8,8 @@
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
 import { StateManager, InvalidTransitionError, MissingReasonError } from "./state.js";
 import { TOOL_DEFINITIONS, createEngineToolExecutor } from "./tools.js";
 import type { ToolCall } from "./tools.js";
@@ -30,15 +32,22 @@ import baselineFixture from "./fixtures/forge-baseline-v1.json" with { type: "js
 import {
   getActiveForgeBaselineContract,
   validateFixtureAgainstContract,
+  buildProbeEvidence,
+  buildProbeTelemetry,
+  buildBaselineProvenance,
+  buildBaselineRunRecord,
   type BaselineOutcome,
   type BaselinePath,
   type ForgeBaselineFixture,
+  type ForgeBaselineRunRecord,
+  type ForgeProbeDisposition,
 } from "./forge-baseline-contract.js";
 
-export type { BaselineOutcome, BaselinePath, ForgeBaselineFixture } from "./forge-baseline-contract.js";
+export type { BaselineOutcome, BaselinePath, ForgeBaselineFixture, ForgeBaselineRunRecord } from "./forge-baseline-contract.js";
 export {
   getActiveForgeBaselineContract,
   validateFixtureAgainstContract,
+  validateBaselineRunRecord,
 } from "./forge-baseline-contract.js";
 
 export interface BaselineProbeResult {
@@ -658,6 +667,72 @@ export function loadForgeBaselineFixture(): ForgeBaselineFixture {
     throw new Error(`Forge baseline fixture violates typed contract: ${detail}`);
   }
   return fixture;
+}
+
+async function runProbeWithTiming(
+  entry: { id: string; expected: BaselineOutcome },
+  path: BaselinePath,
+  sequenceIndex: number,
+): Promise<{ result: BaselineProbeResult; durationMs: number; sequenceIndex: number }> {
+  const start = performance.now();
+  const result = await runProbe(entry, path);
+  const durationMs = performance.now() - start;
+  return { result, durationMs, sequenceIndex };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+export async function runForgeBaselineProbesWithRecord(): Promise<ForgeBaselineRunRecord> {
+  const fixture = loadForgeBaselineFixture();
+  const contract = getActiveForgeBaselineContract();
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const path of Object.keys(fixture.paths) as BaselinePath[]) {
+    for (const entry of fixture.paths[path]) {
+      const { result, durationMs } = await runProbeWithTiming(entry, path, sequenceIndex);
+      const contractProbe = contract.paths[path].probes.find(p => p.id === entry.id);
+      const disposition: ForgeProbeDisposition = contractProbe?.disposition ?? "happy";
+      const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+      evidence.push(
+        buildProbeEvidence(
+          result.id,
+          result.path,
+          result.expected,
+          result.actual,
+          result.aligned,
+          criterion,
+          result.detail,
+          disposition,
+        ),
+      );
+      telemetry.push(buildProbeTelemetry(result.id, result.path, sequenceIndex, durationMs));
+      sequenceIndex++;
+    }
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildBaselineProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    resolveGitCommit(),
+  );
+
+  return buildBaselineRunRecord(provenance, evidence, telemetry);
 }
 
 export async function runForgeBaselineProbes(): Promise<BaselineProbeResult[]> {

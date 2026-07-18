@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 5
+completed_atoms: 6
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -20,7 +20,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B01-A03 — Mission ve acceptance contract: en küçük üretim dikey dilimini uygula
 - [x] P01-B01-A04 — Mission ve acceptance contract: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B01-A05 — Mission ve acceptance contract: failure, recovery ve NO-GO yollarını uygula
-- [ ] P01-B01-A06 — Mission ve acceptance contract: evidence, telemetry ve provenance kaydını ekle
+- [x] P01-B01-A06 — Mission ve acceptance contract: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B01-A07 — Mission ve acceptance contract: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B01-A08 — Mission ve acceptance contract: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B01-A09 — Mission ve acceptance contract: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B01-A05
-last_commit: 35e109f
-tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (5/5), `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2)
+last_atom: P01-B01-A06
+last_commit: 01804fd
+tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3)
 evidence: |
-  P01-B01-A05 failure/recovery/NO-GO slice: ForgeProbeDisposition (happy|failure|recovery|nogo) on all probes.
-  7 new probes: state blocked/recover, reviewer REJECT/NEEDS_REVISION NO-GO, rollback unknown point + no-points,
-  resume corrupt checkpoint. Contract matrix 27/27 aligned PASS.
-next: P01-B01-A06
+  P01-B01-A06 evidence/telemetry/provenance slice: ForgeProbeEvidence, ForgeProbeTelemetry,
+  ForgeBaselineProvenance, ForgeBaselineRunRecord typed schemas. runForgeBaselineProbesWithRecord
+  captures per-probe timing + disposition evidence; validateBaselineRunRecord enforces 27/27 coverage.
+  Provenance links contract/fixture atoms, runId, git commit, harness version.
+next: P01-B01-A07

@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   loadForgeBaselineFixture,
   runForgeBaselineProbes,
+  runForgeBaselineProbesWithRecord,
   summarizeBaselineMatrix,
   validateFixtureAgainstContract,
+  validateBaselineRunRecord,
 } from "./forge-baseline-harness.js";
 import { getActiveForgeBaselineContract } from "./forge-baseline-contract.js";
 
@@ -37,6 +39,29 @@ describe("Forge Pipeline Baseline — P01-B01-A01 + A02 contract", () => {
 
     for (const result of results) {
       assert.ok(result.criterion, `probe ${result.id} missing contract criterion`);
+    }
+  });
+
+  it("records evidence, telemetry and provenance for full baseline run (P01-B01-A06)", async () => {
+    const record = await runForgeBaselineProbesWithRecord();
+    const validation = validateBaselineRunRecord(record);
+
+    assert.equal(record.evidence.length, 27);
+    assert.equal(record.telemetry.length, 27);
+    assert.equal(record.provenance.totalProbes, 27);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.ok(item.recordedAt.length > 10);
     }
   });
 });
