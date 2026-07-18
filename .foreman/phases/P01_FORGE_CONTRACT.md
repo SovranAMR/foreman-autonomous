@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B02-A03
-last_commit: pending
+last_commit: 74c4dd2
 tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (8/8), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
   P01-B02-A03 production slice: orchestrator.ts exports FORGE_PIPELINE_PHASES aligned with FORGE_PIPELINE_CORE_PHASES.
