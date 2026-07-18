@@ -21,6 +21,8 @@ import {
   validateBehaviorMapFixtureAgainstContract,
   validateBehaviorMapRunRecord,
   detectBehaviorMapProbeRegression,
+  validateForgeBehaviorMapGuard,
+  type BehaviorMapGuardCheckResult,
   type BehaviorMapProbeResult,
   type BehaviorMapProbeSummary,
   type BehaviorMapRunRecord,
@@ -53,6 +55,7 @@ export {
   validateBehaviorMapFixtureAgainstContract,
   validateBehaviorMapRunRecord,
   detectBehaviorMapProbeRegression,
+  validateForgeBehaviorMapGuard,
   buildDefaultBehaviorMapSourceBaseline,
   PIPELINE_BEHAVIOR_CATEGORIES,
   type BehaviorMapProbeRegressionReport,
@@ -66,6 +69,7 @@ export interface ForgeBehaviorMapRegressionResult {
   recordValid: boolean;
   validationIssues: string[];
   probeRegression: BehaviorMapProbeRegressionReport | null;
+  guard: BehaviorMapGuardCheckResult;
   detail: string;
 }
 
@@ -437,12 +441,22 @@ export function runForgeBehaviorMapRegressionGate(
 
   const probeRegression = priorRecord ? detectBehaviorMapProbeRegression(priorRecord, record) : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
-  const passed = recordValid && !alignmentRegression;
+  const guard = validateForgeBehaviorMapGuard(record, { totalCostUsd: 0, llmCalls: 0 });
+  const passed = recordValid && !alignmentRegression && guard.passed;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
   if (!recordValid) detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
   if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   return {
     passed,
@@ -450,6 +464,7 @@ export function runForgeBehaviorMapRegressionGate(
     recordValid,
     validationIssues,
     probeRegression,
+    guard,
     detail: detailParts.join(" | "),
   };
 }

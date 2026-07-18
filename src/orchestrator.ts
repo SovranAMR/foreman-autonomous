@@ -214,6 +214,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge behavior map guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B02-A09).
+   */
+  async verifyForgeBehaviorMapGuard(
+    priorRecord?: import("./forge-pipeline-behavior-map.js").BehaviorMapRunRecord,
+  ): Promise<import("./forge-pipeline-behavior-map-harness.js").ForgeBehaviorMapRegressionResult> {
+    const { runForgeBehaviorMapRegressionGate } = await import("./forge-pipeline-behavior-map-harness.js");
+    const result = runForgeBehaviorMapRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "behavior_map_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Seal P01-B01 block gate and emit verification event with B02 handoff (P01-B01-A10).
    */
   async verifyForgeBaselineBlockGate(): Promise<import("./forge-baseline-harness.js").ForgeBlockGateResult> {
