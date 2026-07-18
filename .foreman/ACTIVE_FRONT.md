@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B02
-active_atom: P01-B02-A02
+active_atom: P01-B02-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 12/1000
-phase_progress: 12/100
-block_progress: 2/10
+program_progress: 13/1000
+phase_progress: 13/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B02-A03 — Mevcut pipeline davranış haritası: en küçük üretim dikey dilimini uygula.
+P01-B02-A04 — Mevcut pipeline davranış haritası: boundary ve edge-case davranışlarını tamamla.
 
-objective: Pipeline behavior map için en küçük üretim dikey dilimini uygula.
-target: İlk contract gap veya seam düzeltmesi + harness doğrulama.
-hypothesis: B02-A02 contract sealed; A03 ilk üretim slice.
-acceptance: En az bir gap için üretim kodu veya harness iyileştirmesi, hedefli test PASS.
+objective: Pipeline behavior map boundary ve edge-case davranışlarını tamamla.
+target: Atomize state sync gap veya diğer boundary probe'ları için üretim/harness iyileştirmesi.
+hypothesis: B02-A03 registry_export sealed; A04 boundary/edge tamamlama.
+acceptance: Boundary probe coverage genişletilmiş, hedefli test PASS.
 commands: npx tsx --test src/forge-pipeline-behavior-map.test.ts
-blast_radius: orchestrator.ts, forge-pipeline-behavior-map*.ts
-rollback: A03 değişikliklerini geri al.
+blast_radius: orchestrator.ts, types.ts, forge-pipeline-behavior-map*.ts
+rollback: A04 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B02-A02
-last_commit: 82b77a4
-tests: PASS — forge-pipeline-behavior-map (7/7), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
-evidence: FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1 category acceptance (5 categories, 16 probes, 2 gap disposition), fixture↔contract aligned, runPipelineBehaviorMapProbes 16/16
-next: P01-B02-A03
+last_atom: P01-B02-A03
+last_commit: pending
+tests: PASS — forge-pipeline-behavior-map (8/8), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
+evidence: FORGE_PIPELINE_PHASES exported from orchestrator.ts; map.registry_export gap closed (15 PASS / 1 FAIL gap atomize_state_sync), runPipelineBehaviorMapProbes 16/16 aligned
+next: P01-B02-A04

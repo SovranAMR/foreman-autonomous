@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 1
-completed_atoms: 12
+completed_atoms: 13
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -30,7 +30,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P01-B02-A01 — Mevcut pipeline davranış haritası: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B02-A02 — Mevcut pipeline davranış haritası: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P01-B02-A03 — Mevcut pipeline davranış haritası: en küçük üretim dikey dilimini uygula
+- [x] P01-B02-A03 — Mevcut pipeline davranış haritası: en küçük üretim dikey dilimini uygula
 - [ ] P01-B02-A04 — Mevcut pipeline davranış haritası: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B02-A05 — Mevcut pipeline davranış haritası: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B02-A06 — Mevcut pipeline davranış haritası: evidence, telemetry ve provenance kaydını ekle
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B02-A02
-last_commit: 82b77a4
-tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (7/7), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
+last_atom: P01-B02-A03
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (8/8), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
-  FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1: 5 category acceptance invariants, 16 probes (14 observed / 2 gap),
-  summarizeBehaviorMapContractCoverage + listBehaviorMapProbeIds + validateBehaviorMapFixtureAgainstContract sealed,
-  fixture contractAtom=P01-B02-A02 aligned, runPipelineBehaviorMapProbes 16/16 with 2 known FAIL gaps.
-next: P01-B02-A03
+  P01-B02-A03 production slice: orchestrator.ts exports FORGE_PIPELINE_PHASES aligned with FORGE_PIPELINE_CORE_PHASES.
+  map.registry_export gap closed (expected PASS, disposition observed); 15 PASS / 1 documented FAIL gap (atomize_state_sync).
+  Contract atom P01-B02-A03, fixture contractAtom aligned, runPipelineBehaviorMapProbes 16/16 aligned.
+next: P01-B02-A04

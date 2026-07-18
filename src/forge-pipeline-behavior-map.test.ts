@@ -42,10 +42,11 @@ describe("Forge Pipeline Behavior Map — P01-B02-A01", () => {
       assert.equal(gap.aligned, true);
     }
 
-    const registryGap = results.find(r => r.id === "map.registry_export");
-    assert.ok(registryGap, "registry export gap probe missing");
-    assert.equal(registryGap.expected, "FAIL");
-    assert.equal(registryGap.actual, "FAIL");
+    const registryExport = results.find(r => r.id === "map.registry_export");
+    assert.ok(registryExport, "registry export probe missing");
+    assert.equal(registryExport.expected, "PASS");
+    assert.equal(registryExport.actual, "PASS");
+    assert.equal(registryExport.aligned, true);
 
     const atomizeGap = results.find(r => r.id === "map.atomize_state_sync");
     assert.ok(atomizeGap, "atomize state sync gap probe missing");
@@ -69,7 +70,7 @@ describe("Forge Pipeline Behavior Map Contract — P01-B02-A02", () => {
   it("defines typed acceptance for all five behavior categories", () => {
     const contract = getActivePipelineBehaviorMapContract();
     assert.equal(contract.version, "1.0.0");
-    assert.equal(contract.atom, "P01-B02-A02");
+    assert.equal(contract.atom, "P01-B02-A03");
 
     for (const category of PIPELINE_BEHAVIOR_CATEGORIES) {
       const categoryContract = getBehaviorMapCategoryContract(category);
@@ -93,10 +94,10 @@ describe("Forge Pipeline Behavior Map Contract — P01-B02-A02", () => {
     const summary = summarizeBehaviorMapContractCoverage(contract);
 
     assert.equal(summary.totalProbes, 16);
-    assert.equal(summary.expectedPass, 14);
-    assert.equal(summary.expectedFail, 2);
-    assert.ok(summary.byDisposition.observed >= 14, "observed probes required");
-    assert.ok(summary.byDisposition.gap >= 2, "documented gap probes required");
+    assert.equal(summary.expectedPass, 15);
+    assert.equal(summary.expectedFail, 1);
+    assert.ok(summary.byDisposition.observed >= 15, "observed probes required");
+    assert.ok(summary.byDisposition.gap >= 1, "documented gap probes required");
     assert.equal(summary.byCategory.phase_presence.probeCount, 7);
     assert.equal(summary.byCategory.state_sync.probeCount, 6);
     assert.equal(summary.byCategory.checkpoint_type.probeCount, 1);
@@ -108,7 +109,7 @@ describe("Forge Pipeline Behavior Map Contract — P01-B02-A02", () => {
     const gaps = listBehaviorMapProbesByDisposition("gap");
     const gapIds = gaps.map(p => p.id).sort();
 
-    assert.deepEqual(gapIds, ["map.atomize_state_sync", "map.registry_export"]);
+    assert.deepEqual(gapIds, ["map.atomize_state_sync"]);
     for (const gap of gaps) {
       assert.equal(gap.expected, "FAIL");
       assert.equal(gap.disposition, "gap");
@@ -135,5 +136,25 @@ describe("Forge Pipeline Behavior Map Contract — P01-B02-A02", () => {
   it("each behavior map probe id is globally unique", () => {
     const ids = listBehaviorMapProbeIds();
     assert.equal(new Set(ids).size, ids.length);
+  });
+});
+
+describe("Forge Pipeline Behavior Map Production Slice — P01-B02-A03", () => {
+  it("closes registry_export gap by exporting FORGE_PIPELINE_PHASES from orchestrator", async () => {
+    const { FORGE_PIPELINE_PHASES } = await import("./orchestrator.js");
+    const { FORGE_PIPELINE_CORE_PHASES } = await import("./forge-pipeline-behavior-map.js");
+    const results = runPipelineBehaviorMapProbes();
+    const registryExport = results.find(r => r.id === "map.registry_export");
+
+    assert.deepEqual(FORGE_PIPELINE_PHASES, FORGE_PIPELINE_CORE_PHASES);
+    assert.ok(registryExport, "registry export probe missing");
+    assert.equal(registryExport.expected, "PASS");
+    assert.equal(registryExport.actual, "PASS");
+    assert.equal(registryExport.aligned, true);
+
+    const summary = summarizeBehaviorMapMatrix(results);
+    assert.equal(summary.mismatches.length, 0, formatMismatchReport(summary.mismatches));
+    assert.equal(summary.knownGaps.length, 1);
+    assert.equal(summary.knownGaps[0]?.id, "map.atomize_state_sync");
   });
 });

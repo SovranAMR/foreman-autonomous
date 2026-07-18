@@ -52,6 +52,10 @@ import { PipelineObserver } from "./pipeline-observer.js";
 import { extractReasoning, extractAllReasoningBlocks, analyzeReasoningContent } from "./streaming-reasoning.js";
 import { getModelCapabilities } from "./model-capabilities.js";
 import { ArtifactEngine } from "./artifact-engine.js";
+import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
+
+/** Canonical ordered pipeline phases for behavior-map probes and downstream tooling. */
+export const FORGE_PIPELINE_PHASES = FORGE_PIPELINE_CORE_PHASES;
 
 // ─── EVENTS ──────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P01-B02-A01",
-  "contractAtom": "P01-B02-A02",
+  "contractAtom": "P01-B02-A03",
   "purpose": "Observable pipeline phase→behavior map measured from live orchestrator (includes documented FAIL gaps).",
   "sourceBaseline": {
     "version": "1.0.0",
@@ -113,8 +113,8 @@
       "id": "map.registry_export",
       "phase": "registry",
       "category": "phase_presence",
-      "description": "Orchestrator exports canonical FORGE_PIPELINE_PHASES registry (known gap)",
-      "expected": "FAIL"
+      "description": "Orchestrator exports canonical FORGE_PIPELINE_PHASES registry",
+      "expected": "PASS"
     },
     {
       "id": "map.b01_baseline_handoff",

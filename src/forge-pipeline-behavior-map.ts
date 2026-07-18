@@ -182,9 +182,9 @@ const BEHAVIOR_MAP_CATEGORIES: Record<PipelineBehaviorCategory, PipelineBehavior
         id: "map.registry_export",
         phase: "registry",
         category: "phase_presence",
-        description: "Orchestrator exports canonical FORGE_PIPELINE_PHASES registry (known gap)",
-        expected: "FAIL",
-        disposition: "gap",
+        description: "Orchestrator exports canonical FORGE_PIPELINE_PHASES registry",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "orchestrator.ts exports FORGE_PIPELINE_PHASES constant",
       },
     ],
@@ -316,7 +316,7 @@ const BEHAVIOR_MAP_CATEGORIES: Record<PipelineBehaviorCategory, PipelineBehavior
 /** Typed pipeline behavior map contract v1 — source of truth for phase→behavior acceptance. */
 export const FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1: PipelineBehaviorMapContract = {
   version: "1.0.0",
-  atom: "P01-B02-A02",
+  atom: "P01-B02-A03",
   purpose:
     "Measurable acceptance criteria for orchestrator pipeline phase→behavior map (presence, state sync, checkpoint, stream, B01 link).",
   categories: BEHAVIOR_MAP_CATEGORIES,
