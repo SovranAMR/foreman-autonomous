@@ -5,7 +5,12 @@
  * Built on sealed P01-B04 typed phase/event schema artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP01B04ToB05Handoff,
   summarizePhaseEventSchemaContractCoverage,
@@ -2071,5 +2076,188 @@ export function validateForgePipelineInvariantEngineGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P01-B05-A10) ────────────────────────────────────
+
+export interface PipelineInvariantEngineBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface PipelineInvariantEngineBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    invariantCategories: readonly PipelineInvariantEngineCategory[];
+    sourcePhaseEventSchemaAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    pipelineInvariantEngineRecordRequired: true;
+  };
+}
+
+export const FORGE_P01_B05_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P01-B05-A10",
+  blockId: "P01-B05",
+  title: "Pipeline invariant engine",
+  requiredAtomIds: [
+    "P01-B05-A01",
+    "P01-B05-A02",
+    "P01-B05-A03",
+    "P01-B05-A04",
+    "P01-B05-A05",
+    "P01-B05-A06",
+    "P01-B05-A07",
+    "P01-B05-A08",
+    "P01-B05-A09",
+    "P01-B05-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P01-B05-A01", description: "Pipeline invariant engine fixture aligns with typed contract" },
+    { id: "typed_contract_coverage", atomId: "P01-B05-A02", description: "Contract declares measurable probes for all invariant categories" },
+    { id: "probe_matrix_aligned", atomId: "P01-B05-A03", description: "Invariant probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P01-B05-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P01-B05-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P01-B05-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P01-B05-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P01-B05-A08", description: "Regression gate passes on canonical invariant matrix" },
+    { id: "guard_controls", atomId: "P01-B05-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P01-B05-A10", description: "Block gate evidence sealed with valid B06 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P01_B05_TO_B06_HANDOFF_V1: PipelineInvariantEngineBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P01-B05-A10",
+  sourceBlock: {
+    blockId: "P01-B05",
+    title: "Pipeline invariant engine",
+    completedAtoms: FORGE_P01_B05_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P01-B06",
+    title: "Benchmark ve eval harness",
+    entryAtom: "P01-B06-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_PIPELINE_INVARIANT_ENGINE_CONTRACT_V1.version,
+    harnessVersion: FORGE_PIPELINE_INVARIANT_ENGINE_HARNESS_VERSION,
+    probeCount: summarizePipelineInvariantEngineContractCoverage(FORGE_PIPELINE_INVARIANT_ENGINE_CONTRACT_V1).totalProbes,
+    invariantCategories: PIPELINE_INVARIANT_ENGINE_CATEGORIES,
+    sourcePhaseEventSchemaAtom: "P01-B04-A10",
+  },
+  prerequisites: [
+    "Pipeline invariant engine contract v1 with measurable cross-cutting invariants",
+    "Versioned invariant fixture aligned to contract probe matrix",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P01-B04 typed phase/event schema artifacts referenced by sourcePhaseEventSchema",
+  ],
+  entryCriteria: {
+    description:
+      "B06-A01 formalizes benchmark and eval harness using sealed pipeline invariant engine artifacts",
+    requiresBlockGatePass: true,
+    pipelineInvariantEngineRecordRequired: true,
+  },
+};
+
+export function getForgeP01B05BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P01_B05_BLOCK_GATE_V1;
+}
+
+export function getForgeP01B05ToB06Handoff(): PipelineInvariantEngineBlockHandoffContract {
+  return FORGE_P01_B05_TO_B06_HANDOFF_V1;
+}
+
+export function validatePipelineInvariantEngineBlockHandoffContract(
+  handoff: PipelineInvariantEngineBlockHandoffContract,
+  evidence: Pick<PipelineInvariantEngineBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: PipelineInvariantEngineContract = getActivePipelineInvariantEngineContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizePipelineInvariantEngineContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.invariantCategories.length !== PIPELINE_INVARIANT_ENGINE_CATEGORIES.length) {
+    issues.push("handoff invariantCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P01-B06-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildPipelineInvariantEngineBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P01_B05_BLOCK_GATE_V1.blockId,
+): PipelineInvariantEngineBlockGateEvidence {
+  const handoff = getForgeP01B05ToB06Handoff();
+  const handoffValid = validatePipelineInvariantEngineBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P01-B05-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    gitCommit,
   };
 }

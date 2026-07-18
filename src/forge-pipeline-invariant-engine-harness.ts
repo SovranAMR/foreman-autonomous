@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { execSync } from "node:child_process";
 import pipelineInvariantEngineFixture from "./fixtures/forge-pipeline-invariant-engine-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 import {
   getForgeP01B04ToB05Handoff,
   getActivePhaseEventSchemaContract,
@@ -37,6 +37,16 @@ import {
   validatePipelineInvariantEngineFailureRecoveryRunRecord,
   detectPipelineInvariantEngineProbeRegression,
   validateForgePipelineInvariantEngineGuard,
+  getForgeP01B05BlockGate,
+  getForgeP01B05ToB06Handoff,
+  validatePipelineInvariantEngineBlockHandoffContract,
+  buildPipelineInvariantEngineBlockGateEvidence,
+  summarizePipelineInvariantEngineContractCoverage,
+  listPipelineInvariantEngineProbesByDisposition,
+  runPipelineInvariantEnginePropertyChecks,
+  runPipelineInvariantEngineFuzzValidation,
+  runPipelineInvariantEngineRunRecordFuzzValidation,
+  PIPELINE_INVARIANT_ENGINE_CATEGORIES,
   type PipelineInvariantEngineCategory,
   type PipelineInvariantEngineFixture,
   type PipelineInvariantEngineProbeResult,
@@ -45,6 +55,8 @@ import {
   type PipelineInvariantEngineRunRecord,
   type PipelineInvariantEngineProbeRegressionReport,
   type PipelineInvariantEngineGuardCheckResult,
+  type PipelineInvariantEngineBlockGateEvidence,
+  type PipelineInvariantEngineBlockHandoffContract,
 } from "./forge-pipeline-invariant-engine.js";
 
 export type {
@@ -87,6 +99,12 @@ export {
   PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES,
   PIPELINE_INVARIANT_ENGINE_A01_MIN_PROBES,
   buildDefaultPipelineInvariantEngineSourcePhaseEventSchema,
+  getForgeP01B05BlockGate,
+  getForgeP01B05ToB06Handoff,
+  validatePipelineInvariantEngineBlockHandoffContract,
+  buildPipelineInvariantEngineBlockGateEvidence,
+  type PipelineInvariantEngineBlockGateEvidence,
+  type PipelineInvariantEngineBlockHandoffContract,
 } from "./forge-pipeline-invariant-engine.js";
 
 export interface ForgePipelineInvariantEngineRegressionResult {
@@ -441,7 +459,8 @@ function probeVerificationGate(
         src.includes("verifyForgeBaselineBlockGate") &&
         src.includes("verifyForgeBehaviorMapBlockGate") &&
         src.includes("verifyForgeFormalStateMachineBlockGate") &&
-        src.includes("verifyForgePhaseEventSchemaBlockGate");
+        src.includes("verifyForgePhaseEventSchemaBlockGate") &&
+        src.includes("verifyForgePipelineInvariantEngineBlockGate");
       return probe(
         id,
         category,
@@ -1040,6 +1059,186 @@ export function runForgePipelineInvariantEngineRegressionGate(
     validationIssues,
     probeRegression,
     guard,
+    detail: detailParts.join(" | "),
+  };
+}
+
+export interface ForgePipelineInvariantEngineBlockGateResult {
+  passed: boolean;
+  evidence: PipelineInvariantEngineBlockGateEvidence;
+  handoff: PipelineInvariantEngineBlockHandoffContract;
+  regression: ForgePipelineInvariantEngineRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealPipelineInvariantEngineBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P01-B05 block gate: validate A01–A09 deliverables, regression, guard, and B06 handoff (P01-B05-A10).
+ */
+export function runForgePipelineInvariantEngineBlockGate(): ForgePipelineInvariantEngineBlockGateResult {
+  const blockGate = getForgeP01B05BlockGate();
+  const handoff = getForgeP01B05ToB06Handoff();
+  const contract = getActivePipelineInvariantEngineContract();
+  const fixture = loadPipelineInvariantEngineFixture();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validatePipelineInvariantEngineFixtureAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A01",
+      "invariant_fixture",
+      fixtureValidation.valid && fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizePipelineInvariantEngineContractCoverage(contract).totalProbes} probes)`
+        : fixtureValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizePipelineInvariantEngineContractCoverage(contract);
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${PIPELINE_INVARIANT_ENGINE_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runPipelineInvariantEngineProductionSlice(fixture);
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runPipelineInvariantEngineBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.gap > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runPipelineInvariantEngineFailureRecoverySlice(fixture);
+  const nogoProbes = listPipelineInvariantEngineProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgePipelineInvariantEngineRegressionGate();
+  const recordValidation = validatePipelineInvariantEngineRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const properties = runPipelineInvariantEnginePropertyChecks(contract);
+  const contractFuzz = runPipelineInvariantEngineFuzzValidation(fixture, contract);
+  const runFuzz = runPipelineInvariantEngineRunRecordFuzzValidation(regression.record, contract);
+  const fuzzOk = properties.allPassed && contractFuzz.allMutationsRejected && runFuzz.mutationsAccepted === 0;
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A07",
+      "property_fuzz",
+      fuzzOk,
+      `properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validatePipelineInvariantEngineBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealPipelineInvariantEngineBlockAtom(
+      "P01-B05-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildPipelineInvariantEngineBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
     detail: detailParts.join(" | "),
   };
 }

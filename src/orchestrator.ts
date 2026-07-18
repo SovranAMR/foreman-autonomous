@@ -408,6 +408,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01-B05 block gate and emit verification event with B06 handoff (P01-B05-A10).
+   */
+  async verifyForgePipelineInvariantEngineBlockGate(): Promise<import("./forge-pipeline-invariant-engine-harness.js").ForgePipelineInvariantEngineBlockGateResult> {
+    const { runForgePipelineInvariantEngineBlockGate } = await import("./forge-pipeline-invariant-engine-harness.js");
+    const result = runForgePipelineInvariantEngineBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "pipeline_invariant_engine_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

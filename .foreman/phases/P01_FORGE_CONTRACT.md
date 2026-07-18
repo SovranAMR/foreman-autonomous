@@ -2,8 +2,8 @@
 
 phase_id: P01
 phase_status: ACTIVE
-completed_blocks: 4
-completed_atoms: 48
+completed_blocks: 5
+completed_atoms: 49
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -76,7 +76,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B05-A07 — Pipeline invariant engine: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B05-A08 — Pipeline invariant engine: Forge entegrasyonu ile regression testini tamamla
 - [x] P01-B05-A09 — Pipeline invariant engine: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P01-B05-A10 — Pipeline invariant engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P01-B05-A10 — Pipeline invariant engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B06 — Benchmark ve eval harness
 
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B05-A09
-last_commit: 1c81301
-tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.guard.test.ts src/forge-pipeline-invariant-engine.test.ts` (30/30)
+last_atom: P01-B05-A10
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine-block-gate.test.ts src/forge-pipeline-invariant-engine.guard.test.ts src/forge-pipeline-invariant-engine.test.ts` (36/36)
 evidence: |
-  P01-B05-A09 guard slice: validateForgePipelineInvariantEngineGuard PASS with bounded perf/cost/safety metrics;
-  runPipelineInvariantEngineAdversarialGuardChecks rejects 3/3 tampered scenarios (false_alignment, summary_mismatch, dropped_probe);
-  verifyForgePipelineInvariantEngineGuard emits pipeline_invariant_engine_guard verification with guard PASS detail.
-next: P01-B05-A10
+  P01-B05-A10 block gate: runForgePipelineInvariantEngineBlockGate seals 10/10 atom seals with regression+guard PASS;
+  FORGE_P01_B05_TO_B06_HANDOFF_V1 targets P01-B06-A01; verifyForgePipelineInvariantEngineBlockGate emits
+  pipeline_invariant_engine_block_gate verification with handoff=PASS→P01-B06.
+next: P01-B06-A01

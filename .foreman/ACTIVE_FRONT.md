@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
-active_block: P01-B05
-active_atom: P01-B05-A09
+active_block: P01-B06
+active_atom: P01-B06-A01
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 48/1000
-phase_progress: 47/100
-block_progress: 8/10
+program_progress: 49/1000
+phase_progress: 48/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B05-A10 — Pipeline invariant engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P01-B06-A01 — Benchmark ve eval harness: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: B05 block gate suite ile 10 atom kanıtını mühürle ve B06 handoff hazırla.
-target: runForgePipelineInvariantEngineBlockGate; block gate test suite; orchestrator verify hook.
-hypothesis: A09 guard suite ile B10 block gate sıfır regression ile kapanabilir.
-acceptance: forge-pipeline-invariant-engine-block-gate.test.ts PASS; block gate sealed; B06 handoff ready.
-commands: npx tsx --test src/forge-pipeline-invariant-engine-block-gate.test.ts
-blast_radius: forge-pipeline-invariant-engine*.ts, orchestrator.ts
-rollback: A10 değişikliklerini geri al.
+objective: B05 sealed artifacts üzerine benchmark/eval harness baseline fixture ve probe matrix oluştur.
+target: forge-benchmark-eval-harness fixture; orchestrator benchmark probe seam.
+hypothesis: B05 block gate handoff ile B06-A01 failing baseline ölçülebilir.
+acceptance: benchmark eval harness fixture test PASS; baseline gaps documented.
+commands: npx tsx --test src/forge-benchmark-eval-harness.test.ts
+blast_radius: forge-benchmark-eval-harness*.ts, fixtures/
+rollback: A01 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B05-A09
-last_commit: 1c81301
-tests: PASS — forge-pipeline-invariant-engine.guard.test.ts + forge-pipeline-invariant-engine.test.ts (30/30)
-evidence: validateForgePipelineInvariantEngineGuard PASS; 3/3 adversarial rejected; perf/cost/safety bounded; verifyForgePipelineInvariantEngineGuard emits pipeline_invariant_engine_guard
-next: P01-B05-A10
+last_atom: P01-B05-A10
+last_commit: pending
+tests: PASS — forge-pipeline-invariant-engine-block-gate.test.ts + guard + core (36/36)
+evidence: runForgePipelineInvariantEngineBlockGate seals P01-B05; verifyForgePipelineInvariantEngineBlockGate emits pipeline_invariant_engine_block_gate; B06 handoff ready
+next: P01-B06-A01
