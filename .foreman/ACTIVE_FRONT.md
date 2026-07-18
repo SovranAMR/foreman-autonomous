@@ -44,7 +44,7 @@ fallback: entegrasyon path seçilemezse BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A07
-last_commit: PENDING
+last_commit: 35cc357
 tests: PASS — forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4), forge-pipeline-baseline (3/3)
 evidence: runContractPropertyChecks (7 structural properties), runContractFuzzValidation (72/72 mutations rejected), runRunRecordFuzzValidation (3/3 corrupted records rejected)
 next: P01-B01-A08

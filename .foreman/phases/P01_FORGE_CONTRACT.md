@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A07
-last_commit: PENDING
+last_commit: 35cc357
 tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-baseline-contract.property-fuzz.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3)
 evidence: |
   P01-B01-A07 property/fuzz slice: runContractPropertyChecks (7 structural invariants on canonical contract),
