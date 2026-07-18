@@ -5,20 +5,24 @@ import {
   runBenchmarkEvalHarnessProbes,
   runBenchmarkEvalProductionSlice,
   runBenchmarkEvalBoundarySlice,
+  runBenchmarkEvalFailureRecoverySlice,
   summarizeBenchmarkEvalHarnessMatrix,
   validateBenchmarkEvalHarnessFixture,
   validateBenchmarkEvalHarnessFixtureAgainstContract,
   validateBenchmarkEvalProbeMatrix,
   validateBenchmarkEvalBoundaryProbeMatrix,
+  validateBenchmarkEvalFailureRecoveryProbeMatrix,
   listBenchmarkEvalProbesByCategory,
   listBenchmarkEvalHarnessProbesByExpected,
   listBenchmarkEvalHarnessKnownGaps,
   listBenchmarkEvalContractProbeIds,
   listBenchmarkEvalProbesByDisposition,
+  listBenchmarkEvalFailureRecoveryProbeIds,
   getActiveBenchmarkEvalContract,
   getBenchmarkEvalCategoryContract,
   summarizeBenchmarkEvalContractCoverage,
   BENCHMARK_EVAL_CATEGORIES,
+  BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-benchmark-eval-harness.probe.js";
 
 function formatMismatchReport(mismatches: { id: string; expected: string; actual: string; detail: string }[]): string {
@@ -312,5 +316,87 @@ describe("Forge Benchmark Eval Harness Boundary Slice — P01-B06-A04", () => {
     assert.ok(observerWired);
     assert.equal(observerWired!.expected, "PASS");
     assert.equal(observerWired!.actual, "PASS");
+  });
+});
+
+describe("Forge Benchmark Eval Harness Failure/Recovery Slice — P01-B06-A05", () => {
+  it("defines failure, recovery and NO-GO categories with benchmark eval probes", () => {
+    const failure = listBenchmarkEvalProbesByDisposition("failure");
+    const recovery = listBenchmarkEvalProbesByDisposition("recovery");
+    const nogo = listBenchmarkEvalProbesByDisposition("nogo");
+    const failurePath = listBenchmarkEvalProbesByCategory("failure_path");
+    const recoveryPath = listBenchmarkEvalProbesByCategory("recovery_path");
+    const nogoPath = listBenchmarkEvalProbesByCategory("nogo_path");
+
+    assert.ok(failure.some(p => p.id === "bench.failure_pipeline_timing_on_block"));
+    assert.ok(failure.some(p => p.id === "bench.failure_cost_on_block"));
+    assert.ok(recovery.some(p => p.id === "bench.recovery_resume_wired"));
+    assert.ok(recovery.some(p => p.id === "bench.recovery_re_decompose"));
+    assert.ok(nogo.some(p => p.id === "bench.nogo_reviewer_reject"));
+    assert.ok(nogo.some(p => p.id === "bench.nogo_format_retry"));
+    assert.equal(failurePath.length, 3);
+    assert.equal(recoveryPath.length, 3);
+    assert.equal(nogoPath.length, 3);
+    assert.deepEqual(
+      [...BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveBenchmarkEvalContract();
+    const slice = runBenchmarkEvalFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P01-B06-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 9);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 9);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 3);
+
+    for (const category of BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listBenchmarkEvalProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateBenchmarkEvalFailureRecoveryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented gaps while exercising failure/recovery/NO-GO paths", () => {
+    const results = runBenchmarkEvalHarnessProbes();
+    const summary = summarizeBenchmarkEvalHarnessMatrix(results);
+
+    assert.equal(summary.total, 26);
+    assert.equal(summary.knownGaps.length, 8);
+    assert.equal(summary.mismatches.length, 0, formatMismatchReport(summary.mismatches));
+
+    const probeIds = listBenchmarkEvalFailureRecoveryProbeIds();
+    assert.equal(probeIds.length, 9);
+    assert.ok(probeIds.every(id => results.find(r => r.id === id)?.aligned));
+
+    const failureGap = results.find(r => r.id === "bench.failure_eval_harness_on_block");
+    assert.ok(failureGap);
+    assert.equal(failureGap!.expected, "FAIL");
+    assert.equal(failureGap!.actual, "FAIL");
+
+    const recoveryGap = results.find(r => r.id === "bench.recovery_eval_baseline_reset");
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+
+    const nogoGap = results.find(r => r.id === "bench.nogo_eval_gate_on_reject");
+    assert.ok(nogoGap);
+    assert.equal(nogoGap!.expected, "FAIL");
+    assert.equal(nogoGap!.actual, "FAIL");
   });
 });

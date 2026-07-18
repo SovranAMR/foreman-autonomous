@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 53
+completed_atoms: 54
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -84,7 +84,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B06-A02 — Benchmark ve eval harness: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B06-A03 — Benchmark ve eval harness: en küçük üretim dikey dilimini uygula
 - [x] P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla
-- [ ] P01-B06-A05 — Benchmark ve eval harness: failure, recovery ve NO-GO yollarını uygula
+- [x] P01-B06-A05 — Benchmark ve eval harness: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B06-A06 — Benchmark ve eval harness: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B06-A07 — Benchmark ve eval harness: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B06-A08 — Benchmark ve eval harness: Forge entegrasyonu ile regression testini tamamla
@@ -156,12 +156,13 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B06-A04
-last_commit: 4e23f14
-tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (13/13)
+last_atom: P01-B06-A05
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (16/16)
 evidence: |
-  P01-B06-A04 boundary slice: runBenchmarkEvalBoundarySlice with 3 boundary probes;
-  validateBenchmarkEvalBoundaryProbeMatrix gate — 2 passAligned, 1 gapAligned, zero unexpected mismatches;
-  contract-wired criteria on bench.quality_metrics_tracked, bench.observer_wired, bench.eval_harness_orchestrator_wired;
-  documented FAIL gap bench.eval_harness_orchestrator_wired preserved.
-next: P01-B06-A05
+  P01-B06-A05 failure/recovery slice: runBenchmarkEvalFailureRecoverySlice with 9 probes
+  (failure_path, recovery_path, nogo_path);
+  validateBenchmarkEvalFailureRecoveryProbeMatrix gate — 6 passAligned, 3 gapAligned, zero unexpected mismatches;
+  contract-wired criteria on bench.failure_pipeline_timing_on_block, bench.recovery_resume_wired, bench.nogo_reviewer_reject;
+  documented FAIL gaps bench.failure_eval_harness_on_block, bench.recovery_eval_baseline_reset, bench.nogo_eval_gate_on_reject preserved.
+next: P01-B06-A06

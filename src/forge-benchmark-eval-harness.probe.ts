@@ -21,7 +21,9 @@ import {
   validateBenchmarkEvalHarnessFixtureAgainstContract,
   validateBenchmarkEvalProbeMatrix,
   validateBenchmarkEvalBoundaryProbeMatrix,
+  validateBenchmarkEvalFailureRecoveryProbeMatrix,
   listBenchmarkEvalProbesByCategory,
+  BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES,
   type BenchmarkEvalCategory,
   type BenchmarkEvalFixture,
   type BenchmarkEvalProbeMatrixValidationResult,
@@ -34,7 +36,10 @@ export {
   validateBenchmarkEvalHarnessFixtureAgainstContract,
   validateBenchmarkEvalProbeMatrix,
   validateBenchmarkEvalBoundaryProbeMatrix,
+  validateBenchmarkEvalFailureRecoveryProbeMatrix,
   listBenchmarkEvalProbesByCategory,
+  listBenchmarkEvalFailureRecoveryProbeIds,
+  BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES,
   summarizeBenchmarkEvalHarnessMatrix,
   summarizeBenchmarkEvalContractCoverage,
   listBenchmarkEvalHarnessProbesByExpected,
@@ -661,6 +666,41 @@ export function runBenchmarkEvalBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface BenchmarkEvalFailureRecoverySliceResult {
+  atom: "P01-B06-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: BenchmarkEvalProbeResult[];
+  failureRecoveryResults: BenchmarkEvalProbeResult[];
+  matrixValidation: BenchmarkEvalProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runBenchmarkEvalFailureRecoverySlice(
+  fixture: BenchmarkEvalFixture = loadBenchmarkEvalHarnessFixture(),
+): BenchmarkEvalFailureRecoverySliceResult {
+  const contract = getActiveBenchmarkEvalContract();
+  const results = runBenchmarkEvalHarnessProbes(fixture);
+  const failureRecoveryProbes = BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listBenchmarkEvalProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateBenchmarkEvalFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B06-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

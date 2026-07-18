@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B06
-active_atom: P01-B06-A05
+active_atom: P01-B06-A06
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 53/1000
-phase_progress: 52/100
-block_progress: 4/10
+program_progress: 54/1000
+phase_progress: 53/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B06-A05 — Benchmark ve eval harness: failure, recovery ve NO-GO yollarını uygula.
+P01-B06-A06 — Benchmark ve eval harness: evidence, telemetry ve provenance kaydını ekle.
 
-objective: A04 boundary slice üzerine failure/recovery/nogo-category probe matrix slice uygula.
-target: runBenchmarkEvalFailureRecoverySlice; zero unexpected PASS mismatches.
-hypothesis: Failure/recovery/NO-GO probes contract-wired çalışır; documented FAIL gaps korunur.
-acceptance: failure/recovery slice test PASS; failure/recovery matrix validation PASS.
+objective: A05 failure/recovery slice üzerine evidence/telemetry/provenance run record slice uygula.
+target: runBenchmarkEvalFailureRecoverySliceWithRecord; validateBenchmarkEvalFailureRecoveryRunRecord.
+hypothesis: Failure/recovery probe evidence, telemetry ve provenance contract-wired kaydedilir.
+acceptance: failure/recovery run record test PASS; run record validation PASS.
 commands: npx tsx --test src/forge-benchmark-eval-harness.test.ts
 blast_radius: forge-benchmark-eval-harness*.ts
-rollback: A05 failure/recovery slice değişikliklerini geri al.
+rollback: A06 evidence slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B06-A04
-last_commit: 4e23f14
-tests: PASS — forge-benchmark-eval-harness.test.ts (13/13)
-evidence: runBenchmarkEvalBoundarySlice; validateBenchmarkEvalBoundaryProbeMatrix; 2 passAligned / 1 gapAligned; zero unexpected mismatches
-next: P01-B06-A05
+last_atom: P01-B06-A05
+last_commit: 00892ad
+tests: PASS — forge-benchmark-eval-harness.test.ts (16/16)
+evidence: runBenchmarkEvalFailureRecoverySlice; validateBenchmarkEvalFailureRecoveryProbeMatrix; 6 passAligned / 3 gapAligned; zero unexpected mismatches
+next: P01-B06-A06
