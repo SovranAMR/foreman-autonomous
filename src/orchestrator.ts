@@ -154,6 +154,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge baseline regression gate and emit verification event (P01-B01-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeBaselineRegression(
+    priorRecord?: import("./forge-baseline-contract.js").ForgeBaselineRunRecord,
+  ): Promise<import("./forge-baseline-harness.js").ForgeBaselineRegressionResult> {
+    const { runForgeBaselineRegressionGate } = await import("./forge-baseline-harness.js");
+    const result = await runForgeBaselineRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "baseline_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

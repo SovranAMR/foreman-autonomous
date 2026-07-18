@@ -36,8 +36,11 @@ import {
   buildProbeTelemetry,
   buildBaselineProvenance,
   buildBaselineRunRecord,
+  detectBaselineProbeRegression,
+  validateBaselineRunRecord,
   type BaselineOutcome,
   type BaselinePath,
+  type BaselineProbeRegressionReport,
   type ForgeBaselineFixture,
   type ForgeBaselineRunRecord,
   type ForgeProbeDisposition,
@@ -48,7 +51,19 @@ export {
   getActiveForgeBaselineContract,
   validateFixtureAgainstContract,
   validateBaselineRunRecord,
+  detectBaselineProbeRegression,
 } from "./forge-baseline-contract.js";
+
+export type { BaselineProbeRegressionReport } from "./forge-baseline-contract.js";
+
+export interface ForgeBaselineRegressionResult {
+  passed: boolean;
+  record: ForgeBaselineRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: BaselineProbeRegressionReport | null;
+  detail: string;
+}
 
 export interface BaselineProbeResult {
   id: string;
@@ -746,6 +761,37 @@ export async function runForgeBaselineProbes(): Promise<BaselineProbeResult[]> {
   }
 
   return results;
+}
+
+/**
+ * Execute baseline probes, validate run record, and optionally detect regression vs prior run.
+ * Forge pipeline integration gate (P01-B01-A08).
+ */
+export async function runForgeBaselineRegressionGate(
+  priorRecord?: ForgeBaselineRunRecord,
+): Promise<ForgeBaselineRegressionResult> {
+  const record = await runForgeBaselineProbesWithRecord();
+  const validation = validateBaselineRunRecord(record);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord ? detectBaselineProbeRegression(priorRecord, record) : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const passed = recordValid && !alignmentRegression;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!recordValid) detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+
+  return {
+    passed,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    detail: detailParts.join(" | "),
+  };
 }
 
 export function summarizeBaselineMatrix(results: BaselineProbeResult[]): {

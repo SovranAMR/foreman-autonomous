@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B01
-active_atom: P01-B01-A08
+active_atom: P01-B01-A09
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 7/1000
-phase_progress: 7/100
-block_progress: 7/10
+program_progress: 8/1000
+phase_progress: 8/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B01-A08 — Forge entegrasyonu ile regression testini tamamla.
+P01-B01-A09 — Mission ve acceptance contract: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: Contract kabul kriterlerine Forge entegrasyonu ile regression testini ekle.
-target: src/forge-baseline-harness.ts, orchestrator seam (A08 kapsamında belirlenecek).
-hypothesis: Property/fuzz doğrulaması contract seam'de; sıradaki dilim Forge pipeline regression entegrasyonu.
-acceptance: Forge regression davranışı + hedefli test PASS + regression PASS.
-commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili Forge entegrasyon testi.
-blast_radius: A08 kapsamında belirlenecek tek seam.
-rollback: A08 değişikliklerini geri al.
+objective: Contract kabul kriterlerine adversarial, performance, cost ve safety kontrolünü ekle.
+target: A09 kapsamında belirlenecek.
+hypothesis: Forge regression gate orchestrator seam'de; sıradaki dilim adversarial/perf/cost/safety.
+acceptance: Adversarial/perf/cost/safety davranışı + hedefli test PASS + regression PASS.
+commands: A09 kapsamında belirlenecek.
+blast_radius: A09 kapsamında belirlenecek tek seam.
+rollback: A09 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: entegrasyon path seçilemezse BLOCKED raporla.
+fallback: kontrol path seçilemezse BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B01-A07
-last_commit: 35cc357
-tests: PASS — forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4), forge-pipeline-baseline (3/3)
-evidence: runContractPropertyChecks (7 structural properties), runContractFuzzValidation (72/72 mutations rejected), runRunRecordFuzzValidation (3/3 corrupted records rejected)
-next: P01-B01-A08
+last_atom: P01-B01-A08
+last_commit: PENDING
+tests: PASS — forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
+evidence: runForgeBaselineRegressionGate (27/27 aligned), detectBaselineProbeRegression (misaligned probe flagged), Orchestrator.verifyForgeBaselineRegression emits baseline_regression verification event
+next: P01-B01-A09
