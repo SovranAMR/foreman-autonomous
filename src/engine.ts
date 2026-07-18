@@ -10,6 +10,7 @@
 
 import type {
   Layer,
+  SystemState,
   Thought,
   ThinkRequest,
   ThinkResult,
@@ -705,14 +706,22 @@ export class Engine {
     this.chains.addThought(chainId, thought.id);
     this.rateLimiter.resetThoughtBudget();
 
-    // State transition
-    const stateMap: Record<Layer, "visioning" | "decomposing" | "researching" | "executing"> = {
+    // State transition — phase-aware for atomize/reflect seams (P01-B02-A04)
+    const phaseStateMap: Partial<Record<ParsePhase, SystemState>> = {
+      vision: "visioning",
+      decompose: "decomposing",
+      research: "researching",
+      atomize: "atomizing",
+      execute: "executing",
+      reflect: "reflecting",
+    };
+    const layerStateMap: Record<Layer, SystemState> = {
       visioner: "visioning",
       strategist: "decomposing",
       researcher: "researching",
       worker: "executing",
     };
-    const targetState = stateMap[layer];
+    const targetState = phaseStateMap[phase] ?? layerStateMap[layer];
     if (this.state.canTransition(targetState)) {
       this.state.transition(targetState, `Starting thought ${thought.id}`, {
         thoughtId: thought.id,

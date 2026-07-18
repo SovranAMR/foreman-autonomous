@@ -193,8 +193,8 @@ const BEHAVIOR_MAP_CATEGORIES: Record<PipelineBehaviorCategory, PipelineBehavior
     category: "state_sync",
     acceptance: {
       invariant:
-        "Each pipeline phase transitions SystemState to a matching state; atomize requires dedicated atomizing state.",
-      minProbeCount: 6,
+        "Each pipeline phase transitions SystemState to a matching state, including dedicated atomizing and verifying states.",
+      minProbeCount: 7,
       requireFullAlignment: true,
     },
     probes: [
@@ -229,9 +229,9 @@ const BEHAVIOR_MAP_CATEGORIES: Record<PipelineBehaviorCategory, PipelineBehavior
         id: "map.atomize_state_sync",
         phase: "atomize",
         category: "state_sync",
-        description: "Atomize phase has dedicated SystemState (known gap: uses decomposing)",
-        expected: "FAIL",
-        disposition: "gap",
+        description: "Atomize phase transitions SystemState to atomizing",
+        expected: "PASS",
+        disposition: "observed",
         criterion: 'SystemState includes "atomizing" and orchestrator transitions to it during atomize',
       },
       {
@@ -251,6 +251,15 @@ const BEHAVIOR_MAP_CATEGORIES: Record<PipelineBehaviorCategory, PipelineBehavior
         expected: "PASS",
         disposition: "observed",
         criterion: 'orchestrator transitions to "reflecting" during reflect phase',
+      },
+      {
+        id: "map.verify_state_sync",
+        phase: "verify",
+        category: "state_sync",
+        description: "Verify phase transitions SystemState to verifying",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: 'orchestrator transitions to "verifying" during verify phase',
       },
     ],
   },
@@ -316,7 +325,7 @@ const BEHAVIOR_MAP_CATEGORIES: Record<PipelineBehaviorCategory, PipelineBehavior
 /** Typed pipeline behavior map contract v1 — source of truth for phase→behavior acceptance. */
 export const FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1: PipelineBehaviorMapContract = {
   version: "1.0.0",
-  atom: "P01-B02-A03",
+  atom: "P01-B02-A04",
   purpose:
     "Measurable acceptance criteria for orchestrator pipeline phase→behavior map (presence, state sync, checkpoint, stream, B01 link).",
   categories: BEHAVIOR_MAP_CATEGORIES,
@@ -456,9 +465,16 @@ export function validateBehaviorMapFixtureAgainstContract(
     }
   }
 
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length === 0) {
-    issues.push({ kind: "missing_gap", detail: "fixture must document at least one known FAIL gap" });
+  if (expectedFailCount > 0 && failGaps.length === 0) {
+    issues.push({ kind: "missing_gap", detail: "fixture must document known FAIL gaps matching contract" });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "mismatch",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
+    });
   }
 
   const baseline = buildDefaultBehaviorMapSourceBaseline();

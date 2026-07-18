@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P01-B02-A01",
-  "contractAtom": "P01-B02-A03",
+  "contractAtom": "P01-B02-A04",
   "purpose": "Observable pipeline phase→behavior map measured from live orchestrator (includes documented FAIL gaps).",
   "sourceBaseline": {
     "version": "1.0.0",
@@ -78,8 +78,8 @@
       "id": "map.atomize_state_sync",
       "phase": "atomize",
       "category": "state_sync",
-      "description": "Atomize phase has dedicated SystemState (known gap: uses decomposing)",
-      "expected": "FAIL"
+      "description": "Atomize phase transitions SystemState to atomizing",
+      "expected": "PASS"
     },
     {
       "id": "map.execute_state_sync",
@@ -93,6 +93,13 @@
       "phase": "reflect",
       "category": "state_sync",
       "description": "Reflect phase transitions SystemState to reflecting",
+      "expected": "PASS"
+    },
+    {
+      "id": "map.verify_state_sync",
+      "phase": "verify",
+      "category": "state_sync",
+      "description": "Verify phase transitions SystemState to verifying",
       "expected": "PASS"
     },
     {

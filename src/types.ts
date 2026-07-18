@@ -600,6 +600,7 @@ export type SystemState =
   | "visioning"        // vision being created (visioner working)
   | "decomposing"      // decomposing (strategist working)
   | "researching"      // researching (researcher working)
+  | "atomizing"        // block being atomized (strategist working)
   | "executing"        // atom being executed (worker working)
   | "verifying"        // kontrol ediliyor
   | "reflecting"       // reviewing (consistency check)
@@ -617,13 +618,14 @@ export type SystemState =
 export const VALID_TRANSITIONS: Readonly<Record<SystemState, readonly SystemState[]>> = {
   idle:            ["visioning"],
   visioning:       ["decomposing", "blocked"],
-  decomposing:     ["researching", "executing", "blocked"],
-  researching:     ["decomposing", "executing", "blocked"],
-  executing:       ["verifying", "blocked"],
+  decomposing:     ["researching", "executing", "atomizing", "blocked"],
+  researching:     ["decomposing", "executing", "atomizing", "blocked"],
+  atomizing:       ["executing", "blocked"],
+  executing:       ["verifying", "atomizing", "blocked"],
   verifying:       ["executing", "reflecting", "blocked", "complete"],
-  reflecting:      ["executing", "decomposing", "visioning", "blocked"],
-  blocked:         ["decomposing", "visioning", "awaiting_human"],
-  awaiting_human:  ["executing", "decomposing", "visioning", "idle"],
+  reflecting:      ["executing", "decomposing", "atomizing", "visioning", "blocked"],
+  blocked:         ["decomposing", "atomizing", "visioning", "awaiting_human"],
+  awaiting_human:  ["executing", "decomposing", "atomizing", "visioning", "idle"],
   complete:        ["idle"],
 } as const;
 

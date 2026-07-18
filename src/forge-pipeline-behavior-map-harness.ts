@@ -139,10 +139,12 @@ function runSingleProbe(
         category,
         expected,
         ok,
-        `atomizing_state=${hasAtomizingState}, atomizing_transition=${transitionsToAtomizing} (uses decomposing today)`,
+        `atomizing_state=${hasAtomizingState}, atomizing_transition=${transitionsToAtomizing}`,
         criterion,
       );
     }
+    case "map.verify_state_sync":
+      return probe(id, phase, category, expected, hasStateTransition(orchestrator, "verifying"), `verifying_transition=${hasStateTransition(orchestrator, "verifying")}`, criterion);
     case "map.execute_state_sync":
       return probe(id, phase, category, expected, hasStateTransition(orchestrator, "executing"), `executing_transition=${hasStateTransition(orchestrator, "executing")}`, criterion);
     case "map.reflect_state_sync":

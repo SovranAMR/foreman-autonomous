@@ -6,9 +6,9 @@ active_phase: P01
 active_block: P01-B02
 active_atom: P01-B02-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 13/1000
-phase_progress: 13/100
-block_progress: 3/10
+program_progress: 14/1000
+phase_progress: 14/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B02-A04 — Mevcut pipeline davranış haritası: boundary ve edge-case davranışlarını tamamla.
+P01-B02-A05 — Mevcut pipeline davranış haritası: failure, recovery ve NO-GO yollarını uygula.
 
-objective: Pipeline behavior map boundary ve edge-case davranışlarını tamamla.
-target: Atomize state sync gap veya diğer boundary probe'ları için üretim/harness iyileştirmesi.
-hypothesis: B02-A03 registry_export sealed; A04 boundary/edge tamamlama.
-acceptance: Boundary probe coverage genişletilmiş, hedefli test PASS.
+objective: Pipeline behavior map failure, recovery ve NO-GO yollarını uygula.
+target: Behavior map harness ve contract için failure/recovery/NO-GO probe yolları.
+hypothesis: B02-A04 boundary sealed; A05 failure/recovery slice.
+acceptance: Failure/recovery probe coverage, hedefli test PASS.
 commands: npx tsx --test src/forge-pipeline-behavior-map.test.ts
-blast_radius: orchestrator.ts, types.ts, forge-pipeline-behavior-map*.ts
-rollback: A04 değişikliklerini geri al.
+blast_radius: forge-pipeline-behavior-map*.ts, orchestrator.ts
+rollback: A05 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B02-A03
-last_commit: 74c4dd2
-tests: PASS — forge-pipeline-behavior-map (8/8), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
-evidence: FORGE_PIPELINE_PHASES exported from orchestrator.ts; map.registry_export gap closed (15 PASS / 1 FAIL gap atomize_state_sync), runPipelineBehaviorMapProbes 16/16 aligned
-next: P01-B02-A04
+last_atom: P01-B02-A04
+last_commit: pending
+tests: PASS — forge-pipeline-behavior-map (9/9), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
+evidence: atomizing SystemState + VALID_TRANSITIONS; orchestrator atomize→atomizing; engine phase-aware state sync; map.atomize_state_sync + map.verify_state_sync sealed (17/17 PASS)
+next: P01-B02-A05

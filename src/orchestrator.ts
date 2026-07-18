@@ -907,8 +907,8 @@ ${visionOutput}`,
       // ── 3b. ATOMIZE ──
       this.emit({ type: "phase_start", phase: "atomize", detail: `Atomizing block ${i + 1}` });
 
-      if (this.engine.state.canTransition("decomposing")) {
-        this.engine.state.transition("decomposing", `Atomizing block ${i + 1}`, {
+      if (this.engine.state.canTransition("atomizing")) {
+        this.engine.state.transition("atomizing", `Atomizing block ${i + 1}`, {
           chainId: visionChain.id,
         });
       }
