@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A08
-last_commit: PENDING
+last_commit: 11514b1
 tests: PASS — `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3), `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (4/4), `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-baseline-contract.property-fuzz.test.ts` (4/4)
 evidence: |
   P01-B01-A08 Forge regression integration: detectBaselineProbeRegression compares run-record evidence alignment,
