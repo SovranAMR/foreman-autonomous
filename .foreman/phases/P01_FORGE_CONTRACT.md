@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A09
-last_commit: 544ef6e
+last_commit: 4ea823e
 tests: PASS — `npx tsx --test src/forge-baseline-contract.guard.test.ts` (8/8), `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3), `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-baseline-contract.property-fuzz.test.ts` (4/4)
 evidence: |
   P01-B01-A09 guard controls: FORGE_BASELINE_GUARD_CONTROLS_V1 (adversarial/performance/cost/safety budgets),

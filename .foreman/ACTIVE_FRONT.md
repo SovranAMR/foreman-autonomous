@@ -44,7 +44,7 @@ fallback: gate seçilemezse BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A09
-last_commit: 544ef6e
+last_commit: 4ea823e
 tests: PASS — forge-baseline-contract.guard (8/8), forge-pipeline-regression.integration (4/4), forge-pipeline-baseline (3/3), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
 evidence: validateForgeBaselineGuard (adversarial/perf/cost/safety), runForgeBaselineRegressionGate guard integration, Orchestrator.verifyForgeBaselineGuard emits baseline_guard verification
 next: P01-B01-A10
