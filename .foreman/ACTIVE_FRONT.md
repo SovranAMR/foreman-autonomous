@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B01
-active_atom: P01-B01-A04
+active_atom: P01-B01-A05
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 3/1000
-phase_progress: 3/100
-block_progress: 3/10
+program_progress: 4/1000
+phase_progress: 4/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B01-A04 — Boundary ve edge-case davranışlarını tamamla.
+P01-B01-A05 — Failure, recovery ve NO-GO yollarını uygula.
 
-objective: Contract kabul kriterlerindeki boundary ve edge-case davranışlarını tamamla.
-target: src/forge-baseline-contract.ts, ilgili seam (A04 kapsamında belirlenecek).
-hypothesis: Reviewer empty-response gap kapatıldı; kalan rollback gap veya diğer edge-case'ler sıradaki dilim.
-acceptance: Boundary/edge-case davranışı + hedefli test PASS + regression PASS.
-commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili edge-case testi.
-blast_radius: A04 kapsamında belirlenecek tek seam.
-rollback: A04 değişikliklerini geri al.
+objective: Contract kabul kriterlerindeki failure, recovery ve NO-GO yollarını uygula.
+target: src/forge-baseline-contract.ts, ilgili seam (A05 kapsamında belirlenecek).
+hypothesis: Rollback no-git edge-case kapatıldı; sıradaki dilim failure/recovery NO-GO yolları.
+acceptance: Failure/recovery davranışı + hedefli test PASS + regression PASS.
+commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili failure-recovery testi.
+blast_radius: A05 kapsamında belirlenecek tek seam.
+rollback: A05 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: edge-case seçilemezse BLOCKED raporla.
+fallback: failure path seçilemezse BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B01-A03
-last_commit: 089e6fc
-tests: PASS — reviewer-gate (10/10), forge-baseline-contract (4/4), forge-pipeline-baseline (2/2)
-evidence: classifyReviewerLlmResponse; orchestrator no auto-PASS on empty reviewer; contract probe reviewer.empty_llm_response_passes → PASS
-next: P01-B01-A04
+last_atom: P01-B01-A04
+last_commit: (this commit)
+tests: PASS — forge-baseline-contract (4/4), forge-pipeline-baseline (2/2), forge-engines rollback edge-case
+evidence: isGitRepository(); createPoint null without git; contract probe rollback.point_without_git → PASS (20/20 matrix)
+next: P01-B01-A05

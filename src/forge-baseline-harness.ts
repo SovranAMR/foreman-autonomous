@@ -286,7 +286,8 @@ async function probeRollback(id: string, expected: BaselineOutcome): Promise<Bas
     switch (id) {
       case "rollback.point_without_git": {
         const point = engine.createPoint("pipeline", "baseline probe");
-        return probe(id, "rollback", expected, point !== null, `point=${point ? "created" : "null"}`);
+        const ok = point === null && !engine.isGitRepository();
+        return probe(id, "rollback", expected, ok, `point=${point ? "created" : "null"}, isGit=${engine.isGitRepository()}`);
       }
       case "rollback.history_tracks_attempts": {
         const history = engine.getHistory();

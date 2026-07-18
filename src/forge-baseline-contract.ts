@@ -233,8 +233,8 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
         {
           id: "rollback.point_without_git",
           description: "RollbackEngine.createPoint returns null when project is not a git repo",
-          expected: "FAIL",
-          criterion: "documented gap: createPoint returns non-null without git repo",
+          expected: "PASS",
+          criterion: "createPoint returns null and isGitRepository() is false without git repo",
         },
         {
           id: "rollback.history_tracks_attempts",

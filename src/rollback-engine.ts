@@ -15,7 +15,7 @@
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { execSync } from "node:child_process";
 
 // ─── TYPES ───────────────────────────────────────────────────
@@ -72,6 +72,8 @@ export class RollbackEngine {
     description: string,
     meta?: { atomIndex?: number; blockIndex?: number; chainId?: string },
   ): RollbackPoint | null {
+    if (!this.isGitRepository()) return null;
+
     const commitHash = this.getCurrentCommitHash();
     if (!commitHash) return null;
 
@@ -260,6 +262,23 @@ export class RollbackEngine {
         filesReverted: 0,
       });
       return { success: false, point, filesReverted: [], error };
+    }
+  }
+
+  /** True when projectRoot is the top-level git work tree (not merely nested inside one). */
+  isGitRepository(): boolean {
+    const gitMarker = join(this.projectRoot, ".git");
+    if (existsSync(gitMarker)) return true;
+
+    try {
+      const toplevel = execSync("git rev-parse --show-toplevel", {
+        cwd: this.projectRoot,
+        encoding: "utf-8",
+        stdio: "pipe",
+      }).trim();
+      return resolve(toplevel) === resolve(this.projectRoot);
+    } catch {
+      return false;
     }
   }
 

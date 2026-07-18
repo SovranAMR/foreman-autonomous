@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { mkdirSync, writeFileSync, existsSync, rmSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // ─── Streaming Pipeline ──────────────────────────────────────
@@ -254,6 +254,17 @@ describe("Rollback Engine", () => {
       assert.equal(point.type, "atom");
     }
     rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it("returns null createPoint when project root is not a git repository", () => {
+    const testDir = mkdtempSync(join(tmpdir(), "foreman-rollback-nogit-"));
+    try {
+      const engine = new RollbackEngine(testDir);
+      assert.equal(engine.isGitRepository(), false);
+      assert.equal(engine.createPoint("pipeline", "no-git probe"), null);
+    } finally {
+      rmSync(testDir, { recursive: true, force: true });
+    }
   });
 
   it("previews and lists points", () => {
