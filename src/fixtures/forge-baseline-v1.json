@@ -1,6 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P01-B01-A01",
+  "contractAtom": "P01-B01-A02",
   "purpose": "Executable baseline for Forge Pipeline path guarantees (measured, not aspirational).",
   "paths": {
     "state": [

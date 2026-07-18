@@ -27,8 +27,19 @@ import { RollbackEngine } from "./rollback-engine.js";
 import { PipelineResumeEngine } from "./pipeline-resume.js";
 import { Orchestrator } from "./orchestrator.js";
 import baselineFixture from "./fixtures/forge-baseline-v1.json" with { type: "json" };
+import {
+  getActiveForgeBaselineContract,
+  validateFixtureAgainstContract,
+  type BaselineOutcome,
+  type BaselinePath,
+  type ForgeBaselineFixture,
+} from "./forge-baseline-contract.js";
 
-export type BaselineOutcome = "PASS" | "FAIL";
+export type { BaselineOutcome, BaselinePath, ForgeBaselineFixture } from "./forge-baseline-contract.js";
+export {
+  getActiveForgeBaselineContract,
+  validateFixtureAgainstContract,
+} from "./forge-baseline-contract.js";
 
 export interface BaselineProbeResult {
   id: string;
@@ -37,25 +48,7 @@ export interface BaselineProbeResult {
   actual: BaselineOutcome;
   detail: string;
   aligned: boolean;
-}
-
-export type BaselinePath =
-  | "state"
-  | "tool"
-  | "verification"
-  | "reviewer"
-  | "rollback"
-  | "resume";
-
-export interface ForgeBaselineFixture {
-  version: string;
-  atom: string;
-  purpose: string;
-  paths: Record<BaselinePath, Array<{
-    id: string;
-    description: string;
-    expected: BaselineOutcome;
-  }>>;
+  criterion?: string;
 }
 
 const GOOD_PROTOCOL: WorkerProtocol = {
@@ -84,7 +77,14 @@ function outcome(ok: boolean): BaselineOutcome {
   return ok ? "PASS" : "FAIL";
 }
 
-function probe(id: string, path: BaselinePath, expected: BaselineOutcome, ok: boolean, detail: string): BaselineProbeResult {
+function probe(
+  id: string,
+  path: BaselinePath,
+  expected: BaselineOutcome,
+  ok: boolean,
+  detail: string,
+  criterion?: string,
+): BaselineProbeResult {
   const actual = outcome(ok);
   return {
     id,
@@ -93,6 +93,7 @@ function probe(id: string, path: BaselinePath, expected: BaselineOutcome, ok: bo
     actual,
     detail,
     aligned: actual === expected,
+    criterion,
   };
 }
 
@@ -555,27 +556,48 @@ function buildMinimalOrchestratorEngine(
   };
 }
 
-async function runProbe(entry: { id: string; expected: BaselineOutcome }, path: BaselinePath): Promise<BaselineProbeResult> {
+async function runProbe(
+  entry: { id: string; expected: BaselineOutcome },
+  path: BaselinePath,
+): Promise<BaselineProbeResult> {
+  const contractProbe = getActiveForgeBaselineContract().paths[path].probes.find(p => p.id === entry.id);
+  const criterion = contractProbe?.criterion;
+
+  let result: BaselineProbeResult;
   switch (path) {
     case "state":
-      return probeState(entry.id, entry.expected);
+      result = probeState(entry.id, entry.expected);
+      break;
     case "tool":
-      return await probeTool(entry.id, entry.expected);
+      result = await probeTool(entry.id, entry.expected);
+      break;
     case "verification":
-      return probeVerification(entry.id, entry.expected);
+      result = probeVerification(entry.id, entry.expected);
+      break;
     case "reviewer":
-      return probeReviewer(entry.id, entry.expected);
+      result = probeReviewer(entry.id, entry.expected);
+      break;
     case "rollback":
-      return await probeRollback(entry.id, entry.expected);
+      result = await probeRollback(entry.id, entry.expected);
+      break;
     case "resume":
-      return await probeResume(entry.id, entry.expected);
+      result = await probeResume(entry.id, entry.expected);
+      break;
     default:
-      return probe(entry.id, path, entry.expected, false, "unknown path");
+      result = probe(entry.id, path, entry.expected, false, "unknown path");
   }
+
+  return { ...result, criterion };
 }
 
 export function loadForgeBaselineFixture(): ForgeBaselineFixture {
-  return baselineFixture as ForgeBaselineFixture;
+  const fixture = baselineFixture as ForgeBaselineFixture;
+  const validation = validateFixtureAgainstContract(fixture);
+  if (!validation.valid) {
+    const detail = validation.issues.map(i => `${i.probeId ?? i.path}: ${i.detail}`).join("; ");
+    throw new Error(`Forge baseline fixture violates typed contract: ${detail}`);
+  }
+  return fixture;
 }
 
 export async function runForgeBaselineProbes(): Promise<BaselineProbeResult[]> {

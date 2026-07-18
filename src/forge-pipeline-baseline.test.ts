@@ -4,13 +4,18 @@ import {
   loadForgeBaselineFixture,
   runForgeBaselineProbes,
   summarizeBaselineMatrix,
+  validateFixtureAgainstContract,
 } from "./forge-baseline-harness.js";
+import { getActiveForgeBaselineContract } from "./forge-baseline-contract.js";
 
-describe("Forge Pipeline Baseline — P01-B01-A01", () => {
-  it("loads versioned baseline fixture", () => {
+describe("Forge Pipeline Baseline — P01-B01-A01 + A02 contract", () => {
+  it("loads versioned baseline fixture aligned with typed contract", () => {
     const fixture = loadForgeBaselineFixture();
+    const contract = getActiveForgeBaselineContract();
     assert.equal(fixture.version, "1.0.0");
     assert.equal(fixture.atom, "P01-B01-A01");
+    assert.equal(fixture.contractAtom, contract.atom);
+    assert.equal(validateFixtureAgainstContract(fixture).valid, true);
     assert.ok(fixture.paths.state.length >= 3);
     assert.ok(fixture.paths.tool.length >= 3);
     assert.ok(fixture.paths.verification.length >= 4);
@@ -28,6 +33,10 @@ describe("Forge Pipeline Baseline — P01-B01-A01", () => {
 
     for (const path of ["state", "tool", "verification", "reviewer", "rollback", "resume"] as const) {
       assert.ok(summary.byPath[path], `missing path summary: ${path}`);
+    }
+
+    for (const result of results) {
+      assert.ok(result.criterion, `probe ${result.id} missing contract criterion`);
     }
   });
 });
