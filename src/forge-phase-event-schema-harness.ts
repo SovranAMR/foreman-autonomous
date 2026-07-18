@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import { execSync } from "node:child_process";
 import phaseEventSchemaFixture from "./fixtures/forge-phase-event-schema-v1.json" with { type: "json" };
 import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 import {
   getForgeP01B03ToB04Handoff,
   getActiveFormalStateMachineContract,
@@ -26,8 +26,11 @@ import {
   validatePhaseEventSchemaFailureRecoveryProbeMatrix,
   summarizePhaseEventSchemaMatrix,
   getActivePhaseEventSchemaContract,
+  summarizePhaseEventSchemaContractCoverage,
   listPhaseEventSchemaProbesByCategory,
   listPhaseEventSchemaProbesByExpected,
+  listPhaseEventSchemaProbesByDisposition,
+  PHASE_EVENT_SCHEMA_CATEGORIES,
   PHASE_EVENT_SCHEMA_FAILURE_RECOVERY_CATEGORIES,
   listPhaseEventSchemaFailureRecoveryProbeIds,
   buildPhaseEventSchemaProbeEvidence,
@@ -38,6 +41,13 @@ import {
   validatePhaseEventSchemaFailureRecoveryRunRecord,
   detectPhaseEventSchemaProbeRegression,
   validateForgePhaseEventSchemaGuard,
+  runPhaseEventSchemaPropertyChecks,
+  runPhaseEventSchemaFuzzValidation,
+  runPhaseEventSchemaRunRecordFuzzValidation,
+  getForgeP01B04BlockGate,
+  getForgeP01B04ToB05Handoff,
+  validatePhaseEventSchemaBlockHandoffContract,
+  buildPhaseEventSchemaBlockGateEvidence,
   type PhaseEventSchemaCategory,
   type PhaseEventSchemaFixture,
   type PhaseEventSchemaProbeResult,
@@ -81,9 +91,18 @@ export {
   detectPhaseEventSchemaProbeRegression,
   summarizePhaseEventSchemaTelemetry,
   validateForgePhaseEventSchemaGuard,
+  runPhaseEventSchemaPropertyChecks,
+  runPhaseEventSchemaFuzzValidation,
+  runPhaseEventSchemaRunRecordFuzzValidation,
+  getForgeP01B04BlockGate,
+  getForgeP01B04ToB05Handoff,
+  validatePhaseEventSchemaBlockHandoffContract,
+  buildPhaseEventSchemaBlockGateEvidence,
   type PhaseEventSchemaGuardCheckResult,
   type PhaseEventSchemaProbeRegressionReport,
   type PhaseEventSchemaRunRecord,
+  type PhaseEventSchemaBlockGateEvidence,
+  type PhaseEventSchemaBlockHandoffContract,
 } from "./forge-phase-event-schema.js";
 
 export type { PhaseEventSchemaProbeRegressionReport } from "./forge-phase-event-schema.js";
@@ -1026,6 +1045,186 @@ export function runForgePhaseEventSchemaRegressionGate(
     validationIssues,
     probeRegression,
     guard,
+    detail: detailParts.join(" | "),
+  };
+}
+
+export interface ForgePhaseEventSchemaBlockGateResult {
+  passed: boolean;
+  evidence: PhaseEventSchemaBlockGateEvidence;
+  handoff: PhaseEventSchemaBlockHandoffContract;
+  regression: ForgePhaseEventSchemaRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealPhaseEventSchemaBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P01-B04 block gate: validate A01–A09 deliverables, regression, guard, and B05 handoff (P01-B04-A10).
+ */
+export function runForgePhaseEventSchemaBlockGate(): ForgePhaseEventSchemaBlockGateResult {
+  const blockGate = getForgeP01B04BlockGate();
+  const handoff = getForgeP01B04ToB05Handoff();
+  const contract = getActivePhaseEventSchemaContract();
+  const fixture = loadPhaseEventSchemaFixture();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validatePhaseEventSchemaFixtureAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A01",
+      "schema_fixture",
+      fixtureValidation.valid && fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizePhaseEventSchemaContractCoverage(contract).totalProbes} probes)`
+        : fixtureValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizePhaseEventSchemaContractCoverage(contract);
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${PHASE_EVENT_SCHEMA_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runPhaseEventSchemaProductionSlice(fixture);
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runPhaseEventSchemaBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.gap > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runPhaseEventSchemaFailureRecoverySlice(fixture);
+  const nogoProbes = listPhaseEventSchemaProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgePhaseEventSchemaRegressionGate();
+  const recordValidation = validatePhaseEventSchemaRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const properties = runPhaseEventSchemaPropertyChecks(contract);
+  const contractFuzz = runPhaseEventSchemaFuzzValidation(fixture, contract);
+  const runFuzz = runPhaseEventSchemaRunRecordFuzzValidation(regression.record, contract);
+  const fuzzOk = properties.allPassed && contractFuzz.allMutationsRejected && runFuzz.mutationsAccepted === 0;
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A07",
+      "property_fuzz",
+      fuzzOk,
+      `properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validatePhaseEventSchemaBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealPhaseEventSchemaBlockAtom(
+      "P01-B04-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildPhaseEventSchemaBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
     detail: detailParts.join(" | "),
   };
 }

@@ -355,6 +355,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01-B04 block gate and emit verification event with B05 handoff (P01-B04-A10).
+   */
+  async verifyForgePhaseEventSchemaBlockGate(): Promise<import("./forge-phase-event-schema-harness.js").ForgePhaseEventSchemaBlockGateResult> {
+    const { runForgePhaseEventSchemaBlockGate } = await import("./forge-phase-event-schema-harness.js");
+    const result = runForgePhaseEventSchemaBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "phase_event_schema_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

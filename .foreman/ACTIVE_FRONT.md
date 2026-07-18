@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B04-A10 — Typed phase/event schema: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P01-B05-A01 — Pipeline invariant engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: Typed phase/event schema block gate kanıtını mühürle ve P01-B05 handoff'unu hazırla.
-target: Block gate validates A01–A09 deliverables, regression, guard, and B05 handoff.
-hypothesis: A09 guard PASS sonrası block gate tüm atom deliverable'larını doğrular ve handoff üretir.
-acceptance: block gate passes; all A01–A09 checks sealed; B05 handoff contract ready.
-commands: npx tsx --test src/forge-phase-event-schema-block-gate.test.ts
-blast_radius: forge-phase-event-schema*.ts
-rollback: A10 değişikliklerini geri al.
+objective: Pipeline invariant engine için mevcut orchestrator invariant davranışını ölç ve failing baseline fixture oluştur.
+target: Sealed P01-B04 phase/event schema artifacts üzerinde invariant baseline fixture.
+hypothesis: B04 handoff sonrası invariant engine A01 failing baseline ile başlayabilir.
+acceptance: fixture exists; probes declare measurable gaps; aligns to B04 sealed contract.
+commands: npx tsx --test src/forge-pipeline-invariant-engine.test.ts
+blast_radius: forge-pipeline-invariant-engine*.ts
+rollback: A01 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B04-A09
+last_atom: P01-B04-A10
 last_commit: pending
-tests: PASS — forge-phase-event-schema guard (38/38)
-evidence: adversarial 3/3 rejected; perf/cost/safety bounds enforced; validateForgePhaseEventSchemaGuard PASS; orchestrator verifyForgePhaseEventSchemaGuard emits phase_event_schema_guard verification
-next: P01-B04-A10
+tests: PASS — forge-phase-event-schema block gate (6/6)
+evidence: runForgePhaseEventSchemaBlockGate seals 10/10 atom checks; FORGE_P01_B04_TO_B05_HANDOFF_V1 targets P01-B05-A01; orchestrator verifyForgePhaseEventSchemaBlockGate emits phase_event_schema_block_gate verification
+next: P01-B05-A01

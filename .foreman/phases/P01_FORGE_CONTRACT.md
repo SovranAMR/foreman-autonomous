@@ -2,8 +2,8 @@
 
 phase_id: P01
 phase_status: ACTIVE
-completed_blocks: 3
-completed_atoms: 39
+completed_blocks: 4
+completed_atoms: 40
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -63,7 +63,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B04-A07 — Typed phase/event schema: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B04-A08 — Typed phase/event schema: Forge entegrasyonu ile regression testini tamamla
 - [x] P01-B04-A09 — Typed phase/event schema: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P01-B04-A10 — Typed phase/event schema: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P01-B04-A10 — Typed phase/event schema: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B05 — Pipeline invariant engine
 
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B04-A09
+last_atom: P01-B04-A10
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts src/forge-phase-event-schema.guard.test.ts` (38/38)
+tests: PASS — `npx tsx --test src/forge-phase-event-schema-block-gate.test.ts` (6/6)
 evidence: |
-  P01-B04-A09 guard gate: runPhaseEventSchemaAdversarialGuardChecks 3/3 tampered records rejected;
-  detectPhaseEventSchemaFalseAlignment and detectPhaseEventSchemaEvidenceSummaryMismatch flag attacks;
-  validateForgePhaseEventSchemaGuard enforces perf/cost/safety bounds on canonical 35-probe matrix;
-  orchestrator verifyForgePhaseEventSchemaGuard emits phase_event_schema_guard verification event.
-next: P01-B04-A10
+  P01-B04-A10 block gate: runForgePhaseEventSchemaBlockGate seals 10/10 atom checks (A01–A09 deliverables + handoff);
+  FORGE_P01_B04_BLOCK_GATE_V1 and FORGE_P01_B04_TO_B05_HANDOFF_V1 target P01-B05-A01 pipeline invariant engine;
+  validatePhaseEventSchemaBlockHandoffContract enforces regression/guard/probeCount; orchestrator verifyForgePhaseEventSchemaBlockGate emits phase_event_schema_block_gate verification.
+next: P01-B05-A01
