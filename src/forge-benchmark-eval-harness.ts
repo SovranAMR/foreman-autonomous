@@ -242,8 +242,8 @@ const BENCHMARK_EVAL_CATEGORY_CONTRACTS: Record<
         id: "bench.benchmark_regression_export",
         category: "eval_suite",
         description: "Orchestrator exports verifyForgeBenchmarkEvalRegression eval gate",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Orchestrator exports verifyForgeBenchmarkEvalRegression eval gate",
       },
     ],
@@ -339,8 +339,8 @@ const BENCHMARK_EVAL_CATEGORY_CONTRACTS: Record<
         id: "bench.eval_harness_orchestrator_wired",
         category: "boundary",
         description: "Orchestrator imports and wires benchmark eval harness for live validation",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Orchestrator imports and wires benchmark eval harness for live validation",
       },
     ],
@@ -1667,5 +1667,58 @@ export function runBenchmarkEvalRunRecordFuzzValidation(
     validBaseline: baseline.valid,
     mutationsRejected,
     mutationsAccepted,
+  };
+}
+
+/** Regression report when comparing two benchmark eval run records (P01-B06-A08). */
+export interface BenchmarkEvalProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare benchmark eval run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectBenchmarkEvalProbeRegression(
+  prior: BenchmarkEvalRunRecord,
+  current: BenchmarkEvalRunRecord,
+): BenchmarkEvalProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression = regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
   };
 }

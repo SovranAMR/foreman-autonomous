@@ -66,12 +66,10 @@ describe("Forge Benchmark Eval Harness — P01-B06-A01", () => {
     assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
 
     const documentedFail = listBenchmarkEvalHarnessProbesByExpected("FAIL", loadBenchmarkEvalHarnessFixture());
-    assert.equal(documentedFail.length, 8);
+    assert.equal(documentedFail.length, 6);
     assert.ok(documentedFail.some(p => p.id === "bench.phase_timing_collector"));
-    assert.ok(documentedFail.some(p => p.id === "bench.benchmark_regression_export"));
     assert.ok(documentedFail.some(p => p.id === "bench.deterministic_eval_seed"));
     assert.ok(documentedFail.some(p => p.id === "bench.fixture_hash_provenance"));
-    assert.ok(documentedFail.some(p => p.id === "bench.eval_harness_orchestrator_wired"));
 
     for (const gap of summary.knownGaps) {
       assert.equal(gap.expected, "FAIL");
@@ -97,9 +95,7 @@ describe("Forge Benchmark Eval Harness — P01-B06-A01", () => {
     const ids = gaps.map(g => g.id).sort();
 
     assert.deepEqual(ids, [
-      "bench.benchmark_regression_export",
       "bench.deterministic_eval_seed",
-      "bench.eval_harness_orchestrator_wired",
       "bench.failure_eval_harness_on_block",
       "bench.fixture_hash_provenance",
       "bench.nogo_eval_gate_on_reject",
@@ -140,15 +136,15 @@ describe("Forge Benchmark Eval Harness Contract — P01-B06-A02", () => {
     }
   });
 
-  it("maps 26 probes with eight documented gap dispositions from A01 baseline", () => {
+  it("maps 26 probes with six documented gap dispositions from A01 baseline", () => {
     const contract = getActiveBenchmarkEvalContract();
     const summary = summarizeBenchmarkEvalContractCoverage(contract);
 
     assert.equal(summary.totalProbes, 26);
-    assert.equal(summary.expectedPass, 18);
-    assert.equal(summary.expectedFail, 8);
-    assert.equal(summary.byDisposition.observed, 12);
-    assert.equal(summary.byDisposition.gap, 8);
+    assert.equal(summary.expectedPass, 20);
+    assert.equal(summary.expectedFail, 6);
+    assert.equal(summary.byDisposition.observed, 14);
+    assert.equal(summary.byDisposition.gap, 6);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
@@ -163,13 +159,11 @@ describe("Forge Benchmark Eval Harness Contract — P01-B06-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
 
-  it("lists eight documented gap probes for benchmark eval harness wiring", () => {
+  it("lists six documented gap probes for benchmark eval harness wiring", () => {
     const gaps = listBenchmarkEvalProbesByDisposition("gap");
     const ids = gaps.map(p => p.id).sort();
     assert.deepEqual(ids, [
-      "bench.benchmark_regression_export",
       "bench.deterministic_eval_seed",
-      "bench.eval_harness_orchestrator_wired",
       "bench.failure_eval_harness_on_block",
       "bench.fixture_hash_provenance",
       "bench.nogo_eval_gate_on_reject",
@@ -225,8 +219,8 @@ describe("Forge Benchmark Eval Harness Production Slice — P01-B06-A03", () => 
     assert.equal(slice.matrixValid, true);
     assert.equal(slice.summary.total, 26);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 18);
-    assert.equal(slice.matrixValidation.gapAligned, 8);
+    assert.equal(slice.matrixValidation.passAligned, 20);
+    assert.equal(slice.matrixValidation.gapAligned, 6);
 
     for (const contractProbe of contract.probes) {
       const result = slice.results.find(r => r.id === contractProbe.id);
@@ -245,13 +239,11 @@ describe("Forge Benchmark Eval Harness Production Slice — P01-B06-A03", () => 
     );
 
     assert.equal(slice.summary.mismatches.length, 0);
-    assert.equal(slice.summary.knownGaps.length, 8);
+    assert.equal(slice.summary.knownGaps.length, 6);
     assert.deepEqual(
       slice.summary.knownGaps.map(g => g.id).sort(),
       [
-        "bench.benchmark_regression_export",
         "bench.deterministic_eval_seed",
-        "bench.eval_harness_orchestrator_wired",
         "bench.failure_eval_harness_on_block",
         "bench.fixture_hash_provenance",
         "bench.nogo_eval_gate_on_reject",
@@ -273,8 +265,8 @@ describe("Forge Benchmark Eval Harness Boundary Slice — P01-B06-A04", () => {
       "bench.observer_wired",
       "bench.quality_metrics_tracked",
     ]);
-    assert.equal(boundary.filter(p => p.expected === "PASS").length, 2);
-    assert.equal(boundary.filter(p => p.disposition === "gap").length, 1);
+    assert.equal(boundary.filter(p => p.expected === "PASS").length, 3);
+    assert.equal(boundary.filter(p => p.disposition === "gap").length, 0);
     assert.ok(boundary.some(p => p.id === "bench.quality_metrics_tracked"));
     assert.ok(boundary.some(p => p.id === "bench.observer_wired"));
   });
@@ -288,8 +280,8 @@ describe("Forge Benchmark Eval Harness Boundary Slice — P01-B06-A04", () => {
     assert.equal(slice.matrixValid, true);
     assert.equal(slice.boundaryResults.length, 3);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 2);
-    assert.equal(slice.matrixValidation.gapAligned, 1);
+    assert.equal(slice.matrixValidation.passAligned, 3);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
 
     for (const boundaryProbe of listBenchmarkEvalProbesByCategory("boundary", contract)) {
       const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
@@ -307,17 +299,17 @@ describe("Forge Benchmark Eval Harness Boundary Slice — P01-B06-A04", () => {
     );
   });
 
-  it("preserves documented boundary gap for eval harness orchestrator wiring", () => {
+  it("confirms boundary eval harness orchestrator wiring is PASS after A08 regression integration", () => {
     const results = runBenchmarkEvalHarnessProbes();
     const boundary = results.filter(r => r.category === "boundary");
 
     assert.equal(boundary.length, 3);
     assert.equal(boundary.every(r => r.aligned), true);
 
-    const wiringGap = boundary.find(r => r.id === "bench.eval_harness_orchestrator_wired");
-    assert.ok(wiringGap);
-    assert.equal(wiringGap!.expected, "FAIL");
-    assert.equal(wiringGap!.actual, "FAIL");
+    const wiring = boundary.find(r => r.id === "bench.eval_harness_orchestrator_wired");
+    assert.ok(wiring);
+    assert.equal(wiring!.expected, "PASS");
+    assert.equal(wiring!.actual, "PASS");
 
     const qualityMetrics = boundary.find(r => r.id === "bench.quality_metrics_tracked");
     assert.ok(qualityMetrics);
@@ -389,7 +381,7 @@ describe("Forge Benchmark Eval Harness Failure/Recovery Slice — P01-B06-A05", 
     const summary = summarizeBenchmarkEvalHarnessMatrix(results);
 
     assert.equal(summary.total, 26);
-    assert.equal(summary.knownGaps.length, 8);
+    assert.equal(summary.knownGaps.length, 6);
     assert.equal(summary.mismatches.length, 0, formatMismatchReport(summary.mismatches));
 
     const probeIds = listBenchmarkEvalFailureRecoveryProbeIds();

@@ -63,7 +63,7 @@
       "id": "bench.benchmark_regression_export",
       "category": "eval_suite",
       "description": "Orchestrator exports verifyForgeBenchmarkEvalRegression eval gate",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "bench.pipeline_resume_checkpoint",
@@ -111,7 +111,7 @@
       "id": "bench.eval_harness_orchestrator_wired",
       "category": "boundary",
       "description": "Orchestrator imports and wires benchmark eval harness for live validation",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "bench.failure_pipeline_timing_on_block",

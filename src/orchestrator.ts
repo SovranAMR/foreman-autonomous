@@ -248,6 +248,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge benchmark eval harness regression gate and emit verification event (P01-B06-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeBenchmarkEvalRegression(
+    priorRecord?: import("./forge-benchmark-eval-harness.js").BenchmarkEvalRunRecord,
+  ): Promise<import("./forge-benchmark-eval-harness.probe.js").ForgeBenchmarkEvalRegressionResult> {
+    const { runForgeBenchmarkEvalRegressionGate } = await import("./forge-benchmark-eval-harness.probe.js");
+    const result = runForgeBenchmarkEvalRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "benchmark_eval_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge pipeline invariant engine guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B05-A09).
    */
   async verifyForgePipelineInvariantEngineGuard(

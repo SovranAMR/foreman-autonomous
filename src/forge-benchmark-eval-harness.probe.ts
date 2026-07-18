@@ -37,6 +37,7 @@ import {
   runBenchmarkEvalFuzzValidation,
   runBenchmarkEvalRunRecordFuzzValidation,
   createBenchmarkEvalFuzzRng,
+  detectBenchmarkEvalProbeRegression,
   type BenchmarkEvalCategory,
   type BenchmarkEvalFixture,
   type BenchmarkEvalProbeMatrixValidationResult,
@@ -65,6 +66,7 @@ export {
   runBenchmarkEvalFuzzValidation,
   runBenchmarkEvalRunRecordFuzzValidation,
   createBenchmarkEvalFuzzRng,
+  detectBenchmarkEvalProbeRegression,
   summarizeBenchmarkEvalHarnessMatrix,
   summarizeBenchmarkEvalContractCoverage,
   listBenchmarkEvalHarnessProbesByExpected,
@@ -77,6 +79,7 @@ export {
   BENCHMARK_EVAL_A01_MIN_PROBES,
   buildDefaultBenchmarkEvalSourcePipelineInvariantEngine,
   type BenchmarkEvalRunRecord,
+  type BenchmarkEvalProbeRegressionReport,
 } from "./forge-benchmark-eval-harness.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -405,9 +408,8 @@ function probeBoundary(
     }
     case "bench.eval_harness_orchestrator_wired": {
       const ok =
-        src.includes("forge-benchmark-eval-harness") &&
-        (src.includes("verifyForgeBenchmarkEvalRegression") ||
-          src.includes("runBenchmarkEvalHarnessProbes"));
+        src.includes("verifyForgeBenchmarkEvalRegression") ||
+        src.includes("runForgeBenchmarkEvalRegressionGate");
       return probe(
         id,
         category,
@@ -457,9 +459,7 @@ function probeFailurePath(
       );
     }
     case "bench.failure_eval_harness_on_block": {
-      const ok =
-        src.includes("validateEvalOnBlock") ||
-        (src.includes("forge-benchmark-eval-harness") && src.includes("block_detected"));
+      const ok = src.includes("validateEvalOnBlock");
       return probe(
         id,
         category,
@@ -505,9 +505,7 @@ function probeRecoveryPath(
       );
     }
     case "bench.recovery_eval_baseline_reset": {
-      const ok =
-        src.includes("resetEvalBaseline") ||
-        (src.includes("forge-benchmark-eval-harness") && src.includes("recovery"));
+      const ok = src.includes("resetEvalBaseline");
       return probe(
         id,
         category,
@@ -558,10 +556,7 @@ function probeNogoPath(
       );
     }
     case "bench.nogo_eval_gate_on_reject": {
-      const ok =
-        src.includes("validateEvalOnReject") ||
-        (src.includes("forge-benchmark-eval-harness") &&
-          src.includes('verdict === "REJECT"'));
+      const ok = src.includes("validateEvalOnReject");
       return probe(
         id,
         category,
@@ -832,3 +827,56 @@ export function runBenchmarkEvalFailureRecoverySlice(
     matrixValidation,
   };
 }
+
+/** Run all benchmark eval harness probes and emit auditable evidence, telemetry and provenance (P01-B06-A08). */
+export function runBenchmarkEvalHarnessProbesWithRecord(
+  fixture: BenchmarkEvalFixture = loadBenchmarkEvalHarnessFixture(),
+): BenchmarkEvalRunRecord {
+  const contract = getActiveBenchmarkEvalContract();
+  return buildBenchmarkEvalRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+export interface ForgeBenchmarkEvalRegressionResult {
+  passed: boolean;
+  record: BenchmarkEvalRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: BenchmarkEvalProbeRegressionReport | null;
+  detail: string;
+}
+
+/**
+ * Execute benchmark eval harness probes, validate run record, and optionally detect regression vs prior run.
+ * Forge pipeline integration gate (P01-B06-A08).
+ */
+export function runForgeBenchmarkEvalRegressionGate(
+  priorRecord?: BenchmarkEvalRunRecord,
+): ForgeBenchmarkEvalRegressionResult {
+  const record = runBenchmarkEvalHarnessProbesWithRecord();
+  const validation = validateBenchmarkEvalRunRecord(record);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord ? detectBenchmarkEvalProbeRegression(priorRecord, record) : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const passed = recordValid && !alignmentRegression;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+
+  return {
+    passed,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P01-B06-A08). */
+export const runBenchmarkEvalRegressionIntegration = runForgeBenchmarkEvalRegressionGate;

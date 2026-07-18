@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B06
-active_atom: P01-B06-A08
+active_atom: P01-B06-A09
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 56/1000
-phase_progress: 55/100
-block_progress: 7/10
+program_progress: 57/1000
+phase_progress: 56/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B06-A08 — Benchmark ve eval harness: Forge entegrasyonu ile regression testini tamamla.
+P01-B06-A09 — Benchmark ve eval harness: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: A07 property/fuzz slice üzerine orchestrator regression integration gate uygula.
-target: runBenchmarkEvalRegressionIntegration; forge-pipeline-regression.integration.test.ts benchmark eval slice.
-hypothesis: Sealed benchmark eval harness probes survive orchestrator wiring without unexpected mismatches.
-acceptance: regression integration test PASS; benchmark eval slice wired in orchestrator seam.
-commands: npx tsx --test src/forge-pipeline-regression.integration.test.ts
-blast_radius: forge-benchmark-eval-harness*.ts, forge-pipeline-regression.integration.test.ts, orchestrator.ts
-rollback: A08 regression integration değişikliklerini geri al.
+objective: A08 regression integration üzerine benchmark eval guard gate uygula.
+target: validateForgeBenchmarkEvalGuard; verifyForgeBenchmarkEvalGuard orchestrator seam.
+hypothesis: Sealed benchmark eval run record survives adversarial/perf/cost/safety guard without false PASS.
+acceptance: guard test PASS; orchestrator verifyForgeBenchmarkEvalGuard wired.
+commands: npx tsx --test src/forge-benchmark-eval-harness.guard.test.ts
+blast_radius: forge-benchmark-eval-harness*.ts, orchestrator.ts
+rollback: A09 guard değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: slice uygulanamazsa BLOCKED raporla.
+fallback: guard uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B06-A07
-last_commit: c51d773
-tests: PASS — forge-benchmark-eval-harness.test.ts (22/22)
-evidence: runBenchmarkEvalPropertyChecks; runBenchmarkEvalFuzzValidation; runBenchmarkEvalRunRecordFuzzValidation; validateBenchmarkEvalFailureRecoveryRunRecord property gate; 8 properties; 24 fixture mutations rejected; 5 run record mutations rejected on A06 slice
-next: P01-B06-A08
+last_atom: P01-B06-A08
+last_commit: PENDING
+tests: PASS — forge-pipeline-regression.integration.test.ts (5/5 B06-A08 slice); forge-benchmark-eval-harness.test.ts (22/22)
+evidence: runForgeBenchmarkEvalRegressionGate; runBenchmarkEvalRegressionIntegration; detectBenchmarkEvalProbeRegression; verifyForgeBenchmarkEvalRegression orchestrator seam; 26/26 probes aligned; benchmark_regression_export + eval_harness_orchestrator_wired gap closed
+next: P01-B06-A09
