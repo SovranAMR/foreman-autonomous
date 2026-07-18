@@ -1334,5 +1334,410 @@ export function summarizePhaseEventSchemaTelemetry(
   return { suiteDurationMs, maxProbeDurationMs };
 }
 
+// ─── Property and fuzz validation (P01-B04-A07) ─────────────────────────────
+
+export interface PhaseEventSchemaPropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface PhaseEventSchemaPropertyResult {
+  passed: number;
+  failed: PhaseEventSchemaPropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type PhaseEventSchemaPropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: PhaseEventSchemaContract) => string | null;
+};
+
+const PHASE_EVENT_SCHEMA_STRUCTURAL_PROPERTIES: readonly PhaseEventSchemaPropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All ten phase/event schema categories are declared",
+    check: contract => {
+      for (const category of PHASE_EVENT_SCHEMA_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listPhaseEventSchemaContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of PHASE_EVENT_SCHEMA_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description:
+      "summarizePhaseEventSchemaContractCoverage totals match listPhaseEventSchemaContractProbeIds",
+    check: contract => {
+      const summary = summarizePhaseEventSchemaContractCoverage(contract);
+      const ids = listPhaseEventSchemaContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with schema. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("schema.")) {
+          return `${probe.id} missing schema. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const probeIds = listPhaseEventSchemaContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildPhaseEventSchemaProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildPhaseEventSchemaProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildPhaseEventSchemaRunRecord(
+        buildPhaseEventSchemaProvenance(
+          "property-check",
+          {
+            version: "0",
+            atom: "x",
+            purpose: "x",
+            sourceFormalStateMachine: buildDefaultPhaseEventSchemaSourceFormalStateMachine(),
+            probes: [],
+          },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runPhaseEventSchemaPropertyChecks(
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): PhaseEventSchemaPropertyResult {
+  const failed: PhaseEventSchemaPropertyViolation[] = [];
+  for (const property of PHASE_EVENT_SCHEMA_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = PHASE_EVENT_SCHEMA_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type PhaseEventSchemaFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface PhaseEventSchemaFuzzMutationCase {
+  seed: number;
+  kind: PhaseEventSchemaFuzzMutationKind;
+  probeId?: string;
+  category?: PhaseEventSchemaCategory;
+}
+
+export interface PhaseEventSchemaFuzzValidationCaseResult {
+  mutation: PhaseEventSchemaFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface PhaseEventSchemaFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: PhaseEventSchemaFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createPhaseEventSchemaFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function clonePhaseEventSchemaFixture(fixture: PhaseEventSchemaFixture): PhaseEventSchemaFixture {
+  return {
+    ...fixture,
+    sourceFormalStateMachine: { ...fixture.sourceFormalStateMachine },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickPhaseEventSchemaFuzzTarget(
+  fixture: PhaseEventSchemaFixture,
+  rng: () => number,
+): { category: PhaseEventSchemaCategory; index: number; entry: PhaseEventSchemaFixtureEntry } {
+  const category = PHASE_EVENT_SCHEMA_CATEGORIES[Math.floor(rng() * PHASE_EVENT_SCHEMA_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyPhaseEventSchemaFuzzMutation(
+  fixture: PhaseEventSchemaFixture,
+  mutation: PhaseEventSchemaFuzzMutationCase,
+): PhaseEventSchemaFixture {
+  const mutated = clonePhaseEventSchemaFixture(fixture);
+  const targetCategory = mutation.category ?? PHASE_EVENT_SCHEMA_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `schema.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = PHASE_EVENT_SCHEMA_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generatePhaseEventSchemaFuzzMutationCases(
+  fixture: PhaseEventSchemaFixture,
+  seed: number,
+  iterations: number,
+): PhaseEventSchemaFuzzMutationCase[] {
+  const rng = createPhaseEventSchemaFuzzRng(seed);
+  const kinds: PhaseEventSchemaFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: PhaseEventSchemaFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickPhaseEventSchemaFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P01-B04-A07). */
+export function runPhaseEventSchemaFuzzValidation(
+  fixture: PhaseEventSchemaFixture,
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+  seed = 42,
+  iterations = 24,
+): PhaseEventSchemaFuzzValidationResult {
+  const cases = generatePhaseEventSchemaFuzzMutationCases(fixture, seed, iterations);
+  const results: PhaseEventSchemaFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyPhaseEventSchemaFuzzMutation(fixture, mutation);
+    const validation = validatePhaseEventSchemaFixtureAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type PhaseEventSchemaRunRecordFuzzKind = "drop_evidence" | "drop_telemetry" | "wrong_total";
+
+export interface PhaseEventSchemaRunRecordFuzzCase {
+  kind: PhaseEventSchemaRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyPhaseEventSchemaRunRecordFuzzMutation(
+  record: PhaseEventSchemaRunRecord,
+  mutation: PhaseEventSchemaRunRecordFuzzCase,
+): PhaseEventSchemaRunRecord {
+  const cloned: PhaseEventSchemaRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+  }
+
+  cloned.summary = buildPhaseEventSchemaRunRecord(cloned.provenance, cloned.evidence, cloned.telemetry).summary;
+  return cloned;
+}
+
+export function runPhaseEventSchemaRunRecordFuzzValidation(
+  record: PhaseEventSchemaRunRecord,
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const baseline = validatePhaseEventSchemaRunRecord(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: PhaseEventSchemaRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyPhaseEventSchemaRunRecordFuzzMutation(record, mutation);
+    const validation = validatePhaseEventSchemaRunRecord(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}
+
 /** Re-export for harness probe registry checks. */
 export { FORGE_PIPELINE_CORE_PHASES };

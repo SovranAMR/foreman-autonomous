@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 36
+completed_atoms: 37
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -60,7 +60,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B04-A04 — Typed phase/event schema: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B04-A05 — Typed phase/event schema: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B04-A06 — Typed phase/event schema: evidence, telemetry ve provenance kaydını ekle
-- [ ] P01-B04-A07 — Typed phase/event schema: unit, property ve fuzz doğrulamasını ekle
+- [x] P01-B04-A07 — Typed phase/event schema: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B04-A08 — Typed phase/event schema: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B04-A09 — Typed phase/event schema: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B04-A10 — Typed phase/event schema: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B04-A06
+last_atom: P01-B04-A07
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (20/20)
+tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts src/forge-phase-event-schema.property-fuzz.test.ts` (26/26)
 evidence: |
-  P01-B04-A06 evidence/telemetry/provenance: buildPhaseEventSchemaRunRecord + validatePhaseEventSchemaRunRecord;
-  failure/recovery slice record via runPhaseEventSchemaFailureRecoverySliceWithRecord (sliceAtom=P01-B04-A06, 9 probes);
-  full run record via runPhaseEventSchemaProbesWithRecord (35 probes, 6 gap dispositions);
-  per-probe evidence with criterion/disposition; non-negative telemetry; provenance lineage to fixture and B03 FSM.
-next: P01-B04-A07
+  P01-B04-A07 property/fuzz: runPhaseEventSchemaPropertyChecks (7 structural properties);
+  runPhaseEventSchemaFuzzValidation rejects 24/24 fixture mutations per seed (42, 99, 20260718);
+  runPhaseEventSchemaRunRecordFuzzValidation rejects drop_evidence, drop_telemetry, wrong_total;
+  canonical contract and run record baselines pass validation.
+next: P01-B04-A08

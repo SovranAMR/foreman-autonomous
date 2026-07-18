@@ -33,6 +33,11 @@ import {
   buildPhaseEventSchemaProvenance,
   buildPhaseEventSchemaRunRecord,
 } from "./forge-phase-event-schema-harness.js";
+import {
+  runPhaseEventSchemaFuzzValidation,
+  runPhaseEventSchemaPropertyChecks,
+  runPhaseEventSchemaRunRecordFuzzValidation,
+} from "./forge-phase-event-schema.js";
 
 describe("Forge Phase/Event Schema — P01-B04-A01", () => {
   it("loads versioned phase/event schema fixture aligned with B03 handoff", () => {
@@ -530,6 +535,28 @@ describe("Forge Phase/Event Schema Evidence — P01-B04-A06", () => {
           item.disposition === "nogo",
       );
     }
+  });
+});
+
+describe("Forge Phase/Event Schema Property/Fuzz — P01-B04-A07", () => {
+  it("passes structural property checks on canonical contract", () => {
+    const contract = getActivePhaseEventSchemaContract();
+    const result = runPhaseEventSchemaPropertyChecks(contract);
+    assert.equal(result.allPassed, true, result.failed.map(f => `${f.propertyId}: ${f.detail}`).join("\n"));
+  });
+
+  it("rejects fuzz-mutated fixtures and corrupted run records", () => {
+    const fixture = loadPhaseEventSchemaFixture();
+    const contract = getActivePhaseEventSchemaContract();
+    const record = runPhaseEventSchemaProbesWithRecord();
+
+    const fuzz = runPhaseEventSchemaFuzzValidation(fixture, contract, 42, 24);
+    assert.equal(fuzz.allMutationsRejected, true);
+
+    const runFuzz = runPhaseEventSchemaRunRecordFuzzValidation(record, contract);
+    assert.equal(runFuzz.validBaseline, true);
+    assert.equal(runFuzz.mutationsAccepted, 0);
+    assert.equal(runFuzz.mutationsRejected, 3);
   });
 });
 
