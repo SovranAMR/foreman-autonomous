@@ -14,6 +14,11 @@ import {
   validateBenchmarkEvalBoundaryProbeMatrix,
   validateBenchmarkEvalFailureRecoveryProbeMatrix,
   validateBenchmarkEvalFailureRecoveryRunRecord,
+  validateBenchmarkEvalRunRecord,
+  runBenchmarkEvalPropertyChecks,
+  runBenchmarkEvalFuzzValidation,
+  runBenchmarkEvalRunRecordFuzzValidation,
+  createBenchmarkEvalFuzzRng,
   buildBenchmarkEvalProbeEvidence,
   buildBenchmarkEvalProbeTelemetry,
   buildBenchmarkEvalProvenance,
@@ -27,6 +32,7 @@ import {
   getActiveBenchmarkEvalContract,
   getBenchmarkEvalCategoryContract,
   summarizeBenchmarkEvalContractCoverage,
+  FORGE_BENCHMARK_EVAL_CONTRACT_V1,
   BENCHMARK_EVAL_CATEGORIES,
   BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-benchmark-eval-harness.probe.js";
@@ -500,5 +506,86 @@ describe("Forge Benchmark Eval Harness Run Record — P01-B06-A06", () => {
       assert.equal(item.aligned, true);
       assert.ok(item.recordedAt.length > 10);
     }
+  });
+});
+
+describe("Forge Benchmark Eval Harness Property/Fuzz — P01-B06-A07", () => {
+  it("passes structural property checks on canonical contract", () => {
+    const contract = getActiveBenchmarkEvalContract();
+    const result = runBenchmarkEvalPropertyChecks(contract);
+    assert.equal(result.allPassed, true, result.failed.map(f => `${f.propertyId}: ${f.detail}`).join("\n"));
+    assert.equal(result.total, 8);
+  });
+
+  it("createBenchmarkEvalFuzzRng is deterministic for reproducible fuzz seeds", () => {
+    const rngA = createBenchmarkEvalFuzzRng(1337);
+    const rngB = createBenchmarkEvalFuzzRng(1337);
+    const seqA = Array.from({ length: 5 }, () => rngA());
+    const seqB = Array.from({ length: 5 }, () => rngB());
+    assert.deepEqual(seqA, seqB);
+    assert.notDeepEqual(seqA, Array.from({ length: 5 }, () => createBenchmarkEvalFuzzRng(1338)()));
+  });
+
+  it("rejects fuzz-mutated fixtures and corrupted failure/recovery run records", () => {
+    const fixture = loadBenchmarkEvalHarnessFixture();
+    const contract = getActiveBenchmarkEvalContract();
+    const record = runBenchmarkEvalFailureRecoverySliceWithRecord();
+
+    const fuzz = runBenchmarkEvalFuzzValidation(fixture, contract, 42, 24);
+    assert.equal(fuzz.allMutationsRejected, true);
+    assert.equal(fuzz.rejected, 24);
+
+    const runFuzz = runBenchmarkEvalRunRecordFuzzValidation(record, contract);
+    assert.equal(runFuzz.validBaseline, true);
+    assert.equal(runFuzz.mutationsAccepted, 0);
+    assert.equal(runFuzz.mutationsRejected, 5);
+
+    const validation = validateBenchmarkEvalFailureRecoveryRunRecord(record, contract);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+  });
+
+  it("validates full contract run record and rejects tampered evidence/telemetry/provenance", () => {
+    const contract = getActiveBenchmarkEvalContract();
+    const fixture = loadBenchmarkEvalHarnessFixture();
+    const probeIds = listBenchmarkEvalContractProbeIds(contract);
+    const startedAt = "2026-07-18T23:00:00.000Z";
+    const completedAt = "2026-07-18T23:00:01.000Z";
+
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildBenchmarkEvalProbeEvidence(
+        id,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "synthetic",
+        probe.disposition,
+        startedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildBenchmarkEvalProbeTelemetry(id, probe.category, index, index * 0.05);
+    });
+
+    const provenance = buildBenchmarkEvalProvenance(
+      "property-fuzz-full-run",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+    );
+    const record = buildBenchmarkEvalRunRecord(provenance, evidence, telemetry);
+
+    assert.equal(validateBenchmarkEvalRunRecord(record, contract).valid, true);
+
+    const runFuzz = runBenchmarkEvalRunRecordFuzzValidation(record, contract);
+    assert.equal(runFuzz.validBaseline, true);
+    assert.equal(runFuzz.mutationsAccepted, 0);
+    assert.equal(runFuzz.mutationsRejected, 3);
   });
 });

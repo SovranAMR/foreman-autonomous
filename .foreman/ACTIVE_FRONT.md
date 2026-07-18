@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B06
-active_atom: P01-B06-A06
+active_atom: P01-B06-A08
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 55/1000
-phase_progress: 54/100
-block_progress: 6/10
+program_progress: 56/1000
+phase_progress: 55/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B06-A07 — Benchmark ve eval harness: unit, property ve fuzz doğrulamasını ekle.
+P01-B06-A08 — Benchmark ve eval harness: Forge entegrasyonu ile regression testini tamamla.
 
-objective: A06 failure/recovery run record slice üzerine unit/property/fuzz validation slice uygula.
-target: runBenchmarkEvalRunRecordFuzzValidation; validateBenchmarkEvalFailureRecoveryRunRecord property cases.
-hypothesis: Run record fuzz mutations reject tampered evidence/telemetry/provenance deterministically.
-acceptance: run record fuzz test PASS; property validation PASS.
-commands: npx tsx --test src/forge-benchmark-eval-harness.test.ts
-blast_radius: forge-benchmark-eval-harness*.ts
-rollback: A07 fuzz/property slice değişikliklerini geri al.
+objective: A07 property/fuzz slice üzerine orchestrator regression integration gate uygula.
+target: runBenchmarkEvalRegressionIntegration; forge-pipeline-regression.integration.test.ts benchmark eval slice.
+hypothesis: Sealed benchmark eval harness probes survive orchestrator wiring without unexpected mismatches.
+acceptance: regression integration test PASS; benchmark eval slice wired in orchestrator seam.
+commands: npx tsx --test src/forge-pipeline-regression.integration.test.ts
+blast_radius: forge-benchmark-eval-harness*.ts, forge-pipeline-regression.integration.test.ts, orchestrator.ts
+rollback: A08 regression integration değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B06-A06
-last_commit: 367b1ea
-tests: PASS — forge-benchmark-eval-harness.test.ts (18/18)
-evidence: runBenchmarkEvalFailureRecoverySliceWithRecord; validateBenchmarkEvalFailureRecoveryRunRecord; 9 probes with evidence/telemetry/provenance; sliceAtom P01-B06-A06; harnessVersion 1.0.0-a06
-next: P01-B06-A07
+last_atom: P01-B06-A07
+last_commit: 9a8473c
+tests: PASS — forge-benchmark-eval-harness.test.ts (22/22)
+evidence: runBenchmarkEvalPropertyChecks; runBenchmarkEvalFuzzValidation; runBenchmarkEvalRunRecordFuzzValidation; validateBenchmarkEvalFailureRecoveryRunRecord property gate; 8 properties; 24 fixture mutations rejected; 5 run record mutations rejected on A06 slice
+next: P01-B06-A08

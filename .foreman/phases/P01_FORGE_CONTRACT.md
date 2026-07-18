@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 55
+completed_atoms: 56
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -86,7 +86,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B06-A05 — Benchmark ve eval harness: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B06-A06 — Benchmark ve eval harness: evidence, telemetry ve provenance kaydını ekle
-- [ ] P01-B06-A07 — Benchmark ve eval harness: unit, property ve fuzz doğrulamasını ekle
+- [x] P01-B06-A07 — Benchmark ve eval harness: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B06-A08 — Benchmark ve eval harness: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B06-A09 — Benchmark ve eval harness: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B06-A10 — Benchmark ve eval harness: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B06-A06
-last_commit: 367b1ea
-tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (18/18)
+last_atom: P01-B06-A07
+last_commit: 9a8473c
+tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (22/22)
 evidence: |
-  P01-B06-A06 failure/recovery run record slice: runBenchmarkEvalFailureRecoverySliceWithRecord with 9 probes;
-  validateBenchmarkEvalFailureRecoveryRunRecord gate — evidence/telemetry/provenance contract-wired;
-  sliceAtom P01-B06-A06; harnessVersion 1.0.0-a06; buildBenchmarkEvalProvenance with B05 source lineage;
-  summary mismatches=0; disposition breakdown failure/recovery/nogo/gap preserved.
-next: P01-B06-A07
+  P01-B06-A07 property/fuzz slice: runBenchmarkEvalPropertyChecks (8 structural properties including failure_recovery_run_record_gate);
+  runBenchmarkEvalFuzzValidation rejects 24/24 fixture mutations deterministically;
+  runBenchmarkEvalRunRecordFuzzValidation rejects tampered evidence/telemetry/provenance/sliceAtom/sliceCategories on A06 failure/recovery record (5/5);
+  validateBenchmarkEvalFailureRecoveryRunRecord property gate PASS on canonical contract.
+next: P01-B06-A08
