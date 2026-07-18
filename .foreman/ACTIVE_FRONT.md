@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B02-A07
-last_commit: PENDING
+last_commit: 1eadedc
 tests: PASS — forge-pipeline-behavior-map (17/17), forge-pipeline-behavior-map.property-fuzz (4/4), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: runBehaviorMapPropertyChecks (7 structural properties), runBehaviorMapFuzzValidation (72/72 mutations rejected), runBehaviorMapRunRecordFuzzValidation (3/3 corrupted records rejected); contract atom P01-B02-A07
 next: P01-B02-A08

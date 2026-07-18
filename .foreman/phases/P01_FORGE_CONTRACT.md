@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B02-A07
-last_commit: PENDING
+last_commit: 1eadedc
 tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (17/17), `src/forge-pipeline-behavior-map.property-fuzz.test.ts` (4/4), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
   P01-B02-A07 property/fuzz slice: runBehaviorMapPropertyChecks (7 structural invariants),
