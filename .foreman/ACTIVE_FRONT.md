@@ -44,7 +44,7 @@ fallback: property/fuzz path seçilemezse BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A06
-last_commit: 01804fd
+last_commit: f14d936
 tests: PASS — forge-baseline-contract (8/8), forge-pipeline-baseline (3/3), evidence run record 27/27 validated
 evidence: ForgeProbeEvidence/Telemetry/Provenance typed; runForgeBaselineProbesWithRecord; validateBaselineRunRecord; git commit in provenance
 next: P01-B01-A07

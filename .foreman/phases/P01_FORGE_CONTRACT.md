@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A06
-last_commit: 01804fd
+last_commit: f14d936
 tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3)
 evidence: |
   P01-B01-A06 evidence/telemetry/provenance slice: ForgeProbeEvidence, ForgeProbeTelemetry,
