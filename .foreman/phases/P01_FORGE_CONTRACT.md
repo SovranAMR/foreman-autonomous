@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B06-A06
-last_commit: pending
+last_commit: 367b1ea
 tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (18/18)
 evidence: |
   P01-B06-A06 failure/recovery run record slice: runBenchmarkEvalFailureRecoverySliceWithRecord with 9 probes;

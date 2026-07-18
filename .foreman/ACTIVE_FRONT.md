@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B06-A06
-last_commit: pending
+last_commit: 367b1ea
 tests: PASS — forge-benchmark-eval-harness.test.ts (18/18)
 evidence: runBenchmarkEvalFailureRecoverySliceWithRecord; validateBenchmarkEvalFailureRecoveryRunRecord; 9 probes with evidence/telemetry/provenance; sliceAtom P01-B06-A06; harnessVersion 1.0.0-a06
 next: P01-B06-A07
