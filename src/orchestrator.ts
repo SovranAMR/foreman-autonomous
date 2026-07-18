@@ -248,6 +248,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge pipeline invariant engine guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B05-A09).
+   */
+  async verifyForgePipelineInvariantEngineGuard(
+    priorRecord?: import("./forge-pipeline-invariant-engine.js").PipelineInvariantEngineRunRecord,
+  ): Promise<import("./forge-pipeline-invariant-engine-harness.js").ForgePipelineInvariantEngineRegressionResult> {
+    const { runForgePipelineInvariantEngineRegressionGate } = await import("./forge-pipeline-invariant-engine-harness.js");
+    const result = runForgePipelineInvariantEngineRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "pipeline_invariant_engine_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge baseline guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B01-A09).
    */
   async verifyForgeBaselineGuard(

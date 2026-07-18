@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 4
-completed_atoms: 47
+completed_atoms: 48
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -75,7 +75,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B05-A06 — Pipeline invariant engine: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B05-A07 — Pipeline invariant engine: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B05-A08 — Pipeline invariant engine: Forge entegrasyonu ile regression testini tamamla
-- [ ] P01-B05-A09 — Pipeline invariant engine: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P01-B05-A09 — Pipeline invariant engine: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B05-A10 — Pipeline invariant engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B06 — Benchmark ve eval harness
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B05-A08
+last_atom: P01-B05-A09
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts src/forge-pipeline-regression.integration.test.ts` (34/34)
+tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.guard.test.ts src/forge-pipeline-invariant-engine.test.ts` (30/30)
 evidence: |
-  P01-B05-A08 regression slice: runForgePipelineInvariantEngineRegressionGate 32/32 probes aligned;
-  detectPipelineInvariantEngineProbeRegression flags newly misaligned probes;
-  verifyForgePipelineInvariantEngineRegression emits pipeline_invariant_engine_regression verification;
-  validateForgePipelineInvariantEngineGuard PASS with 3/3 adversarial scenarios rejected.
-next: P01-B05-A09
+  P01-B05-A09 guard slice: validateForgePipelineInvariantEngineGuard PASS with bounded perf/cost/safety metrics;
+  runPipelineInvariantEngineAdversarialGuardChecks rejects 3/3 tampered scenarios (false_alignment, summary_mismatch, dropped_probe);
+  verifyForgePipelineInvariantEngineGuard emits pipeline_invariant_engine_guard verification with guard PASS detail.
+next: P01-B05-A10
