@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B03-A01
-last_commit: 6afc331
+last_commit: 36a330f
 tests: PASS — forge-formal-state-machine (3/3), forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (23/23)
 evidence: forge-formal-state-machine-v1 fixture (20 probes, 6 categories), runFormalStateMachineProbes documents 2 known FAIL gaps (fsm.orch_blocked_sync, fsm.orch_awaiting_human_sync), 18 PASS probes aligned
 next: P01-B03-A02

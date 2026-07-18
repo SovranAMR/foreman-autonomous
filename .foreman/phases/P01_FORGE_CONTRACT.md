@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B03-A01
-last_commit: 6afc331
+last_commit: 36a330f
 tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (3/3)
 evidence: |
   P01-B03-A01 baseline slice: forge-formal-state-machine-v1 fixture (20 probes, 6 categories) loads and validates
