@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P01-B03-A01",
-  "contractAtom": "P01-B03-A02",
+  "contractAtom": "P01-B03-A04",
   "purpose": "Formal orchestrator state machine baseline measured against VALID_TRANSITIONS (includes documented FAIL gaps).",
   "sourceBehaviorMap": {
     "version": "1.0.0",
@@ -129,6 +129,42 @@
       "id": "fsm.b02_behavior_map_sealed",
       "category": "baseline_link",
       "description": "Sealed B02 behavior map contract probe count matches handoff artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.boundary_reflecting_replan_visioning",
+      "category": "boundary",
+      "description": "reflecting→visioning replan edge transition succeeds",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.boundary_verifying_terminal_complete",
+      "category": "boundary",
+      "description": "verifying→complete terminal success edge transition succeeds",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.boundary_blocked_escalate_awaiting_human",
+      "category": "boundary",
+      "description": "blocked→awaiting_human failure escalation edge succeeds",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.boundary_complete_restart_idle",
+      "category": "boundary",
+      "description": "complete→idle session restart edge succeeds",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.boundary_rejects_idle_to_complete",
+      "category": "boundary",
+      "description": "idle→complete invalid jump rejected without mutation",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.boundary_rejects_complete_to_executing",
+      "category": "boundary",
+      "description": "complete→executing invalid jump rejected without mutation",
       "expected": "PASS"
     }
   ]

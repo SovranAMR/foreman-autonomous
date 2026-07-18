@@ -12,7 +12,7 @@ import {
   FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1,
 } from "./forge-pipeline-behavior-map.js";
 
-export const FORGE_FORMAL_STATE_MACHINE_HARNESS_VERSION = "1.0.0-a03";
+export const FORGE_FORMAL_STATE_MACHINE_HARNESS_VERSION = "1.0.0-a04";
 
 /** Probe disposition — observed behavior, documented gap, or resilience path class. */
 export type FormalStateMachineProbeDisposition =
@@ -29,6 +29,7 @@ export const FORMAL_STATE_MACHINE_CATEGORIES = [
   "failure_state",
   "recovery_state",
   "baseline_link",
+  "boundary",
 ] as const;
 
 export type FormalStateMachineCategory = (typeof FORMAL_STATE_MACHINE_CATEGORIES)[number];
@@ -132,6 +133,7 @@ export const FORMAL_STATE_MACHINE_A01_MIN_PROBES: Readonly<
   failure_state: 2,
   recovery_state: 2,
   baseline_link: 2,
+  boundary: 4,
 };
 
 function flattenFormalStateMachineCategoryProbes(
@@ -370,12 +372,71 @@ const FORMAL_STATE_MACHINE_CATEGORY_CONTRACTS: Record<
       },
     ],
   },
+  boundary: {
+    category: "boundary",
+    acceptance: {
+      invariant:
+        "StateManager accepts graph edge transitions (replan, terminal, escalation, restart) and rejects invalid jumps without mutating state.",
+      minProbeCount: 4,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "fsm.boundary_reflecting_replan_visioning",
+        category: "boundary",
+        description: "reflecting→visioning replan edge transition succeeds",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "reflecting→visioning replan edge succeeds in StateManager",
+      },
+      {
+        id: "fsm.boundary_verifying_terminal_complete",
+        category: "boundary",
+        description: "verifying→complete terminal success edge transition succeeds",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "verifying→complete terminal edge succeeds in StateManager",
+      },
+      {
+        id: "fsm.boundary_blocked_escalate_awaiting_human",
+        category: "boundary",
+        description: "blocked→awaiting_human failure escalation edge succeeds",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "blocked→awaiting_human escalation edge succeeds in StateManager",
+      },
+      {
+        id: "fsm.boundary_complete_restart_idle",
+        category: "boundary",
+        description: "complete→idle session restart edge succeeds",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "complete→idle restart edge succeeds in StateManager",
+      },
+      {
+        id: "fsm.boundary_rejects_idle_to_complete",
+        category: "boundary",
+        description: "idle→complete invalid jump rejected without mutation",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "idle→complete throws InvalidTransitionError without mutation",
+      },
+      {
+        id: "fsm.boundary_rejects_complete_to_executing",
+        category: "boundary",
+        description: "complete→executing invalid jump rejected without mutation",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "complete→executing throws InvalidTransitionError without mutation",
+      },
+    ],
+  },
 };
 
 /** Typed formal state machine contract v1 — source of truth for FSM probe acceptance. */
 export const FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1: FormalStateMachineContract = {
   version: "1.0.0",
-  atom: "P01-B03-A02",
+  atom: "P01-B03-A04",
   purpose:
     "Measurable acceptance criteria for orchestrator ↔ StateManager formal state machine (transition graph, invariants, sync, failure/recovery paths, B02 link).",
   categories: FORMAL_STATE_MACHINE_CATEGORY_CONTRACTS,
@@ -404,6 +465,35 @@ export function listFormalStateMachineProbesByDisposition(
   contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
 ): FormalStateMachineProbeContract[] {
   return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listFormalStateMachineProbesByCategory(
+  category: FormalStateMachineCategory,
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+): FormalStateMachineProbeContract[] {
+  return contract.categories[category].probes;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateFormalStateMachineBoundaryProbeMatrix(
+  results: FormalStateMachineProbeResult[],
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+): FormalStateMachineProbeMatrixValidationResult {
+  const boundaryProbes = listFormalStateMachineProbesByCategory("boundary", contract);
+  const boundaryContract: FormalStateMachineContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateFormalStateMachineProbeMatrix(boundaryResults, boundaryContract);
 }
 
 export function summarizeFormalStateMachineContractCoverage(
@@ -558,6 +648,7 @@ export function validateFormalStateMachineFixture(
     failure_state: 0,
     recovery_state: 0,
     baseline_link: 0,
+    boundary: 0,
   };
 
   for (const probe of fixture.probes) {

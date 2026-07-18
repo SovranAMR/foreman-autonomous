@@ -23,8 +23,10 @@ import {
   validateFormalStateMachineFixture,
   validateFormalStateMachineFixtureAgainstContract,
   validateFormalStateMachineProbeMatrix,
+  validateFormalStateMachineBoundaryProbeMatrix,
   summarizeFormalStateMachineMatrix,
   getActiveFormalStateMachineContract,
+  listFormalStateMachineProbesByCategory,
   FORMAL_STATE_MACHINE_CATEGORIES,
   type FormalStateMachineCategory,
   type FormalStateMachineFixture,
@@ -51,6 +53,8 @@ export {
   getFormalStateMachineCategoryContract,
   listFormalStateMachineContractProbeIds,
   listFormalStateMachineProbesByDisposition,
+  listFormalStateMachineProbesByCategory,
+  validateFormalStateMachineBoundaryProbeMatrix,
   summarizeFormalStateMachineContractCoverage,
   FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1,
   FORMAL_STATE_MACHINE_CATEGORIES,
@@ -379,6 +383,123 @@ function probeBaselineLink(
   }
 }
 
+function reachComplete(sm: StateManager): void {
+  sm.transition("visioning", "start");
+  sm.transition("decomposing", "vision done");
+  sm.transition("executing", "atoms ready");
+  sm.transition("verifying", "verify batch");
+  sm.transition("complete", "pipeline done");
+}
+
+function probeBoundary(
+  id: string,
+  category: FormalStateMachineCategory,
+  expected: ForgeAcceptanceOutcome,
+): FormalStateMachineProbeResult {
+  const root = mkdtempSync(join(tmpdir(), "forge-fsm-boundary-"));
+  try {
+    const sm = StateManager.create(root, "fsm-boundary", false);
+
+    switch (id) {
+      case "fsm.boundary_reflecting_replan_visioning": {
+        sm.transition("visioning", "start");
+        sm.transition("decomposing", "vision done");
+        sm.transition("executing", "atoms ready");
+        sm.transition("verifying", "verify batch");
+        sm.transition("reflecting", "batch done");
+        sm.transition("visioning", "replan from reflection");
+        return probe(
+          id,
+          category,
+          expected,
+          sm.current() === "visioning",
+          `state=${sm.current()}`,
+          "reflecting→visioning replan edge succeeds in StateManager",
+        );
+      }
+      case "fsm.boundary_verifying_terminal_complete": {
+        sm.transition("visioning", "start");
+        sm.transition("decomposing", "vision done");
+        sm.transition("executing", "atoms ready");
+        sm.transition("verifying", "verify batch");
+        sm.transition("complete", "pipeline done");
+        return probe(
+          id,
+          category,
+          expected,
+          sm.current() === "complete",
+          `state=${sm.current()}`,
+          "verifying→complete terminal edge succeeds in StateManager",
+        );
+      }
+      case "fsm.boundary_blocked_escalate_awaiting_human": {
+        sm.transition("visioning", "start");
+        sm.transition("decomposing", "vision done");
+        sm.transition("executing", "atoms ready");
+        sm.transition("blocked", "worker blocked");
+        sm.transition("awaiting_human", "needs approval");
+        return probe(
+          id,
+          category,
+          expected,
+          sm.current() === "awaiting_human",
+          `state=${sm.current()}`,
+          "blocked→awaiting_human escalation edge succeeds in StateManager",
+        );
+      }
+      case "fsm.boundary_complete_restart_idle": {
+        reachComplete(sm);
+        sm.transition("idle", "new session");
+        return probe(
+          id,
+          category,
+          expected,
+          sm.current() === "idle",
+          `state=${sm.current()}`,
+          "complete→idle restart edge succeeds in StateManager",
+        );
+      }
+      case "fsm.boundary_rejects_idle_to_complete": {
+        let rejected = false;
+        try {
+          sm.transition("complete", "skip pipeline");
+        } catch (err) {
+          rejected = err instanceof InvalidTransitionError;
+        }
+        return probe(
+          id,
+          category,
+          expected,
+          rejected && sm.current() === "idle",
+          `rejected=${rejected}, state=${sm.current()}`,
+          "idle→complete throws InvalidTransitionError without mutation",
+        );
+      }
+      case "fsm.boundary_rejects_complete_to_executing": {
+        reachComplete(sm);
+        let rejected = false;
+        try {
+          sm.transition("executing", "invalid restart");
+        } catch (err) {
+          rejected = err instanceof InvalidTransitionError;
+        }
+        return probe(
+          id,
+          category,
+          expected,
+          rejected && sm.current() === "complete",
+          `rejected=${rejected}, state=${sm.current()}`,
+          "complete→executing throws InvalidTransitionError without mutation",
+        );
+      }
+      default:
+        return probe(id, category, expected, false, "unknown boundary probe");
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function runSingleProbe(
   id: string,
   category: FormalStateMachineCategory,
@@ -397,6 +518,8 @@ function runSingleProbe(
       return probeRecoveryState(id, category, expected);
     case "baseline_link":
       return probeBaselineLink(id, category, expected);
+    case "boundary":
+      return probeBoundary(id, category, expected);
     default:
       return probe(id, category, expected, false, `unknown category: ${category}`);
   }
@@ -456,6 +579,39 @@ export function runFormalStateMachineProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface FormalStateMachineBoundarySliceResult {
+  atom: "P01-B03-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: FormalStateMachineProbeResult[];
+  boundaryResults: FormalStateMachineProbeResult[];
+  matrixValidation: FormalStateMachineProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired edge transitions and invalid-jump probes
+ * on failure/recovery graph boundaries with zero unexpected mismatches.
+ */
+export function runFormalStateMachineBoundarySlice(
+  fixture: FormalStateMachineFixture = loadFormalStateMachineFixture(),
+): FormalStateMachineBoundarySliceResult {
+  const contract = getActiveFormalStateMachineContract();
+  const results = runFormalStateMachineProbes(fixture);
+  const boundaryProbes = listFormalStateMachineProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateFormalStateMachineBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B03-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

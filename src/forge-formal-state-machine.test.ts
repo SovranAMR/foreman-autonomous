@@ -4,6 +4,7 @@ import {
   loadFormalStateMachineFixture,
   runFormalStateMachineProbes,
   runFormalStateMachineProductionSlice,
+  runFormalStateMachineBoundarySlice,
   summarizeFormalStateMachineMatrix,
   validateFormalStateMachineFixture,
   validateFormalStateMachineFixtureAgainstContract,
@@ -14,6 +15,8 @@ import {
   getFormalStateMachineCategoryContract,
   listFormalStateMachineContractProbeIds,
   listFormalStateMachineProbesByDisposition,
+  listFormalStateMachineProbesByCategory,
+  validateFormalStateMachineBoundaryProbeMatrix,
   summarizeFormalStateMachineContractCoverage,
   FORMAL_STATE_MACHINE_CATEGORIES,
 } from "./forge-formal-state-machine-harness.js";
@@ -25,11 +28,11 @@ describe("Forge Formal State Machine — P01-B03-A01", () => {
 
     assert.equal(fixture.version, "1.0.0");
     assert.equal(fixture.atom, "P01-B03-A01");
-    assert.equal(fixture.contractAtom, "P01-B03-A02");
+    assert.equal(fixture.contractAtom, "P01-B03-A04");
     assert.equal(fixture.sourceBehaviorMap.probeCount, 26);
     assert.equal(fixture.sourceBehaviorMap.behaviorCategories, 8);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
-    assert.equal(fixture.probes.length, 20);
+    assert.equal(fixture.probes.length, 26);
   });
 
   it("measures orchestrator ↔ StateManager probe matrix with documented FAIL gaps", () => {
@@ -37,7 +40,7 @@ describe("Forge Formal State Machine — P01-B03-A01", () => {
     const summary = summarizeFormalStateMachineMatrix(results);
 
     assert.equal(summary.total, results.length);
-    assert.equal(summary.total, 20);
+    assert.equal(summary.total, 26);
     assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
 
     const documentedFail = listFormalStateMachineProbesByExpected("FAIL");
@@ -77,10 +80,10 @@ describe("Forge Formal State Machine — P01-B03-A01", () => {
 });
 
 describe("Forge Formal State Machine Contract — P01-B03-A02", () => {
-  it("defines typed acceptance for all six formal state machine categories", () => {
+  it("defines typed acceptance for all seven formal state machine categories", () => {
     const contract = getActiveFormalStateMachineContract();
     assert.equal(contract.version, "1.0.0");
-    assert.equal(contract.atom, "P01-B03-A02");
+    assert.equal(contract.atom, "P01-B03-A04");
 
     for (const category of FORMAL_STATE_MACHINE_CATEGORIES) {
       const categoryContract = getFormalStateMachineCategoryContract(category);
@@ -103,16 +106,16 @@ describe("Forge Formal State Machine Contract — P01-B03-A02", () => {
     }
   });
 
-  it("maps 20 probes with failure/recovery/gap disposition coverage", () => {
+  it("maps 26 probes with failure/recovery/gap/boundary disposition coverage", () => {
     const contract = getActiveFormalStateMachineContract();
     const summary = summarizeFormalStateMachineContractCoverage(contract);
 
-    assert.equal(summary.totalProbes, 20);
-    assert.equal(summary.expectedPass, 18);
+    assert.equal(summary.totalProbes, 26);
+    assert.equal(summary.expectedPass, 24);
     assert.equal(summary.expectedFail, 2);
-    assert.equal(summary.byDisposition.observed, 15);
+    assert.equal(summary.byDisposition.observed, 19);
     assert.equal(summary.byDisposition.gap, 2);
-    assert.equal(summary.byDisposition.failure, 1);
+    assert.equal(summary.byDisposition.failure, 3);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 0);
     assert.equal(summary.byCategory.transition_graph.probeCount, 3);
@@ -121,6 +124,7 @@ describe("Forge Formal State Machine Contract — P01-B03-A02", () => {
     assert.equal(summary.byCategory.failure_state.probeCount, 2);
     assert.equal(summary.byCategory.recovery_state.probeCount, 2);
     assert.equal(summary.byCategory.baseline_link.probeCount, 2);
+    assert.equal(summary.byCategory.boundary.probeCount, 6);
   });
 
   it("lists two documented gap probes for orchestrator failure-state sync", () => {
@@ -162,9 +166,9 @@ describe("Forge Formal State Machine Production Slice — P01-B03-A03", () => {
     assert.equal(slice.fixtureValid, true);
     assert.equal(slice.contractAligned, true);
     assert.equal(slice.matrixValid, true);
-    assert.equal(slice.summary.total, 20);
+    assert.equal(slice.summary.total, 26);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 18);
+    assert.equal(slice.matrixValidation.passAligned, 24);
     assert.equal(slice.matrixValidation.gapAligned, 2);
 
     for (const contractProbe of contract.probes) {
@@ -201,6 +205,66 @@ describe("Forge Formal State Machine Production Slice — P01-B03-A03", () => {
       assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
       assert.equal(result.criterion, contractProbe.criterion);
     }
+  });
+});
+
+describe("Forge Formal State Machine Boundary Slice — P01-B03-A04", () => {
+  it("defines boundary category with edge transitions and invalid-jump probes", () => {
+    const boundary = listFormalStateMachineProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "fsm.boundary_blocked_escalate_awaiting_human",
+      "fsm.boundary_complete_restart_idle",
+      "fsm.boundary_reflecting_replan_visioning",
+      "fsm.boundary_rejects_complete_to_executing",
+      "fsm.boundary_rejects_idle_to_complete",
+      "fsm.boundary_verifying_terminal_complete",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+    assert.equal(boundary.filter(p => p.disposition === "failure").length, 2);
+    assert.equal(boundary.filter(p => p.disposition === "observed").length, 4);
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge and invalid jumps", () => {
+    const contract = getActiveFormalStateMachineContract();
+    const slice = runFormalStateMachineBoundarySlice();
+
+    assert.equal(slice.atom, "P01-B03-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+
+    for (const boundaryProbe of listFormalStateMachineProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, "PASS");
+      assert.equal(result!.actual, "PASS");
+      assert.equal(result!.aligned, true);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateFormalStateMachineBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery graph boundary edges without mutating on invalid jumps", () => {
+    const results = runFormalStateMachineProbes();
+    const boundary = results.filter(r => r.category === "boundary");
+
+    assert.equal(boundary.length, 6);
+    assert.equal(boundary.every(r => r.aligned), true);
+
+    const invalidJumpProbes = boundary.filter(r => r.id.includes("rejects_"));
+    assert.equal(invalidJumpProbes.length, 2);
+    assert.ok(invalidJumpProbes.every(r => r.detail.includes("rejected=true")));
   });
 });
 
