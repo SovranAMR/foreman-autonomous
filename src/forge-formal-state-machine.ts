@@ -5,7 +5,12 @@
  * Built on sealed P01-B02 behavior map artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP01B02ToB03Handoff,
   summarizeBehaviorMapContractCoverage,
@@ -1965,5 +1970,188 @@ export function runFormalStateMachineRunRecordFuzzValidation(
     validBaseline: baseline.valid,
     mutationsRejected,
     mutationsAccepted,
+  };
+}
+
+// ─── Block gate and handoff (P01-B03-A10) ────────────────────────────────────
+
+export interface FormalStateMachineBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface FormalStateMachineBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    fsmCategories: readonly FormalStateMachineCategory[];
+    sourceBehaviorMapAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    formalStateMachineRecordRequired: true;
+  };
+}
+
+export const FORGE_P01_B03_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P01-B03-A10",
+  blockId: "P01-B03",
+  title: "Formal state machine",
+  requiredAtomIds: [
+    "P01-B03-A01",
+    "P01-B03-A02",
+    "P01-B03-A03",
+    "P01-B03-A04",
+    "P01-B03-A05",
+    "P01-B03-A06",
+    "P01-B03-A07",
+    "P01-B03-A08",
+    "P01-B03-A09",
+    "P01-B03-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P01-B03-A01", description: "Formal state machine fixture aligns with typed contract" },
+    { id: "typed_contract_coverage", atomId: "P01-B03-A02", description: "Contract declares measurable probes for all FSM categories" },
+    { id: "probe_matrix_aligned", atomId: "P01-B03-A03", description: "FSM probe matrix executes with zero mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P01-B03-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P01-B03-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P01-B03-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P01-B03-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P01-B03-A08", description: "Regression gate passes on canonical FSM matrix" },
+    { id: "guard_controls", atomId: "P01-B03-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P01-B03-A10", description: "Block gate evidence sealed with valid B04 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P01_B03_TO_B04_HANDOFF_V1: FormalStateMachineBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P01-B03-A10",
+  sourceBlock: {
+    blockId: "P01-B03",
+    title: "Formal state machine",
+    completedAtoms: FORGE_P01_B03_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P01-B04",
+    title: "Typed phase/event schema",
+    entryAtom: "P01-B04-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1.version,
+    harnessVersion: FORGE_FORMAL_STATE_MACHINE_HARNESS_VERSION,
+    probeCount: summarizeFormalStateMachineContractCoverage(FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1).totalProbes,
+    fsmCategories: FORMAL_STATE_MACHINE_CATEGORIES,
+    sourceBehaviorMapAtom: "P01-B02-A10",
+  },
+  prerequisites: [
+    "Typed formal state machine contract v1 with measurable category invariants",
+    "Versioned FSM fixture aligned to contract probe matrix",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P01-B02 behavior map artifacts referenced by sourceBehaviorMap",
+  ],
+  entryCriteria: {
+    description:
+      "B04-A01 formalizes typed phase/event schema using the sealed formal state machine artifacts",
+    requiresBlockGatePass: true,
+    formalStateMachineRecordRequired: true,
+  },
+};
+
+export function getForgeP01B03BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P01_B03_BLOCK_GATE_V1;
+}
+
+export function getForgeP01B03ToB04Handoff(): FormalStateMachineBlockHandoffContract {
+  return FORGE_P01_B03_TO_B04_HANDOFF_V1;
+}
+
+export function validateFormalStateMachineBlockHandoffContract(
+  handoff: FormalStateMachineBlockHandoffContract,
+  evidence: Pick<FormalStateMachineBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeFormalStateMachineContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.fsmCategories.length !== FORMAL_STATE_MACHINE_CATEGORIES.length) {
+    issues.push("handoff fsmCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P01-B04-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildFormalStateMachineBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P01_B03_BLOCK_GATE_V1.blockId,
+): FormalStateMachineBlockGateEvidence {
+  const handoff = getForgeP01B03ToB04Handoff();
+  const handoffValid = validateFormalStateMachineBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P01-B03-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    gitCommit,
   };
 }

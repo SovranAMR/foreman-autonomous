@@ -302,6 +302,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01-B03 block gate and emit verification event with B04 handoff (P01-B03-A10).
+   */
+  async verifyForgeFormalStateMachineBlockGate(): Promise<import("./forge-formal-state-machine-harness.js").ForgeFormalStateMachineBlockGateResult> {
+    const { runForgeFormalStateMachineBlockGate } = await import("./forge-formal-state-machine-harness.js");
+    const result = runForgeFormalStateMachineBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "formal_state_machine_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

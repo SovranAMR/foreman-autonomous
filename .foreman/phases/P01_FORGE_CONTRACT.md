@@ -2,8 +2,8 @@
 
 phase_id: P01
 phase_status: ACTIVE
-completed_blocks: 2
-completed_atoms: 29
+completed_blocks: 3
+completed_atoms: 30
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -50,7 +50,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B03-A08 — Formal state machine: Forge entegrasyonu ile regression testini tamamla
 - [x] P01-B03-A09 — Formal state machine: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P01-B03-A10 — Formal state machine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P01-B03-A10 — Formal state machine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B04 — Typed phase/event schema
 
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B03-A09
-last_commit: f868893
-tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts src/forge-formal-state-machine.guard.test.ts` (33/33)
+last_atom: P01-B03-A10
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-formal-state-machine-block-gate.test.ts` (6/6)
 evidence: |
-  P01-B03-A09 guard: validateForgeFormalStateMachineGuard adversarial=3/3 perf/cost/safety PASS on canonical run;
-  runFormalStateMachineAdversarialGuardChecks rejects false alignment, summary mismatch, dropped probe;
-  runForgeFormalStateMachineRegressionGate includes guard PASS in detail;
-  orchestrator verifyForgeFormalStateMachineGuard emits formal_state_machine_guard verification.
-next: P01-B03-A10
+  P01-B03-A10 block gate: runForgeFormalStateMachineBlockGate seals 10/10 atom seals with handoff=PASS→P01-B04;
+  FORGE_P01_B03_TO_B04_HANDOFF_V1 entryAtom=P01-B04-A01; validateFormalStateMachineBlockHandoffContract rejects stale regression;
+  orchestrator verifyForgeFormalStateMachineBlockGate emits formal_state_machine_block_gate verification.
+next: P01-B04-A01

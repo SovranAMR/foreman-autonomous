@@ -20,7 +20,7 @@ import {
   summarizeBehaviorMapContractCoverage,
   getActivePipelineBehaviorMapContract,
 } from "./forge-pipeline-behavior-map.js";
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 import {
   validateFormalStateMachineFixture,
   validateFormalStateMachineFixtureAgainstContract,
@@ -37,8 +37,17 @@ import {
   listFormalStateMachineFailureRecoveryProbeIds,
   getActiveFormalStateMachineContract,
   listFormalStateMachineProbesByCategory,
+  listFormalStateMachineProbesByDisposition,
+  summarizeFormalStateMachineContractCoverage,
   detectFormalStateMachineProbeRegression,
   validateForgeFormalStateMachineGuard,
+  runFormalStateMachinePropertyChecks,
+  runFormalStateMachineFuzzValidation,
+  runFormalStateMachineRunRecordFuzzValidation,
+  getForgeP01B03BlockGate,
+  getForgeP01B03ToB04Handoff,
+  validateFormalStateMachineBlockHandoffContract,
+  buildFormalStateMachineBlockGateEvidence,
   FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
   FORMAL_STATE_MACHINE_CATEGORIES,
   type FormalStateMachineCategory,
@@ -50,6 +59,8 @@ import {
   type FormalStateMachineProbeDisposition,
   type FormalStateMachineProbeRegressionReport,
   type FormalStateMachineGuardCheckResult,
+  type FormalStateMachineBlockGateEvidence,
+  type FormalStateMachineBlockHandoffContract,
 } from "./forge-formal-state-machine.js";
 
 export type {
@@ -90,6 +101,12 @@ export {
   createFormalStateMachineFuzzRng,
   detectFormalStateMachineProbeRegression,
   validateForgeFormalStateMachineGuard,
+  getForgeP01B03BlockGate,
+  getForgeP01B03ToB04Handoff,
+  validateFormalStateMachineBlockHandoffContract,
+  buildFormalStateMachineBlockGateEvidence,
+  type FormalStateMachineBlockGateEvidence,
+  type FormalStateMachineBlockHandoffContract,
   type FormalStateMachineRunRecord,
   type FormalStateMachineProbeRegressionReport,
   type FormalStateMachineGuardCheckResult,
@@ -909,6 +926,183 @@ export function runForgeFormalStateMachineRegressionGate(
     validationIssues,
     probeRegression,
     guard,
+    detail: detailParts.join(" | "),
+  };
+}
+
+export interface ForgeFormalStateMachineBlockGateResult {
+  passed: boolean;
+  evidence: FormalStateMachineBlockGateEvidence;
+  handoff: FormalStateMachineBlockHandoffContract;
+  regression: ForgeFormalStateMachineRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealFormalStateMachineBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P01-B03 block gate: validate A01–A09 deliverables, regression, guard, and B04 handoff (P01-B03-A10).
+ */
+export function runForgeFormalStateMachineBlockGate(): ForgeFormalStateMachineBlockGateResult {
+  const blockGate = getForgeP01B03BlockGate();
+  const handoff = getForgeP01B03ToB04Handoff();
+  const contract = getActiveFormalStateMachineContract();
+  const fixture = loadFormalStateMachineFixture();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateFormalStateMachineFixtureAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A01",
+      "fsm_fixture",
+      fixtureValidation.valid && fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeFormalStateMachineContractCoverage(contract).totalProbes} probes)`
+        : fixtureValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeFormalStateMachineContractCoverage(contract);
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${FORMAL_STATE_MACHINE_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const regression = runForgeFormalStateMachineRegressionGate();
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A03",
+      "probe_matrix",
+      regression.record.summary.mismatches === 0,
+      `${regression.record.summary.aligned}/${regression.record.summary.total} probes aligned`,
+    ),
+  );
+
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.gap > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A04",
+      "boundary_dispositions",
+      dispositionOk,
+      `observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const nogoProbes = listFormalStateMachineProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A05",
+      "failure_recovery_nogo",
+      nogoProbes.length > 0 && regression.recordValid,
+      `${nogoProbes.length} NO-GO probes; recordValid=${regression.recordValid}`,
+    ),
+  );
+
+  const recordValidation = validateFormalStateMachineRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const properties = runFormalStateMachinePropertyChecks(contract);
+  const contractFuzz = runFormalStateMachineFuzzValidation(fixture, contract);
+  const runFuzz = runFormalStateMachineRunRecordFuzzValidation(regression.record, contract);
+  const fuzzOk = properties.allPassed && contractFuzz.allMutationsRejected && runFuzz.mutationsAccepted === 0;
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A07",
+      "property_fuzz",
+      fuzzOk,
+      `properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validateFormalStateMachineBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealFormalStateMachineBlockAtom(
+      "P01-B03-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildFormalStateMachineBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
     detail: detailParts.join(" | "),
   };
 }
