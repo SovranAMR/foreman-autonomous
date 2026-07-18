@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 23
+completed_atoms: 24
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -44,7 +44,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B03-A01 — Formal state machine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B03-A02 — Formal state machine: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B03-A03 — Formal state machine: en küçük üretim dikey dilimini uygula
-- [ ] P01-B03-A04 — Formal state machine: boundary ve edge-case davranışlarını tamamla
+- [x] P01-B03-A04 — Formal state machine: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B03-A05 — Formal state machine: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B03-A06 — Formal state machine: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle
@@ -156,11 +156,13 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B03-A03
+last_atom: P01-B03-A04
 last_commit: PENDING
-tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (10/10)
+tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (13/13)
 evidence: |
-  P01-B03-A03 production slice: runFormalStateMachineProductionSlice wires harness to contract criteria;
-  validateFormalStateMachineProbeMatrix PASS (18 passAligned, 2 gapAligned, 0 unexpectedMismatches);
-  documented FAIL gaps fsm.orch_blocked_sync + fsm.orch_awaiting_human_sync remain aligned.
-next: P01-B03-A04
+  P01-B03-A04 boundary slice: runFormalStateMachineBoundarySlice adds boundary category with 6 probes
+  (reflecting→visioning replan, verifying→complete terminal, blocked→awaiting_human escalation,
+  complete→idle restart, idle→complete invalid jump, complete→executing invalid jump);
+  validateFormalStateMachineBoundaryProbeMatrix PASS (6 passAligned, 0 unexpectedMismatches);
+  full matrix 26 probes (24 passAligned, 2 gapAligned fsm.orch_blocked_sync + fsm.orch_awaiting_human_sync).
+next: P01-B03-A05
