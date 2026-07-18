@@ -14,7 +14,7 @@ import {
 } from "./forge-formal-state-machine.js";
 import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
 
-export const FORGE_PHASE_EVENT_SCHEMA_HARNESS_VERSION = "1.0.0-a01";
+export const FORGE_PHASE_EVENT_SCHEMA_HARNESS_VERSION = "1.0.0-a02";
 
 export type PhaseEventSchemaProbeDisposition =
   | "observed"
@@ -425,6 +425,33 @@ export const FORGE_PHASE_EVENT_SCHEMA_CONTRACT_V1: PhaseEventSchemaContract = {
 
 export function getActivePhaseEventSchemaContract(): PhaseEventSchemaContract {
   return FORGE_PHASE_EVENT_SCHEMA_CONTRACT_V1;
+}
+
+export function getPhaseEventSchemaCategoryContract(
+  category: PhaseEventSchemaCategory,
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): PhaseEventSchemaCategoryContract {
+  return contract.categories[category];
+}
+
+export function listPhaseEventSchemaContractProbeIds(
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listPhaseEventSchemaProbesByDisposition(
+  disposition: PhaseEventSchemaProbeDisposition,
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): PhaseEventSchemaProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listPhaseEventSchemaProbesByCategory(
+  category: PhaseEventSchemaCategory,
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): PhaseEventSchemaProbeContract[] {
+  return contract.categories[category].probes;
 }
 
 export function summarizePhaseEventSchemaContractCoverage(

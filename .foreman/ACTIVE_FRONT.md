@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B04
-active_atom: P01-B04-A02
+active_atom: P01-B04-A03
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 31/1000
-phase_progress: 30/100
-block_progress: 1/10
+program_progress: 32/1000
+phase_progress: 31/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B04-A02 — Typed phase/event schema: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P01-B04-A03 — Typed phase/event schema: en küçük üretim dikey dilimini uygula.
 
-objective: Typed phase/event schema için typed contract ile ölçülebilir acceptance kriterlerini tanımla.
-target: Typed contract with measurable acceptance criteria aligned to A01 baseline probes.
-hypothesis: A01 baseline FAIL gaps (phase typing, registry, pairing) define the acceptance surface for A02 contract hardening.
-acceptance: typed contract probes declared; fixture ↔ contract mapping validated.
+objective: Typed phase/event schema için en küçük üretim dikey dilimini uygula.
+target: Contract-wired probe execution with zero unexpected mismatches on PASS probes.
+hypothesis: A02 typed contract defines the acceptance surface; A03 wires live probes to contract criteria.
+acceptance: production slice executes; PASS probes aligned; gap probes documented.
 commands: npx tsx --test src/forge-phase-event-schema.test.ts
 blast_radius: forge-phase-event-schema*.ts
-rollback: A02 değişikliklerini geri al.
+rollback: A03 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: contract tanımlanamazsa BLOCKED raporla.
+fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B04-A01
-last_commit: 762d68c
-tests: PASS — forge-phase-event-schema (4/4)
-evidence: 24-probe baseline fixture with 5 documented FAIL gaps (phase typing, unregistered literals, verify phase_start, recovery_assess pairing); B03 handoff link validated
-next: P01-B04-A02
+last_atom: P01-B04-A02
+last_commit: pending
+tests: PASS — forge-phase-event-schema (9/9)
+evidence: 24-probe typed contract v1 across 7 categories; fixture↔contract mapping validated; 5 gap dispositions (phase typing, registry, pairing) declared with measurable criteria
+next: P01-B04-A03

@@ -7,7 +7,10 @@ import {
   validatePhaseEventSchemaFixture,
   validatePhaseEventSchemaFixtureAgainstContract,
   getActivePhaseEventSchemaContract,
+  getPhaseEventSchemaCategoryContract,
+  listPhaseEventSchemaContractProbeIds,
   listPhaseEventSchemaKnownGaps,
+  listPhaseEventSchemaProbesByDisposition,
   listPhaseEventSchemaProbesByExpected,
   summarizePhaseEventSchemaContractCoverage,
   PHASE_EVENT_SCHEMA_CATEGORIES,
@@ -99,6 +102,87 @@ describe("Forge Phase/Event Schema — P01-B04-A01", () => {
     assert.equal(coverage.byCategory.stream_seam.probeCount, 3);
     assert.equal(coverage.byCategory.baseline_link.probeCount, 2);
     assert.equal(coverage.byCategory.boundary.probeCount, 4);
+  });
+});
+
+describe("Forge Phase/Event Schema Contract — P01-B04-A02", () => {
+  it("defines typed acceptance for all seven phase/event schema categories", () => {
+    const contract = getActivePhaseEventSchemaContract();
+    assert.equal(contract.version, "1.0.0");
+    assert.equal(contract.atom, "P01-B04-A05");
+
+    for (const category of PHASE_EVENT_SCHEMA_CATEGORIES) {
+      const categoryContract = getPhaseEventSchemaCategoryContract(category);
+      assert.ok(categoryContract.acceptance.invariant.length > 20, `${category} invariant too short`);
+      assert.ok(categoryContract.probes.length >= categoryContract.acceptance.minProbeCount);
+      assert.equal(categoryContract.acceptance.requireFullAlignment, true);
+
+      for (const probe of categoryContract.probes) {
+        assert.ok(probe.criterion.length > 10, `${probe.id} missing measurable criterion`);
+        assert.ok(probe.expected === "PASS" || probe.expected === "FAIL");
+        assert.ok(
+          probe.disposition === "observed" ||
+            probe.disposition === "gap" ||
+            probe.disposition === "failure" ||
+            probe.disposition === "recovery" ||
+            probe.disposition === "nogo",
+          `${probe.id} missing disposition`,
+        );
+      }
+    }
+  });
+
+  it("maps 24 probes with five documented gap dispositions from A01 baseline", () => {
+    const contract = getActivePhaseEventSchemaContract();
+    const summary = summarizePhaseEventSchemaContractCoverage(contract);
+
+    assert.equal(summary.totalProbes, 24);
+    assert.equal(summary.expectedPass, 19);
+    assert.equal(summary.expectedFail, 5);
+    assert.equal(summary.byDisposition.observed, 19);
+    assert.equal(summary.byDisposition.gap, 5);
+    assert.equal(summary.byCategory.event_type_union.probeCount, 4);
+    assert.equal(summary.byCategory.phase_typing.probeCount, 3);
+    assert.equal(summary.byCategory.phase_registry.probeCount, 4);
+    assert.equal(summary.byCategory.event_pairing.probeCount, 4);
+    assert.equal(summary.byCategory.stream_seam.probeCount, 3);
+    assert.equal(summary.byCategory.baseline_link.probeCount, 2);
+    assert.equal(summary.byCategory.boundary.probeCount, 4);
+  });
+
+  it("lists five documented gap probes for phase typing, registry, and pairing", () => {
+    const gaps = listPhaseEventSchemaProbesByDisposition("gap");
+    const ids = gaps.map(p => p.id).sort();
+    assert.deepEqual(ids, [
+      "schema.orch_phase_field_typed",
+      "schema.recovery_assess_unpaired",
+      "schema.registry_covers_core",
+      "schema.stream_phase_field_typed",
+      "schema.unregistered_phase_literals",
+    ]);
+    assert.ok(gaps.every(p => p.expected === "FAIL"));
+  });
+
+  it("enforces fixture ↔ contract probe mapping with category alignment", () => {
+    const fixture = loadPhaseEventSchemaFixture();
+    const contract = getActivePhaseEventSchemaContract();
+    const validation = validatePhaseEventSchemaFixtureAgainstContract(fixture, contract);
+
+    assert.equal(
+      validation.valid,
+      true,
+      validation.issues.map(i => `${i.kind}:${i.probeId ?? i.category ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const contractIds = new Set(listPhaseEventSchemaContractProbeIds(contract));
+    const fixtureIds = fixture.probes.map(p => p.id);
+    assert.deepEqual([...fixtureIds].sort(), [...contractIds].sort());
+    assert.equal(fixture.contractAtom, contract.atom);
+  });
+
+  it("each phase/event schema probe id is globally unique", () => {
+    const ids = listPhaseEventSchemaContractProbeIds();
+    assert.equal(new Set(ids).size, ids.length);
   });
 });
 
