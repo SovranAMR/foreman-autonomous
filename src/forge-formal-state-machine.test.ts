@@ -32,6 +32,11 @@ import {
   FORMAL_STATE_MACHINE_CATEGORIES,
   listFormalStateMachineFailureRecoveryProbeIds,
 } from "./forge-formal-state-machine-harness.js";
+import {
+  runFormalStateMachineFuzzValidation,
+  runFormalStateMachinePropertyChecks,
+  runFormalStateMachineRunRecordFuzzValidation,
+} from "./forge-formal-state-machine.js";
 
 describe("Forge Formal State Machine — P01-B03-A01", () => {
   it("loads versioned formal state machine fixture aligned with B02 handoff", () => {
@@ -456,6 +461,28 @@ describe("Forge Formal State Machine Evidence — P01-B03-A06", () => {
           item.disposition === "nogo",
       );
     }
+  });
+});
+
+describe("Forge Formal State Machine Property/Fuzz — P01-B03-A07", () => {
+  it("passes structural property checks on canonical contract", () => {
+    const contract = getActiveFormalStateMachineContract();
+    const result = runFormalStateMachinePropertyChecks(contract);
+    assert.equal(result.allPassed, true, result.failed.map(f => `${f.propertyId}: ${f.detail}`).join("\n"));
+  });
+
+  it("rejects fuzz-mutated fixtures and corrupted run records", () => {
+    const fixture = loadFormalStateMachineFixture();
+    const contract = getActiveFormalStateMachineContract();
+    const record = runFormalStateMachineProbesWithRecord(fixture);
+
+    const fuzz = runFormalStateMachineFuzzValidation(fixture, contract, 42, 24);
+    assert.equal(fuzz.allMutationsRejected, true);
+
+    const runFuzz = runFormalStateMachineRunRecordFuzzValidation(record, contract);
+    assert.equal(runFuzz.validBaseline, true);
+    assert.equal(runFuzz.mutationsAccepted, 0);
+    assert.equal(runFuzz.mutationsRejected, 3);
   });
 });
 

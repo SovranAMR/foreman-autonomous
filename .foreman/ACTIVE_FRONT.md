@@ -6,8 +6,8 @@ active_phase: P01
 active_block: P01-B03
 active_atom: P01-B03-A07
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 26/1000
-phase_progress: 25/100
+program_progress: 27/1000
+phase_progress: 26/100
 block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle.
+P01-B03-A08 — Formal state machine: Forge entegrasyonu ile regression testini tamamla.
 
-objective: Formal state machine unit, property ve fuzz doğrulamasını ekle.
-target: Run record and contract mutations are rejected by property/fuzz validation.
-hypothesis: A06 evidence slice enables fuzz/property gates on formal state machine artifacts.
-acceptance: Property checks pass; fuzz mutations on run record are rejected.
+objective: Formal state machine Forge entegrasyonu ile regression testini tamamla.
+target: Regression gate passes on canonical formal state machine matrix.
+hypothesis: A07 property/fuzz gates enable regression integration on FSM artifacts.
+acceptance: Regression gate passes; canonical matrix record validates.
 commands: npx tsx --test src/forge-formal-state-machine.test.ts
 blast_radius: forge-formal-state-machine*.ts
-rollback: A07 değişikliklerini geri al.
+rollback: A08 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: property/fuzz slice uygulanamazsa BLOCKED raporla.
+fallback: regression slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B03-A06
+last_atom: P01-B03-A07
 last_commit: PENDING
-tests: PASS — forge-formal-state-machine (19/19)
-evidence: runFormalStateMachineFailureRecoverySliceWithRecord + runFormalStateMachineProbesWithRecord emit evidence with disposition/criterion provenance; validateFormalStateMachineFailureRecoveryRunRecord PASS (6 probes, sliceAtom P01-B03-A06); validateFormalStateMachineRunRecord PASS (28 probes)
-next: P01-B03-A07
+tests: PASS — forge-formal-state-machine (21/21 main + 4/4 property-fuzz)
+evidence: runFormalStateMachinePropertyChecks 7/7 PASS; runFormalStateMachineFuzzValidation rejects 24/24 mutations per seed; runFormalStateMachineRunRecordFuzzValidation rejects 3/3 run record mutations; validateFormalStateMachineRunRecord baseline PASS
+next: P01-B03-A08

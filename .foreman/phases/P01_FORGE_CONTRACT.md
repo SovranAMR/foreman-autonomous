@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 26
+completed_atoms: 27
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -47,7 +47,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B03-A04 — Formal state machine: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B03-A05 — Formal state machine: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B03-A06 — Formal state machine: evidence, telemetry ve provenance kaydını ekle
-- [ ] P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle
+- [x] P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B03-A08 — Formal state machine: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B03-A09 — Formal state machine: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B03-A10 — Formal state machine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B03-A06
+last_atom: P01-B03-A07
 last_commit: PENDING
-tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (19/19)
+tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts src/forge-formal-state-machine.property-fuzz.test.ts` (25/25)
 evidence: |
-  P01-B03-A06 evidence/telemetry/provenance: runFormalStateMachineFailureRecoverySliceWithRecord
-  gates failure_state + recovery_state (6 probes) with sliceAtom P01-B03-A06; evidence carries
-  disposition + criterion provenance per probe; validateFormalStateMachineFailureRecoveryRunRecord
-  PASS; runFormalStateMachineProbesWithRecord full matrix 28 probes; validateFormalStateMachineRunRecord PASS.
-next: P01-B03-A07
+  P01-B03-A07 property/fuzz: runFormalStateMachinePropertyChecks 7/7 structural properties PASS;
+  runFormalStateMachineFuzzValidation rejects 24/24 fixture mutations per seed (42, 99, 20260718);
+  runFormalStateMachineRunRecordFuzzValidation validBaseline PASS, mutationsAccepted=0, mutationsRejected=3;
+  integration gate in forge-formal-state-machine.test.ts confirms property + fixture fuzz + run record fuzz.
+next: P01-B03-A08

@@ -1152,3 +1152,407 @@ export function summarizeFormalStateMachineMatrix(
     byCategory,
   };
 }
+
+// ─── Property and fuzz validation (P01-B03-A07) ─────────────────────────────
+
+export interface FormalStateMachinePropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface FormalStateMachinePropertyResult {
+  passed: number;
+  failed: FormalStateMachinePropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type FormalStateMachinePropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: FormalStateMachineContract) => string | null;
+};
+
+const FORMAL_STATE_MACHINE_STRUCTURAL_PROPERTIES: readonly FormalStateMachinePropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All seven formal state machine categories are declared",
+    check: contract => {
+      for (const category of FORMAL_STATE_MACHINE_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listFormalStateMachineContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of FORMAL_STATE_MACHINE_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description: "summarizeFormalStateMachineContractCoverage totals match listFormalStateMachineContractProbeIds",
+    check: contract => {
+      const summary = summarizeFormalStateMachineContractCoverage(contract);
+      const ids = listFormalStateMachineContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with fsm. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("fsm.")) {
+          return `${probe.id} missing fsm. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const probeIds = listFormalStateMachineContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildFormalStateMachineProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildFormalStateMachineProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildFormalStateMachineRunRecord(
+        buildFormalStateMachineProvenance(
+          "property-check",
+          {
+            version: "0",
+            atom: "x",
+            purpose: "x",
+            sourceBehaviorMap: buildDefaultFormalStateMachineSourceBehaviorMap(),
+            probes: [],
+          },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runFormalStateMachinePropertyChecks(
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+): FormalStateMachinePropertyResult {
+  const failed: FormalStateMachinePropertyViolation[] = [];
+  for (const property of FORMAL_STATE_MACHINE_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = FORMAL_STATE_MACHINE_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type FormalStateMachineFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface FormalStateMachineFuzzMutationCase {
+  seed: number;
+  kind: FormalStateMachineFuzzMutationKind;
+  probeId?: string;
+  category?: FormalStateMachineCategory;
+}
+
+export interface FormalStateMachineFuzzValidationCaseResult {
+  mutation: FormalStateMachineFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface FormalStateMachineFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: FormalStateMachineFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createFormalStateMachineFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneFormalStateMachineFixture(fixture: FormalStateMachineFixture): FormalStateMachineFixture {
+  return {
+    ...fixture,
+    sourceBehaviorMap: { ...fixture.sourceBehaviorMap },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickFormalStateMachineFuzzTarget(
+  fixture: FormalStateMachineFixture,
+  rng: () => number,
+): { category: FormalStateMachineCategory; index: number; entry: FormalStateMachineFixtureEntry } {
+  const category = FORMAL_STATE_MACHINE_CATEGORIES[Math.floor(rng() * FORMAL_STATE_MACHINE_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyFormalStateMachineFuzzMutation(
+  fixture: FormalStateMachineFixture,
+  mutation: FormalStateMachineFuzzMutationCase,
+): FormalStateMachineFixture {
+  const mutated = cloneFormalStateMachineFixture(fixture);
+  const targetCategory = mutation.category ?? FORMAL_STATE_MACHINE_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `fsm.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = FORMAL_STATE_MACHINE_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateFormalStateMachineFuzzMutationCases(
+  fixture: FormalStateMachineFixture,
+  seed: number,
+  iterations: number,
+): FormalStateMachineFuzzMutationCase[] {
+  const rng = createFormalStateMachineFuzzRng(seed);
+  const kinds: FormalStateMachineFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: FormalStateMachineFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickFormalStateMachineFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P01-B03-A07). */
+export function runFormalStateMachineFuzzValidation(
+  fixture: FormalStateMachineFixture,
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+  seed = 42,
+  iterations = 24,
+): FormalStateMachineFuzzValidationResult {
+  const cases = generateFormalStateMachineFuzzMutationCases(fixture, seed, iterations);
+  const results: FormalStateMachineFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyFormalStateMachineFuzzMutation(fixture, mutation);
+    const validation = validateFormalStateMachineFixtureAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type FormalStateMachineRunRecordFuzzKind = "drop_evidence" | "drop_telemetry" | "wrong_total";
+
+export interface FormalStateMachineRunRecordFuzzCase {
+  kind: FormalStateMachineRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyFormalStateMachineRunRecordFuzzMutation(
+  record: FormalStateMachineRunRecord,
+  mutation: FormalStateMachineRunRecordFuzzCase,
+): FormalStateMachineRunRecord {
+  const cloned: FormalStateMachineRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+  }
+
+  cloned.summary = buildFormalStateMachineRunRecord(cloned.provenance, cloned.evidence, cloned.telemetry).summary;
+  return cloned;
+}
+
+export function runFormalStateMachineRunRecordFuzzValidation(
+  record: FormalStateMachineRunRecord,
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const baseline = validateFormalStateMachineRunRecord(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: FormalStateMachineRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyFormalStateMachineRunRecordFuzzMutation(record, mutation);
+    const validation = validateFormalStateMachineRunRecord(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}

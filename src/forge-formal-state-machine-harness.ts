@@ -80,6 +80,10 @@ export {
   validateFormalStateMachineRunRecord,
   validateFormalStateMachineFailureRecoveryRunRecord,
   listFormalStateMachineFailureRecoveryProbeIds,
+  runFormalStateMachinePropertyChecks,
+  runFormalStateMachineFuzzValidation,
+  runFormalStateMachineRunRecordFuzzValidation,
+  createFormalStateMachineFuzzRng,
   type FormalStateMachineRunRecord,
 } from "./forge-formal-state-machine.js";
 
