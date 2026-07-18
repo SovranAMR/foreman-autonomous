@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B03
-active_atom: P01-B03-A05
+active_atom: P01-B03-A06
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 24/1000
+program_progress: 25/1000
 phase_progress: 24/100
-block_progress: 4/10
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B03-A05 — Formal state machine: failure, recovery ve NO-GO yollarını uygula.
+P01-B03-A06 — Formal state machine: evidence, telemetry ve provenance kaydını ekle.
 
-objective: Formal state machine failure, recovery ve NO-GO yollarını uygula.
-target: Failure/recovery/NO-GO path probes execute with documented alignment.
-hypothesis: A04 boundary slice enables failure/recovery path probes on orchestrator gaps.
-acceptance: Failure/recovery category probes execute with zero unexpected mismatches.
+objective: Formal state machine evidence, telemetry ve provenance kaydını ekle.
+target: Failure/recovery slice evidence is recorded with probe disposition and criterion provenance.
+hypothesis: A05 failure/recovery slice enables evidence capture on orchestrator FSM gaps.
+acceptance: Evidence records include disposition, criterion, and aligned probe outcomes.
 commands: npx tsx --test src/forge-formal-state-machine.test.ts
 blast_radius: forge-formal-state-machine*.ts
-rollback: A05 değişikliklerini geri al.
+rollback: A06 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: failure slice uygulanamazsa BLOCKED raporla.
+fallback: evidence slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B03-A04
+last_atom: P01-B03-A05
 last_commit: PENDING
-tests: PASS — forge-formal-state-machine (13/13), forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (23/23)
-evidence: runFormalStateMachineBoundarySlice adds boundary category (6 probes: 4 edge transitions + 2 invalid jumps); validateFormalStateMachineBoundaryProbeMatrix PASS (6 passAligned, 0 unexpectedMismatches); full matrix 26 probes (24 passAligned, 2 gapAligned)
-next: P01-B03-A05
+tests: PASS — forge-formal-state-machine (16/16), forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (23/23)
+evidence: runFormalStateMachineFailureRecoverySlice adds failure_state+recovery_state category gate (6 probes: 2 documented FAIL gaps + 2 recovery + 2 NO-GO); validateFormalStateMachineFailureRecoveryProbeMatrix PASS (4 passAligned, 2 gapAligned, 0 unexpectedMismatches); full matrix 28 probes (26 passAligned, 2 gapAligned)
+next: P01-B03-A06

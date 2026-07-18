@@ -12,7 +12,7 @@ import {
   FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1,
 } from "./forge-pipeline-behavior-map.js";
 
-export const FORGE_FORMAL_STATE_MACHINE_HARNESS_VERSION = "1.0.0-a04";
+export const FORGE_FORMAL_STATE_MACHINE_HARNESS_VERSION = "1.0.0-a05";
 
 /** Probe disposition — observed behavior, documented gap, or resilience path class. */
 export type FormalStateMachineProbeDisposition =
@@ -131,7 +131,7 @@ export const FORMAL_STATE_MACHINE_A01_MIN_PROBES: Readonly<
   state_invariant: 3,
   orchestrator_sync: 8,
   failure_state: 2,
-  recovery_state: 2,
+  recovery_state: 4,
   baseline_link: 2,
   boundary: 4,
 };
@@ -323,7 +323,7 @@ const FORMAL_STATE_MACHINE_CATEGORY_CONTRACTS: Record<
     acceptance: {
       invariant:
         "StateManager accepts blocked→decomposing replan and awaiting_human→executing resume recovery paths.",
-      minProbeCount: 2,
+      minProbeCount: 4,
       requireFullAlignment: true,
     },
     probes: [
@@ -342,6 +342,22 @@ const FORMAL_STATE_MACHINE_CATEGORY_CONTRACTS: Record<
         expected: "PASS",
         disposition: "recovery",
         criterion: "awaiting_human→executing resume succeeds in StateManager",
+      },
+      {
+        id: "fsm.nogo_blocked_rejects_complete",
+        category: "recovery_state",
+        description: "StateManager rejects blocked→complete NO-GO jump without mutation",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: "blocked→complete throws InvalidTransitionError without mutation",
+      },
+      {
+        id: "fsm.nogo_awaiting_rejects_verifying",
+        category: "recovery_state",
+        description: "StateManager rejects awaiting_human→verifying NO-GO jump without mutation",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: "awaiting_human→verifying throws InvalidTransitionError without mutation",
       },
     ],
   },
@@ -436,7 +452,7 @@ const FORMAL_STATE_MACHINE_CATEGORY_CONTRACTS: Record<
 /** Typed formal state machine contract v1 — source of truth for FSM probe acceptance. */
 export const FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1: FormalStateMachineContract = {
   version: "1.0.0",
-  atom: "P01-B03-A04",
+  atom: "P01-B03-A05",
   purpose:
     "Measurable acceptance criteria for orchestrator ↔ StateManager formal state machine (transition graph, invariants, sync, failure/recovery paths, B02 link).",
   categories: FORMAL_STATE_MACHINE_CATEGORY_CONTRACTS,
@@ -494,6 +510,37 @@ export function validateFormalStateMachineBoundaryProbeMatrix(
   const boundaryIds = new Set(boundaryProbes.map(p => p.id));
   const boundaryResults = results.filter(r => boundaryIds.has(r.id));
   return validateFormalStateMachineProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_state",
+  "recovery_state",
+] as const satisfies readonly FormalStateMachineCategory[];
+
+/**
+ * Validate failure_state + recovery_state probe matrix — A05 slice gate.
+ * PASS recovery/NO-GO probes and documented FAIL gaps must align; zero unexpected mismatches.
+ */
+export function validateFormalStateMachineFailureRecoveryProbeMatrix(
+  results: FormalStateMachineProbeResult[],
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+): FormalStateMachineProbeMatrixValidationResult {
+  const failureRecoveryProbes = FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listFormalStateMachineProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: FormalStateMachineContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_state: contract.categories.failure_state,
+      recovery_state: contract.categories.recovery_state,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateFormalStateMachineProbeMatrix(failureRecoveryResults, failureRecoveryContract);
 }
 
 export function summarizeFormalStateMachineContractCoverage(

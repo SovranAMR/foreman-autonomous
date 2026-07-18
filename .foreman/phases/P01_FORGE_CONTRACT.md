@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 24
+completed_atoms: 25
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -45,7 +45,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B03-A02 — Formal state machine: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B03-A03 — Formal state machine: en küçük üretim dikey dilimini uygula
 - [x] P01-B03-A04 — Formal state machine: boundary ve edge-case davranışlarını tamamla
-- [ ] P01-B03-A05 — Formal state machine: failure, recovery ve NO-GO yollarını uygula
+- [x] P01-B03-A05 — Formal state machine: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B03-A06 — Formal state machine: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B03-A08 — Formal state machine: Forge entegrasyonu ile regression testini tamamla
@@ -156,13 +156,13 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B03-A04
+last_atom: P01-B03-A05
 last_commit: PENDING
-tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (13/13)
+tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (16/16)
 evidence: |
-  P01-B03-A04 boundary slice: runFormalStateMachineBoundarySlice adds boundary category with 6 probes
-  (reflecting→visioning replan, verifying→complete terminal, blocked→awaiting_human escalation,
-  complete→idle restart, idle→complete invalid jump, complete→executing invalid jump);
-  validateFormalStateMachineBoundaryProbeMatrix PASS (6 passAligned, 0 unexpectedMismatches);
-  full matrix 26 probes (24 passAligned, 2 gapAligned fsm.orch_blocked_sync + fsm.orch_awaiting_human_sync).
-next: P01-B03-A05
+  P01-B03-A05 failure/recovery/NO-GO slice: runFormalStateMachineFailureRecoverySlice gates
+  failure_state + recovery_state (6 probes: 2 orchestrator sync gaps, 2 recovery paths,
+  2 NO-GO rejection probes fsm.nogo_blocked_rejects_complete + fsm.nogo_awaiting_rejects_verifying);
+  validateFormalStateMachineFailureRecoveryProbeMatrix PASS (4 passAligned, 2 gapAligned,
+  0 unexpectedMismatches); full matrix 28 probes (26 passAligned, 2 gapAligned).
+next: P01-B03-A06

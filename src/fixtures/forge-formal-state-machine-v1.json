@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P01-B03-A01",
-  "contractAtom": "P01-B03-A04",
+  "contractAtom": "P01-B03-A05",
   "purpose": "Formal orchestrator state machine baseline measured against VALID_TRANSITIONS (includes documented FAIL gaps).",
   "sourceBehaviorMap": {
     "version": "1.0.0",
@@ -117,6 +117,18 @@
       "id": "fsm.recovery_awaiting_to_executing",
       "category": "recovery_state",
       "description": "StateManager accepts awaiting_human→executing resume path",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.nogo_blocked_rejects_complete",
+      "category": "recovery_state",
+      "description": "StateManager rejects blocked→complete NO-GO jump without mutation",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.nogo_awaiting_rejects_verifying",
+      "category": "recovery_state",
+      "description": "StateManager rejects awaiting_human→verifying NO-GO jump without mutation",
       "expected": "PASS"
     },
     {

@@ -5,6 +5,7 @@ import {
   runFormalStateMachineProbes,
   runFormalStateMachineProductionSlice,
   runFormalStateMachineBoundarySlice,
+  runFormalStateMachineFailureRecoverySlice,
   summarizeFormalStateMachineMatrix,
   validateFormalStateMachineFixture,
   validateFormalStateMachineFixtureAgainstContract,
@@ -17,7 +18,9 @@ import {
   listFormalStateMachineProbesByDisposition,
   listFormalStateMachineProbesByCategory,
   validateFormalStateMachineBoundaryProbeMatrix,
+  validateFormalStateMachineFailureRecoveryProbeMatrix,
   summarizeFormalStateMachineContractCoverage,
+  FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
   FORMAL_STATE_MACHINE_CATEGORIES,
 } from "./forge-formal-state-machine-harness.js";
 
@@ -28,11 +31,11 @@ describe("Forge Formal State Machine — P01-B03-A01", () => {
 
     assert.equal(fixture.version, "1.0.0");
     assert.equal(fixture.atom, "P01-B03-A01");
-    assert.equal(fixture.contractAtom, "P01-B03-A04");
+    assert.equal(fixture.contractAtom, "P01-B03-A05");
     assert.equal(fixture.sourceBehaviorMap.probeCount, 26);
     assert.equal(fixture.sourceBehaviorMap.behaviorCategories, 8);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
-    assert.equal(fixture.probes.length, 26);
+    assert.equal(fixture.probes.length, 28);
   });
 
   it("measures orchestrator ↔ StateManager probe matrix with documented FAIL gaps", () => {
@@ -40,7 +43,7 @@ describe("Forge Formal State Machine — P01-B03-A01", () => {
     const summary = summarizeFormalStateMachineMatrix(results);
 
     assert.equal(summary.total, results.length);
-    assert.equal(summary.total, 26);
+    assert.equal(summary.total, 28);
     assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
 
     const documentedFail = listFormalStateMachineProbesByExpected("FAIL");
@@ -83,7 +86,7 @@ describe("Forge Formal State Machine Contract — P01-B03-A02", () => {
   it("defines typed acceptance for all seven formal state machine categories", () => {
     const contract = getActiveFormalStateMachineContract();
     assert.equal(contract.version, "1.0.0");
-    assert.equal(contract.atom, "P01-B03-A04");
+    assert.equal(contract.atom, "P01-B03-A05");
 
     for (const category of FORMAL_STATE_MACHINE_CATEGORIES) {
       const categoryContract = getFormalStateMachineCategoryContract(category);
@@ -106,23 +109,23 @@ describe("Forge Formal State Machine Contract — P01-B03-A02", () => {
     }
   });
 
-  it("maps 26 probes with failure/recovery/gap/boundary disposition coverage", () => {
+  it("maps 28 probes with failure/recovery/gap/boundary/nogo disposition coverage", () => {
     const contract = getActiveFormalStateMachineContract();
     const summary = summarizeFormalStateMachineContractCoverage(contract);
 
-    assert.equal(summary.totalProbes, 26);
-    assert.equal(summary.expectedPass, 24);
+    assert.equal(summary.totalProbes, 28);
+    assert.equal(summary.expectedPass, 26);
     assert.equal(summary.expectedFail, 2);
     assert.equal(summary.byDisposition.observed, 19);
     assert.equal(summary.byDisposition.gap, 2);
     assert.equal(summary.byDisposition.failure, 3);
     assert.equal(summary.byDisposition.recovery, 2);
-    assert.equal(summary.byDisposition.nogo, 0);
+    assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.transition_graph.probeCount, 3);
     assert.equal(summary.byCategory.state_invariant.probeCount, 3);
     assert.equal(summary.byCategory.orchestrator_sync.probeCount, 8);
     assert.equal(summary.byCategory.failure_state.probeCount, 2);
-    assert.equal(summary.byCategory.recovery_state.probeCount, 2);
+    assert.equal(summary.byCategory.recovery_state.probeCount, 4);
     assert.equal(summary.byCategory.baseline_link.probeCount, 2);
     assert.equal(summary.byCategory.boundary.probeCount, 6);
   });
@@ -166,9 +169,9 @@ describe("Forge Formal State Machine Production Slice — P01-B03-A03", () => {
     assert.equal(slice.fixtureValid, true);
     assert.equal(slice.contractAligned, true);
     assert.equal(slice.matrixValid, true);
-    assert.equal(slice.summary.total, 26);
+    assert.equal(slice.summary.total, 28);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 24);
+    assert.equal(slice.matrixValidation.passAligned, 26);
     assert.equal(slice.matrixValidation.gapAligned, 2);
 
     for (const contractProbe of contract.probes) {
@@ -265,6 +268,71 @@ describe("Forge Formal State Machine Boundary Slice — P01-B03-A04", () => {
     const invalidJumpProbes = boundary.filter(r => r.id.includes("rejects_"));
     assert.equal(invalidJumpProbes.length, 2);
     assert.ok(invalidJumpProbes.every(r => r.detail.includes("rejected=true")));
+  });
+});
+
+describe("Forge Formal State Machine Failure/Recovery/NO-GO — P01-B03-A05", () => {
+  it("lists failure, recovery and NO-GO probes by disposition and category", () => {
+    const failure = listFormalStateMachineProbesByDisposition("failure");
+    const recovery = listFormalStateMachineProbesByDisposition("recovery");
+    const nogo = listFormalStateMachineProbesByDisposition("nogo");
+    const failureState = listFormalStateMachineProbesByCategory("failure_state");
+    const recoveryState = listFormalStateMachineProbesByCategory("recovery_state");
+
+    assert.ok(failure.some(p => p.id === "fsm.invariant_rejects_invalid"));
+    assert.ok(recovery.some(p => p.id === "fsm.recovery_blocked_to_decomposing"));
+    assert.ok(recovery.some(p => p.id === "fsm.recovery_awaiting_to_executing"));
+    assert.deepEqual(
+      nogo.map(p => p.id).sort(),
+      ["fsm.nogo_awaiting_rejects_verifying", "fsm.nogo_blocked_rejects_complete"],
+    );
+    assert.equal(failureState.length, 2);
+    assert.equal(recoveryState.length, 4);
+    assert.deepEqual(
+      [...FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_state", "recovery_state"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveFormalStateMachineContract();
+    const slice = runFormalStateMachineFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P01-B03-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 4);
+    assert.equal(slice.matrixValidation.gapAligned, 2);
+
+    for (const category of FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listFormalStateMachineProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateFormalStateMachineFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises NO-GO rejection probes without mutating failure states", () => {
+    const results = runFormalStateMachineProbes();
+    const nogo = results.filter(r => r.id.startsWith("fsm.nogo_"));
+
+    assert.equal(nogo.length, 2);
+    assert.ok(nogo.every(r => r.expected === "PASS" && r.actual === "PASS" && r.aligned));
+    assert.ok(nogo.every(r => r.detail.includes("rejected=true")));
   });
 });
 

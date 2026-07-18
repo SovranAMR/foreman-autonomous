@@ -24,9 +24,12 @@ import {
   validateFormalStateMachineFixtureAgainstContract,
   validateFormalStateMachineProbeMatrix,
   validateFormalStateMachineBoundaryProbeMatrix,
+  validateFormalStateMachineFailureRecoveryProbeMatrix,
+  validateFormalStateMachineFailureRecoveryProbeMatrix,
   summarizeFormalStateMachineMatrix,
   getActiveFormalStateMachineContract,
   listFormalStateMachineProbesByCategory,
+  FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
   FORMAL_STATE_MACHINE_CATEGORIES,
   type FormalStateMachineCategory,
   type FormalStateMachineFixture,
@@ -55,7 +58,9 @@ export {
   listFormalStateMachineProbesByDisposition,
   listFormalStateMachineProbesByCategory,
   validateFormalStateMachineBoundaryProbeMatrix,
+  validateFormalStateMachineFailureRecoveryProbeMatrix,
   summarizeFormalStateMachineContractCoverage,
+  FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
   FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1,
   FORMAL_STATE_MACHINE_CATEGORIES,
 } from "./forge-formal-state-machine.js";
@@ -335,6 +340,47 @@ function probeRecoveryState(
           "awaiting_human→executing resume succeeds in StateManager",
         );
       }
+      case "fsm.nogo_blocked_rejects_complete": {
+        sm.transition("visioning", "start");
+        sm.transition("decomposing", "vision done");
+        sm.transition("executing", "atoms ready");
+        sm.transition("blocked", "worker blocked");
+        let rejected = false;
+        try {
+          sm.transition("complete", "skip to complete from blocked");
+        } catch (err) {
+          rejected = err instanceof InvalidTransitionError;
+        }
+        return probe(
+          id,
+          category,
+          expected,
+          rejected && sm.current() === "blocked",
+          `rejected=${rejected}, state=${sm.current()}`,
+          "blocked→complete throws InvalidTransitionError without mutation",
+        );
+      }
+      case "fsm.nogo_awaiting_rejects_verifying": {
+        sm.transition("visioning", "start");
+        sm.transition("decomposing", "vision done");
+        sm.transition("executing", "atoms ready");
+        sm.transition("blocked", "worker blocked");
+        sm.transition("awaiting_human", "needs approval");
+        let rejected = false;
+        try {
+          sm.transition("verifying", "skip verify from awaiting");
+        } catch (err) {
+          rejected = err instanceof InvalidTransitionError;
+        }
+        return probe(
+          id,
+          category,
+          expected,
+          rejected && sm.current() === "awaiting_human",
+          `rejected=${rejected}, state=${sm.current()}`,
+          "awaiting_human→verifying throws InvalidTransitionError without mutation",
+        );
+      }
       default:
         return probe(id, category, expected, false, "unknown recovery_state probe");
     }
@@ -612,6 +658,41 @@ export function runFormalStateMachineBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface FormalStateMachineFailureRecoverySliceResult {
+  atom: "P01-B03-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: FormalStateMachineProbeResult[];
+  failureRecoveryResults: FormalStateMachineProbeResult[];
+  matrixValidation: FormalStateMachineProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery/NO-GO slice: contract-wired failure_state gaps, recovery paths,
+ * and NO-GO rejection probes with zero unexpected mismatches.
+ */
+export function runFormalStateMachineFailureRecoverySlice(
+  fixture: FormalStateMachineFixture = loadFormalStateMachineFixture(),
+): FormalStateMachineFailureRecoverySliceResult {
+  const contract = getActiveFormalStateMachineContract();
+  const results = runFormalStateMachineProbes(fixture);
+  const failureRecoveryProbes = FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listFormalStateMachineProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateFormalStateMachineFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B03-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }
