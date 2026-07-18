@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B04-A03
-last_commit: pending
+last_commit: 9361e06
 tests: PASS — forge-phase-event-schema (11/11)
 evidence: contract-wired production slice; 19 PASS + 5 gap probes aligned; validatePhaseEventSchemaProbeMatrix zero unexpected mismatches; runPhaseEventSchemaProductionSlice gate
 next: P01-B04-A04
