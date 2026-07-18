@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 4
-completed_atoms: 46
+completed_atoms: 47
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -74,7 +74,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B05-A05 — Pipeline invariant engine: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B05-A06 — Pipeline invariant engine: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B05-A07 — Pipeline invariant engine: unit, property ve fuzz doğrulamasını ekle
-- [ ] P01-B05-A08 — Pipeline invariant engine: Forge entegrasyonu ile regression testini tamamla
+- [x] P01-B05-A08 — Pipeline invariant engine: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B05-A09 — Pipeline invariant engine: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B05-A10 — Pipeline invariant engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B05-A07
+last_atom: P01-B05-A08
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts src/forge-pipeline-invariant-engine.property-fuzz.test.ts` (26/26)
+tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts src/forge-pipeline-regression.integration.test.ts` (34/34)
 evidence: |
-  P01-B05-A07 property/fuzz slice: runPipelineInvariantEnginePropertyChecks 7/7 structural properties;
-  runPipelineInvariantEngineFuzzValidation rejects 24/24 mutations across seeds 42/99/20260718;
-  runPipelineInvariantEngineRunRecordFuzzValidation rejects 3/3 corrupted run record mutations;
-  harness version 1.0.0-a06 preserved; zero mutations accepted.
-next: P01-B05-A08
+  P01-B05-A08 regression slice: runForgePipelineInvariantEngineRegressionGate 32/32 probes aligned;
+  detectPipelineInvariantEngineProbeRegression flags newly misaligned probes;
+  verifyForgePipelineInvariantEngineRegression emits pipeline_invariant_engine_regression verification;
+  validateForgePipelineInvariantEngineGuard PASS with 3/3 adversarial scenarios rejected.
+next: P01-B05-A09

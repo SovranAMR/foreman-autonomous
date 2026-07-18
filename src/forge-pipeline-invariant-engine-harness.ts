@@ -35,18 +35,24 @@ import {
   buildPipelineInvariantEngineRunRecord,
   validatePipelineInvariantEngineRunRecord,
   validatePipelineInvariantEngineFailureRecoveryRunRecord,
+  detectPipelineInvariantEngineProbeRegression,
+  validateForgePipelineInvariantEngineGuard,
   type PipelineInvariantEngineCategory,
   type PipelineInvariantEngineFixture,
   type PipelineInvariantEngineProbeResult,
   type PipelineInvariantEngineProbeMatrixValidationResult,
   type PipelineInvariantEngineProbeDisposition,
   type PipelineInvariantEngineRunRecord,
+  type PipelineInvariantEngineProbeRegressionReport,
+  type PipelineInvariantEngineGuardCheckResult,
 } from "./forge-pipeline-invariant-engine.js";
 
 export type {
   PipelineInvariantEngineFixture,
   PipelineInvariantEngineProbeResult,
   PipelineInvariantEngineRunRecord,
+  PipelineInvariantEngineProbeRegressionReport,
+  PipelineInvariantEngineGuardCheckResult,
 } from "./forge-pipeline-invariant-engine.js";
 
 export {
@@ -74,12 +80,24 @@ export {
   runPipelineInvariantEngineFuzzValidation,
   runPipelineInvariantEngineRunRecordFuzzValidation,
   createPipelineInvariantEngineFuzzRng,
+  detectPipelineInvariantEngineProbeRegression,
+  validateForgePipelineInvariantEngineGuard,
   FORGE_PIPELINE_INVARIANT_ENGINE_CONTRACT_V1,
   PIPELINE_INVARIANT_ENGINE_CATEGORIES,
   PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES,
   PIPELINE_INVARIANT_ENGINE_A01_MIN_PROBES,
   buildDefaultPipelineInvariantEngineSourcePhaseEventSchema,
 } from "./forge-pipeline-invariant-engine.js";
+
+export interface ForgePipelineInvariantEngineRegressionResult {
+  passed: boolean;
+  record: PipelineInvariantEngineRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: PipelineInvariantEngineProbeRegressionReport | null;
+  guard: PipelineInvariantEngineGuardCheckResult;
+  detail: string;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = join(__dirname);
@@ -407,7 +425,8 @@ function probeVerificationGate(
         src.includes("verifyForgeBaselineRegression") &&
         src.includes("verifyForgeBehaviorMapRegression") &&
         src.includes("verifyForgeFormalStateMachineRegression") &&
-        src.includes("verifyForgePhaseEventSchemaRegression");
+        src.includes("verifyForgePhaseEventSchemaRegression") &&
+        src.includes("verifyForgePipelineInvariantEngineRegression");
       return probe(
         id,
         category,
@@ -525,7 +544,13 @@ function probeBoundary(
       );
     }
     case "inv.invariant_engine_orchestrator_wired": {
-      const ok = src.includes("forge-pipeline-invariant-engine");
+      const emitBlock = src.slice(
+        src.indexOf("private emit(event: OrchestratorEvent)"),
+        src.indexOf("private emit(event: OrchestratorEvent)") + 1200,
+      );
+      const ok =
+        emitBlock.includes("validatePipelineInvariant") ||
+        (src.includes("forge-pipeline-invariant-engine") && emitBlock.includes("invariantEngine"));
       return probe(
         id,
         category,
@@ -970,5 +995,51 @@ export function runPipelineInvariantEngineFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/**
+ * Execute pipeline invariant engine probes, validate run record, and optionally detect regression vs prior run.
+ * Forge pipeline integration gate (P01-B05-A08).
+ */
+export function runForgePipelineInvariantEngineRegressionGate(
+  priorRecord?: PipelineInvariantEngineRunRecord,
+): ForgePipelineInvariantEngineRegressionResult {
+  const record = runPipelineInvariantEngineProbesWithRecord();
+  const validation = validatePipelineInvariantEngineRunRecord(record);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectPipelineInvariantEngineProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgePipelineInvariantEngineGuard(record, { totalCostUsd: 0, llmCalls: 0 });
+  const passed = recordValid && !alignmentRegression && guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    passed,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    guard,
+    detail: detailParts.join(" | "),
   };
 }

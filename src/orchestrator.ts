@@ -230,6 +230,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge pipeline invariant engine regression gate and emit verification event (P01-B05-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgePipelineInvariantEngineRegression(
+    priorRecord?: import("./forge-pipeline-invariant-engine.js").PipelineInvariantEngineRunRecord,
+  ): Promise<import("./forge-pipeline-invariant-engine-harness.js").ForgePipelineInvariantEngineRegressionResult> {
+    const { runForgePipelineInvariantEngineRegressionGate } = await import("./forge-pipeline-invariant-engine-harness.js");
+    const result = runForgePipelineInvariantEngineRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "pipeline_invariant_engine_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge baseline guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B01-A09).
    */
   async verifyForgeBaselineGuard(
