@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
   loadFormalStateMachineFixture,
   runFormalStateMachineProbes,
+  runFormalStateMachineProductionSlice,
   summarizeFormalStateMachineMatrix,
   validateFormalStateMachineFixture,
   validateFormalStateMachineFixtureAgainstContract,
+  validateFormalStateMachineProbeMatrix,
   listFormalStateMachineKnownGaps,
   listFormalStateMachineProbesByExpected,
   getActiveFormalStateMachineContract,
@@ -148,6 +150,57 @@ describe("Forge Formal State Machine Contract — P01-B03-A02", () => {
   it("each formal state machine probe id is globally unique", () => {
     const ids = listFormalStateMachineContractProbeIds();
     assert.equal(new Set(ids).size, ids.length);
+  });
+});
+
+describe("Forge Formal State Machine Production Slice — P01-B03-A03", () => {
+  it("executes contract-wired probes with zero unexpected mismatches", () => {
+    const contract = getActiveFormalStateMachineContract();
+    const slice = runFormalStateMachineProductionSlice();
+
+    assert.equal(slice.atom, "P01-B03-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 20);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 18);
+    assert.equal(slice.matrixValidation.gapAligned, 2);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateFormalStateMachineProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 2);
+    assert.deepEqual(
+      slice.summary.knownGaps.map(g => g.id).sort(),
+      ["fsm.orch_awaiting_human_sync", "fsm.orch_blocked_sync"],
+    );
+  });
+
+  it("wires harness probe criteria from typed contract source of truth", () => {
+    const results = runFormalStateMachineProbes();
+    const contract = getActiveFormalStateMachineContract();
+
+    assert.equal(results.length, contract.probes.length);
+    for (const result of results) {
+      const contractProbe = contract.probes.find(p => p.id === result.id)!;
+      assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
+      assert.equal(result.criterion, contractProbe.criterion);
+    }
   });
 });
 

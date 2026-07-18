@@ -22,6 +22,7 @@ import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
   validateFormalStateMachineFixture,
   validateFormalStateMachineFixtureAgainstContract,
+  validateFormalStateMachineProbeMatrix,
   summarizeFormalStateMachineMatrix,
   getActiveFormalStateMachineContract,
   FORMAL_STATE_MACHINE_CATEGORIES,
@@ -29,6 +30,7 @@ import {
   type FormalStateMachineFixture,
   type FormalStateMachineProbeResult,
   type FormalStateMachineProbeSummary,
+  type FormalStateMachineProbeMatrixValidationResult,
 } from "./forge-formal-state-machine.js";
 
 export type {
@@ -37,11 +39,13 @@ export type {
   FormalStateMachineProbeSummary,
   FormalStateMachineContract,
   FormalStateMachineProbeContract,
+  FormalStateMachineProbeMatrixValidationResult,
 } from "./forge-formal-state-machine.js";
 
 export {
   validateFormalStateMachineFixture,
   validateFormalStateMachineFixtureAgainstContract,
+  validateFormalStateMachineProbeMatrix,
   summarizeFormalStateMachineMatrix,
   getActiveFormalStateMachineContract,
   getFormalStateMachineCategoryContract,
@@ -402,12 +406,58 @@ export function loadFormalStateMachineFixture(): FormalStateMachineFixture {
   return formalStateMachineFixture as FormalStateMachineFixture;
 }
 
+function enrichProbeWithContractCriterion(
+  result: FormalStateMachineProbeResult,
+  criterion: string | undefined,
+): FormalStateMachineProbeResult {
+  if (!criterion) return result;
+  return { ...result, criterion };
+}
+
 export function runFormalStateMachineProbes(
   fixture: FormalStateMachineFixture = loadFormalStateMachineFixture(),
 ): FormalStateMachineProbeResult[] {
-  return fixture.probes.map(entry =>
-    runSingleProbe(entry.id, entry.category, entry.expected),
-  );
+  const contract = getActiveFormalStateMachineContract();
+  return fixture.probes.map(entry => {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const result = runSingleProbe(entry.id, entry.category, entry.expected);
+    return enrichProbeWithContractCriterion(result, contractProbe?.criterion);
+  });
+}
+
+export interface FormalStateMachineProductionSliceResult {
+  atom: "P01-B03-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: FormalStateMachineProbeResult[];
+  summary: FormalStateMachineProbeSummary;
+  matrixValidation: FormalStateMachineProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: fixture ↔ contract validation, contract-wired probe
+ * execution, and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runFormalStateMachineProductionSlice(
+  fixture: FormalStateMachineFixture = loadFormalStateMachineFixture(),
+): FormalStateMachineProductionSliceResult {
+  const contract = getActiveFormalStateMachineContract();
+  const fixtureValidation = validateFormalStateMachineFixture(fixture);
+  const contractValidation = validateFormalStateMachineFixtureAgainstContract(fixture, contract);
+  const results = runFormalStateMachineProbes(fixture);
+  const summary = summarizeFormalStateMachineMatrix(results);
+  const matrixValidation = validateFormalStateMachineProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B03-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 export function listFormalStateMachineKnownGaps(
