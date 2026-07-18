@@ -80,7 +80,7 @@ describe("Forge Pipeline Behavior Map Contract — P01-B02-A02", () => {
   it("defines typed acceptance for all eight behavior categories", () => {
     const contract = getActivePipelineBehaviorMapContract();
     assert.equal(contract.version, "1.0.0");
-    assert.equal(contract.atom, "P01-B02-A06");
+    assert.equal(contract.atom, "P01-B02-A07");
 
     for (const category of PIPELINE_BEHAVIOR_CATEGORIES) {
       const categoryContract = getBehaviorMapCategoryContract(category);
@@ -239,6 +239,31 @@ describe("Forge Pipeline Behavior Map Failure/Recovery/NO-GO — P01-B02-A05", (
     assert.equal(recoveryProbes.every(p => p.aligned), true);
     const nogoProbes = results.filter(r => r.category === "nogo_path");
     assert.equal(nogoProbes.every(p => p.aligned), true);
+  });
+});
+
+describe("Forge Pipeline Behavior Map Property/Fuzz — P01-B02-A07", () => {
+  it("passes structural property checks on canonical contract", async () => {
+    const { runBehaviorMapPropertyChecks, FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1 } = await import(
+      "./forge-pipeline-behavior-map.js"
+    );
+    const result = runBehaviorMapPropertyChecks(FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1);
+    assert.equal(result.allPassed, true, result.failed.map(f => `${f.propertyId}: ${f.detail}`).join("\n"));
+  });
+
+  it("rejects fuzz-mutated fixtures and corrupted run records", async () => {
+    const fixture = loadPipelineBehaviorMapFixture();
+    const contract = getActivePipelineBehaviorMapContract();
+    const { runBehaviorMapFuzzValidation, runBehaviorMapRunRecordFuzzValidation } = await import(
+      "./forge-pipeline-behavior-map.js"
+    );
+    const fuzz = runBehaviorMapFuzzValidation(fixture, contract, 42, 24);
+    assert.equal(fuzz.allMutationsRejected, true);
+
+    const record = runPipelineBehaviorMapProbesWithRecord();
+    const recordFuzz = runBehaviorMapRunRecordFuzzValidation(record, contract);
+    assert.equal(recordFuzz.validBaseline, true);
+    assert.equal(recordFuzz.mutationsAccepted, 0);
   });
 });
 

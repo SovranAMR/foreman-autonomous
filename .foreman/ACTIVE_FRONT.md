@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B02
-active_atom: P01-B02-A07
+active_atom: P01-B02-A08
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 16/1000
-phase_progress: 16/100
-block_progress: 6/10
+program_progress: 17/1000
+phase_progress: 17/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B02-A07 — Mevcut pipeline davranış haritası: unit, property ve fuzz doğrulamasını ekle.
+P01-B02-A08 — Mevcut pipeline davranış haritası: Forge entegrasyonu ile regression testini tamamla.
 
-objective: Pipeline behavior map unit, property ve fuzz doğrulamasını ekle.
-target: Behavior map run record ve contract için property/fuzz validation yolları.
-hypothesis: B02-A06 evidence slice sealed; A07 fuzz/property slice.
-acceptance: Property/fuzz coverage, hedefli test PASS.
-commands: npx tsx --test src/forge-pipeline-behavior-map.test.ts
-blast_radius: forge-pipeline-behavior-map*.ts
-rollback: A07 değişikliklerini geri al.
+objective: Pipeline behavior map Forge entegrasyonu ile regression testini tamamla.
+target: Behavior map regression gate ve orchestrator verification entegrasyonu.
+hypothesis: B02-A07 property/fuzz slice sealed; A08 regression integration slice.
+acceptance: Regression gate PASS, orchestrator verification event.
+commands: npx tsx --test src/forge-pipeline-regression.integration.test.ts
+blast_radius: forge-pipeline-behavior-map*.ts, orchestrator.ts
+rollback: A08 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B02-A06
-last_commit: 802e991
-tests: PASS — forge-pipeline-behavior-map (15/15), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
-evidence: BehaviorMapRunRecord with evidence/telemetry/provenance; runPipelineBehaviorMapProbesWithRecord; validateBehaviorMapRunRecord; 26/26 probes with disposition/category summary; sourceBaseline lineage in provenance
-next: P01-B02-A07
+last_atom: P01-B02-A07
+last_commit: PENDING
+tests: PASS — forge-pipeline-behavior-map (17/17), forge-pipeline-behavior-map.property-fuzz (4/4), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
+evidence: runBehaviorMapPropertyChecks (7 structural properties), runBehaviorMapFuzzValidation (72/72 mutations rejected), runBehaviorMapRunRecordFuzzValidation (3/3 corrupted records rejected); contract atom P01-B02-A07
+next: P01-B02-A08

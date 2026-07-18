@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 1
-completed_atoms: 16
+completed_atoms: 17
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -34,7 +34,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B02-A04 — Mevcut pipeline davranış haritası: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B02-A05 — Mevcut pipeline davranış haritası: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B02-A06 — Mevcut pipeline davranış haritası: evidence, telemetry ve provenance kaydını ekle
-- [ ] P01-B02-A07 — Mevcut pipeline davranış haritası: unit, property ve fuzz doğrulamasını ekle
+- [x] P01-B02-A07 — Mevcut pipeline davranış haritası: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B02-A08 — Mevcut pipeline davranış haritası: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B02-A09 — Mevcut pipeline davranış haritası: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B02-A10 — Mevcut pipeline davranış haritası: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B02-A06
-last_commit: 802e991
-tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (15/15), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
+last_atom: P01-B02-A07
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (17/17), `src/forge-pipeline-behavior-map.property-fuzz.test.ts` (4/4), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
-  P01-B02-A06 evidence/telemetry/provenance slice: BehaviorMapProbeEvidence, BehaviorMapProbeTelemetry,
-  BehaviorMapProvenance, BehaviorMapRunRecord types; build/validate helpers; runPipelineBehaviorMapProbesWithRecord
-  harness with per-probe timing, disposition and sourceBaseline lineage; 26/26 aligned, 0 mismatches.
-next: P01-B02-A07
+  P01-B02-A07 property/fuzz slice: runBehaviorMapPropertyChecks (7 structural invariants),
+  runBehaviorMapFuzzValidation (72/72 fixture mutations rejected across 3 seeds),
+  runBehaviorMapRunRecordFuzzValidation (3/3 corrupted run records rejected);
+  contract atom bumped to P01-B02-A07; fixture contractAtom aligned.
+next: P01-B02-A08
