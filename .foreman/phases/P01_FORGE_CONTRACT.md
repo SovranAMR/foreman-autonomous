@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B06-A01
-last_commit: pending
+last_commit: 6016195
 tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (3/3)
 evidence: |
   P01-B06-A01 baseline: forge-benchmark-eval-harness-v1 fixture with 26 probes (18 PASS / 8 FAIL gaps) aligned to

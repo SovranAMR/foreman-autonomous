@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B06-A01
-last_commit: pending
+last_commit: 6016195
 tests: PASS — forge-benchmark-eval-harness.test.ts (3/3)
 evidence: 26-probe benchmark eval baseline; 8 documented FAIL gaps; B05 handoff aligned
 next: P01-B06-A02
