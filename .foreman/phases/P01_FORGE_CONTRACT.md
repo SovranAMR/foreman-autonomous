@@ -2,8 +2,8 @@
 
 phase_id: P01
 phase_status: ACTIVE
-completed_blocks: 1
-completed_atoms: 19
+completed_blocks: 2
+completed_atoms: 20
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -37,7 +37,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B02-A07 — Mevcut pipeline davranış haritası: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B02-A08 — Mevcut pipeline davranış haritası: Forge entegrasyonu ile regression testini tamamla
 - [x] P01-B02-A09 — Mevcut pipeline davranış haritası: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P01-B02-A10 — Mevcut pipeline davranış haritası: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P01-B02-A10 — Mevcut pipeline davranış haritası: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B03 — Formal state machine
 
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B02-A09
-last_commit: ff263bb
-tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.guard.test.ts` (8/8), `src/forge-pipeline-behavior-map.test.ts` (17/17), `src/forge-pipeline-regression.integration.test.ts` (8/8)
+last_atom: P01-B02-A10
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-behavior-map-block-gate.test.ts` (6/6), `src/forge-pipeline-behavior-map.test.ts` (17/17), `src/forge-pipeline-behavior-map.guard.test.ts` (8/8), `src/forge-pipeline-regression.integration.test.ts` (8/8)
 evidence: |
-  P01-B02-A09 guard integration slice: validateForgeBehaviorMapGuard (adversarial 3/3 rejected, zero-cost perf/safety PASS),
-  runForgeBehaviorMapRegressionGate includes guard detail,
-  orchestrator verifyForgeBehaviorMapGuard emits behavior_map_guard verification event.
-next: P01-B02-A10
+  P01-B02-A10 block gate slice: runForgeBehaviorMapBlockGate seals 10/10 atom seals with regression/guard PASS,
+  FORGE_P01_B02_TO_B03_HANDOFF_V1 targets P01-B03-A01,
+  orchestrator verifyForgeBehaviorMapBlockGate emits behavior_map_block_gate verification event.
+next: P01-B03-A01

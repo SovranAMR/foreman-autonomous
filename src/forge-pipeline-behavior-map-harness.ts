@@ -17,16 +17,29 @@ import {
   buildBehaviorMapProvenance,
   buildBehaviorMapRunRecord,
   buildDefaultBehaviorMapSourceBaseline,
+  buildBehaviorMapBlockGateEvidence,
   getActivePipelineBehaviorMapContract,
+  getForgeP01B02BlockGate,
+  getForgeP01B02ToB03Handoff,
   validateBehaviorMapFixtureAgainstContract,
   validateBehaviorMapRunRecord,
+  validateBehaviorMapBlockHandoffContract,
   detectBehaviorMapProbeRegression,
   validateForgeBehaviorMapGuard,
+  runBehaviorMapPropertyChecks,
+  runBehaviorMapFuzzValidation,
+  runBehaviorMapRunRecordFuzzValidation,
+  listBehaviorMapProbesByDisposition,
+  summarizeBehaviorMapContractCoverage,
+  PIPELINE_BEHAVIOR_CATEGORIES,
+  type BehaviorMapBlockGateEvidence,
+  type BehaviorMapBlockHandoffContract,
   type BehaviorMapGuardCheckResult,
   type BehaviorMapProbeResult,
   type BehaviorMapProbeSummary,
   type BehaviorMapRunRecord,
   type ForgeAcceptanceOutcome,
+  type ForgeBlockAtomSeal,
   type PipelineBehaviorCategory,
   type PipelineBehaviorMapFixture,
   type PipelineBehaviorProbeDisposition,
@@ -57,6 +70,15 @@ export {
   detectBehaviorMapProbeRegression,
   validateForgeBehaviorMapGuard,
   buildDefaultBehaviorMapSourceBaseline,
+  buildBehaviorMapBlockGateEvidence,
+  getForgeP01B02BlockGate,
+  getForgeP01B02ToB03Handoff,
+  validateBehaviorMapBlockHandoffContract,
+  runBehaviorMapPropertyChecks,
+  runBehaviorMapFuzzValidation,
+  runBehaviorMapRunRecordFuzzValidation,
+  type BehaviorMapBlockGateEvidence,
+  type BehaviorMapBlockHandoffContract,
   PIPELINE_BEHAVIOR_CATEGORIES,
   type BehaviorMapProbeRegressionReport,
 } from "./forge-pipeline-behavior-map.js";
@@ -465,6 +487,182 @@ export function runForgeBehaviorMapRegressionGate(
     validationIssues,
     probeRegression,
     guard,
+    detail: detailParts.join(" | "),
+  };
+}
+
+export interface ForgeBehaviorMapBlockGateResult {
+  passed: boolean;
+  evidence: BehaviorMapBlockGateEvidence;
+  handoff: BehaviorMapBlockHandoffContract;
+  regression: ForgeBehaviorMapRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealBehaviorMapBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P01-B02 block gate: validate A01–A09 deliverables, regression, guard, and B03 handoff (P01-B02-A10).
+ */
+export function runForgeBehaviorMapBlockGate(): ForgeBehaviorMapBlockGateResult {
+  const blockGate = getForgeP01B02BlockGate();
+  const handoff = getForgeP01B02ToB03Handoff();
+  const contract = getActivePipelineBehaviorMapContract();
+  const fixture = loadPipelineBehaviorMapFixture();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateBehaviorMapFixtureAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A01",
+      "behavior_map_fixture",
+      fixtureValidation.valid && fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeBehaviorMapContractCoverage(contract).totalProbes} probes)`
+        : fixtureValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeBehaviorMapContractCoverage(contract);
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${PIPELINE_BEHAVIOR_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const regression = runForgeBehaviorMapRegressionGate();
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A03",
+      "probe_matrix",
+      regression.record.summary.mismatches === 0,
+      `${regression.record.summary.aligned}/${regression.record.summary.total} probes aligned`,
+    ),
+  );
+
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A04",
+      "boundary_dispositions",
+      dispositionOk,
+      `observed=${coverage.byDisposition.observed} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const nogoProbes = listBehaviorMapProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A05",
+      "failure_recovery_nogo",
+      nogoProbes.length > 0 && regression.recordValid,
+      `${nogoProbes.length} NO-GO probes; recordValid=${regression.recordValid}`,
+    ),
+  );
+
+  const recordValidation = validateBehaviorMapRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const properties = runBehaviorMapPropertyChecks(contract);
+  const contractFuzz = runBehaviorMapFuzzValidation(fixture, contract);
+  const runFuzz = runBehaviorMapRunRecordFuzzValidation(regression.record, contract);
+  const fuzzOk = properties.allPassed && contractFuzz.allMutationsRejected && runFuzz.mutationsAccepted === 0;
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A07",
+      "property_fuzz",
+      fuzzOk,
+      `properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validateBehaviorMapBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealBehaviorMapBlockAtom(
+      "P01-B02-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildBehaviorMapBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
     detail: detailParts.join(" | "),
   };
 }

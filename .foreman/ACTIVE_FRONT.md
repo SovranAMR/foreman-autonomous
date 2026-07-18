@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
-active_block: P01-B02
-active_atom: P01-B02-A10
+active_block: P01-B03
+active_atom: P01-B03-A01
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 19/1000
-phase_progress: 19/100
-block_progress: 9/10
+program_progress: 20/1000
+phase_progress: 20/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B02-A10 — Mevcut pipeline davranış haritası: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P01-B03-A01 — Formal state machine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: Behavior map block gate evidence mühürle ve B03 handoff hazırla.
-target: Block gate seal ve handoff contract.
-hypothesis: B02-A09 guard sealed; A10 block gate slice.
-acceptance: Block gate PASS, handoff contract valid.
-commands: npx tsx --test src/forge-pipeline-behavior-map.test.ts
-blast_radius: forge-pipeline-behavior-map*.ts, orchestrator.ts
-rollback: A10 değişikliklerini geri al.
+objective: Orchestrator state machine davranışını ölç; failing baseline fixture oluştur.
+target: State machine baseline fixture ve probe matrix.
+hypothesis: B02 block gate sealed; B03-A01 baseline slice.
+acceptance: Baseline fixture loads, probe matrix measurable, at least one failing probe documented.
+commands: npx tsx --test src/forge-formal-state-machine.test.ts
+blast_radius: forge-formal-state-machine*.ts, types.ts, state.ts
+rollback: A01 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B02-A09
-last_commit: ff263bb
-tests: PASS — forge-pipeline-behavior-map (17/17), forge-pipeline-behavior-map.guard (8/8), forge-pipeline-behavior-map.property-fuzz (4/4), forge-pipeline-regression.integration (8/8), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3)
-evidence: validateForgeBehaviorMapGuard (adversarial 3/3 rejected, perf/cost/safety PASS), runForgeBehaviorMapRegressionGate guard detail, orchestrator verifyForgeBehaviorMapGuard emits behavior_map_guard verification event; contract atom P01-B02-A09
-next: P01-B02-A10
+last_atom: P01-B02-A10
+last_commit: pending
+tests: PASS — forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (17/17), forge-pipeline-behavior-map.guard (8/8), forge-pipeline-behavior-map.property-fuzz (4/4), forge-pipeline-regression.integration (8/8)
+evidence: runForgeBehaviorMapBlockGate seals P01-B02 (10/10 atom seals), FORGE_P01_B02_TO_B03_HANDOFF_V1 valid, orchestrator verifyForgeBehaviorMapBlockGate emits behavior_map_block_gate verification event
+next: P01-B03-A01

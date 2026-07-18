@@ -5,7 +5,7 @@
  * Built on sealed P01-B01 baseline artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal, ForgeBlockGateCheck, ForgeBlockGateDefinition } from "./forge-baseline-contract.js";
 import { FORGE_BASELINE_CONTRACT_V1, summarizeContractCoverage } from "./forge-baseline-contract.js";
 
 export type PipelineBehaviorCategory =
@@ -1658,5 +1658,188 @@ export function validateForgeBehaviorMapGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P01-B02-A10) ────────────────────────────────────
+
+export interface BehaviorMapBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface BehaviorMapBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    behaviorCategories: readonly PipelineBehaviorCategory[];
+    sourceBaselineAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    behaviorMapRecordRequired: true;
+  };
+}
+
+export const FORGE_P01_B02_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P01-B02-A10",
+  blockId: "P01-B02",
+  title: "Mevcut pipeline davranış haritası",
+  requiredAtomIds: [
+    "P01-B02-A01",
+    "P01-B02-A02",
+    "P01-B02-A03",
+    "P01-B02-A04",
+    "P01-B02-A05",
+    "P01-B02-A06",
+    "P01-B02-A07",
+    "P01-B02-A08",
+    "P01-B02-A09",
+    "P01-B02-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P01-B02-A01", description: "Behavior map fixture aligns with typed contract" },
+    { id: "typed_contract_coverage", atomId: "P01-B02-A02", description: "Contract declares measurable probes for all behavior categories" },
+    { id: "probe_matrix_aligned", atomId: "P01-B02-A03", description: "Behavior map probe matrix executes with zero mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P01-B02-A04", description: "Contract covers observed, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P01-B02-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P01-B02-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P01-B02-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P01-B02-A08", description: "Regression gate passes on canonical behavior map matrix" },
+    { id: "guard_controls", atomId: "P01-B02-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P01-B02-A10", description: "Block gate evidence sealed with valid B03 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P01_B02_TO_B03_HANDOFF_V1: BehaviorMapBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P01-B02-A10",
+  sourceBlock: {
+    blockId: "P01-B02",
+    title: "Mevcut pipeline davranış haritası",
+    completedAtoms: FORGE_P01_B02_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P01-B03",
+    title: "Formal state machine",
+    entryAtom: "P01-B03-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1.version,
+    harnessVersion: FORGE_BEHAVIOR_MAP_HARNESS_VERSION,
+    probeCount: summarizeBehaviorMapContractCoverage(FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1).totalProbes,
+    behaviorCategories: PIPELINE_BEHAVIOR_CATEGORIES,
+    sourceBaselineAtom: "P01-B01-A10",
+  },
+  prerequisites: [
+    "Typed pipeline behavior map contract v1 with measurable category invariants",
+    "Versioned behavior map fixture aligned to contract probe matrix",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P01-B01 baseline artifacts referenced by sourceBaseline",
+  ],
+  entryCriteria: {
+    description:
+      "B03-A01 formalizes orchestrator state machine transitions using the sealed behavior map artifacts",
+    requiresBlockGatePass: true,
+    behaviorMapRecordRequired: true,
+  },
+};
+
+export function getForgeP01B02BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P01_B02_BLOCK_GATE_V1;
+}
+
+export function getForgeP01B02ToB03Handoff(): BehaviorMapBlockHandoffContract {
+  return FORGE_P01_B02_TO_B03_HANDOFF_V1;
+}
+
+export function validateBehaviorMapBlockHandoffContract(
+  handoff: BehaviorMapBlockHandoffContract,
+  evidence: Pick<BehaviorMapBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: PipelineBehaviorMapContract = getActivePipelineBehaviorMapContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeBehaviorMapContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.behaviorCategories.length !== PIPELINE_BEHAVIOR_CATEGORIES.length) {
+    issues.push("handoff behaviorCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P01-B03-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildBehaviorMapBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P01_B02_BLOCK_GATE_V1.blockId,
+): BehaviorMapBlockGateEvidence {
+  const handoff = getForgeP01B02ToB03Handoff();
+  const handoffValid = validateBehaviorMapBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P01-B02-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    gitCommit,
   };
 }

@@ -249,6 +249,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01-B02 block gate and emit verification event with B03 handoff (P01-B02-A10).
+   */
+  async verifyForgeBehaviorMapBlockGate(): Promise<import("./forge-pipeline-behavior-map-harness.js").ForgeBehaviorMapBlockGateResult> {
+    const { runForgeBehaviorMapBlockGate } = await import("./forge-pipeline-behavior-map-harness.js");
+    const result = runForgeBehaviorMapBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "behavior_map_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */
