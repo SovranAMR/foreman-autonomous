@@ -1,0 +1,159 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B04-A01",
+  "contractAtom": "P01-B04-A05",
+  "purpose": "Typed orchestrator phase/event schema baseline measured against orchestrator emissions (includes documented FAIL gaps).",
+  "sourceFormalStateMachine": {
+    "version": "1.0.0",
+    "atom": "P01-B03-A10",
+    "contractVersion": "1.0.0",
+    "probeCount": 28,
+    "fsmCategories": 7
+  },
+  "probes": [
+    {
+      "id": "schema.orch_event_union_defined",
+      "category": "event_type_union",
+      "description": "Orchestrator exports OrchestratorEvent discriminated union",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.orch_event_types_minimum",
+      "category": "event_type_union",
+      "description": "OrchestratorEvent covers at least ten event type variants",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.orch_pipeline_complete_event",
+      "category": "event_type_union",
+      "description": "OrchestratorEvent includes pipeline_complete variant",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.orch_verification_event",
+      "category": "event_type_union",
+      "description": "OrchestratorEvent includes verification variant",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.orch_phase_field_typed",
+      "category": "phase_typing",
+      "description": "OrchestratorEvent phase field uses typed union instead of string",
+      "expected": "FAIL"
+    },
+    {
+      "id": "schema.stream_phase_field_typed",
+      "category": "phase_typing",
+      "description": "StreamEvent phase field uses typed union instead of string",
+      "expected": "FAIL"
+    },
+    {
+      "id": "schema.phase_start_end_same_shape",
+      "category": "phase_typing",
+      "description": "phase_start and phase_end share the same phase field type",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.pipeline_phases_export",
+      "category": "phase_registry",
+      "description": "Orchestrator exports FORGE_PIPELINE_PHASES registry",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.core_phases_count",
+      "category": "phase_registry",
+      "description": "FORGE_PIPELINE_CORE_PHASES defines seven canonical pipeline phases",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.unregistered_phase_literals",
+      "category": "phase_registry",
+      "description": "Orchestrator emits phase literals absent from canonical registry",
+      "expected": "FAIL"
+    },
+    {
+      "id": "schema.registry_covers_core",
+      "category": "phase_registry",
+      "description": "verify core phase missing orchestrator phase_start emission",
+      "expected": "FAIL"
+    },
+    {
+      "id": "schema.vision_start_end_pair",
+      "category": "event_pairing",
+      "description": "vision emits both phase_start and phase_end",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.decompose_start_end_pair",
+      "category": "event_pairing",
+      "description": "decompose emits both phase_start and phase_end",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.execute_start_end_pair",
+      "category": "event_pairing",
+      "description": "execute emits both phase_start and phase_end",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.recovery_assess_unpaired",
+      "category": "event_pairing",
+      "description": "recovery_assess emits phase_end without matching phase_start",
+      "expected": "FAIL"
+    },
+    {
+      "id": "schema.stream_event_types_export",
+      "category": "stream_seam",
+      "description": "streaming-pipeline.ts exports StreamEventType union",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.stream_phase_start_end_methods",
+      "category": "stream_seam",
+      "description": "StreamingPipeline exposes phaseStart and phaseEnd methods",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.stream_core_phase_overlap",
+      "category": "stream_seam",
+      "description": "Core pipeline phases appear in orchestrator streaming calls",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.b03_handoff_target",
+      "category": "baseline_link",
+      "description": "FORGE_P01_B03_TO_B04_HANDOFF_V1 targets P01-B04-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.b03_fsm_sealed",
+      "category": "baseline_link",
+      "description": "Sealed B03 formal state machine probe count matches handoff artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.block_detected_event",
+      "category": "boundary",
+      "description": "OrchestratorEvent includes block_detected variant",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.error_event",
+      "category": "boundary",
+      "description": "OrchestratorEvent includes error variant",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.format_retry_event",
+      "category": "boundary",
+      "description": "OrchestratorEvent includes format_retry variant",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.hallucination_event",
+      "category": "boundary",
+      "description": "OrchestratorEvent includes hallucination variant",
+      "expected": "PASS"
+    }
+  ]
+}

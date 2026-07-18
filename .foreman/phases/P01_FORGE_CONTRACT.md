@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 30
+completed_atoms: 31
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -54,7 +54,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B04 — Typed phase/event schema
 
-- [ ] P01-B04-A01 — Typed phase/event schema: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B04-A01 — Typed phase/event schema: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B04-A02 — Typed phase/event schema: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B04-A03 — Typed phase/event schema: en küçük üretim dikey dilimini uygula
 - [ ] P01-B04-A04 — Typed phase/event schema: boundary ve edge-case davranışlarını tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B03-A10
-last_commit: c8cc0b8
-tests: PASS — `npx tsx --test src/forge-formal-state-machine-block-gate.test.ts` (6/6)
+last_atom: P01-B04-A01
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (4/4)
 evidence: |
-  P01-B03-A10 block gate: runForgeFormalStateMachineBlockGate seals 10/10 atom seals with handoff=PASS→P01-B04;
-  FORGE_P01_B03_TO_B04_HANDOFF_V1 entryAtom=P01-B04-A01; validateFormalStateMachineBlockHandoffContract rejects stale regression;
-  orchestrator verifyForgeFormalStateMachineBlockGate emits formal_state_machine_block_gate verification.
-next: P01-B04-A01
+  P01-B04-A01 baseline: 24-probe phase/event schema fixture with 5 documented FAIL gaps
+  (schema.orch_phase_field_typed, schema.stream_phase_field_typed, schema.unregistered_phase_literals,
+  schema.registry_covers_core, schema.recovery_assess_unpaired); B03→B04 handoff link validated.
+next: P01-B04-A02

@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B04
-active_atom: P01-B04-A01
+active_atom: P01-B04-A02
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 30/1000
-phase_progress: 29/100
-block_progress: 0/10
+program_progress: 31/1000
+phase_progress: 30/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B04-A01 — Typed phase/event schema: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P01-B04-A02 — Typed phase/event schema: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: Typed phase/event schema için mevcut orchestrator phase/event davranışını ölç; failing baseline fixture oluştur.
-target: Baseline fixture with measurable phase/event probes.
-hypothesis: Sealed P01-B03 formal state machine artifacts provide entry criteria for typed schema baseline.
-acceptance: failing baseline fixture exists; typed contract probes declared.
+objective: Typed phase/event schema için typed contract ile ölçülebilir acceptance kriterlerini tanımla.
+target: Typed contract with measurable acceptance criteria aligned to A01 baseline probes.
+hypothesis: A01 baseline FAIL gaps (phase typing, registry, pairing) define the acceptance surface for A02 contract hardening.
+acceptance: typed contract probes declared; fixture ↔ contract mapping validated.
 commands: npx tsx --test src/forge-phase-event-schema.test.ts
-blast_radius: forge-phase-event-schema*.ts, orchestrator.ts
-rollback: A01 değişikliklerini geri al.
+blast_radius: forge-phase-event-schema*.ts
+rollback: A02 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: baseline ölçülemezse BLOCKED raporla.
+fallback: contract tanımlanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B03-A10
-last_commit: c8cc0b8
-tests: PASS — forge-formal-state-machine-block-gate (6/6)
-evidence: runForgeFormalStateMachineBlockGate seals P01-B03 with 10/10 atom seals; handoff=PASS→P01-B04; orchestrator emits formal_state_machine_block_gate verification
-next: P01-B04-A01
+last_atom: P01-B04-A01
+last_commit: PENDING
+tests: PASS — forge-phase-event-schema (4/4)
+evidence: 24-probe baseline fixture with 5 documented FAIL gaps (phase typing, unregistered literals, verify phase_start, recovery_assess pairing); B03 handoff link validated
+next: P01-B04-A02
