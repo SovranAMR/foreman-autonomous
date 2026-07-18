@@ -44,7 +44,7 @@ fallback: baseline ölçülemezse BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B03-A10
-last_commit: pending
+last_commit: c8cc0b8
 tests: PASS — forge-formal-state-machine-block-gate (6/6)
 evidence: runForgeFormalStateMachineBlockGate seals P01-B03 with 10/10 atom seals; handoff=PASS→P01-B04; orchestrator emits formal_state_machine_block_gate verification
 next: P01-B04-A01

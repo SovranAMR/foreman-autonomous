@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B03-A10
-last_commit: pending
+last_commit: c8cc0b8
 tests: PASS — `npx tsx --test src/forge-formal-state-machine-block-gate.test.ts` (6/6)
 evidence: |
   P01-B03-A10 block gate: runForgeFormalStateMachineBlockGate seals 10/10 atom seals with handoff=PASS→P01-B04;
