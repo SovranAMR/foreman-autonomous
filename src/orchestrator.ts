@@ -28,7 +28,13 @@ import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
 import { getActiveThoughts } from "./chain-repair.js";
 import { validateReasoning, validateOutput, validateConfidence, validateWorkerProtocol, validateProtocolSteps } from "./validators.js";
-import { quickReviewCheck, buildReviewPrompt, parseReviewResponse, REVIEWER_SYSTEM_PROMPT } from "./reviewer-gate.js";
+import {
+  quickReviewCheck,
+  buildReviewPrompt,
+  parseReviewResponse,
+  classifyReviewerLlmResponse,
+  REVIEWER_SYSTEM_PROMPT,
+} from "./reviewer-gate.js";
 import { RECOVERY_ASSESS_SYSTEM } from "./prompts.js";
 import type { ReviewResult } from "./reviewer-gate.js";
 import { shouldCompact, compactLocal } from "./compaction-engine.js";
@@ -1544,25 +1550,23 @@ ${visionOutput}`,
               );
               totalThoughts++;
 
-              // Empty reviewer response → treat as PASS (reviewer couldn't form
-              // an opinion, don't penalize the worker for LLM hiccups)
-              const reviewText = (reviewLlmResult.text ?? "").trim();
-              if (reviewText.length < 10) {
-                this.engine.streaming.warning(`⚠️ Reviewer returned empty/short response — auto-PASS`);
+              const reviewClassification = classifyReviewerLlmResponse(reviewLlmResult.text);
+              if (!reviewClassification.sufficient) {
+                this.engine.streaming.warning(
+                  `⚠️ Reviewer returned empty/short response — retry required (no auto-PASS)`,
+                );
                 this.emit({
                   type: "verification",
                   phase: "reviewer_gate",
-                  passed: true,
-                  detail: `Reviewer returned empty response — auto-PASS (worker not penalized)`,
+                  passed: false,
+                  detail: reviewClassification.reason ?? "Reviewer response insufficient",
                 });
-                atomPassed = true;
-                blockPassedAtoms++;
-                try { this.artifactEngine.updateAtomStatus(i, j, "done"); } catch { /* best-effort */ }
-                passedAttempt = attempt;
-                break; // accept atom — break retry loop
+                lastRejectionFeedback =
+                  "Reviewer LLM returned an empty or too-short response. Re-run review with a complete VERDICT block.";
+                break;
               }
 
-              const reviewResult = parseReviewResponse(reviewText);
+              const reviewResult = parseReviewResponse(reviewClassification.trimmed);
 
               this.emit({
                 type: "verification",
@@ -2328,15 +2332,17 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                       );
                       totalThoughts++;
 
-                      // Empty reviewer response → auto-PASS
-                      const reReviewText = (reReviewLlmResult.text ?? "").trim();
-                      if (reReviewText.length < 10) {
-                        this.engine.streaming.warning(`[RE] ⚠️ Reviewer returned empty/short response — auto-PASS`);
-                        reAtomPassed = true;
-                        break; // accept re-atom
+                      const reReviewClassification = classifyReviewerLlmResponse(reReviewLlmResult.text);
+                      if (!reReviewClassification.sufficient) {
+                        this.engine.streaming.warning(
+                          `[RE] ⚠️ Reviewer returned empty/short response — retry required (no auto-PASS)`,
+                        );
+                        reLastRejection =
+                          "Reviewer LLM returned an empty or too-short response. Re-run review with a complete VERDICT block.";
+                        break;
                       }
 
-                      const reReviewResult = parseReviewResponse(reReviewText);
+                      const reReviewResult = parseReviewResponse(reReviewClassification.trimmed);
                       this.emit({
                         type: "verification",
                         phase: "re_atom_reviewer_gate",

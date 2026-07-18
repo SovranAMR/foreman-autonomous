@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B01
-active_atom: P01-B01-A02
+active_atom: P01-B01-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 2/1000
-phase_progress: 2/100
-block_progress: 2/10
+program_progress: 3/1000
+phase_progress: 3/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B01-A03 — En küçük üretim dikey dilimini uygula.
+P01-B01-A04 — Boundary ve edge-case davranışlarını tamamla.
 
-objective: Typed contract kabul kriterlerinden en küçük üretim dikey dilimini çıkar ve uygula.
-target: src/forge-baseline-contract.ts, orchestrator seam (henüz değiştirme — A03 kapsamında belirlenecek).
-hypothesis: Contract tanımlandı; şimdi documented FAIL gap'lerden birini düzeltmek için minimal dikey dilim seçilebilir.
-acceptance: Tek davranış değişikliği + hedefli test PASS + regression PASS.
-commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili dikey dilim testi.
-blast_radius: A03 kapsamında belirlenecek tek seam.
-rollback: A03 değişikliklerini geri al.
+objective: Contract kabul kriterlerindeki boundary ve edge-case davranışlarını tamamla.
+target: src/forge-baseline-contract.ts, ilgili seam (A04 kapsamında belirlenecek).
+hypothesis: Reviewer empty-response gap kapatıldı; kalan rollback gap veya diğer edge-case'ler sıradaki dilim.
+acceptance: Boundary/edge-case davranışı + hedefli test PASS + regression PASS.
+commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili edge-case testi.
+blast_radius: A04 kapsamında belirlenecek tek seam.
+rollback: A04 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: dikey dilim seçilemezse BLOCKED raporla, fixture/contract genişletme.
+fallback: edge-case seçilemezse BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B01-A02
-last_commit: 4a99597
-tests: PASS — forge-baseline-contract (4/4), forge-pipeline-baseline (2/2)
-evidence: FORGE_BASELINE_CONTRACT_V1 typed contract; 6 path invariants; 20 probe↔criterion mappings; fixture↔contract validation enforced at load
-next: P01-B01-A03
+last_atom: P01-B01-A03
+last_commit: (pending)
+tests: PASS — reviewer-gate (10/10), forge-baseline-contract (4/4), forge-pipeline-baseline (2/2)
+evidence: classifyReviewerLlmResponse; orchestrator no auto-PASS on empty reviewer; contract probe reviewer.empty_llm_response_passes → PASS
+next: P01-B01-A04

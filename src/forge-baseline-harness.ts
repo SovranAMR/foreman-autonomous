@@ -21,7 +21,7 @@ import {
   parseTestOutput,
   detectRegressions,
 } from "./verification-engine.js";
-import { quickReviewCheck } from "./reviewer-gate.js";
+import { quickReviewCheck, classifyReviewerLlmResponse } from "./reviewer-gate.js";
 import type { WorkerProtocol } from "./types.js";
 import { RollbackEngine } from "./rollback-engine.js";
 import { PipelineResumeEngine } from "./pipeline-resume.js";
@@ -262,14 +262,15 @@ function probeReviewer(id: string, expected: BaselineOutcome): BaselineProbeResu
       );
     }
     case "reviewer.empty_llm_response_passes": {
-      // Documented orchestrator leniency: empty reviewer response is treated as PASS.
-      const emptyResponseIsPass = true;
+      const empty = classifyReviewerLlmResponse("");
+      const whitespace = classifyReviewerLlmResponse("   \n  ");
+      const ok = !empty.sufficient && !whitespace.sufficient;
       return probe(
         id,
         "reviewer",
         expected,
-        !emptyResponseIsPass,
-        "orchestrator treats empty reviewer LLM output as PASS",
+        ok,
+        `emptySufficient=${empty.sufficient}, whitespaceSufficient=${whitespace.sufficient}`,
       );
     }
     default:

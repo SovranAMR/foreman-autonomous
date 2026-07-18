@@ -32,6 +32,15 @@ export interface ReviewRequest {
 
 export type ReviewVerdict = "PASS" | "REJECT" | "NEEDS_REVISION";
 
+/** Minimum trimmed reviewer LLM response length before parseReviewResponse. */
+export const REVIEWER_MIN_RESPONSE_LENGTH = 10;
+
+export interface ReviewerLlmResponseClassification {
+  sufficient: boolean;
+  trimmed: string;
+  reason?: string;
+}
+
 export interface ReviewResult {
   verdict: ReviewVerdict;
   reasoning: string;
@@ -144,6 +153,21 @@ export function buildReviewPrompt(request: ReviewRequest): string {
   );
 
   return parts.join("\n");
+}
+
+/**
+ * Classify reviewer LLM output before parsing. Empty/short responses must not auto-PASS.
+ */
+export function classifyReviewerLlmResponse(text: string | undefined | null): ReviewerLlmResponseClassification {
+  const trimmed = (text ?? "").trim();
+  if (trimmed.length < REVIEWER_MIN_RESPONSE_LENGTH) {
+    return {
+      sufficient: false,
+      trimmed,
+      reason: `Reviewer LLM response insufficient (${trimmed.length} chars; minimum ${REVIEWER_MIN_RESPONSE_LENGTH})`,
+    };
+  }
+  return { sufficient: true, trimmed };
 }
 
 /**

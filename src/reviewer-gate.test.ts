@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { quickReviewCheck, buildReviewPrompt, parseReviewResponse } from "./reviewer-gate.js";
+import { quickReviewCheck, buildReviewPrompt, parseReviewResponse, classifyReviewerLlmResponse } from "./reviewer-gate.js";
 import type { WorkerProtocol } from "./types.js";
 
 describe("Reviewer Gate", () => {
@@ -107,5 +107,18 @@ CONFIDENCE: 0.7`;
     const result = parseReviewResponse(response);
     assert.equal(result.verdict, "NEEDS_REVISION");
     assert.ok(result.suggestions.length > 0);
+  });
+
+  it("classifies empty reviewer LLM responses as insufficient", () => {
+    assert.equal(classifyReviewerLlmResponse("").sufficient, false);
+    assert.equal(classifyReviewerLlmResponse("   ").sufficient, false);
+    assert.equal(classifyReviewerLlmResponse("short").sufficient, false);
+  });
+
+  it("classifies substantive reviewer LLM responses as sufficient", () => {
+    const text = "VERDICT: PASS\nREASONING: All checks passed.";
+    const result = classifyReviewerLlmResponse(text);
+    assert.equal(result.sufficient, true);
+    assert.equal(result.trimmed, text);
   });
 });

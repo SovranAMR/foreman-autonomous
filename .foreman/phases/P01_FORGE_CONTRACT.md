@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 2
+completed_atoms: 3
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -17,7 +17,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P01-B01-A01 — Mission ve acceptance contract: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B01-A02 — Mission ve acceptance contract: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P01-B01-A03 — Mission ve acceptance contract: en küçük üretim dikey dilimini uygula
+- [x] P01-B01-A03 — Mission ve acceptance contract: en küçük üretim dikey dilimini uygula
 - [ ] P01-B01-A04 — Mission ve acceptance contract: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B01-A05 — Mission ve acceptance contract: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B01-A06 — Mission ve acceptance contract: evidence, telemetry ve provenance kaydını ekle
@@ -156,13 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B01-A02
-last_commit: 4a99597
-tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2)
+last_atom: P01-B01-A03
+last_commit: (pending)
+tests: PASS — `npx tsx --test src/reviewer-gate.test.ts` (10/10), `npx tsx --test src/forge-baseline-contract.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2)
 evidence: |
-  Typed contract module `src/forge-baseline-contract.ts` — FORGE_BASELINE_CONTRACT_V1.
-  6 path categories with measurable invariants and probe↔criterion mapping.
-  Fixture `src/fixtures/forge-baseline-v1.json` adds contractAtom P01-B01-A02.
-  Harness validates fixture against contract at load; probe results include criterion.
-  Matrix unchanged: 20 probes, 18 expected PASS, 2 documented FAIL gaps.
-next: P01-B01-A03
+  P01-B01-A03 vertical slice: reviewer empty LLM response no longer auto-PASSes.
+  Added classifyReviewerLlmResponse in reviewer-gate.ts; orchestrator retries on insufficient response.
+  Contract probe reviewer.empty_llm_response_passes expected FAIL→PASS (19 PASS / 1 FAIL matrix).
+  Harness probe now exercises production classifier instead of hardcoded gap flag.
+next: P01-B01-A04

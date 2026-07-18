@@ -215,9 +215,9 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
         },
         {
           id: "reviewer.empty_llm_response_passes",
-          description: "Orchestrator treats empty reviewer LLM response as PASS (documented leniency gap)",
-          expected: "FAIL",
-          criterion: "documented gap: empty reviewer LLM output currently treated as PASS",
+          description: "Empty reviewer LLM response is classified insufficient (no auto-PASS leniency)",
+          expected: "PASS",
+          criterion: "classifyReviewerLlmResponse rejects empty/short output; orchestrator retries instead of auto-PASS",
         },
       ],
     },

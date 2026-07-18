@@ -30,11 +30,11 @@ describe("Forge Baseline Contract — P01-B01-A02", () => {
     }
   });
 
-  it("maps 20 probes with 18 expected PASS and 2 documented FAIL gaps", () => {
+  it("maps 20 probes with 19 expected PASS and 1 documented FAIL gap", () => {
     const summary = summarizeContractCoverage(FORGE_BASELINE_CONTRACT_V1);
     assert.equal(summary.totalProbes, 20);
-    assert.equal(summary.expectedPass, 18);
-    assert.equal(summary.expectedFail, 2);
+    assert.equal(summary.expectedPass, 19);
+    assert.equal(summary.expectedFail, 1);
 
     const failIds = new Set(
       FORGE_BASELINE_PATHS.flatMap(path =>
@@ -43,10 +43,7 @@ describe("Forge Baseline Contract — P01-B01-A02", () => {
           .map(p => p.id),
       ),
     );
-    assert.deepEqual([...failIds].sort(), [
-      "reviewer.empty_llm_response_passes",
-      "rollback.point_without_git",
-    ]);
+    assert.deepEqual([...failIds].sort(), ["rollback.point_without_git"]);
   });
 
   it("enforces fixture ↔ contract probe mapping", () => {
