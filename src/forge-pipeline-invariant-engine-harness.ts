@@ -17,8 +17,9 @@ import {
 } from "./forge-phase-event-schema.js";
 import {
   validatePipelineInvariantEngineFixture,
+  validatePipelineInvariantEngineFixtureAgainstContract,
   summarizePipelineInvariantEngineMatrix,
-  listPipelineInvariantEngineKnownGaps,
+  getActivePipelineInvariantEngineContract,
   listPipelineInvariantEngineProbesByExpected,
   type PipelineInvariantEngineCategory,
   type PipelineInvariantEngineFixture,
@@ -32,8 +33,15 @@ export type {
 
 export {
   validatePipelineInvariantEngineFixture,
+  validatePipelineInvariantEngineFixtureAgainstContract,
   summarizePipelineInvariantEngineMatrix,
+  getActivePipelineInvariantEngineContract,
+  getPipelineInvariantEngineCategoryContract,
+  listPipelineInvariantEngineContractProbeIds,
+  listPipelineInvariantEngineProbesByDisposition,
   listPipelineInvariantEngineProbesByExpected,
+  summarizePipelineInvariantEngineContractCoverage,
+  FORGE_PIPELINE_INVARIANT_ENGINE_CONTRACT_V1,
   PIPELINE_INVARIANT_ENGINE_CATEGORIES,
   PIPELINE_INVARIANT_ENGINE_A01_MIN_PROBES,
   buildDefaultPipelineInvariantEngineSourcePhaseEventSchema,
@@ -532,7 +540,14 @@ export function loadPipelineInvariantEngineFixture(): PipelineInvariantEngineFix
 export function runPipelineInvariantEngineProbes(
   fixture: PipelineInvariantEngineFixture = loadPipelineInvariantEngineFixture(),
 ): PipelineInvariantEngineProbeResult[] {
-  return fixture.probes.map(entry => runSingleProbe(entry.id, entry.category, entry.expected));
+  const contract = getActivePipelineInvariantEngineContract();
+  return fixture.probes.map(entry => {
+    const result = runSingleProbe(entry.id, entry.category, entry.expected);
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion
+      ? { ...result, criterion: contractProbe.criterion }
+      : result;
+  });
 }
 
 export function listPipelineInvariantEngineKnownGaps(

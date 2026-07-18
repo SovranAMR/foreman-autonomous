@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 4
-completed_atoms: 41
+completed_atoms: 42
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -68,7 +68,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P01-B05 — Pipeline invariant engine
 
 - [x] P01-B05-A01 — Pipeline invariant engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P01-B05-A02 — Pipeline invariant engine: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P01-B05-A02 — Pipeline invariant engine: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B05-A03 — Pipeline invariant engine: en küçük üretim dikey dilimini uygula
 - [ ] P01-B05-A04 — Pipeline invariant engine: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B05-A05 — Pipeline invariant engine: failure, recovery ve NO-GO yollarını uygula
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B05-A01
+last_atom: P01-B05-A02
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts` (3/3)
+tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts` (9/9)
 evidence: |
-  P01-B05-A01 baseline: forge-pipeline-invariant-engine-v1.json fixture with 23 probes across 8 categories;
-  7 documented FAIL gaps (runtime phase balance, event order, reflection cadence, state coherence, block invariant, verification gate, orchestrator wiring);
-  validatePipelineInvariantEngineFixture aligns sourcePhaseEventSchema to FORGE_P01_B04_TO_B05_HANDOFF_V1 sealed artifacts (35 probes).
-next: P01-B05-A02
+  P01-B05-A02 contract: FORGE_PIPELINE_INVARIANT_ENGINE_CONTRACT_V1 with 23 probes across 8 categories
+  (phase_lifecycle, event_ordering, reflection_cadence, state_coherence, block_halt, verification_gate,
+  baseline_link, boundary); 16 observed + 7 gap dispositions; validatePipelineInvariantEngineFixtureAgainstContract
+  locks fixture↔contract mapping; harness wires probe criteria from contract source of truth.
+next: P01-B05-A03
