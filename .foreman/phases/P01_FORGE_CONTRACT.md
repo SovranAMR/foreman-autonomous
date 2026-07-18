@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 20
+completed_atoms: 21
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -41,7 +41,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B03 — Formal state machine
 
-- [ ] P01-B03-A01 — Formal state machine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B03-A01 — Formal state machine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B03-A02 — Formal state machine: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B03-A03 — Formal state machine: en küçük üretim dikey dilimini uygula
 - [ ] P01-B03-A04 — Formal state machine: boundary ve edge-case davranışlarını tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B02-A10
-last_commit: e35f241
-tests: PASS — `npx tsx --test src/forge-behavior-map-block-gate.test.ts` (6/6), `src/forge-pipeline-behavior-map.test.ts` (17/17), `src/forge-pipeline-behavior-map.guard.test.ts` (8/8), `src/forge-pipeline-regression.integration.test.ts` (8/8)
+last_atom: P01-B03-A01
+last_commit: 6afc331
+tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (3/3)
 evidence: |
-  P01-B02-A10 block gate slice: runForgeBehaviorMapBlockGate seals 10/10 atom seals with regression/guard PASS,
-  FORGE_P01_B02_TO_B03_HANDOFF_V1 targets P01-B03-A01,
-  orchestrator verifyForgeBehaviorMapBlockGate emits behavior_map_block_gate verification event.
-next: P01-B03-A01
+  P01-B03-A01 baseline slice: forge-formal-state-machine-v1 fixture (20 probes, 6 categories) loads and validates
+  against B02 handoff; runFormalStateMachineProbes measures orchestrator ↔ VALID_TRANSITIONS alignment with
+  2 documented FAIL gaps (fsm.orch_blocked_sync, fsm.orch_awaiting_human_sync) and 18 PASS probes aligned.
+next: P01-B03-A02

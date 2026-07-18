@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B03
-active_atom: P01-B03-A01
+active_atom: P01-B03-A02
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 20/1000
-phase_progress: 20/100
-block_progress: 0/10
+program_progress: 21/1000
+phase_progress: 21/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B03-A01 — Formal state machine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P01-B03-A02 — Formal state machine: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: Orchestrator state machine davranışını ölç; failing baseline fixture oluştur.
-target: State machine baseline fixture ve probe matrix.
-hypothesis: B02 block gate sealed; B03-A01 baseline slice.
-acceptance: Baseline fixture loads, probe matrix measurable, at least one failing probe documented.
+objective: Formal state machine typed contract ile ölçülebilir acceptance kriterlerini tanımla.
+target: Typed contract, category invariants, probe-to-criterion mapping.
+hypothesis: B03-A01 baseline fixture sealed; A02 adds typed contract layer.
+acceptance: Contract defines all six categories, maps 20 probes, disposition coverage for failure/recovery paths.
 commands: npx tsx --test src/forge-formal-state-machine.test.ts
-blast_radius: forge-formal-state-machine*.ts, types.ts, state.ts
-rollback: A01 değişikliklerini geri al.
+blast_radius: forge-formal-state-machine*.ts
+rollback: A02 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B02-A10
-last_commit: e35f241
-tests: PASS — forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (17/17), forge-pipeline-behavior-map.guard (8/8), forge-pipeline-behavior-map.property-fuzz (4/4), forge-pipeline-regression.integration (8/8)
-evidence: runForgeBehaviorMapBlockGate seals P01-B02 (10/10 atom seals), FORGE_P01_B02_TO_B03_HANDOFF_V1 valid, orchestrator verifyForgeBehaviorMapBlockGate emits behavior_map_block_gate verification event
-next: P01-B03-A01
+last_atom: P01-B03-A01
+last_commit: 6afc331
+tests: PASS — forge-formal-state-machine (3/3), forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (23/23)
+evidence: forge-formal-state-machine-v1 fixture (20 probes, 6 categories), runFormalStateMachineProbes documents 2 known FAIL gaps (fsm.orch_blocked_sync, fsm.orch_awaiting_human_sync), 18 PASS probes aligned
+next: P01-B03-A02

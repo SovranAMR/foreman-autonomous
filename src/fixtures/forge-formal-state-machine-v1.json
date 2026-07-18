@@ -1,0 +1,134 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B03-A01",
+  "purpose": "Formal orchestrator state machine baseline measured against VALID_TRANSITIONS (includes documented FAIL gaps).",
+  "sourceBehaviorMap": {
+    "version": "1.0.0",
+    "atom": "P01-B02-A10",
+    "contractVersion": "1.0.0",
+    "probeCount": 26,
+    "behaviorCategories": 8
+  },
+  "probes": [
+    {
+      "id": "fsm.graph_all_states_have_exits",
+      "category": "transition_graph",
+      "description": "Every SystemState in VALID_TRANSITIONS has at least one valid exit",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.graph_idle_single_entry",
+      "category": "transition_graph",
+      "description": "idle transitions only to visioning (canonical pipeline entry)",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.graph_complete_to_idle",
+      "category": "transition_graph",
+      "description": "complete returns only to idle for new work",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.invariant_rejects_empty_reason",
+      "category": "state_invariant",
+      "description": "StateManager rejects transitions without a reason",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.invariant_rejects_invalid",
+      "category": "state_invariant",
+      "description": "StateManager rejects undefined transitions via InvalidTransitionError",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.invariant_can_transition",
+      "category": "state_invariant",
+      "description": "canTransition() matches VALID_TRANSITIONS membership",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.orch_visioning",
+      "category": "orchestrator_sync",
+      "description": "Orchestrator transitions SystemState to visioning at pipeline start",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.orch_decomposing",
+      "category": "orchestrator_sync",
+      "description": "Orchestrator transitions SystemState to decomposing after vision",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.orch_researching",
+      "category": "orchestrator_sync",
+      "description": "Orchestrator transitions SystemState to researching per block",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.orch_atomizing",
+      "category": "orchestrator_sync",
+      "description": "Orchestrator transitions SystemState to atomizing when canTransition allows",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.orch_executing",
+      "category": "orchestrator_sync",
+      "description": "Orchestrator transitions SystemState to executing for each atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.orch_reflecting",
+      "category": "orchestrator_sync",
+      "description": "Orchestrator transitions SystemState to reflecting after atom batches",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.orch_verifying",
+      "category": "orchestrator_sync",
+      "description": "Orchestrator transitions SystemState to verifying before completion",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.orch_complete",
+      "category": "orchestrator_sync",
+      "description": "Orchestrator transitions SystemState to complete at pipeline end",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.orch_blocked_sync",
+      "category": "failure_state",
+      "description": "Orchestrator calls state.transition(\"blocked\") when worker blocks (formal failure state)",
+      "expected": "FAIL"
+    },
+    {
+      "id": "fsm.orch_awaiting_human_sync",
+      "category": "failure_state",
+      "description": "Orchestrator uses awaiting_human state for human-in-the-loop gates",
+      "expected": "FAIL"
+    },
+    {
+      "id": "fsm.recovery_blocked_to_decomposing",
+      "category": "recovery_state",
+      "description": "StateManager accepts blocked→decomposing replan recovery path",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.recovery_awaiting_to_executing",
+      "category": "recovery_state",
+      "description": "StateManager accepts awaiting_human→executing resume path",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.b02_handoff_target",
+      "category": "baseline_link",
+      "description": "FORGE_P01_B02_TO_B03_HANDOFF_V1 targets P01-B03-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "fsm.b02_behavior_map_sealed",
+      "category": "baseline_link",
+      "description": "Sealed B02 behavior map contract probe count matches handoff artifacts",
+      "expected": "PASS"
+    }
+  ]
+}
