@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B02-A02
-last_commit: PENDING
+last_commit: 82b77a4
 tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (7/7), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
   FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1: 5 category acceptance invariants, 16 probes (14 observed / 2 gap),
