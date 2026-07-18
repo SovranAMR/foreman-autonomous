@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B06-A04
-last_commit: PENDING
+last_commit: 4e23f14
 tests: PASS — forge-benchmark-eval-harness.test.ts (13/13)
 evidence: runBenchmarkEvalBoundarySlice; validateBenchmarkEvalBoundaryProbeMatrix; 2 passAligned / 1 gapAligned; zero unexpected mismatches
 next: P01-B06-A05

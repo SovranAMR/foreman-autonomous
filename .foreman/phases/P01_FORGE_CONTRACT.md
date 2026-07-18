@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B06-A04
-last_commit: PENDING
+last_commit: 4e23f14
 tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (13/13)
 evidence: |
   P01-B06-A04 boundary slice: runBenchmarkEvalBoundarySlice with 3 boundary probes;
