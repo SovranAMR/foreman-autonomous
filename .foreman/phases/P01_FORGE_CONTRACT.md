@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 50
+completed_atoms: 51
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -81,7 +81,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P01-B06 — Benchmark ve eval harness
 
 - [x] P01-B06-A01 — Benchmark ve eval harness: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P01-B06-A02 — Benchmark ve eval harness: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P01-B06-A02 — Benchmark ve eval harness: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B06-A03 — Benchmark ve eval harness: en küçük üretim dikey dilimini uygula
 - [ ] P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B06-A05 — Benchmark ve eval harness: failure, recovery ve NO-GO yollarını uygula
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B06-A01
-last_commit: 6016195
-tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (3/3)
+last_atom: P01-B06-A02
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (9/9)
 evidence: |
-  P01-B06-A01 baseline: forge-benchmark-eval-harness-v1 fixture with 26 probes (18 PASS / 8 FAIL gaps) aligned to
-  B05 handoff; runBenchmarkEvalHarnessProbes measures orchestrator latency/cost/eval/repro seam with zero PASS mismatches;
-  documented gaps: phase_timing_collector, benchmark_regression_export, deterministic_eval_seed, fixture_hash_provenance,
-  eval_harness_orchestrator_wired, failure_eval_harness_on_block, recovery_eval_baseline_reset, nogo_eval_gate_on_reject.
-next: P01-B06-A02
+  P01-B06-A02 contract: FORGE_BENCHMARK_EVAL_CONTRACT_V1 with 26 probes across 9 categories
+  (18 PASS / 8 FAIL gaps); fixture ↔ contract 1:1 alignment; probe criteria wired from contract
+  source of truth; byDisposition observed=12 gap=8 failure=2 recovery=2 nogo=2.
+next: P01-B06-A03

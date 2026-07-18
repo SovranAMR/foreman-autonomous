@@ -5,8 +5,14 @@ import {
   runBenchmarkEvalHarnessProbes,
   summarizeBenchmarkEvalHarnessMatrix,
   validateBenchmarkEvalHarnessFixture,
+  validateBenchmarkEvalHarnessFixtureAgainstContract,
   listBenchmarkEvalHarnessProbesByExpected,
   listBenchmarkEvalHarnessKnownGaps,
+  listBenchmarkEvalContractProbeIds,
+  listBenchmarkEvalProbesByDisposition,
+  getActiveBenchmarkEvalContract,
+  getBenchmarkEvalCategoryContract,
+  summarizeBenchmarkEvalContractCoverage,
   BENCHMARK_EVAL_CATEGORIES,
 } from "./forge-benchmark-eval-harness.probe.js";
 
@@ -83,5 +89,106 @@ describe("Forge Benchmark Eval Harness — P01-B06-A01", () => {
       gaps.every(g => BENCHMARK_EVAL_CATEGORIES.includes(g.category)),
       "documented gaps are benchmark eval harness probes",
     );
+  });
+});
+
+describe("Forge Benchmark Eval Harness Contract — P01-B06-A02", () => {
+  it("defines typed acceptance for all nine benchmark eval categories", () => {
+    const contract = getActiveBenchmarkEvalContract();
+    assert.equal(contract.version, "1.0.0");
+    assert.equal(contract.atom, "P01-B06-A05");
+
+    for (const category of BENCHMARK_EVAL_CATEGORIES) {
+      const categoryContract = getBenchmarkEvalCategoryContract(category);
+      assert.ok(categoryContract.acceptance.invariant.length > 20, `${category} invariant too short`);
+      assert.ok(categoryContract.probes.length >= categoryContract.acceptance.minProbeCount);
+      assert.equal(categoryContract.acceptance.requireFullAlignment, true);
+
+      for (const probe of categoryContract.probes) {
+        assert.ok(probe.criterion.length > 10, `${probe.id} missing measurable criterion`);
+        assert.ok(probe.expected === "PASS" || probe.expected === "FAIL");
+        assert.ok(
+          probe.disposition === "observed" ||
+            probe.disposition === "gap" ||
+            probe.disposition === "failure" ||
+            probe.disposition === "recovery" ||
+            probe.disposition === "nogo",
+          `${probe.id} missing disposition`,
+        );
+      }
+    }
+  });
+
+  it("maps 26 probes with eight documented gap dispositions from A01 baseline", () => {
+    const contract = getActiveBenchmarkEvalContract();
+    const summary = summarizeBenchmarkEvalContractCoverage(contract);
+
+    assert.equal(summary.totalProbes, 26);
+    assert.equal(summary.expectedPass, 18);
+    assert.equal(summary.expectedFail, 8);
+    assert.equal(summary.byDisposition.observed, 12);
+    assert.equal(summary.byDisposition.gap, 8);
+    assert.equal(summary.byDisposition.failure, 2);
+    assert.equal(summary.byDisposition.recovery, 2);
+    assert.equal(summary.byDisposition.nogo, 2);
+    assert.equal(summary.byCategory.latency_timing.probeCount, 3);
+    assert.equal(summary.byCategory.token_cost.probeCount, 3);
+    assert.equal(summary.byCategory.eval_suite.probeCount, 3);
+    assert.equal(summary.byCategory.reproducibility.probeCount, 3);
+    assert.equal(summary.byCategory.baseline_link.probeCount, 2);
+    assert.equal(summary.byCategory.boundary.probeCount, 3);
+    assert.equal(summary.byCategory.failure_path.probeCount, 3);
+    assert.equal(summary.byCategory.recovery_path.probeCount, 3);
+    assert.equal(summary.byCategory.nogo_path.probeCount, 3);
+  });
+
+  it("lists eight documented gap probes for benchmark eval harness wiring", () => {
+    const gaps = listBenchmarkEvalProbesByDisposition("gap");
+    const ids = gaps.map(p => p.id).sort();
+    assert.deepEqual(ids, [
+      "bench.benchmark_regression_export",
+      "bench.deterministic_eval_seed",
+      "bench.eval_harness_orchestrator_wired",
+      "bench.failure_eval_harness_on_block",
+      "bench.fixture_hash_provenance",
+      "bench.nogo_eval_gate_on_reject",
+      "bench.phase_timing_collector",
+      "bench.recovery_eval_baseline_reset",
+    ]);
+    assert.ok(gaps.every(p => p.expected === "FAIL"));
+  });
+
+  it("enforces fixture ↔ contract probe mapping with category alignment", () => {
+    const fixture = loadBenchmarkEvalHarnessFixture();
+    const contract = getActiveBenchmarkEvalContract();
+    const validation = validateBenchmarkEvalHarnessFixtureAgainstContract(fixture, contract);
+
+    assert.equal(
+      validation.valid,
+      true,
+      validation.issues.map(i => `${i.kind}:${i.probeId ?? i.category ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const contractIds = new Set(listBenchmarkEvalContractProbeIds(contract));
+    const fixtureIds = fixture.probes.map(p => p.id);
+    assert.deepEqual([...fixtureIds].sort(), [...contractIds].sort());
+    assert.equal(fixture.contractAtom, contract.atom);
+  });
+
+  it("each benchmark eval probe id is globally unique", () => {
+    const ids = listBenchmarkEvalContractProbeIds();
+    assert.equal(new Set(ids).size, ids.length);
+  });
+
+  it("wires harness probe criteria from typed contract source of truth", () => {
+    const results = runBenchmarkEvalHarnessProbes();
+    const contract = getActiveBenchmarkEvalContract();
+
+    assert.equal(results.length, contract.probes.length);
+    for (const result of results) {
+      const contractProbe = contract.probes.find(p => p.id === result.id)!;
+      assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
+      assert.equal(result.criterion, contractProbe.criterion);
+    }
   });
 });

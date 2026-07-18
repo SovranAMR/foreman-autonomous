@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B06
-active_atom: P01-B06-A02
+active_atom: P01-B06-A03
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 50/1000
-phase_progress: 50/100
-block_progress: 1/10
+program_progress: 51/1000
+phase_progress: 51/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B06-A02 — Benchmark ve eval harness: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P01-B06-A03 — Benchmark ve eval harness: en küçük üretim dikey dilimini uygula.
 
-objective: A01 baseline fixture üzerine typed benchmark eval contract ve category acceptance tanımla.
-target: FORGE_BENCHMARK_EVAL_CONTRACT_V1; fixture ↔ contract alignment.
-hypothesis: A01 26-probe matrix A02 contract ile birebir eşleşebilir.
-acceptance: contract coverage test PASS; fixture validates against contract.
+objective: A02 typed contract üzerine contract-wired probe production slice uygula.
+target: runBenchmarkEvalProductionSlice; zero unexpected PASS mismatches.
+hypothesis: Contract-wired probes A01 baseline ile uyumlu çalışır.
+acceptance: production slice test PASS; contract matrix validation PASS.
 commands: npx tsx --test src/forge-benchmark-eval-harness.test.ts
 blast_radius: forge-benchmark-eval-harness*.ts
-rollback: A02 contract değişikliklerini geri al.
+rollback: A03 production slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B06-A01
-last_commit: 6016195
-tests: PASS — forge-benchmark-eval-harness.test.ts (3/3)
-evidence: 26-probe benchmark eval baseline; 8 documented FAIL gaps; B05 handoff aligned
-next: P01-B06-A02
+last_atom: P01-B06-A02
+last_commit: pending
+tests: PASS — forge-benchmark-eval-harness.test.ts (9/9)
+evidence: FORGE_BENCHMARK_EVAL_CONTRACT_V1; 26 probes / 9 categories; fixture ↔ contract aligned; criteria wired
+next: P01-B06-A03

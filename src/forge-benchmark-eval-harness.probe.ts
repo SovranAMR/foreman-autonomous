@@ -16,6 +16,7 @@ import {
 } from "./forge-pipeline-invariant-engine.js";
 import {
   summarizeBenchmarkEvalHarnessMatrix,
+  getActiveBenchmarkEvalContract,
   type BenchmarkEvalCategory,
   type BenchmarkEvalFixture,
   type BenchmarkEvalProbeResult,
@@ -24,8 +25,15 @@ import {
 export type { BenchmarkEvalFixture, BenchmarkEvalProbeResult } from "./forge-benchmark-eval-harness.js";
 export {
   validateBenchmarkEvalHarnessFixture,
+  validateBenchmarkEvalHarnessFixtureAgainstContract,
   summarizeBenchmarkEvalHarnessMatrix,
+  summarizeBenchmarkEvalContractCoverage,
   listBenchmarkEvalHarnessProbesByExpected,
+  listBenchmarkEvalContractProbeIds,
+  listBenchmarkEvalProbesByDisposition,
+  getActiveBenchmarkEvalContract,
+  getBenchmarkEvalCategoryContract,
+  FORGE_BENCHMARK_EVAL_CONTRACT_V1,
   BENCHMARK_EVAL_CATEGORIES,
   BENCHMARK_EVAL_A01_MIN_PROBES,
   buildDefaultBenchmarkEvalSourcePipelineInvariantEngine,
@@ -564,7 +572,14 @@ export function loadBenchmarkEvalHarnessFixture(): BenchmarkEvalFixture {
 export function runBenchmarkEvalHarnessProbes(
   fixture: BenchmarkEvalFixture = loadBenchmarkEvalHarnessFixture(),
 ): BenchmarkEvalProbeResult[] {
-  return fixture.probes.map(entry => runSingleProbe(entry.id, entry.category, entry.expected));
+  const contract = getActiveBenchmarkEvalContract();
+  return fixture.probes.map(entry => {
+    const result = runSingleProbe(entry.id, entry.category, entry.expected);
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion
+      ? { ...result, criterion: contractProbe.criterion }
+      : result;
+  });
 }
 
 export function listBenchmarkEvalHarnessKnownGaps(
