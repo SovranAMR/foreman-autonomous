@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 28
+completed_atoms: 29
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -49,7 +49,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B03-A06 — Formal state machine: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B03-A08 — Formal state machine: Forge entegrasyonu ile regression testini tamamla
-- [ ] P01-B03-A09 — Formal state machine: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P01-B03-A09 — Formal state machine: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B03-A10 — Formal state machine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B04 — Typed phase/event schema
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B03-A08
-last_commit: 14e636b
-tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (25/25)
+last_atom: P01-B03-A09
+last_commit: 27cf171
+tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts src/forge-formal-state-machine.guard.test.ts` (33/33)
 evidence: |
-  P01-B03-A08 regression: runForgeFormalStateMachineRegressionGate 28/28 probes aligned with guard PASS;
-  detectFormalStateMachineProbeRegression flags newly misaligned probes;
-  runForgeFormalStateMachineRegressionGate compares prior record without false regression;
-  orchestrator verifyForgeFormalStateMachineRegression emits formal_state_machine_regression verification.
-next: P01-B03-A09
+  P01-B03-A09 guard: validateForgeFormalStateMachineGuard adversarial=3/3 perf/cost/safety PASS on canonical run;
+  runFormalStateMachineAdversarialGuardChecks rejects false alignment, summary mismatch, dropped probe;
+  runForgeFormalStateMachineRegressionGate includes guard PASS in detail;
+  orchestrator verifyForgeFormalStateMachineGuard emits formal_state_machine_guard verification.
+next: P01-B03-A10

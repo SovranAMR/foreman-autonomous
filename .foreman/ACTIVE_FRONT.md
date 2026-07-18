@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B03
-active_atom: P01-B03-A09
+active_atom: P01-B03-A10
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 28/1000
-phase_progress: 27/100
-block_progress: 7/10
+program_progress: 29/1000
+phase_progress: 28/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B03-A09 — Formal state machine: adversarial, performance, cost ve safety kontrolünü geçir.
+P01-B03-A10 — Formal state machine: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: Formal state machine adversarial, performance, cost ve safety kontrolünü geçir.
-target: Guard gate passes on canonical formal state machine run record.
-hypothesis: A08 regression gate + A07 fuzz enable guard integration on FSM artifacts.
-acceptance: Guard gate passes; adversarial tampered records rejected.
-commands: npx tsx --test src/forge-formal-state-machine.test.ts src/forge-formal-state-machine.guard.test.ts
-blast_radius: forge-formal-state-machine*.ts
-rollback: A09 değişikliklerini geri al.
+objective: Formal state machine block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+target: Block gate PASS with B04 handoff contract.
+hypothesis: A09 guard + A08 regression + prior atoms seal P01-B03.
+acceptance: runForgeFormalStateMachineBlockGate passes; orchestrator emits formal_state_machine_block_gate verification.
+commands: npx tsx --test src/forge-formal-state-machine-block-gate.test.ts
+blast_radius: forge-formal-state-machine*.ts, orchestrator.ts
+rollback: A10 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: guard slice uygulanamazsa BLOCKED raporla.
+fallback: block gate uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B03-A08
-last_commit: 14e636b
-tests: PASS — forge-formal-state-machine (25/25 incl. 4/4 regression)
-evidence: runForgeFormalStateMachineRegressionGate 28/28 probes aligned; detectFormalStateMachineProbeRegression flags misalignment; verifyForgeFormalStateMachineRegression emits formal_state_machine_regression verification; validateForgeFormalStateMachineGuard adversarial=3/3
-next: P01-B03-A09
+last_atom: P01-B03-A09
+last_commit: 27cf171
+tests: PASS — forge-formal-state-machine (25/25) + guard (8/8)
+evidence: validateForgeFormalStateMachineGuard adversarial=3/3 perf/cost/safety PASS; runForgeFormalStateMachineRegressionGate guard in detail; verifyForgeFormalStateMachineGuard emits formal_state_machine_guard verification
+next: P01-B03-A10
