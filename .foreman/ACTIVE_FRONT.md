@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B04-A02
-last_commit: pending
+last_commit: efbf9fe
 tests: PASS — forge-phase-event-schema (9/9)
 evidence: 24-probe typed contract v1 across 7 categories; fixture↔contract mapping validated; 5 gap dispositions (phase typing, registry, pairing) declared with measurable criteria
 next: P01-B04-A03

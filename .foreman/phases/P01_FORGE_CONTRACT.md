@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B04-A02
-last_commit: pending
+last_commit: efbf9fe
 tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (9/9)
 evidence: |
   P01-B04-A02 typed contract: 24 probes across 7 categories with measurable criteria and disposition
