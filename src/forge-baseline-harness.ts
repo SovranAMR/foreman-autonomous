@@ -5,8 +5,8 @@
  * without changing production orchestration logic.
  */
 
-import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { StateManager, InvalidTransitionError, MissingReasonError } from "./state.js";
 import { TOOL_DEFINITIONS, createEngineToolExecutor } from "./tools.js";
@@ -21,7 +21,7 @@ import {
   parseTestOutput,
   detectRegressions,
 } from "./verification-engine.js";
-import { quickReviewCheck, classifyReviewerLlmResponse } from "./reviewer-gate.js";
+import { quickReviewCheck, classifyReviewerLlmResponse, parseReviewResponse } from "./reviewer-gate.js";
 import type { WorkerProtocol } from "./types.js";
 import { RollbackEngine } from "./rollback-engine.js";
 import { PipelineResumeEngine } from "./pipeline-resume.js";
@@ -134,6 +134,33 @@ function probeState(id: string, expected: BaselineOutcome): BaselineProbeResult 
           rejected = err instanceof MissingReasonError;
         }
         return probe(id, "state", expected, rejected, `rejected=${rejected}`);
+      }
+      case "state.blocked_from_executing": {
+        sm.transition("visioning", "start");
+        sm.transition("decomposing", "vision done");
+        sm.transition("executing", "atoms ready");
+        sm.transition("blocked", "worker blocked");
+        return probe(
+          id,
+          "state",
+          expected,
+          sm.current() === "blocked",
+          `state=${sm.current()}`,
+        );
+      }
+      case "state.recover_from_blocked": {
+        sm.transition("visioning", "start");
+        sm.transition("decomposing", "vision done");
+        sm.transition("executing", "atoms ready");
+        sm.transition("blocked", "worker blocked");
+        sm.transition("decomposing", "replan after block");
+        return probe(
+          id,
+          "state",
+          expected,
+          sm.current() === "decomposing",
+          `state=${sm.current()}`,
+        );
       }
       default:
         return probe(id, "state", expected, false, "unknown probe id");
@@ -273,6 +300,20 @@ function probeReviewer(id: string, expected: BaselineOutcome): BaselineProbeResu
         `emptySufficient=${empty.sufficient}, whitespaceSufficient=${whitespace.sufficient}`,
       );
     }
+    case "reviewer.nogo_reject_verdict": {
+      const result = parseReviewResponse(
+        "VERDICT: REJECT\nREASONING: Vision violation detected\nVIOLATIONS: particle rain\nSUGGESTIONS: Remove particles\nCONFIDENCE: 0.95",
+      );
+      const ok = result.verdict === "REJECT" && result.rejectionFeedback !== undefined;
+      return probe(id, "reviewer", expected, ok, `verdict=${result.verdict}`);
+    }
+    case "reviewer.nogo_needs_revision": {
+      const result = parseReviewResponse(
+        "VERDICT: NEEDS_REVISION\nREASONING: Almost correct\nVIOLATIONS: None\nSUGGESTIONS: Strengthen verify step\nCONFIDENCE: 0.7",
+      );
+      const ok = result.verdict === "NEEDS_REVISION" && result.rejectionFeedback !== undefined;
+      return probe(id, "reviewer", expected, ok, `verdict=${result.verdict}`);
+    }
     default:
       return probe(id, "reviewer", expected, false, "unknown probe id");
   }
@@ -309,6 +350,15 @@ async function probeRollback(id: string, expected: BaselineOutcome): Promise<Bas
         const orchestrator = new Orchestrator(mockEngine);
         await orchestrator.run("rollback baseline probe");
         return probe(id, "rollback", expected, called, `createPointCalled=${called}`);
+      }
+      case "rollback.unknown_point_fails": {
+        const result = engine.rollback("rb_nonexistent_id");
+        const ok = result.success === false && typeof result.error === "string" && result.error.length > 0;
+        return probe(id, "rollback", expected, ok, `success=${result.success}, error=${result.error ?? "none"}`);
+      }
+      case "rollback.last_atom_no_points": {
+        const result = engine.rollbackLastAtom();
+        return probe(id, "rollback", expected, result === null, `result=${result === null ? "null" : "object"}`);
       }
       default:
         return probe(id, "rollback", expected, false, "unknown probe id");
@@ -349,6 +399,14 @@ async function probeResume(id: string, expected: BaselineOutcome): Promise<Basel
           ok,
           `success=${result.success}, resumed=${result.resumed ?? false}`,
         );
+      }
+      case "resume.corrupt_checkpoint_returns_null": {
+        const resume = new PipelineResumeEngine(root);
+        const cpPath = join(root, ".foreman", "pipeline-checkpoint.json");
+        mkdirSync(dirname(cpPath), { recursive: true });
+        writeFileSync(cpPath, "{ not valid json", "utf-8");
+        const loaded = resume.loadCheckpoint();
+        return probe(id, "resume", expected, loaded === null, `loaded=${loaded === null ? "null" : "object"}`);
       }
       default:
         return probe(id, "resume", expected, false, "unknown probe id");

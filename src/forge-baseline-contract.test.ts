@@ -7,6 +7,7 @@ import {
   getActiveForgeBaselineContract,
   getPathContract,
   listContractProbeIds,
+  listProbesByDisposition,
   summarizeContractCoverage,
   validateFixtureAgainstContract,
 } from "./forge-baseline-contract.js";
@@ -26,15 +27,26 @@ describe("Forge Baseline Contract — P01-B01-A02", () => {
       for (const probe of pathContract.probes) {
         assert.ok(probe.criterion.length > 10, `${probe.id} missing measurable criterion`);
         assert.ok(probe.expected === "PASS" || probe.expected === "FAIL");
+        assert.ok(
+          probe.disposition === "happy" ||
+            probe.disposition === "failure" ||
+            probe.disposition === "recovery" ||
+            probe.disposition === "nogo",
+          `${probe.id} missing disposition`,
+        );
       }
     }
   });
 
-  it("maps 20 probes with all expected PASS after A04 edge-case closure", () => {
+  it("maps 27 probes with failure/recovery/NO-GO disposition coverage (P01-B01-A05)", () => {
     const summary = summarizeContractCoverage(FORGE_BASELINE_CONTRACT_V1);
-    assert.equal(summary.totalProbes, 20);
-    assert.equal(summary.expectedPass, 20);
+    assert.equal(summary.totalProbes, 27);
+    assert.equal(summary.expectedPass, 27);
     assert.equal(summary.expectedFail, 0);
+    assert.ok(summary.byDisposition.failure >= 5, "failure disposition probes required");
+    assert.ok(summary.byDisposition.recovery >= 3, "recovery disposition probes required");
+    assert.ok(summary.byDisposition.nogo >= 6, "NO-GO disposition probes required");
+    assert.ok(summary.byDisposition.happy >= 8, "happy path probes retained");
 
     const failIds = new Set(
       FORGE_BASELINE_PATHS.flatMap(path =>
@@ -44,6 +56,19 @@ describe("Forge Baseline Contract — P01-B01-A02", () => {
       ),
     );
     assert.deepEqual([...failIds], []);
+  });
+
+  it("lists failure, recovery and NO-GO probes by disposition", () => {
+    const failure = listProbesByDisposition("failure");
+    const recovery = listProbesByDisposition("recovery");
+    const nogo = listProbesByDisposition("nogo");
+
+    assert.ok(failure.some(p => p.id === "state.blocked_from_executing"));
+    assert.ok(failure.some(p => p.id === "rollback.unknown_point_fails"));
+    assert.ok(recovery.some(p => p.id === "state.recover_from_blocked"));
+    assert.ok(recovery.some(p => p.id === "resume.corrupt_checkpoint_returns_null"));
+    assert.ok(nogo.some(p => p.id === "reviewer.nogo_reject_verdict"));
+    assert.ok(nogo.some(p => p.id === "reviewer.nogo_needs_revision"));
   });
 
   it("enforces fixture ↔ contract probe mapping", () => {

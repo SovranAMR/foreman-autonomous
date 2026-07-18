@@ -15,6 +15,9 @@ export type ForgeBaselinePath =
 
 export type ForgeAcceptanceOutcome = "PASS" | "FAIL";
 
+/** Probe disposition — how the scenario exercises pipeline resilience. */
+export type ForgeProbeDisposition = "happy" | "failure" | "recovery" | "nogo";
+
 /** @deprecated Use ForgeAcceptanceOutcome — kept for harness compatibility. */
 export type BaselineOutcome = ForgeAcceptanceOutcome;
 
@@ -39,6 +42,8 @@ export interface ForgeProbeContract {
   id: string;
   description: string;
   expected: ForgeAcceptanceOutcome;
+  /** Scenario class: happy path, failure handling, recovery, or NO-GO gate. */
+  disposition: ForgeProbeDisposition;
   /** Measurable assertion enforced by the baseline harness probe. */
   criterion: string;
 }
@@ -98,7 +103,7 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
       acceptance: {
         invariant:
           "StateManager enforces VALID_TRANSITIONS, rejects illegal jumps, and requires non-empty transition reasons.",
-        minProbeCount: 3,
+        minProbeCount: 5,
         requireFullAlignment: true,
       },
       probes: [
@@ -106,19 +111,36 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
           id: "state.valid_pipeline_chain",
           description: "StateManager accepts the canonical Forge transition chain idle→complete",
           expected: "PASS",
+          disposition: "happy",
           criterion: "idle→visioning→decomposing→executing→verifying→complete succeeds; final state is complete",
         },
         {
           id: "state.rejects_skip_to_executing",
           description: "Invalid idle→executing transition is rejected without mutating state",
           expected: "PASS",
+          disposition: "happy",
           criterion: "InvalidTransitionError thrown; state remains idle",
         },
         {
           id: "state.rejects_empty_reason",
           description: "Transitions without a reason are rejected",
           expected: "PASS",
+          disposition: "happy",
           criterion: "MissingReasonError thrown on empty reason",
+        },
+        {
+          id: "state.blocked_from_executing",
+          description: "Pipeline can enter blocked state from executing (failure path)",
+          expected: "PASS",
+          disposition: "failure",
+          criterion: "executing→blocked succeeds; current state is blocked",
+        },
+        {
+          id: "state.recover_from_blocked",
+          description: "Pipeline can replan via blocked→decomposing (recovery path)",
+          expected: "PASS",
+          disposition: "recovery",
+          criterion: "blocked→decomposing succeeds; current state is decomposing",
         },
       ],
     },
@@ -135,18 +157,21 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
           id: "tool.definitions_registered",
           description: "Forge worker tool catalog exposes core execution tools",
           expected: "PASS",
+          disposition: "happy",
           criterion: "bash, read_file, edit_file registered; catalog size >= 40",
         },
         {
           id: "tool.unknown_tool_errors",
           description: "Unknown tool names return an error result instead of silent success",
           expected: "PASS",
+          disposition: "failure",
           criterion: "execute({name:'not_a_real_tool'}) returns isError with 'Unknown tool'",
         },
         {
           id: "tool.hooks_can_block",
           description: "before_tool_call hook can block a tool invocation",
           expected: "PASS",
+          disposition: "nogo",
           criterion: "blocked hook yields isError containing 'blocked'",
         },
       ],
@@ -164,24 +189,28 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
           id: "verification.parse_build_success",
           description: "parseBuildOutput marks clean build output as success",
           expected: "PASS",
+          disposition: "happy",
           criterion: "Vite success output → success=true",
         },
         {
           id: "verification.parse_build_errors",
           description: "parseBuildOutput extracts file:line errors from TypeScript output",
           expected: "PASS",
+          disposition: "failure",
           criterion: "TS error line parsed with file src/app.ts and error count 1",
         },
         {
           id: "verification.parse_test_output",
           description: "parseTestOutput counts pass/fail from node:test output",
           expected: "PASS",
+          disposition: "happy",
           criterion: "total=2, passed=1, failed=1 from node:test symbols",
         },
         {
           id: "verification.detect_regressions",
           description: "detectRegressions flags newly failing tests against prior run",
           expected: "PASS",
+          disposition: "failure",
           criterion: "hasRegression=true and regressions includes 'stable test'",
         },
       ],
@@ -191,7 +220,7 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
       acceptance: {
         invariant:
           "Reviewer gate validates worker protocol completeness, trivial verify rejection, and forbidden-list violations.",
-        minProbeCount: 4,
+        minProbeCount: 6,
         requireFullAlignment: true,
       },
       probes: [
@@ -199,25 +228,43 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
           id: "reviewer.good_protocol_passes",
           description: "quickReviewCheck accepts a complete worker protocol aligned with vision",
           expected: "PASS",
+          disposition: "happy",
           criterion: "GOOD_PROTOCOL + VISION_DOC → null (pass)",
         },
         {
           id: "reviewer.trivial_verify_rejected",
           description: "quickReviewCheck rejects trivial STEP7_VERIFY text",
           expected: "PASS",
+          disposition: "nogo",
           criterion: "step7_verify='Looks good' → verdict REJECT",
         },
         {
           id: "reviewer.forbidden_violation_rejected",
           description: "quickReviewCheck rejects FORBIDDEN-list violations in worker output",
           expected: "PASS",
+          disposition: "nogo",
           criterion: "particle rain in step6 → verdict REJECT",
         },
         {
           id: "reviewer.empty_llm_response_passes",
           description: "Empty reviewer LLM response is classified insufficient (no auto-PASS leniency)",
           expected: "PASS",
+          disposition: "nogo",
           criterion: "classifyReviewerLlmResponse rejects empty/short output; orchestrator retries instead of auto-PASS",
+        },
+        {
+          id: "reviewer.nogo_reject_verdict",
+          description: "parseReviewResponse maps REJECT verdict to NO-GO with rejection feedback",
+          expected: "PASS",
+          disposition: "nogo",
+          criterion: "VERDICT: REJECT → verdict=REJECT and rejectionFeedback defined",
+        },
+        {
+          id: "reviewer.nogo_needs_revision",
+          description: "parseReviewResponse maps NEEDS_REVISION to NO-GO with actionable feedback",
+          expected: "PASS",
+          disposition: "nogo",
+          criterion: "VERDICT: NEEDS_REVISION → verdict=NEEDS_REVISION and rejectionFeedback defined",
         },
       ],
     },
@@ -226,7 +273,7 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
       acceptance: {
         invariant:
           "Rollback engine tracks history; orchestrator invokes createPoint; non-git projects expose documented gap.",
-        minProbeCount: 3,
+        minProbeCount: 5,
         requireFullAlignment: true,
       },
       probes: [
@@ -234,19 +281,36 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
           id: "rollback.point_without_git",
           description: "RollbackEngine.createPoint returns null when project is not a git repo",
           expected: "PASS",
+          disposition: "failure",
           criterion: "createPoint returns null and isGitRepository() is false without git repo",
         },
         {
           id: "rollback.history_tracks_attempts",
           description: "RollbackEngine persists rollback history metadata",
           expected: "PASS",
+          disposition: "happy",
           criterion: "getHistory().rollbacks is array",
         },
         {
           id: "rollback.orchestrator_calls_create_point",
           description: "Orchestrator.run invokes rollback.createPoint at pipeline start",
           expected: "PASS",
+          disposition: "happy",
           criterion: "mock orchestrator run sets createPointCalled=true",
+        },
+        {
+          id: "rollback.unknown_point_fails",
+          description: "Rollback to unknown point returns success=false without throwing",
+          expected: "PASS",
+          disposition: "failure",
+          criterion: "rollback('rb_nonexistent') → success=false with error message",
+        },
+        {
+          id: "rollback.last_atom_no_points",
+          description: "rollbackLastAtom returns null when insufficient atom checkpoints exist",
+          expected: "PASS",
+          disposition: "failure",
+          criterion: "rollbackLastAtom() === null on empty point history",
         },
       ],
     },
@@ -255,7 +319,7 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
       acceptance: {
         invariant:
           "Pipeline resume persists checkpoints, tracks atom completion, and starts fresh when checkpoint missing.",
-        minProbeCount: 3,
+        minProbeCount: 4,
         requireFullAlignment: true,
       },
       probes: [
@@ -263,19 +327,29 @@ export const FORGE_BASELINE_CONTRACT_V1: ForgeBaselineContract = {
           id: "resume.checkpoint_roundtrip",
           description: "PipelineResumeEngine persists and reloads checkpoint data",
           expected: "PASS",
+          disposition: "happy",
           criterion: "createCheckpoint + updatePhase + loadCheckpoint preserves task and phase",
         },
         {
           id: "resume.atom_completion_tracking",
           description: "PipelineResumeEngine.isAtomCompleted reflects completed atom keys",
           expected: "PASS",
+          disposition: "happy",
           criterion: "completeAtom(0,1) → isAtomCompleted(0,1)=true, (0,2)=false",
         },
         {
           id: "resume.missing_checkpoint_starts_fresh",
           description: "run({resume:true}) without checkpoint continues as fresh run (warning only)",
           expected: "PASS",
+          disposition: "recovery",
           criterion: "resume=true without checkpoint → success=true, resumed≠true",
+        },
+        {
+          id: "resume.corrupt_checkpoint_returns_null",
+          description: "Corrupt checkpoint JSON returns null on load (recovery without crash)",
+          expected: "PASS",
+          disposition: "recovery",
+          criterion: "invalid JSON at checkpoint path → loadCheckpoint() === null",
         },
       ],
     },
@@ -385,8 +459,15 @@ export function summarizeContractCoverage(contract: ForgeBaselineContract = getA
   expectedPass: number;
   expectedFail: number;
   byPath: Record<ForgeBaselinePath, { probeCount: number; invariant: string }>;
+  byDisposition: Record<ForgeProbeDisposition, number>;
 } {
   const byPath = {} as Record<ForgeBaselinePath, { probeCount: number; invariant: string }>;
+  const byDisposition: Record<ForgeProbeDisposition, number> = {
+    happy: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
   let totalProbes = 0;
   let expectedPass = 0;
   let expectedFail = 0;
@@ -399,10 +480,26 @@ export function summarizeContractCoverage(contract: ForgeBaselineContract = getA
     };
     for (const probe of pathContract.probes) {
       totalProbes++;
+      byDisposition[probe.disposition]++;
       if (probe.expected === "PASS") expectedPass++;
       else expectedFail++;
     }
   }
 
-  return { totalProbes, expectedPass, expectedFail, byPath };
+  return { totalProbes, expectedPass, expectedFail, byPath, byDisposition };
+}
+
+export function listProbesByDisposition(
+  disposition: ForgeProbeDisposition,
+  contract: ForgeBaselineContract = getActiveForgeBaselineContract(),
+): ForgeProbeContract[] {
+  const probes: ForgeProbeContract[] = [];
+  for (const path of FORGE_BASELINE_PATHS) {
+    for (const probe of contract.paths[path].probes) {
+      if (probe.disposition === disposition) {
+        probes.push(probe);
+      }
+    }
+  }
+  return probes;
 }

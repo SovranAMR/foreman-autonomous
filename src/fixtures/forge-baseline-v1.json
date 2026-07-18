@@ -19,6 +19,16 @@
         "id": "state.rejects_empty_reason",
         "description": "Transitions without a reason are rejected",
         "expected": "PASS"
+      },
+      {
+        "id": "state.blocked_from_executing",
+        "description": "Pipeline can enter blocked state from executing (failure path)",
+        "expected": "PASS"
+      },
+      {
+        "id": "state.recover_from_blocked",
+        "description": "Pipeline can replan via blocked→decomposing (recovery path)",
+        "expected": "PASS"
       }
     ],
     "tool": [
@@ -80,6 +90,16 @@
         "id": "reviewer.empty_llm_response_passes",
         "description": "Empty reviewer LLM response is classified insufficient (no auto-PASS leniency)",
         "expected": "PASS"
+      },
+      {
+        "id": "reviewer.nogo_reject_verdict",
+        "description": "parseReviewResponse maps REJECT verdict to NO-GO with rejection feedback",
+        "expected": "PASS"
+      },
+      {
+        "id": "reviewer.nogo_needs_revision",
+        "description": "parseReviewResponse maps NEEDS_REVISION to NO-GO with actionable feedback",
+        "expected": "PASS"
       }
     ],
     "rollback": [
@@ -97,6 +117,16 @@
         "id": "rollback.orchestrator_calls_create_point",
         "description": "Orchestrator.run invokes rollback.createPoint at pipeline start",
         "expected": "PASS"
+      },
+      {
+        "id": "rollback.unknown_point_fails",
+        "description": "Rollback to unknown point returns success=false without throwing",
+        "expected": "PASS"
+      },
+      {
+        "id": "rollback.last_atom_no_points",
+        "description": "rollbackLastAtom returns null when insufficient atom checkpoints exist",
+        "expected": "PASS"
       }
     ],
     "resume": [
@@ -113,6 +143,11 @@
       {
         "id": "resume.missing_checkpoint_starts_fresh",
         "description": "run({resume:true}) without checkpoint continues as fresh run (warning only)",
+        "expected": "PASS"
+      },
+      {
+        "id": "resume.corrupt_checkpoint_returns_null",
+        "description": "Corrupt checkpoint JSON returns null on load (recovery without crash)",
         "expected": "PASS"
       }
     ]

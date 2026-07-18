@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B01
-active_atom: P01-B01-A05
+active_atom: P01-B01-A06
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 4/1000
-phase_progress: 4/100
-block_progress: 4/10
+program_progress: 5/1000
+phase_progress: 5/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B01-A05 — Failure, recovery ve NO-GO yollarını uygula.
+P01-B01-A06 — Evidence, telemetry ve provenance kaydını ekle.
 
-objective: Contract kabul kriterlerindeki failure, recovery ve NO-GO yollarını uygula.
-target: src/forge-baseline-contract.ts, ilgili seam (A05 kapsamında belirlenecek).
-hypothesis: Rollback no-git edge-case kapatıldı; sıradaki dilim failure/recovery NO-GO yolları.
-acceptance: Failure/recovery davranışı + hedefli test PASS + regression PASS.
-commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili failure-recovery testi.
-blast_radius: A05 kapsamında belirlenecek tek seam.
-rollback: A05 değişikliklerini geri al.
+objective: Contract kabul kriterlerine evidence, telemetry ve provenance kaydını ekle.
+target: src/forge-baseline-contract.ts, ilgili seam (A06 kapsamında belirlenecek).
+hypothesis: Failure/recovery/NO-GO yolları contract+harness'ta; sıradaki dilim evidence/telemetry.
+acceptance: Evidence/telemetry davranışı + hedefli test PASS + regression PASS.
+commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili evidence testi.
+blast_radius: A06 kapsamında belirlenecek tek seam.
+rollback: A06 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: failure path seçilemezse BLOCKED raporla.
+fallback: evidence path seçilemezse BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B01-A04
-last_commit: e854136
-tests: PASS — forge-baseline-contract (4/4), forge-pipeline-baseline (2/2), forge-engines rollback edge-case
-evidence: isGitRepository(); createPoint null without git; contract probe rollback.point_without_git → PASS (20/20 matrix)
-next: P01-B01-A05
+last_atom: P01-B01-A05
+last_commit: (pending)
+tests: PASS — forge-baseline-contract (5/5), forge-pipeline-baseline (2/2), 27-probe matrix aligned
+evidence: ForgeProbeDisposition typed; 7 new probes (failure/recovery/nogo); state blocked→recover, reviewer NO-GO verdicts, rollback graceful fail, resume corrupt checkpoint
+next: P01-B01-A06

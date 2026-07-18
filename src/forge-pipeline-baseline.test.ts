@@ -16,12 +16,12 @@ describe("Forge Pipeline Baseline — P01-B01-A01 + A02 contract", () => {
     assert.equal(fixture.atom, "P01-B01-A01");
     assert.equal(fixture.contractAtom, contract.atom);
     assert.equal(validateFixtureAgainstContract(fixture).valid, true);
-    assert.ok(fixture.paths.state.length >= 3);
+    assert.ok(fixture.paths.state.length >= 5);
     assert.ok(fixture.paths.tool.length >= 3);
     assert.ok(fixture.paths.verification.length >= 4);
-    assert.ok(fixture.paths.reviewer.length >= 4);
-    assert.ok(fixture.paths.rollback.length >= 3);
-    assert.ok(fixture.paths.resume.length >= 3);
+    assert.ok(fixture.paths.reviewer.length >= 6);
+    assert.ok(fixture.paths.rollback.length >= 5);
+    assert.ok(fixture.paths.resume.length >= 4);
   });
 
   it("executes PASS/FAIL matrix for state, tool, verification, reviewer, rollback, resume", async () => {

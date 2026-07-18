@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 4
+completed_atoms: 5
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -19,7 +19,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B01-A02 — Mission ve acceptance contract: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B01-A03 — Mission ve acceptance contract: en küçük üretim dikey dilimini uygula
 - [x] P01-B01-A04 — Mission ve acceptance contract: boundary ve edge-case davranışlarını tamamla
-- [ ] P01-B01-A05 — Mission ve acceptance contract: failure, recovery ve NO-GO yollarını uygula
+- [x] P01-B01-A05 — Mission ve acceptance contract: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B01-A06 — Mission ve acceptance contract: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B01-A07 — Mission ve acceptance contract: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B01-A08 — Mission ve acceptance contract: Forge entegrasyonu ile regression testini tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B01-A04
-last_commit: e854136
-tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2), rollback no-git edge-case in forge-engines.test.ts
+last_atom: P01-B01-A05
+last_commit: (pending)
+tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (5/5), `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2)
 evidence: |
-  P01-B01-A04 boundary slice: RollbackEngine.isGitRepository() guards createPoint on non-git roots.
-  Baseline probe rollback.point_without_git inverted to PASS criterion (point===null && !isGit).
-  Contract matrix now 20/20 expected PASS (zero documented FAIL gaps).
-next: P01-B01-A05
+  P01-B01-A05 failure/recovery/NO-GO slice: ForgeProbeDisposition (happy|failure|recovery|nogo) on all probes.
+  7 new probes: state blocked/recover, reviewer REJECT/NEEDS_REVISION NO-GO, rollback unknown point + no-points,
+  resume corrupt checkpoint. Contract matrix 27/27 aligned PASS.
+next: P01-B01-A06
