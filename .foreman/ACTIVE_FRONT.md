@@ -44,7 +44,7 @@ fallback: block gate uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B03-A09
-last_commit: 27cf171
+last_commit: f868893
 tests: PASS — forge-formal-state-machine (25/25) + guard (8/8)
 evidence: validateForgeFormalStateMachineGuard adversarial=3/3 perf/cost/safety PASS; runForgeFormalStateMachineRegressionGate guard in detail; verifyForgeFormalStateMachineGuard emits formal_state_machine_guard verification
 next: P01-B03-A10

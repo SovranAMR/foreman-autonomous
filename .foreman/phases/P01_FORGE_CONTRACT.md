@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B03-A09
-last_commit: 27cf171
+last_commit: f868893
 tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts src/forge-formal-state-machine.guard.test.ts` (33/33)
 evidence: |
   P01-B03-A09 guard: validateForgeFormalStateMachineGuard adversarial=3/3 perf/cost/safety PASS on canonical run;
