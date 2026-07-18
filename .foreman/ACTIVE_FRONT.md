@@ -6,8 +6,8 @@ active_phase: P01
 active_block: P01-B04
 active_atom: P01-B04-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 33/1000
-phase_progress: 32/100
+program_progress: 34/1000
+phase_progress: 33/100
 block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B04-A04 — Typed phase/event schema: boundary ve edge-case davranışlarını tamamla.
+P01-B04-A05 — Typed phase/event schema: failure, recovery ve NO-GO yollarını uygula.
 
-objective: Typed phase/event schema için boundary ve edge-case davranışlarını tamamla.
-target: Contract-wired boundary probes execute with zero unexpected mismatches.
-hypothesis: A03 production slice validates matrix alignment; A04 extends boundary coverage.
-acceptance: boundary slice executes; edge probes aligned; documented gaps preserved.
+objective: Typed phase/event schema için failure, recovery ve NO-GO yollarını uygula.
+target: Contract-wired failure/recovery probes execute with zero unexpected mismatches.
+hypothesis: A04 boundary slice validates edge probes; A05 extends failure/recovery coverage.
+acceptance: failure/recovery slice executes; NO-GO probes aligned; documented gaps preserved.
 commands: npx tsx --test src/forge-phase-event-schema.test.ts
 blast_radius: forge-phase-event-schema*.ts
-rollback: A04 değişikliklerini geri al.
+rollback: A05 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B04-A03
-last_commit: 9361e06
-tests: PASS — forge-phase-event-schema (11/11)
-evidence: contract-wired production slice; 19 PASS + 5 gap probes aligned; validatePhaseEventSchemaProbeMatrix zero unexpected mismatches; runPhaseEventSchemaProductionSlice gate
-next: P01-B04-A04
+last_atom: P01-B04-A04
+last_commit: PENDING
+tests: PASS — forge-phase-event-schema (14/14)
+evidence: boundary slice; 6 boundary probes (5 PASS + 1 documented FAIL gap); validatePhaseEventSchemaBoundaryProbeMatrix zero unexpected mismatches; runPhaseEventSchemaBoundarySlice gate
+next: P01-B04-A05

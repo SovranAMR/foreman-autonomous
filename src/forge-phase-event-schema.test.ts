@@ -14,7 +14,10 @@ import {
   listPhaseEventSchemaProbesByExpected,
   summarizePhaseEventSchemaContractCoverage,
   runPhaseEventSchemaProductionSlice,
+  runPhaseEventSchemaBoundarySlice,
   validatePhaseEventSchemaProbeMatrix,
+  validatePhaseEventSchemaBoundaryProbeMatrix,
+  listPhaseEventSchemaProbesByCategory,
   PHASE_EVENT_SCHEMA_CATEGORIES,
 } from "./forge-phase-event-schema-harness.js";
 
@@ -44,16 +47,17 @@ describe("Forge Phase/Event Schema — P01-B04-A01", () => {
     const summary = summarizePhaseEventSchemaMatrix(results);
 
     assert.equal(summary.total, results.length);
-    assert.equal(summary.total, 24);
+    assert.equal(summary.total, 26);
     assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
 
     const documentedFail = listPhaseEventSchemaProbesByExpected("FAIL");
-    assert.equal(documentedFail.length, 5);
+    assert.equal(documentedFail.length, 6);
     assert.ok(documentedFail.some(p => p.id === "schema.orch_phase_field_typed"));
     assert.ok(documentedFail.some(p => p.id === "schema.stream_phase_field_typed"));
     assert.ok(documentedFail.some(p => p.id === "schema.unregistered_phase_literals"));
     assert.ok(documentedFail.some(p => p.id === "schema.recovery_assess_unpaired"));
     assert.ok(documentedFail.some(p => p.id === "schema.registry_covers_core"));
+    assert.ok(documentedFail.some(p => p.id === "schema.hallucination_unused_variant"));
 
     for (const gap of summary.knownGaps) {
       assert.equal(gap.expected, "FAIL");
@@ -79,6 +83,7 @@ describe("Forge Phase/Event Schema — P01-B04-A01", () => {
     const ids = gaps.map(g => g.id).sort();
 
     assert.deepEqual(ids, [
+      "schema.hallucination_unused_variant",
       "schema.orch_phase_field_typed",
       "schema.recovery_assess_unpaired",
       "schema.registry_covers_core",
@@ -86,24 +91,30 @@ describe("Forge Phase/Event Schema — P01-B04-A01", () => {
       "schema.unregistered_phase_literals",
     ]);
     assert.ok(
-      gaps.every(g => g.category === "phase_typing" || g.category === "phase_registry" || g.category === "event_pairing"),
-      "documented gaps are phase typing, registry, or pairing probes",
+      gaps.every(
+        g =>
+          g.category === "phase_typing" ||
+          g.category === "phase_registry" ||
+          g.category === "event_pairing" ||
+          g.category === "boundary",
+      ),
+      "documented gaps are phase typing, registry, pairing, or boundary probes",
     );
   });
 
   it("declares typed contract probes across seven schema categories", () => {
     const coverage = summarizePhaseEventSchemaContractCoverage();
-    assert.equal(coverage.totalProbes, 24);
-    assert.equal(coverage.expectedPass, 19);
-    assert.equal(coverage.expectedFail, 5);
-    assert.equal(coverage.byDisposition.gap, 5);
+    assert.equal(coverage.totalProbes, 26);
+    assert.equal(coverage.expectedPass, 20);
+    assert.equal(coverage.expectedFail, 6);
+    assert.equal(coverage.byDisposition.gap, 6);
     assert.equal(coverage.byCategory.event_type_union.probeCount, 4);
     assert.equal(coverage.byCategory.phase_typing.probeCount, 3);
     assert.equal(coverage.byCategory.phase_registry.probeCount, 4);
     assert.equal(coverage.byCategory.event_pairing.probeCount, 4);
     assert.equal(coverage.byCategory.stream_seam.probeCount, 3);
     assert.equal(coverage.byCategory.baseline_link.probeCount, 2);
-    assert.equal(coverage.byCategory.boundary.probeCount, 4);
+    assert.equal(coverage.byCategory.boundary.probeCount, 6);
   });
 });
 
@@ -134,28 +145,29 @@ describe("Forge Phase/Event Schema Contract — P01-B04-A02", () => {
     }
   });
 
-  it("maps 24 probes with five documented gap dispositions from A01 baseline", () => {
+  it("maps 26 probes with six documented gap dispositions from A01 baseline", () => {
     const contract = getActivePhaseEventSchemaContract();
     const summary = summarizePhaseEventSchemaContractCoverage(contract);
 
-    assert.equal(summary.totalProbes, 24);
-    assert.equal(summary.expectedPass, 19);
-    assert.equal(summary.expectedFail, 5);
-    assert.equal(summary.byDisposition.observed, 19);
-    assert.equal(summary.byDisposition.gap, 5);
+    assert.equal(summary.totalProbes, 26);
+    assert.equal(summary.expectedPass, 20);
+    assert.equal(summary.expectedFail, 6);
+    assert.equal(summary.byDisposition.observed, 20);
+    assert.equal(summary.byDisposition.gap, 6);
     assert.equal(summary.byCategory.event_type_union.probeCount, 4);
     assert.equal(summary.byCategory.phase_typing.probeCount, 3);
     assert.equal(summary.byCategory.phase_registry.probeCount, 4);
     assert.equal(summary.byCategory.event_pairing.probeCount, 4);
     assert.equal(summary.byCategory.stream_seam.probeCount, 3);
     assert.equal(summary.byCategory.baseline_link.probeCount, 2);
-    assert.equal(summary.byCategory.boundary.probeCount, 4);
+    assert.equal(summary.byCategory.boundary.probeCount, 6);
   });
 
-  it("lists five documented gap probes for phase typing, registry, and pairing", () => {
+  it("lists six documented gap probes for phase typing, registry, pairing, and boundary", () => {
     const gaps = listPhaseEventSchemaProbesByDisposition("gap");
     const ids = gaps.map(p => p.id).sort();
     assert.deepEqual(ids, [
+      "schema.hallucination_unused_variant",
       "schema.orch_phase_field_typed",
       "schema.recovery_assess_unpaired",
       "schema.registry_covers_core",
@@ -197,10 +209,10 @@ describe("Forge Phase/Event Schema Production Slice — P01-B04-A03", () => {
     assert.equal(slice.fixtureValid, true);
     assert.equal(slice.contractAligned, true);
     assert.equal(slice.matrixValid, true);
-    assert.equal(slice.summary.total, 24);
+    assert.equal(slice.summary.total, 26);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 19);
-    assert.equal(slice.matrixValidation.gapAligned, 5);
+    assert.equal(slice.matrixValidation.passAligned, 20);
+    assert.equal(slice.matrixValidation.gapAligned, 6);
 
     for (const contractProbe of contract.probes) {
       const result = slice.results.find(r => r.id === contractProbe.id);
@@ -219,10 +231,11 @@ describe("Forge Phase/Event Schema Production Slice — P01-B04-A03", () => {
     );
 
     assert.equal(slice.summary.mismatches.length, 0);
-    assert.equal(slice.summary.knownGaps.length, 5);
+    assert.equal(slice.summary.knownGaps.length, 6);
     assert.deepEqual(
       slice.summary.knownGaps.map(g => g.id).sort(),
       [
+        "schema.hallucination_unused_variant",
         "schema.orch_phase_field_typed",
         "schema.recovery_assess_unpaired",
         "schema.registry_covers_core",
@@ -242,6 +255,73 @@ describe("Forge Phase/Event Schema Production Slice — P01-B04-A03", () => {
       assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
       assert.equal(result.criterion, contractProbe.criterion);
     }
+  });
+});
+
+describe("Forge Phase/Event Schema Boundary Slice — P01-B04-A04", () => {
+  it("defines boundary category with payload and unused-variant edge probes", () => {
+    const boundary = listPhaseEventSchemaProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "schema.block_detected_event",
+      "schema.block_detected_payload",
+      "schema.error_event",
+      "schema.format_retry_event",
+      "schema.hallucination_event",
+      "schema.hallucination_unused_variant",
+    ]);
+    assert.equal(boundary.filter(p => p.expected === "PASS").length, 5);
+    assert.equal(boundary.filter(p => p.disposition === "gap").length, 1);
+    assert.ok(boundary.some(p => p.id === "schema.block_detected_payload"));
+    assert.ok(boundary.some(p => p.id === "schema.hallucination_unused_variant"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActivePhaseEventSchemaContract();
+    const slice = runPhaseEventSchemaBoundarySlice();
+
+    assert.equal(slice.atom, "P01-B04-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 5);
+    assert.equal(slice.matrixValidation.gapAligned, 1);
+
+    for (const boundaryProbe of listPhaseEventSchemaProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validatePhaseEventSchemaBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented boundary gap for unused hallucination variant", () => {
+    const results = runPhaseEventSchemaProbes();
+    const boundary = results.filter(r => r.category === "boundary");
+
+    assert.equal(boundary.length, 6);
+    assert.equal(boundary.every(r => r.aligned), true);
+
+    const unusedVariant = boundary.find(r => r.id === "schema.hallucination_unused_variant");
+    assert.ok(unusedVariant);
+    assert.equal(unusedVariant!.expected, "FAIL");
+    assert.equal(unusedVariant!.actual, "FAIL");
+
+    const payloadProbe = boundary.find(r => r.id === "schema.block_detected_payload");
+    assert.ok(payloadProbe);
+    assert.equal(payloadProbe!.expected, "PASS");
+    assert.equal(payloadProbe!.actual, "PASS");
   });
 });
 

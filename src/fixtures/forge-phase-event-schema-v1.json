@@ -154,6 +154,18 @@
       "category": "boundary",
       "description": "OrchestratorEvent includes hallucination variant",
       "expected": "PASS"
+    },
+    {
+      "id": "schema.block_detected_payload",
+      "category": "boundary",
+      "description": "block_detected variant declares typed thought and reason payload fields",
+      "expected": "PASS"
+    },
+    {
+      "id": "schema.hallucination_unused_variant",
+      "category": "boundary",
+      "description": "hallucination variant defined but orchestrator never emits it",
+      "expected": "FAIL"
     }
   ]
 }

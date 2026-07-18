@@ -20,8 +20,10 @@ import {
   validatePhaseEventSchemaFixture,
   validatePhaseEventSchemaFixtureAgainstContract,
   validatePhaseEventSchemaProbeMatrix,
+  validatePhaseEventSchemaBoundaryProbeMatrix,
   summarizePhaseEventSchemaMatrix,
   getActivePhaseEventSchemaContract,
+  listPhaseEventSchemaProbesByCategory,
   listPhaseEventSchemaProbesByExpected,
   type PhaseEventSchemaCategory,
   type PhaseEventSchemaFixture,
@@ -40,6 +42,7 @@ export {
   validatePhaseEventSchemaFixture,
   validatePhaseEventSchemaFixtureAgainstContract,
   validatePhaseEventSchemaProbeMatrix,
+  validatePhaseEventSchemaBoundaryProbeMatrix,
   summarizePhaseEventSchemaMatrix,
   getActivePhaseEventSchemaContract,
   getPhaseEventSchemaCategoryContract,
@@ -492,6 +495,29 @@ function probeBoundary(
         'OrchestratorEvent includes type "hallucination"',
       );
     }
+    case "schema.block_detected_payload": {
+      const ok = src.includes('{ type: "block_detected"; thought: Thought; reason: string }');
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `typedPayload=${ok}`,
+        "OrchestratorEvent block_detected includes thought: Thought and reason: string",
+      );
+    }
+    case "schema.hallucination_unused_variant": {
+      const emitMatches = src.match(/type:\s*"hallucination"/g) ?? [];
+      const ok = emitMatches.length > 1;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `hallucinationRefs=${emitMatches.length}`,
+        "orchestrator.ts emits at least one type: hallucination event",
+      );
+    }
     default:
       return probe(id, category, expected, false, "unknown boundary probe");
   }
@@ -576,6 +602,39 @@ export function runPhaseEventSchemaProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface PhaseEventSchemaBoundarySliceResult {
+  atom: "P01-B04-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: PhaseEventSchemaProbeResult[];
+  boundaryResults: PhaseEventSchemaProbeResult[];
+  matrixValidation: PhaseEventSchemaProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary event type and payload edge probes
+ * with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runPhaseEventSchemaBoundarySlice(
+  fixture: PhaseEventSchemaFixture = loadPhaseEventSchemaFixture(),
+): PhaseEventSchemaBoundarySliceResult {
+  const contract = getActivePhaseEventSchemaContract();
+  const results = runPhaseEventSchemaProbes(fixture);
+  const boundaryProbes = listPhaseEventSchemaProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validatePhaseEventSchemaBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B04-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

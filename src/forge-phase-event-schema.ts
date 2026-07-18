@@ -14,7 +14,7 @@ import {
 } from "./forge-formal-state-machine.js";
 import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
 
-export const FORGE_PHASE_EVENT_SCHEMA_HARNESS_VERSION = "1.0.0-a03";
+export const FORGE_PHASE_EVENT_SCHEMA_HARNESS_VERSION = "1.0.0-a04";
 
 export type PhaseEventSchemaProbeDisposition =
   | "observed"
@@ -409,6 +409,23 @@ const PHASE_EVENT_SCHEMA_CATEGORY_CONTRACTS: Record<
         disposition: "observed",
         criterion: 'OrchestratorEvent includes type "hallucination"',
       },
+      {
+        id: "schema.block_detected_payload",
+        category: "boundary",
+        description: "block_detected variant declares typed thought and reason payload fields",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          'OrchestratorEvent block_detected includes thought: Thought and reason: string',
+      },
+      {
+        id: "schema.hallucination_unused_variant",
+        category: "boundary",
+        description: "hallucination variant defined but orchestrator never emits it",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "orchestrator.ts emits at least one type: hallucination event",
+      },
     ],
   },
 };
@@ -741,6 +758,28 @@ export function validatePhaseEventSchemaProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validatePhaseEventSchemaBoundaryProbeMatrix(
+  results: PhaseEventSchemaProbeResult[],
+  contract: PhaseEventSchemaContract = getActivePhaseEventSchemaContract(),
+): PhaseEventSchemaProbeMatrixValidationResult {
+  const boundaryProbes = listPhaseEventSchemaProbesByCategory("boundary", contract);
+  const boundaryContract: PhaseEventSchemaContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validatePhaseEventSchemaProbeMatrix(boundaryResults, boundaryContract);
 }
 
 export function summarizePhaseEventSchemaMatrix(
