@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 25
+completed_atoms: 26
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -46,7 +46,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B03-A03 — Formal state machine: en küçük üretim dikey dilimini uygula
 - [x] P01-B03-A04 — Formal state machine: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B03-A05 — Formal state machine: failure, recovery ve NO-GO yollarını uygula
-- [ ] P01-B03-A06 — Formal state machine: evidence, telemetry ve provenance kaydını ekle
+- [x] P01-B03-A06 — Formal state machine: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B03-A08 — Formal state machine: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B03-A09 — Formal state machine: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,13 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B03-A05
+last_atom: P01-B03-A06
 last_commit: PENDING
-tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (16/16)
+tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (19/19)
 evidence: |
-  P01-B03-A05 failure/recovery/NO-GO slice: runFormalStateMachineFailureRecoverySlice gates
-  failure_state + recovery_state (6 probes: 2 orchestrator sync gaps, 2 recovery paths,
-  2 NO-GO rejection probes fsm.nogo_blocked_rejects_complete + fsm.nogo_awaiting_rejects_verifying);
-  validateFormalStateMachineFailureRecoveryProbeMatrix PASS (4 passAligned, 2 gapAligned,
-  0 unexpectedMismatches); full matrix 28 probes (26 passAligned, 2 gapAligned).
-next: P01-B03-A06
+  P01-B03-A06 evidence/telemetry/provenance: runFormalStateMachineFailureRecoverySliceWithRecord
+  gates failure_state + recovery_state (6 probes) with sliceAtom P01-B03-A06; evidence carries
+  disposition + criterion provenance per probe; validateFormalStateMachineFailureRecoveryRunRecord
+  PASS; runFormalStateMachineProbesWithRecord full matrix 28 probes; validateFormalStateMachineRunRecord PASS.
+next: P01-B03-A07

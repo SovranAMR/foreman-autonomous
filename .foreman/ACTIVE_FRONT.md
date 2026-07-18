@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B03
-active_atom: P01-B03-A06
+active_atom: P01-B03-A07
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 25/1000
-phase_progress: 24/100
-block_progress: 5/10
+program_progress: 26/1000
+phase_progress: 25/100
+block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B03-A06 — Formal state machine: evidence, telemetry ve provenance kaydını ekle.
+P01-B03-A07 — Formal state machine: unit, property ve fuzz doğrulamasını ekle.
 
-objective: Formal state machine evidence, telemetry ve provenance kaydını ekle.
-target: Failure/recovery slice evidence is recorded with probe disposition and criterion provenance.
-hypothesis: A05 failure/recovery slice enables evidence capture on orchestrator FSM gaps.
-acceptance: Evidence records include disposition, criterion, and aligned probe outcomes.
+objective: Formal state machine unit, property ve fuzz doğrulamasını ekle.
+target: Run record and contract mutations are rejected by property/fuzz validation.
+hypothesis: A06 evidence slice enables fuzz/property gates on formal state machine artifacts.
+acceptance: Property checks pass; fuzz mutations on run record are rejected.
 commands: npx tsx --test src/forge-formal-state-machine.test.ts
 blast_radius: forge-formal-state-machine*.ts
-rollback: A06 değişikliklerini geri al.
+rollback: A07 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: evidence slice uygulanamazsa BLOCKED raporla.
+fallback: property/fuzz slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B03-A05
+last_atom: P01-B03-A06
 last_commit: PENDING
-tests: PASS — forge-formal-state-machine (16/16), forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (23/23)
-evidence: runFormalStateMachineFailureRecoverySlice adds failure_state+recovery_state category gate (6 probes: 2 documented FAIL gaps + 2 recovery + 2 NO-GO); validateFormalStateMachineFailureRecoveryProbeMatrix PASS (4 passAligned, 2 gapAligned, 0 unexpectedMismatches); full matrix 28 probes (26 passAligned, 2 gapAligned)
-next: P01-B03-A06
+tests: PASS — forge-formal-state-machine (19/19)
+evidence: runFormalStateMachineFailureRecoverySliceWithRecord + runFormalStateMachineProbesWithRecord emit evidence with disposition/criterion provenance; validateFormalStateMachineFailureRecoveryRunRecord PASS (6 probes, sliceAtom P01-B03-A06); validateFormalStateMachineRunRecord PASS (28 probes)
+next: P01-B03-A07

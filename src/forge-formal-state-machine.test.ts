@@ -6,6 +6,14 @@ import {
   runFormalStateMachineProductionSlice,
   runFormalStateMachineBoundarySlice,
   runFormalStateMachineFailureRecoverySlice,
+  runFormalStateMachineProbesWithRecord,
+  runFormalStateMachineFailureRecoverySliceWithRecord,
+  validateFormalStateMachineRunRecord,
+  validateFormalStateMachineFailureRecoveryRunRecord,
+  buildFormalStateMachineProbeEvidence,
+  buildFormalStateMachineProbeTelemetry,
+  buildFormalStateMachineProvenance,
+  buildFormalStateMachineRunRecord,
   summarizeFormalStateMachineMatrix,
   validateFormalStateMachineFixture,
   validateFormalStateMachineFixtureAgainstContract,
@@ -22,6 +30,7 @@ import {
   summarizeFormalStateMachineContractCoverage,
   FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
   FORMAL_STATE_MACHINE_CATEGORIES,
+  listFormalStateMachineFailureRecoveryProbeIds,
 } from "./forge-formal-state-machine-harness.js";
 
 describe("Forge Formal State Machine — P01-B03-A01", () => {
@@ -333,6 +342,120 @@ describe("Forge Formal State Machine Failure/Recovery/NO-GO — P01-B03-A05", ()
     assert.equal(nogo.length, 2);
     assert.ok(nogo.every(r => r.expected === "PASS" && r.actual === "PASS" && r.aligned));
     assert.ok(nogo.every(r => r.detail.includes("rejected=true")));
+  });
+});
+
+describe("Forge Formal State Machine Evidence — P01-B03-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadFormalStateMachineFixture();
+    const contract = getActiveFormalStateMachineContract();
+    const probeIds = listFormalStateMachineFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-18T00:00:00.000Z";
+    const completedAt = "2026-07-18T00:00:01.000Z";
+
+    const evidence = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildFormalStateMachineProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildFormalStateMachineProbeTelemetry(probeId, contractProbe.category, index, index * 0.5);
+    });
+
+    const provenance = buildFormalStateMachineProvenance(
+      "run-fsm-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P01-B03-A06",
+        sliceCategories: FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildFormalStateMachineRunRecord(provenance, evidence, telemetry);
+    const validation = validateFormalStateMachineFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 6);
+    assert.equal(record.summary.mismatches, 0);
+    assert.ok(record.summary.byDisposition.gap >= 2);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byDisposition.nogo >= 2);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBehaviorMapAtom, fixture.sourceBehaviorMap.atom);
+  });
+
+  it("records evidence, telemetry and provenance for failure/recovery slice run", () => {
+    const contract = getActiveFormalStateMachineContract();
+    const record = runFormalStateMachineFailureRecoverySliceWithRecord();
+    const validation = validateFormalStateMachineFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 6);
+    assert.equal(record.telemetry.length, 6);
+    assert.equal(record.provenance.totalProbes, 6);
+    assert.equal(record.provenance.sliceAtom, "P01-B03-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_state",
+      "recovery_state",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.equal(item.aligned, true);
+      assert.ok(item.recordedAt.length > 10);
+    }
+  });
+
+  it("records evidence, telemetry and provenance for full formal state machine run", () => {
+    const record = runFormalStateMachineProbesWithRecord();
+    const validation = validateFormalStateMachineRunRecord(record);
+
+    assert.equal(record.evidence.length, 28);
+    assert.equal(record.telemetry.length, 28);
+    assert.equal(record.provenance.totalProbes, 28);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.evidence) {
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion provenance`);
+      assert.ok(
+        item.disposition === "observed" ||
+          item.disposition === "gap" ||
+          item.disposition === "failure" ||
+          item.disposition === "recovery" ||
+          item.disposition === "nogo",
+      );
+    }
   });
 });
 

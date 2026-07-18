@@ -10,6 +10,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
 import formalStateMachineFixture from "./fixtures/forge-formal-state-machine-v1.json" with { type: "json" };
 import { StateManager, InvalidTransitionError, MissingReasonError } from "./state.js";
 import { VALID_TRANSITIONS, type SystemState } from "./types.js";
@@ -25,8 +27,14 @@ import {
   validateFormalStateMachineProbeMatrix,
   validateFormalStateMachineBoundaryProbeMatrix,
   validateFormalStateMachineFailureRecoveryProbeMatrix,
-  validateFormalStateMachineFailureRecoveryProbeMatrix,
   summarizeFormalStateMachineMatrix,
+  buildFormalStateMachineProbeEvidence,
+  buildFormalStateMachineProbeTelemetry,
+  buildFormalStateMachineProvenance,
+  buildFormalStateMachineRunRecord,
+  validateFormalStateMachineRunRecord,
+  validateFormalStateMachineFailureRecoveryRunRecord,
+  listFormalStateMachineFailureRecoveryProbeIds,
   getActiveFormalStateMachineContract,
   listFormalStateMachineProbesByCategory,
   FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
@@ -36,6 +44,8 @@ import {
   type FormalStateMachineProbeResult,
   type FormalStateMachineProbeSummary,
   type FormalStateMachineProbeMatrixValidationResult,
+  type FormalStateMachineRunRecord,
+  type FormalStateMachineProbeDisposition,
 } from "./forge-formal-state-machine.js";
 
 export type {
@@ -63,6 +73,14 @@ export {
   FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
   FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1,
   FORMAL_STATE_MACHINE_CATEGORIES,
+  buildFormalStateMachineProbeEvidence,
+  buildFormalStateMachineProbeTelemetry,
+  buildFormalStateMachineProvenance,
+  buildFormalStateMachineRunRecord,
+  validateFormalStateMachineRunRecord,
+  validateFormalStateMachineFailureRecoveryRunRecord,
+  listFormalStateMachineFailureRecoveryProbeIds,
+  type FormalStateMachineRunRecord,
 } from "./forge-formal-state-machine.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -591,6 +609,118 @@ export function runFormalStateMachineProbes(
     const contractProbe = contract.probes.find(p => p.id === entry.id);
     const result = runSingleProbe(entry.id, entry.category, entry.expected);
     return enrichProbeWithContractCriterion(result, contractProbe?.criterion);
+  });
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runFormalStateMachineProbeWithTiming(
+  entry: FormalStateMachineFixture["probes"][number],
+  contractProbe:
+    | { criterion: string; disposition: FormalStateMachineProbeDisposition }
+    | undefined,
+  sequenceIndex: number,
+): {
+  result: FormalStateMachineProbeResult;
+  durationMs: number;
+  disposition: FormalStateMachineProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected);
+  const enriched = enrichProbeWithContractCriterion(result, contractProbe?.criterion);
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildFormalStateMachineRecordFromEntries(
+  entries: FormalStateMachineFixture["probes"],
+  fixture: FormalStateMachineFixture,
+  contract: ReturnType<typeof getActiveFormalStateMachineContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly FormalStateMachineCategory[];
+  },
+): FormalStateMachineRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildFormalStateMachineProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildFormalStateMachineProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runFormalStateMachineProbeWithTiming(
+      entry,
+      contractProbe,
+      sequenceIndex,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildFormalStateMachineProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildFormalStateMachineProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildFormalStateMachineProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildFormalStateMachineRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all FSM probes and emit auditable evidence, telemetry and provenance (P01-B03-A06). */
+export function runFormalStateMachineProbesWithRecord(
+  fixture: FormalStateMachineFixture = loadFormalStateMachineFixture(),
+): FormalStateMachineRunRecord {
+  const contract = getActiveFormalStateMachineContract();
+  return buildFormalStateMachineRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P01-B03-A06). */
+export function runFormalStateMachineFailureRecoverySliceWithRecord(
+  fixture: FormalStateMachineFixture = loadFormalStateMachineFixture(),
+): FormalStateMachineRunRecord {
+  const contract = getActiveFormalStateMachineContract();
+  const failureRecoveryIds = new Set(listFormalStateMachineFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildFormalStateMachineRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P01-B03-A06",
+    sliceCategories: FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES,
   });
 }
 

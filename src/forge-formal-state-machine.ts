@@ -12,7 +12,7 @@ import {
   FORGE_PIPELINE_BEHAVIOR_MAP_CONTRACT_V1,
 } from "./forge-pipeline-behavior-map.js";
 
-export const FORGE_FORMAL_STATE_MACHINE_HARNESS_VERSION = "1.0.0-a05";
+export const FORGE_FORMAL_STATE_MACHINE_HARNESS_VERSION = "1.0.0-a06";
 
 /** Probe disposition — observed behavior, documented gap, or resilience path class. */
 export type FormalStateMachineProbeDisposition =
@@ -582,6 +582,295 @@ export function summarizeFormalStateMachineContractCoverage(
   }
 
   return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+/** Per-probe evidence artifact — auditable proof of FSM probe outcome (P01-B03-A06). */
+export interface FormalStateMachineProbeEvidence {
+  probeId: string;
+  category: FormalStateMachineCategory;
+  disposition: FormalStateMachineProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for FSM runs (P01-B03-A06). */
+export interface FormalStateMachineProbeTelemetry {
+  probeId: string;
+  category: FormalStateMachineCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P01-B03-A06). */
+export interface FormalStateMachineProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBehaviorMapVersion: string;
+  sourceBehaviorMapAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly FormalStateMachineCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated formal state machine run record bundling evidence, telemetry and provenance. */
+export interface FormalStateMachineRunRecord {
+  provenance: FormalStateMachineProvenance;
+  evidence: FormalStateMachineProbeEvidence[];
+  telemetry: FormalStateMachineProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<FormalStateMachineCategory, number>;
+    byDisposition: Record<FormalStateMachineProbeDisposition, number>;
+  };
+}
+
+export interface FormalStateMachineRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface FormalStateMachineRunValidationResult {
+  valid: boolean;
+  issues: FormalStateMachineRunValidationIssue[];
+}
+
+export function buildFormalStateMachineProbeEvidence(
+  probeId: string,
+  category: FormalStateMachineCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: FormalStateMachineProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): FormalStateMachineProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildFormalStateMachineProbeTelemetry(
+  probeId: string,
+  category: FormalStateMachineCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): FormalStateMachineProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildFormalStateMachineProvenance(
+  runId: string,
+  fixture: FormalStateMachineFixture,
+  contract: FormalStateMachineContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly FormalStateMachineCategory[];
+  },
+): FormalStateMachineProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_FORMAL_STATE_MACHINE_HARNESS_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBehaviorMapVersion: fixture.sourceBehaviorMap.version,
+    sourceBehaviorMapAtom: fixture.sourceBehaviorMap.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildFormalStateMachineRunRecord(
+  provenance: FormalStateMachineProvenance,
+  evidence: FormalStateMachineProbeEvidence[],
+  telemetry: FormalStateMachineProbeTelemetry[],
+): FormalStateMachineRunRecord {
+  const byCategory = {} as Record<FormalStateMachineCategory, number>;
+  const byDisposition: Record<FormalStateMachineProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of FORMAL_STATE_MACHINE_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+export function listFormalStateMachineFailureRecoveryProbeIds(
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+): string[] {
+  return FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listFormalStateMachineProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+function validateFormalStateMachineRunRecordAgainstProbeIds(
+  record: FormalStateMachineRunRecord,
+  expectedProbeIds: string[],
+  contract: FormalStateMachineContract,
+): FormalStateMachineRunValidationResult {
+  const issues: FormalStateMachineRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateFormalStateMachineRunRecord(
+  record: FormalStateMachineRunRecord,
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+): FormalStateMachineRunValidationResult {
+  return validateFormalStateMachineRunRecordAgainstProbeIds(
+    record,
+    listFormalStateMachineContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_state + recovery_state probes. */
+export function validateFormalStateMachineFailureRecoveryRunRecord(
+  record: FormalStateMachineRunRecord,
+  contract: FormalStateMachineContract = getActiveFormalStateMachineContract(),
+): FormalStateMachineRunValidationResult {
+  const issues: FormalStateMachineRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P01-B03-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P01-B03-A06`,
+    });
+  }
+
+  const expectedCategories = [...FORMAL_STATE_MACHINE_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateFormalStateMachineRunRecordAgainstProbeIds(
+    record,
+    listFormalStateMachineFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
 }
 
 export function validateFormalStateMachineFixtureAgainstContract(
