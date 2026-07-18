@@ -172,6 +172,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge baseline guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B01-A09).
+   */
+  async verifyForgeBaselineGuard(
+    priorRecord?: import("./forge-baseline-contract.js").ForgeBaselineRunRecord,
+  ): Promise<import("./forge-baseline-harness.js").ForgeBaselineRegressionResult> {
+    const { runForgeBaselineRegressionGate } = await import("./forge-baseline-harness.js");
+    const result = await runForgeBaselineRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "baseline_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

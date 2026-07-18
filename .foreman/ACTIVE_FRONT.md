@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B01
-active_atom: P01-B01-A09
+active_atom: P01-B01-A10
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 8/1000
-phase_progress: 8/100
-block_progress: 8/10
+program_progress: 9/1000
+phase_progress: 9/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B01-A09 — Mission ve acceptance contract: adversarial, performance, cost ve safety kontrolünü geçir.
+P01-B01-A10 — Mission ve acceptance contract: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: Contract kabul kriterlerine adversarial, performance, cost ve safety kontrolünü ekle.
-target: A09 kapsamında belirlenecek.
-hypothesis: Forge regression gate orchestrator seam'de; sıradaki dilim adversarial/perf/cost/safety.
-acceptance: Adversarial/perf/cost/safety davranışı + hedefli test PASS + regression PASS.
-commands: A09 kapsamında belirlenecek.
-blast_radius: A09 kapsamında belirlenecek tek seam.
-rollback: A09 değişikliklerini geri al.
+objective: P01-B01 block gate kanıtını mühürle; B02 handoff baseline'ını hazırla.
+target: Block gate suite + handoff contract.
+hypothesis: A01–A09 tamamlandı; block gate A10'da mühürlenir.
+acceptance: Block gate PASS + handoff kanıtı + regression PASS.
+commands: A10 kapsamında belirlenecek.
+blast_radius: A10 kapsamında belirlenecek tek seam.
+rollback: A10 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: kontrol path seçilemezse BLOCKED raporla.
+fallback: gate seçilemezse BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B01-A08
-last_commit: 11514b1
-tests: PASS — forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
-evidence: runForgeBaselineRegressionGate (27/27 aligned), detectBaselineProbeRegression (misaligned probe flagged), Orchestrator.verifyForgeBaselineRegression emits baseline_regression verification event
-next: P01-B01-A09
+last_atom: P01-B01-A09
+last_commit: 544ef6e
+tests: PASS — forge-baseline-contract.guard (8/8), forge-pipeline-regression.integration (4/4), forge-pipeline-baseline (3/3), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
+evidence: validateForgeBaselineGuard (adversarial/perf/cost/safety), runForgeBaselineRegressionGate guard integration, Orchestrator.verifyForgeBaselineGuard emits baseline_guard verification
+next: P01-B01-A10

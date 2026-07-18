@@ -38,6 +38,7 @@ import {
   buildBaselineRunRecord,
   detectBaselineProbeRegression,
   validateBaselineRunRecord,
+  validateForgeBaselineGuard,
   type BaselineOutcome,
   type BaselinePath,
   type BaselineProbeRegressionReport,
@@ -52,9 +53,10 @@ export {
   validateFixtureAgainstContract,
   validateBaselineRunRecord,
   detectBaselineProbeRegression,
+  validateForgeBaselineGuard,
 } from "./forge-baseline-contract.js";
 
-export type { BaselineProbeRegressionReport } from "./forge-baseline-contract.js";
+export type { BaselineProbeRegressionReport, GuardCheckResult } from "./forge-baseline-contract.js";
 
 export interface ForgeBaselineRegressionResult {
   passed: boolean;
@@ -62,6 +64,7 @@ export interface ForgeBaselineRegressionResult {
   recordValid: boolean;
   validationIssues: string[];
   probeRegression: BaselineProbeRegressionReport | null;
+  guard: import("./forge-baseline-contract.js").GuardCheckResult;
   detail: string;
 }
 
@@ -777,12 +780,22 @@ export async function runForgeBaselineRegressionGate(
 
   const probeRegression = priorRecord ? detectBaselineProbeRegression(priorRecord, record) : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
-  const passed = recordValid && !alignmentRegression;
+  const guard = validateForgeBaselineGuard(record, { totalCostUsd: 0, llmCalls: 0 });
+  const passed = recordValid && !alignmentRegression && guard.passed;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
   if (!recordValid) detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
   if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   return {
     passed,
@@ -790,6 +803,7 @@ export async function runForgeBaselineRegressionGate(
     recordValid,
     validationIssues,
     probeRegression,
+    guard,
     detail: detailParts.join(" | "),
   };
 }

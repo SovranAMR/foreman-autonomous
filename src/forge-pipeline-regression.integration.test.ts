@@ -20,7 +20,9 @@ describe("Forge Pipeline Regression — P01-B01-A08", () => {
     assert.equal(result.record.summary.mismatches, 0);
     assert.equal(result.record.evidence.length, 27);
     assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
     assert.ok(result.detail.includes("27/27 probes aligned"));
+    assert.ok(result.detail.includes("guard:"));
   });
 
   it("detectBaselineProbeRegression flags newly misaligned probes", async () => {

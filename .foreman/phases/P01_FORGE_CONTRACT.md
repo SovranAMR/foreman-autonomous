@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 8
+completed_atoms: 9
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -23,7 +23,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B01-A06 — Mission ve acceptance contract: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B01-A07 — Mission ve acceptance contract: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B01-A08 — Mission ve acceptance contract: Forge entegrasyonu ile regression testini tamamla
-- [ ] P01-B01-A09 — Mission ve acceptance contract: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P01-B01-A09 — Mission ve acceptance contract: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B01-A10 — Mission ve acceptance contract: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B02 — Mevcut pipeline davranış haritası
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B01-A08
-last_commit: 11514b1
-tests: PASS — `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3), `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (4/4), `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-baseline-contract.property-fuzz.test.ts` (4/4)
+last_atom: P01-B01-A09
+last_commit: 544ef6e
+tests: PASS — `npx tsx --test src/forge-baseline-contract.guard.test.ts` (8/8), `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3), `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-baseline-contract.property-fuzz.test.ts` (4/4)
 evidence: |
-  P01-B01-A08 Forge regression integration: detectBaselineProbeRegression compares run-record evidence alignment,
-  runForgeBaselineRegressionGate executes 27 probes + validates record + optional prior comparison,
-  Orchestrator.verifyForgeBaselineRegression emits baseline_regression verification event.
-next: P01-B01-A09
+  P01-B01-A09 guard controls: FORGE_BASELINE_GUARD_CONTROLS_V1 (adversarial/performance/cost/safety budgets),
+  validateForgeBaselineGuard + runAdversarialGuardChecks reject tampered records,
+  runForgeBaselineRegressionGate integrates guard metrics,
+  Orchestrator.verifyForgeBaselineGuard emits baseline_guard verification event.
+next: P01-B01-A10
