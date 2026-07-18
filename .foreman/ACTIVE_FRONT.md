@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B06
-active_atom: P01-B06-A04
+active_atom: P01-B06-A05
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 52/1000
-phase_progress: 51/100
-block_progress: 3/10
+program_progress: 53/1000
+phase_progress: 52/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla.
+P01-B06-A05 — Benchmark ve eval harness: failure, recovery ve NO-GO yollarını uygula.
 
-objective: A03 production slice üzerine boundary-category probe matrix slice uygula.
-target: runBenchmarkEvalBoundarySlice; zero unexpected PASS mismatches.
-hypothesis: Boundary probes contract-wired çalışır; documented FAIL gaps korunur.
-acceptance: boundary slice test PASS; boundary matrix validation PASS.
+objective: A04 boundary slice üzerine failure/recovery/nogo-category probe matrix slice uygula.
+target: runBenchmarkEvalFailureRecoverySlice; zero unexpected PASS mismatches.
+hypothesis: Failure/recovery/NO-GO probes contract-wired çalışır; documented FAIL gaps korunur.
+acceptance: failure/recovery slice test PASS; failure/recovery matrix validation PASS.
 commands: npx tsx --test src/forge-benchmark-eval-harness.test.ts
 blast_radius: forge-benchmark-eval-harness*.ts
-rollback: A04 boundary slice değişikliklerini geri al.
+rollback: A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B06-A03
+last_atom: P01-B06-A04
 last_commit: PENDING
-tests: PASS — forge-benchmark-eval-harness.test.ts (10/10)
-evidence: runBenchmarkEvalProductionSlice; validateBenchmarkEvalProbeMatrix; 18 passAligned / 8 gapAligned; zero unexpected mismatches
-next: P01-B06-A04
+tests: PASS — forge-benchmark-eval-harness.test.ts (13/13)
+evidence: runBenchmarkEvalBoundarySlice; validateBenchmarkEvalBoundaryProbeMatrix; 2 passAligned / 1 gapAligned; zero unexpected mismatches
+next: P01-B06-A05

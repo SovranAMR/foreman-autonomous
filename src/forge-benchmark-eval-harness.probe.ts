@@ -20,6 +20,8 @@ import {
   validateBenchmarkEvalHarnessFixture,
   validateBenchmarkEvalHarnessFixtureAgainstContract,
   validateBenchmarkEvalProbeMatrix,
+  validateBenchmarkEvalBoundaryProbeMatrix,
+  listBenchmarkEvalProbesByCategory,
   type BenchmarkEvalCategory,
   type BenchmarkEvalFixture,
   type BenchmarkEvalProbeMatrixValidationResult,
@@ -31,6 +33,8 @@ export {
   validateBenchmarkEvalHarnessFixture,
   validateBenchmarkEvalHarnessFixtureAgainstContract,
   validateBenchmarkEvalProbeMatrix,
+  validateBenchmarkEvalBoundaryProbeMatrix,
+  listBenchmarkEvalProbesByCategory,
   summarizeBenchmarkEvalHarnessMatrix,
   summarizeBenchmarkEvalContractCoverage,
   listBenchmarkEvalHarnessProbesByExpected,
@@ -624,6 +628,39 @@ export function runBenchmarkEvalProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface BenchmarkEvalBoundarySliceResult {
+  atom: "P01-B06-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: BenchmarkEvalProbeResult[];
+  boundaryResults: BenchmarkEvalProbeResult[];
+  matrixValidation: BenchmarkEvalProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (quality metrics, observer,
+ * eval harness wiring) with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runBenchmarkEvalBoundarySlice(
+  fixture: BenchmarkEvalFixture = loadBenchmarkEvalHarnessFixture(),
+): BenchmarkEvalBoundarySliceResult {
+  const contract = getActiveBenchmarkEvalContract();
+  const results = runBenchmarkEvalHarnessProbes(fixture);
+  const boundaryProbes = listBenchmarkEvalProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateBenchmarkEvalBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B06-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

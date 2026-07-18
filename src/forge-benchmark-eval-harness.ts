@@ -718,6 +718,28 @@ export function validateBenchmarkEvalProbeMatrix(
   };
 }
 
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateBenchmarkEvalBoundaryProbeMatrix(
+  results: BenchmarkEvalProbeResult[],
+  contract: BenchmarkEvalContract = getActiveBenchmarkEvalContract(),
+): BenchmarkEvalProbeMatrixValidationResult {
+  const boundaryProbes = listBenchmarkEvalProbesByCategory("boundary", contract);
+  const boundaryContract: BenchmarkEvalContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateBenchmarkEvalProbeMatrix(boundaryResults, boundaryContract);
+}
+
 export function buildDefaultBenchmarkEvalSourcePipelineInvariantEngine(): BenchmarkEvalFixture["sourcePipelineInvariantEngine"] {
   const contract = getActivePipelineInvariantEngineContract();
   const coverage = summarizePipelineInvariantEngineContractCoverage(contract);

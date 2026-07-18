@@ -4,10 +4,13 @@ import {
   loadBenchmarkEvalHarnessFixture,
   runBenchmarkEvalHarnessProbes,
   runBenchmarkEvalProductionSlice,
+  runBenchmarkEvalBoundarySlice,
   summarizeBenchmarkEvalHarnessMatrix,
   validateBenchmarkEvalHarnessFixture,
   validateBenchmarkEvalHarnessFixtureAgainstContract,
   validateBenchmarkEvalProbeMatrix,
+  validateBenchmarkEvalBoundaryProbeMatrix,
+  listBenchmarkEvalProbesByCategory,
   listBenchmarkEvalHarnessProbesByExpected,
   listBenchmarkEvalHarnessKnownGaps,
   listBenchmarkEvalContractProbeIds,
@@ -240,5 +243,74 @@ describe("Forge Benchmark Eval Harness Production Slice — P01-B06-A03", () => 
         "bench.recovery_eval_baseline_reset",
       ],
     );
+  });
+});
+
+describe("Forge Benchmark Eval Harness Boundary Slice — P01-B06-A04", () => {
+  it("defines boundary category with quality metrics, observer and wiring edge probes", () => {
+    const boundary = listBenchmarkEvalProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 3);
+    assert.deepEqual(ids, [
+      "bench.eval_harness_orchestrator_wired",
+      "bench.observer_wired",
+      "bench.quality_metrics_tracked",
+    ]);
+    assert.equal(boundary.filter(p => p.expected === "PASS").length, 2);
+    assert.equal(boundary.filter(p => p.disposition === "gap").length, 1);
+    assert.ok(boundary.some(p => p.id === "bench.quality_metrics_tracked"));
+    assert.ok(boundary.some(p => p.id === "bench.observer_wired"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveBenchmarkEvalContract();
+    const slice = runBenchmarkEvalBoundarySlice();
+
+    assert.equal(slice.atom, "P01-B06-A04");
+    assert.equal(slice.boundaryProbeCount, 3);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 3);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 2);
+    assert.equal(slice.matrixValidation.gapAligned, 1);
+
+    for (const boundaryProbe of listBenchmarkEvalProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateBenchmarkEvalBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented boundary gap for eval harness orchestrator wiring", () => {
+    const results = runBenchmarkEvalHarnessProbes();
+    const boundary = results.filter(r => r.category === "boundary");
+
+    assert.equal(boundary.length, 3);
+    assert.equal(boundary.every(r => r.aligned), true);
+
+    const wiringGap = boundary.find(r => r.id === "bench.eval_harness_orchestrator_wired");
+    assert.ok(wiringGap);
+    assert.equal(wiringGap!.expected, "FAIL");
+    assert.equal(wiringGap!.actual, "FAIL");
+
+    const qualityMetrics = boundary.find(r => r.id === "bench.quality_metrics_tracked");
+    assert.ok(qualityMetrics);
+    assert.equal(qualityMetrics!.expected, "PASS");
+    assert.equal(qualityMetrics!.actual, "PASS");
+
+    const observerWired = boundary.find(r => r.id === "bench.observer_wired");
+    assert.ok(observerWired);
+    assert.equal(observerWired!.expected, "PASS");
+    assert.equal(observerWired!.actual, "PASS");
   });
 });

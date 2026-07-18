@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 52
+completed_atoms: 53
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -83,7 +83,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B06-A01 — Benchmark ve eval harness: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B06-A02 — Benchmark ve eval harness: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B06-A03 — Benchmark ve eval harness: en küçük üretim dikey dilimini uygula
-- [ ] P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla
+- [x] P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B06-A05 — Benchmark ve eval harness: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B06-A06 — Benchmark ve eval harness: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B06-A07 — Benchmark ve eval harness: unit, property ve fuzz doğrulamasını ekle
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B06-A03
+last_atom: P01-B06-A04
 last_commit: PENDING
-tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (10/10)
+tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (13/13)
 evidence: |
-  P01-B06-A03 production slice: runBenchmarkEvalProductionSlice with fixtureValid/contractAligned/matrixValid;
-  validateBenchmarkEvalProbeMatrix gate — 18 passAligned, 8 gapAligned, zero unexpected mismatches;
-  contract-wired criteria on all 26 probes; 8 documented FAIL gaps preserved.
-next: P01-B06-A04
+  P01-B06-A04 boundary slice: runBenchmarkEvalBoundarySlice with 3 boundary probes;
+  validateBenchmarkEvalBoundaryProbeMatrix gate — 2 passAligned, 1 gapAligned, zero unexpected mismatches;
+  contract-wired criteria on bench.quality_metrics_tracked, bench.observer_wired, bench.eval_harness_orchestrator_wired;
+  documented FAIL gap bench.eval_harness_orchestrator_wired preserved.
+next: P01-B06-A05
