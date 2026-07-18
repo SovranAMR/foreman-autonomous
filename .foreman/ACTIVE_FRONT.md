@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B01
-active_atom: P01-B01-A01
+active_atom: P01-B01-A02
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 0/1000
-phase_progress: 0/100
-block_progress: 0/10
+program_progress: 1/1000
+phase_progress: 1/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B01-A01 — Mission ve acceptance contract için mevcut davranış ve failing baseline.
+P01-B01-A02 — Typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: Forge Pipeline'ın bugün gerçekten neyi garanti ettiğini executable baseline ile ölç.
-target: src/orchestrator.ts, mevcut orchestrator/pipeline testleri ve yeni baseline fixture.
-hypothesis: Belgelenen Forge davranışları ile testle enforce edilen davranışlar arasında boşluklar var.
-acceptance: state, tool, verification, reviewer, rollback ve resume yollarının mevcut PASS/FAIL matrisi versioned test/evidence olarak üretildi.
-commands: önce ilgili orchestrator ve pipeline testlerini çalıştır; sonra atomun eklediği hedefli testi çalıştır.
-blast_radius: yalnız test/evidence seam; üretim davranışını bu atomda değiştirme.
-rollback: atomun eklediği fixture/test/evidence dosyalarını geri al.
+objective: Baseline matrisindeki davranışları typed Forge contract'a dönüştür.
+target: src/forge-baseline-harness.ts, src/fixtures/forge-baseline-v1.json ve yeni contract modülü.
+hypothesis: Executable baseline var; şimdi ölçülebilir acceptance typed sözleşmeye taşınmalı.
+acceptance: Her path kategorisi için typed contract + probe eşlemesi testle enforce edildi.
+commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili contract testi.
+blast_radius: contract/harness seam; orchestrator davranışını değiştirme.
+rollback: contract modülü ve A02 test eklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: baseline test seam'i mümkün değilse önce testability seam ekle ve aynı atom kimliğinde kal.
+fallback: contract modülü ayrıştırılamazsa harness içinde minimal typed export ekle.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: NONE
-last_commit: NONE
-tests: NOT-RUN
-evidence: Program initialized
-next: P01-B01-A01
+last_atom: P01-B01-A01
+last_commit: PENDING
+tests: PASS — forge-pipeline-baseline (2/2), orchestrator smoke (5/5)
+evidence: 20-scenario PASS/FAIL matrix (18 PASS expected, 2 documented FAIL gaps)
+next: P01-B01-A02

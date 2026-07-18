@@ -1,0 +1,119 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B01-A01",
+  "purpose": "Executable baseline for Forge Pipeline path guarantees (measured, not aspirational).",
+  "paths": {
+    "state": [
+      {
+        "id": "state.valid_pipeline_chain",
+        "description": "StateManager accepts the canonical Forge transition chain idle→complete",
+        "expected": "PASS"
+      },
+      {
+        "id": "state.rejects_skip_to_executing",
+        "description": "Invalid idle→executing transition is rejected without mutating state",
+        "expected": "PASS"
+      },
+      {
+        "id": "state.rejects_empty_reason",
+        "description": "Transitions without a reason are rejected",
+        "expected": "PASS"
+      }
+    ],
+    "tool": [
+      {
+        "id": "tool.definitions_registered",
+        "description": "Forge worker tool catalog exposes core execution tools",
+        "expected": "PASS"
+      },
+      {
+        "id": "tool.unknown_tool_errors",
+        "description": "Unknown tool names return an error result instead of silent success",
+        "expected": "PASS"
+      },
+      {
+        "id": "tool.hooks_can_block",
+        "description": "before_tool_call hook can block a tool invocation",
+        "expected": "PASS"
+      }
+    ],
+    "verification": [
+      {
+        "id": "verification.parse_build_success",
+        "description": "parseBuildOutput marks clean build output as success",
+        "expected": "PASS"
+      },
+      {
+        "id": "verification.parse_build_errors",
+        "description": "parseBuildOutput extracts file:line errors from TypeScript output",
+        "expected": "PASS"
+      },
+      {
+        "id": "verification.parse_test_output",
+        "description": "parseTestOutput counts pass/fail from node:test output",
+        "expected": "PASS"
+      },
+      {
+        "id": "verification.detect_regressions",
+        "description": "detectRegressions flags newly failing tests against prior run",
+        "expected": "PASS"
+      }
+    ],
+    "reviewer": [
+      {
+        "id": "reviewer.good_protocol_passes",
+        "description": "quickReviewCheck accepts a complete worker protocol aligned with vision",
+        "expected": "PASS"
+      },
+      {
+        "id": "reviewer.trivial_verify_rejected",
+        "description": "quickReviewCheck rejects trivial STEP7_VERIFY text",
+        "expected": "PASS"
+      },
+      {
+        "id": "reviewer.forbidden_violation_rejected",
+        "description": "quickReviewCheck rejects FORBIDDEN-list violations in worker output",
+        "expected": "PASS"
+      },
+      {
+        "id": "reviewer.empty_llm_response_passes",
+        "description": "Orchestrator treats empty reviewer LLM response as PASS (documented leniency gap)",
+        "expected": "FAIL"
+      }
+    ],
+    "rollback": [
+      {
+        "id": "rollback.point_without_git",
+        "description": "RollbackEngine.createPoint returns null when project is not a git repo",
+        "expected": "FAIL"
+      },
+      {
+        "id": "rollback.history_tracks_attempts",
+        "description": "RollbackEngine persists rollback history metadata",
+        "expected": "PASS"
+      },
+      {
+        "id": "rollback.orchestrator_calls_create_point",
+        "description": "Orchestrator.run invokes rollback.createPoint at pipeline start",
+        "expected": "PASS"
+      }
+    ],
+    "resume": [
+      {
+        "id": "resume.checkpoint_roundtrip",
+        "description": "PipelineResumeEngine persists and reloads checkpoint data",
+        "expected": "PASS"
+      },
+      {
+        "id": "resume.atom_completion_tracking",
+        "description": "PipelineResumeEngine.isAtomCompleted reflects completed atom keys",
+        "expected": "PASS"
+      },
+      {
+        "id": "resume.missing_checkpoint_starts_fresh",
+        "description": "run({resume:true}) without checkpoint continues as fresh run (warning only)",
+        "expected": "PASS"
+      }
+    ]
+  }
+}

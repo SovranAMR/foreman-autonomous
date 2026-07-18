@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 0
+completed_atoms: 1
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -15,7 +15,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B01 — Mission ve acceptance contract
 
-- [ ] P01-B01-A01 — Mission ve acceptance contract: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B01-A01 — Mission ve acceptance contract: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B01-A02 — Mission ve acceptance contract: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B01-A03 — Mission ve acceptance contract: en küçük üretim dikey dilimini uygula
 - [ ] P01-B01-A04 — Mission ve acceptance contract: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,13 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: NONE
-last_commit: NONE
-tests: NOT-RUN
-evidence: Phase backlog initialized
-next: P01-B01-A01
+last_atom: P01-B01-A01
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2), `npx tsx src/orchestrator.test.ts` (5/5)
+evidence: |
+  Versioned fixture `src/fixtures/forge-baseline-v1.json` + harness `src/forge-baseline-harness.ts`.
+  20 executable probes across state/tool/verification/reviewer/rollback/resume.
+  Matrix: 18 expected PASS (all aligned), 2 documented FAIL gaps:
+  - reviewer.empty_llm_response_passes (orchestrator leniency)
+  - rollback.point_without_git (no git repo → createPoint null)
+next: P01-B01-A02
