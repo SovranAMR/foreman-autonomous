@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
-active_block: P01-B01
-active_atom: P01-B01-A10
+active_block: P01-B02
+active_atom: P01-B02-A01
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 9/1000
-phase_progress: 9/100
-block_progress: 9/10
+program_progress: 10/1000
+phase_progress: 10/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B01-A10 — Mission ve acceptance contract: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P01-B02-A01 — Mevcut pipeline davranış haritası: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P01-B01 block gate kanıtını mühürle; B02 handoff baseline'ını hazırla.
-target: Block gate suite + handoff contract.
-hypothesis: A01–A09 tamamlandı; block gate A10'da mühürlenir.
-acceptance: Block gate PASS + handoff kanıtı + regression PASS.
-commands: A10 kapsamında belirlenecek.
-blast_radius: A10 kapsamında belirlenecek tek seam.
-rollback: A10 değişikliklerini geri al.
+objective: Orchestrator pipeline fazlarının gözlemlenebilir davranış haritasını çıkar; B01 handoff baseline'ına dayalı failing fixture oluştur.
+target: Pipeline behavior map fixture + harness probe seam.
+hypothesis: P01-B01 block gate sealed; B02-A01 live pipeline phase→behavior eşlemesini ölçer.
+acceptance: Behavior map fixture yüklenir, en az bir bilinen gap FAIL olarak yakalanır, hedefli test PASS.
+commands: B02-A01 kapsamında belirlenecek.
+blast_radius: B02-A01 kapsamında belirlenecek tek seam.
+rollback: B02-A01 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: gate seçilemezse BLOCKED raporla.
+fallback: pipeline map çıkarılamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B01-A09
-last_commit: 4ea823e
-tests: PASS — forge-baseline-contract.guard (8/8), forge-pipeline-regression.integration (4/4), forge-pipeline-baseline (3/3), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
-evidence: validateForgeBaselineGuard (adversarial/perf/cost/safety), runForgeBaselineRegressionGate guard integration, Orchestrator.verifyForgeBaselineGuard emits baseline_guard verification
-next: P01-B01-A10
+last_atom: P01-B01-A10
+last_commit: pending
+tests: PASS — forge-baseline-block-gate (6/6), forge-baseline-contract.guard (8/8), forge-pipeline-regression.integration (4/4), forge-pipeline-baseline (3/3), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
+evidence: runForgeBaselineBlockGate 10/10 atom seals, FORGE_P01_B01_TO_B02_HANDOFF_V1→P01-B02-A01, Orchestrator.verifyForgeBaselineBlockGate baseline_block_gate event
+next: P01-B02-A01

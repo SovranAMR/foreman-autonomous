@@ -192,6 +192,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01-B01 block gate and emit verification event with B02 handoff (P01-B01-A10).
+   */
+  async verifyForgeBaselineBlockGate(): Promise<import("./forge-baseline-harness.js").ForgeBlockGateResult> {
+    const { runForgeBaselineBlockGate } = await import("./forge-baseline-harness.js");
+    const result = await runForgeBaselineBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "baseline_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

@@ -2,8 +2,8 @@
 
 phase_id: P01
 phase_status: ACTIVE
-completed_blocks: 0
-completed_atoms: 9
+completed_blocks: 1
+completed_atoms: 10
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -24,7 +24,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B01-A07 — Mission ve acceptance contract: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B01-A08 — Mission ve acceptance contract: Forge entegrasyonu ile regression testini tamamla
 - [x] P01-B01-A09 — Mission ve acceptance contract: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P01-B01-A10 — Mission ve acceptance contract: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P01-B01-A10 — Mission ve acceptance contract: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B02 — Mevcut pipeline davranış haritası
 
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B01-A09
-last_commit: 4ea823e
-tests: PASS — `npx tsx --test src/forge-baseline-contract.guard.test.ts` (8/8), `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3), `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-baseline-contract.property-fuzz.test.ts` (4/4)
+last_atom: P01-B01-A10
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-baseline-block-gate.test.ts` (6/6), forge-baseline-contract.guard (8/8), forge-pipeline-regression.integration (4/4), forge-pipeline-baseline (3/3), forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4)
 evidence: |
-  P01-B01-A09 guard controls: FORGE_BASELINE_GUARD_CONTROLS_V1 (adversarial/performance/cost/safety budgets),
-  validateForgeBaselineGuard + runAdversarialGuardChecks reject tampered records,
-  runForgeBaselineRegressionGate integrates guard metrics,
-  Orchestrator.verifyForgeBaselineGuard emits baseline_guard verification event.
-next: P01-B01-A10
+  P01-B01 block gate sealed via runForgeBaselineBlockGate (10/10 atom seals PASS),
+  FORGE_P01_B01_TO_B02_HANDOFF_V1 validates B02 entry baseline (probeCount=27, pathCategories=6),
+  Orchestrator.verifyForgeBaselineBlockGate emits baseline_block_gate verification event.
+next: P01-B02-A01

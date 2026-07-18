@@ -1494,3 +1494,205 @@ export function validateForgeBaselineGuard(
     },
   };
 }
+
+// ─── Block gate and handoff (P01-B01-A10) ────────────────────────────────────
+
+export interface ForgeBlockAtomSeal {
+  atomId: string;
+  capability: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface ForgeBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface ForgeBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    pathCategories: readonly ForgeBaselinePath[];
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    baselineRecordRequired: true;
+  };
+}
+
+export interface ForgeBlockGateCheck {
+  id: string;
+  atomId: string;
+  description: string;
+}
+
+export interface ForgeBlockGateDefinition {
+  version: string;
+  atom: string;
+  blockId: string;
+  title: string;
+  requiredAtomIds: readonly string[];
+  checks: readonly ForgeBlockGateCheck[];
+}
+
+export const FORGE_P01_B01_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P01-B01-A10",
+  blockId: "P01-B01",
+  title: "Mission ve acceptance contract",
+  requiredAtomIds: [
+    "P01-B01-A01",
+    "P01-B01-A02",
+    "P01-B01-A03",
+    "P01-B01-A04",
+    "P01-B01-A05",
+    "P01-B01-A06",
+    "P01-B01-A07",
+    "P01-B01-A08",
+    "P01-B01-A09",
+    "P01-B01-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P01-B01-A01", description: "Baseline fixture aligns with typed contract" },
+    { id: "typed_contract_coverage", atomId: "P01-B01-A02", description: "Contract declares measurable probes for all path categories" },
+    { id: "probe_matrix_aligned", atomId: "P01-B01-A03", description: "Baseline probe matrix executes with zero mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P01-B01-A04", description: "Contract covers happy, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P01-B01-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P01-B01-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P01-B01-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P01-B01-A08", description: "Regression gate passes on canonical baseline matrix" },
+    { id: "guard_controls", atomId: "P01-B01-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P01-B01-A10", description: "Block gate evidence sealed with valid B02 handoff contract" },
+  ],
+};
+
+export const FORGE_P01_B01_TO_B02_HANDOFF_V1: ForgeBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P01-B01-A10",
+  sourceBlock: {
+    blockId: "P01-B01",
+    title: "Mission ve acceptance contract",
+    completedAtoms: FORGE_P01_B01_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P01-B02",
+    title: "Mevcut pipeline davranış haritası",
+    entryAtom: "P01-B02-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_BASELINE_CONTRACT_V1.version,
+    harnessVersion: FORGE_BASELINE_HARNESS_VERSION,
+    probeCount: summarizeContractCoverage(FORGE_BASELINE_CONTRACT_V1).totalProbes,
+    pathCategories: FORGE_BASELINE_PATHS,
+  },
+  prerequisites: [
+    "Typed forge baseline contract v1 with measurable path invariants",
+    "Versioned baseline fixture aligned to contract probe matrix",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+  ],
+  entryCriteria: {
+    description:
+      "B02-A01 maps live orchestrator pipeline phases to observable behavior contracts using the sealed baseline artifacts",
+    requiresBlockGatePass: true,
+    baselineRecordRequired: true,
+  },
+};
+
+export function getForgeP01B01BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P01_B01_BLOCK_GATE_V1;
+}
+
+export function getForgeP01B01ToB02Handoff(): ForgeBlockHandoffContract {
+  return FORGE_P01_B01_TO_B02_HANDOFF_V1;
+}
+
+export function validateBlockHandoffContract(
+  handoff: ForgeBlockHandoffContract,
+  evidence: Pick<ForgeBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: ForgeBaselineContract = getActiveForgeBaselineContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.pathCategories.length !== FORGE_BASELINE_PATHS.length) {
+    issues.push("handoff pathCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P01-B02-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P01_B01_BLOCK_GATE_V1.blockId,
+): ForgeBlockGateEvidence {
+  const handoff = getForgeP01B01ToB02Handoff();
+  const handoffValid = validateBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P01-B01-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    gitCommit,
+  };
+}
