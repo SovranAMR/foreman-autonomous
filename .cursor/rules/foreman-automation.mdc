@@ -1,0 +1,19 @@
+---
+description: Foreman Forge-1000 — main üzerinde tek doğrulanmış atom döngüsü
+alwaysApply: true
+---
+
+# Foreman Cursor Automation Disiplini
+
+- Ana program .foreman/MASTER_PLAN.md içindeki FOREMAN-FORGE-1000'dır.
+- Her tur .foreman/automation-prompt.md dosyasını uygula.
+- Tek güncel iş .foreman/ACTIVE_FRONT.md içindeki active_atom'dur.
+- Geometri sabit: 10 phase, 100 block, 1.000 atom.
+- Kimi K3 yalnız tek seferlik bootstrap; ayrı phase veya büyük roadmap üretme.
+- Bir turda yalnız bir doğrulanabilir atom tamamla.
+- Kod + test + evidence olmadan PASS ve progress yok.
+- main üzerinde çalış; normal push yap, force-push yapma.
+- Kullanıcı değişikliklerini koru ve yalnız ilgili dosyaları commit et.
+- Docs-only/status-only commit, kör global replace ve unrelated refactor yapma.
+- Secret veya canlı API çıktısı commit etme.
+- Forge Pipeline'ın amacıyla bağ kurmayan işi programa ekleme.
