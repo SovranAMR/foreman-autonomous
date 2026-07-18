@@ -5,8 +5,14 @@ import {
   runFormalStateMachineProbes,
   summarizeFormalStateMachineMatrix,
   validateFormalStateMachineFixture,
+  validateFormalStateMachineFixtureAgainstContract,
   listFormalStateMachineKnownGaps,
   listFormalStateMachineProbesByExpected,
+  getActiveFormalStateMachineContract,
+  getFormalStateMachineCategoryContract,
+  listFormalStateMachineContractProbeIds,
+  listFormalStateMachineProbesByDisposition,
+  summarizeFormalStateMachineContractCoverage,
   FORMAL_STATE_MACHINE_CATEGORIES,
 } from "./forge-formal-state-machine-harness.js";
 
@@ -17,6 +23,7 @@ describe("Forge Formal State Machine — P01-B03-A01", () => {
 
     assert.equal(fixture.version, "1.0.0");
     assert.equal(fixture.atom, "P01-B03-A01");
+    assert.equal(fixture.contractAtom, "P01-B03-A02");
     assert.equal(fixture.sourceBehaviorMap.probeCount, 26);
     assert.equal(fixture.sourceBehaviorMap.behaviorCategories, 8);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
@@ -64,6 +71,83 @@ describe("Forge Formal State Machine — P01-B03-A01", () => {
       gaps.every(g => g.category === "failure_state"),
       "documented gaps are failure_state orchestrator sync probes",
     );
+  });
+});
+
+describe("Forge Formal State Machine Contract — P01-B03-A02", () => {
+  it("defines typed acceptance for all six formal state machine categories", () => {
+    const contract = getActiveFormalStateMachineContract();
+    assert.equal(contract.version, "1.0.0");
+    assert.equal(contract.atom, "P01-B03-A02");
+
+    for (const category of FORMAL_STATE_MACHINE_CATEGORIES) {
+      const categoryContract = getFormalStateMachineCategoryContract(category);
+      assert.ok(categoryContract.acceptance.invariant.length > 20, `${category} invariant too short`);
+      assert.ok(categoryContract.probes.length >= categoryContract.acceptance.minProbeCount);
+      assert.equal(categoryContract.acceptance.requireFullAlignment, true);
+
+      for (const probe of categoryContract.probes) {
+        assert.ok(probe.criterion.length > 10, `${probe.id} missing measurable criterion`);
+        assert.ok(probe.expected === "PASS" || probe.expected === "FAIL");
+        assert.ok(
+          probe.disposition === "observed" ||
+            probe.disposition === "gap" ||
+            probe.disposition === "failure" ||
+            probe.disposition === "recovery" ||
+            probe.disposition === "nogo",
+          `${probe.id} missing disposition`,
+        );
+      }
+    }
+  });
+
+  it("maps 20 probes with failure/recovery/gap disposition coverage", () => {
+    const contract = getActiveFormalStateMachineContract();
+    const summary = summarizeFormalStateMachineContractCoverage(contract);
+
+    assert.equal(summary.totalProbes, 20);
+    assert.equal(summary.expectedPass, 18);
+    assert.equal(summary.expectedFail, 2);
+    assert.equal(summary.byDisposition.observed, 15);
+    assert.equal(summary.byDisposition.gap, 2);
+    assert.equal(summary.byDisposition.failure, 1);
+    assert.equal(summary.byDisposition.recovery, 2);
+    assert.equal(summary.byDisposition.nogo, 0);
+    assert.equal(summary.byCategory.transition_graph.probeCount, 3);
+    assert.equal(summary.byCategory.state_invariant.probeCount, 3);
+    assert.equal(summary.byCategory.orchestrator_sync.probeCount, 8);
+    assert.equal(summary.byCategory.failure_state.probeCount, 2);
+    assert.equal(summary.byCategory.recovery_state.probeCount, 2);
+    assert.equal(summary.byCategory.baseline_link.probeCount, 2);
+  });
+
+  it("lists two documented gap probes for orchestrator failure-state sync", () => {
+    const gaps = listFormalStateMachineProbesByDisposition("gap");
+    const ids = gaps.map(p => p.id).sort();
+    assert.deepEqual(ids, ["fsm.orch_awaiting_human_sync", "fsm.orch_blocked_sync"]);
+    assert.ok(gaps.every(p => p.expected === "FAIL"));
+  });
+
+  it("enforces fixture ↔ contract probe mapping with category alignment", () => {
+    const fixture = loadFormalStateMachineFixture();
+    const contract = getActiveFormalStateMachineContract();
+    const validation = validateFormalStateMachineFixtureAgainstContract(fixture, contract);
+
+    assert.equal(
+      validation.valid,
+      true,
+      validation.issues.map(i => `${i.kind}:${i.probeId ?? i.category ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const contractIds = new Set(listFormalStateMachineContractProbeIds(contract));
+    const fixtureIds = fixture.probes.map(p => p.id);
+    assert.deepEqual([...fixtureIds].sort(), [...contractIds].sort());
+    assert.equal(fixture.contractAtom, contract.atom);
+  });
+
+  it("each formal state machine probe id is globally unique", () => {
+    const ids = listFormalStateMachineContractProbeIds();
+    assert.equal(new Set(ids).size, ids.length);
   });
 });
 

@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B03
-active_atom: P01-B03-A02
+active_atom: P01-B03-A03
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 21/1000
-phase_progress: 21/100
-block_progress: 1/10
+program_progress: 22/1000
+phase_progress: 22/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B03-A02 — Formal state machine: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P01-B03-A03 — Formal state machine: en küçük üretim dikey dilimini uygula.
 
-objective: Formal state machine typed contract ile ölçülebilir acceptance kriterlerini tanımla.
-target: Typed contract, category invariants, probe-to-criterion mapping.
-hypothesis: B03-A01 baseline fixture sealed; A02 adds typed contract layer.
-acceptance: Contract defines all six categories, maps 20 probes, disposition coverage for failure/recovery paths.
+objective: Formal state machine en küçük üretim dikey dilimini uygula.
+target: Probe harness executes contract probes with zero unexpected mismatches.
+hypothesis: B03-A02 typed contract sealed; A03 wires harness to contract criteria.
+acceptance: runFormalStateMachineProbes returns aligned results for all PASS probes; documented FAIL gaps remain aligned.
 commands: npx tsx --test src/forge-formal-state-machine.test.ts
 blast_radius: forge-formal-state-machine*.ts
-rollback: A02 değişikliklerini geri al.
+rollback: A03 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B03-A01
-last_commit: 36a330f
-tests: PASS — forge-formal-state-machine (3/3), forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (23/23)
-evidence: forge-formal-state-machine-v1 fixture (20 probes, 6 categories), runFormalStateMachineProbes documents 2 known FAIL gaps (fsm.orch_blocked_sync, fsm.orch_awaiting_human_sync), 18 PASS probes aligned
-next: P01-B03-A02
+last_atom: P01-B03-A02
+last_commit: 3d2ca72
+tests: PASS — forge-formal-state-machine (8/8), forge-behavior-map-block-gate (6/6), forge-pipeline-behavior-map (23/23)
+evidence: FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1 defines 6 categories, 20 probes with criterion/disposition; fixture contractAtom=P01-B03-A02; validateFormalStateMachineFixtureAgainstContract PASS; 2 gap probes (failure_state), 2 recovery probes
+next: P01-B03-A03

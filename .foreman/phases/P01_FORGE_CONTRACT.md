@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 21
+completed_atoms: 22
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -42,7 +42,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P01-B03 — Formal state machine
 
 - [x] P01-B03-A01 — Formal state machine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P01-B03-A02 — Formal state machine: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P01-B03-A02 — Formal state machine: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B03-A03 — Formal state machine: en küçük üretim dikey dilimini uygula
 - [ ] P01-B03-A04 — Formal state machine: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B03-A05 — Formal state machine: failure, recovery ve NO-GO yollarını uygula
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B03-A01
-last_commit: 36a330f
-tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (3/3)
+last_atom: P01-B03-A02
+last_commit: 3d2ca72
+tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (8/8)
 evidence: |
-  P01-B03-A01 baseline slice: forge-formal-state-machine-v1 fixture (20 probes, 6 categories) loads and validates
-  against B02 handoff; runFormalStateMachineProbes measures orchestrator ↔ VALID_TRANSITIONS alignment with
-  2 documented FAIL gaps (fsm.orch_blocked_sync, fsm.orch_awaiting_human_sync) and 18 PASS probes aligned.
-next: P01-B03-A02
+  P01-B03-A02 typed contract slice: FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1 defines 6 categories with invariants,
+  20 probes with criterion/disposition mapping (15 observed, 2 gap, 1 failure, 2 recovery); fixture contractAtom
+  P01-B03-A02; validateFormalStateMachineFixtureAgainstContract PASS; 2 documented FAIL gaps preserved.
+next: P01-B03-A03

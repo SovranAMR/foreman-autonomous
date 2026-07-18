@@ -1,5 +1,5 @@
 /**
- * FOREMAN — Formal State Machine Harness (P01-B03-A01)
+ * FOREMAN — Formal State Machine Harness (P01-B03)
  *
  * Probe seam: measures live orchestrator ↔ StateManager alignment without
  * running a full LLM pipeline.
@@ -21,7 +21,9 @@ import {
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
   validateFormalStateMachineFixture,
+  validateFormalStateMachineFixtureAgainstContract,
   summarizeFormalStateMachineMatrix,
+  getActiveFormalStateMachineContract,
   FORMAL_STATE_MACHINE_CATEGORIES,
   type FormalStateMachineCategory,
   type FormalStateMachineFixture,
@@ -33,11 +35,20 @@ export type {
   FormalStateMachineFixture,
   FormalStateMachineProbeResult,
   FormalStateMachineProbeSummary,
+  FormalStateMachineContract,
+  FormalStateMachineProbeContract,
 } from "./forge-formal-state-machine.js";
 
 export {
   validateFormalStateMachineFixture,
+  validateFormalStateMachineFixtureAgainstContract,
   summarizeFormalStateMachineMatrix,
+  getActiveFormalStateMachineContract,
+  getFormalStateMachineCategoryContract,
+  listFormalStateMachineContractProbeIds,
+  listFormalStateMachineProbesByDisposition,
+  summarizeFormalStateMachineContractCoverage,
+  FORGE_FORMAL_STATE_MACHINE_CONTRACT_V1,
   FORMAL_STATE_MACHINE_CATEGORIES,
 } from "./forge-formal-state-machine.js";
 

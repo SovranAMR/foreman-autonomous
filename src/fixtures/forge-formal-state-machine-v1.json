@@ -1,6 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P01-B03-A01",
+  "contractAtom": "P01-B03-A02",
   "purpose": "Formal orchestrator state machine baseline measured against VALID_TRANSITIONS (includes documented FAIL gaps).",
   "sourceBehaviorMap": {
     "version": "1.0.0",
