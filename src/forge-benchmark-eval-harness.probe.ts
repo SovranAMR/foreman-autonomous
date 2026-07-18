@@ -17,8 +17,12 @@ import {
 import {
   summarizeBenchmarkEvalHarnessMatrix,
   getActiveBenchmarkEvalContract,
+  validateBenchmarkEvalHarnessFixture,
+  validateBenchmarkEvalHarnessFixtureAgainstContract,
+  validateBenchmarkEvalProbeMatrix,
   type BenchmarkEvalCategory,
   type BenchmarkEvalFixture,
+  type BenchmarkEvalProbeMatrixValidationResult,
   type BenchmarkEvalProbeResult,
 } from "./forge-benchmark-eval-harness.js";
 
@@ -26,6 +30,7 @@ export type { BenchmarkEvalFixture, BenchmarkEvalProbeResult } from "./forge-ben
 export {
   validateBenchmarkEvalHarnessFixture,
   validateBenchmarkEvalHarnessFixtureAgainstContract,
+  validateBenchmarkEvalProbeMatrix,
   summarizeBenchmarkEvalHarnessMatrix,
   summarizeBenchmarkEvalContractCoverage,
   listBenchmarkEvalHarnessProbesByExpected,
@@ -586,4 +591,39 @@ export function listBenchmarkEvalHarnessKnownGaps(
   results: BenchmarkEvalProbeResult[] = runBenchmarkEvalHarnessProbes(),
 ): BenchmarkEvalProbeResult[] {
   return summarizeBenchmarkEvalHarnessMatrix(results).knownGaps;
+}
+
+export interface BenchmarkEvalProductionSliceResult {
+  atom: "P01-B06-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: BenchmarkEvalProbeResult[];
+  summary: ReturnType<typeof summarizeBenchmarkEvalHarnessMatrix>;
+  matrixValidation: BenchmarkEvalProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: fixture ↔ contract validation, contract-wired probe
+ * execution, and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runBenchmarkEvalProductionSlice(
+  fixture: BenchmarkEvalFixture = loadBenchmarkEvalHarnessFixture(),
+): BenchmarkEvalProductionSliceResult {
+  const contract = getActiveBenchmarkEvalContract();
+  const fixtureValidation = validateBenchmarkEvalHarnessFixture(fixture);
+  const contractValidation = validateBenchmarkEvalHarnessFixtureAgainstContract(fixture, contract);
+  const results = runBenchmarkEvalHarnessProbes(fixture);
+  const summary = summarizeBenchmarkEvalHarnessMatrix(results);
+  const matrixValidation = validateBenchmarkEvalProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B06-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

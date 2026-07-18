@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
   loadBenchmarkEvalHarnessFixture,
   runBenchmarkEvalHarnessProbes,
+  runBenchmarkEvalProductionSlice,
   summarizeBenchmarkEvalHarnessMatrix,
   validateBenchmarkEvalHarnessFixture,
   validateBenchmarkEvalHarnessFixtureAgainstContract,
+  validateBenchmarkEvalProbeMatrix,
   listBenchmarkEvalHarnessProbesByExpected,
   listBenchmarkEvalHarnessKnownGaps,
   listBenchmarkEvalContractProbeIds,
@@ -190,5 +192,53 @@ describe("Forge Benchmark Eval Harness Contract — P01-B06-A02", () => {
       assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
       assert.equal(result.criterion, contractProbe.criterion);
     }
+  });
+});
+
+describe("Forge Benchmark Eval Harness Production Slice — P01-B06-A03", () => {
+  it("executes contract-wired probes with zero unexpected mismatches", () => {
+    const contract = getActiveBenchmarkEvalContract();
+    const slice = runBenchmarkEvalProductionSlice();
+
+    assert.equal(slice.atom, "P01-B06-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 26);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 18);
+    assert.equal(slice.matrixValidation.gapAligned, 8);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateBenchmarkEvalProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 8);
+    assert.deepEqual(
+      slice.summary.knownGaps.map(g => g.id).sort(),
+      [
+        "bench.benchmark_regression_export",
+        "bench.deterministic_eval_seed",
+        "bench.eval_harness_orchestrator_wired",
+        "bench.failure_eval_harness_on_block",
+        "bench.fixture_hash_provenance",
+        "bench.nogo_eval_gate_on_reject",
+        "bench.phase_timing_collector",
+        "bench.recovery_eval_baseline_reset",
+      ],
+    );
   });
 });
