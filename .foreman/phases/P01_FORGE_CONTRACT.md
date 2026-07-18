@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 4
-completed_atoms: 40
+completed_atoms: 41
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -67,7 +67,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B05 — Pipeline invariant engine
 
-- [ ] P01-B05-A01 — Pipeline invariant engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B05-A01 — Pipeline invariant engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B05-A02 — Pipeline invariant engine: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B05-A03 — Pipeline invariant engine: en küçük üretim dikey dilimini uygula
 - [ ] P01-B05-A04 — Pipeline invariant engine: boundary ve edge-case davranışlarını tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B04-A10
+last_atom: P01-B05-A01
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-phase-event-schema-block-gate.test.ts` (6/6)
+tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts` (3/3)
 evidence: |
-  P01-B04-A10 block gate: runForgePhaseEventSchemaBlockGate seals 10/10 atom checks (A01–A09 deliverables + handoff);
-  FORGE_P01_B04_BLOCK_GATE_V1 and FORGE_P01_B04_TO_B05_HANDOFF_V1 target P01-B05-A01 pipeline invariant engine;
-  validatePhaseEventSchemaBlockHandoffContract enforces regression/guard/probeCount; orchestrator verifyForgePhaseEventSchemaBlockGate emits phase_event_schema_block_gate verification.
-next: P01-B05-A01
+  P01-B05-A01 baseline: forge-pipeline-invariant-engine-v1.json fixture with 23 probes across 8 categories;
+  7 documented FAIL gaps (runtime phase balance, event order, reflection cadence, state coherence, block invariant, verification gate, orchestrator wiring);
+  validatePipelineInvariantEngineFixture aligns sourcePhaseEventSchema to FORGE_P01_B04_TO_B05_HANDOFF_V1 sealed artifacts (35 probes).
+next: P01-B05-A02

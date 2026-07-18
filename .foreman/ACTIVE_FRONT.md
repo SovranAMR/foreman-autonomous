@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B05-A01 — Pipeline invariant engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P01-B05-A02 — Pipeline invariant engine: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: Pipeline invariant engine için mevcut orchestrator invariant davranışını ölç ve failing baseline fixture oluştur.
-target: Sealed P01-B04 phase/event schema artifacts üzerinde invariant baseline fixture.
-hypothesis: B04 handoff sonrası invariant engine A01 failing baseline ile başlayabilir.
-acceptance: fixture exists; probes declare measurable gaps; aligns to B04 sealed contract.
+objective: Pipeline invariant engine için typed contract ile ölçülebilir acceptance kriterini tanımla.
+target: Sealed P01-B05-A01 baseline fixture üzerinde invariant contract.
+hypothesis: A01 failing baseline sonrası A02 typed contract probe matrix'i kilitleyebilir.
+acceptance: contract exists; categories declare invariants; probes align to fixture.
 commands: npx tsx --test src/forge-pipeline-invariant-engine.test.ts
 blast_radius: forge-pipeline-invariant-engine*.ts
-rollback: A01 değişikliklerini geri al.
+rollback: A02 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B04-A10
+last_atom: P01-B05-A01
 last_commit: pending
-tests: PASS — forge-phase-event-schema block gate (6/6)
-evidence: runForgePhaseEventSchemaBlockGate seals 10/10 atom checks; FORGE_P01_B04_TO_B05_HANDOFF_V1 targets P01-B05-A01; orchestrator verifyForgePhaseEventSchemaBlockGate emits phase_event_schema_block_gate verification
-next: P01-B05-A01
+tests: PASS — forge-pipeline-invariant-engine A01 baseline (3/3)
+evidence: loadPipelineInvariantEngineFixture validates 23 probes aligned to B04 handoff; 7 documented FAIL gaps (runtime invariant engine not wired); runPipelineInvariantEngineProbes measures orchestrator cross-cutting invariants
+next: P01-B05-A02

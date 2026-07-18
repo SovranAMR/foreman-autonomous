@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B05-A01",
+  "contractAtom": "P01-B05-A05",
+  "purpose": "Pipeline invariant engine baseline measured against orchestrator cross-cutting invariants (includes documented FAIL gaps).",
+  "sourcePhaseEventSchema": {
+    "version": "1.0.0",
+    "atom": "P01-B04-A10",
+    "contractVersion": "1.0.0",
+    "probeCount": 35,
+    "schemaCategories": 10
+  },
+  "probes": [
+    {
+      "id": "inv.phase_start_end_present",
+      "category": "phase_lifecycle",
+      "description": "Orchestrator emits both phase_start and phase_end events",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.core_phases_paired",
+      "category": "phase_lifecycle",
+      "description": "Core pipeline phases (vision, decompose, execute) have balanced start/end emissions",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.runtime_phase_balance_checker",
+      "category": "phase_lifecycle",
+      "description": "Orchestrator emit() validates phase_start/phase_end balance at runtime",
+      "expected": "FAIL"
+    },
+    {
+      "id": "inv.pipeline_complete_emitted",
+      "category": "event_ordering",
+      "description": "Orchestrator emits pipeline_complete at run termination",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.verification_events_wired",
+      "category": "event_ordering",
+      "description": "Forge verification gates emit typed verification events",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.event_order_validator",
+      "category": "event_ordering",
+      "description": "Runtime event sequence validator hooked to orchestrator emit()",
+      "expected": "FAIL"
+    },
+    {
+      "id": "inv.reflect_phase_emitted",
+      "category": "reflection_cadence",
+      "description": "Orchestrator emits reflect phase_start during atom batches",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.reflect_interval_logic",
+      "category": "reflection_cadence",
+      "description": "Dynamic reflectInterval cadence logic exists in execute loop",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.reflection_cadence_invariant",
+      "category": "reflection_cadence",
+      "description": "Pipeline invariant engine enforces reflection cadence at runtime",
+      "expected": "FAIL"
+    },
+    {
+      "id": "inv.state_transition_visioning",
+      "category": "state_coherence",
+      "description": "Orchestrator transitions SystemState to visioning at pipeline start",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.state_transition_complete",
+      "category": "state_coherence",
+      "description": "Orchestrator transitions SystemState to complete at pipeline end",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.state_phase_coherence_checker",
+      "category": "state_coherence",
+      "description": "Runtime checker validates SystemState matches active pipeline phase",
+      "expected": "FAIL"
+    },
+    {
+      "id": "inv.block_detected_event",
+      "category": "block_halt",
+      "description": "Orchestrator emits block_detected with typed payload",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.block_halts_forward",
+      "category": "block_halt",
+      "description": "block_detected emission halts forward pipeline progress",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.block_invariant_module",
+      "category": "block_halt",
+      "description": "Dedicated block-halt invariant module wired into orchestrator emit()",
+      "expected": "FAIL"
+    },
+    {
+      "id": "inv.verify_regression_exports",
+      "category": "verification_gate",
+      "description": "Orchestrator exports verifyForge*Regression gate methods",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.verify_block_gate_exports",
+      "category": "verification_gate",
+      "description": "Orchestrator exports verifyForge*BlockGate gate methods",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.verification_gate_invariant",
+      "category": "verification_gate",
+      "description": "Invariant engine validates verification gate ordering before pipeline_complete",
+      "expected": "FAIL"
+    },
+    {
+      "id": "inv.b04_handoff_target",
+      "category": "baseline_link",
+      "description": "FORGE_P01_B04_TO_B05_HANDOFF_V1 targets P01-B05-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.b04_schema_sealed",
+      "category": "baseline_link",
+      "description": "Sealed B04 phase/event schema probe count matches handoff artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.error_on_empty_vision",
+      "category": "boundary",
+      "description": "Orchestrator emits error when vision phase returns empty output",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.format_retry_handling",
+      "category": "boundary",
+      "description": "Orchestrator handles format_retry as validation NO-GO gate",
+      "expected": "PASS"
+    },
+    {
+      "id": "inv.invariant_engine_orchestrator_wired",
+      "category": "boundary",
+      "description": "Orchestrator imports and wires pipeline invariant engine for live validation",
+      "expected": "FAIL"
+    }
+  ]
+}
