@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B05-A10
-last_commit: pending
+last_commit: 7014f3d
 tests: PASS — forge-pipeline-invariant-engine-block-gate.test.ts + guard + core (36/36)
 evidence: runForgePipelineInvariantEngineBlockGate seals P01-B05; verifyForgePipelineInvariantEngineBlockGate emits pipeline_invariant_engine_block_gate; B06 handoff ready
 next: P01-B06-A01

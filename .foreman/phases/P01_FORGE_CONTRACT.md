@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B05-A10
-last_commit: pending
+last_commit: 7014f3d
 tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine-block-gate.test.ts src/forge-pipeline-invariant-engine.guard.test.ts src/forge-pipeline-invariant-engine.test.ts` (36/36)
 evidence: |
   P01-B05-A10 block gate: runForgePipelineInvariantEngineBlockGate seals 10/10 atom seals with regression+guard PASS;
