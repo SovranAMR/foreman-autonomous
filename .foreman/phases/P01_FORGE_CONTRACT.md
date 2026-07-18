@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B04-A01
-last_commit: PENDING
+last_commit: 762d68c
 tests: PASS — `npx tsx --test src/forge-phase-event-schema.test.ts` (4/4)
 evidence: |
   P01-B04-A01 baseline: 24-probe phase/event schema fixture with 5 documented FAIL gaps
