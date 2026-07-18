@@ -44,7 +44,7 @@ fallback: contract modülü ayrıştırılamazsa harness içinde minimal typed e
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A01
-last_commit: PENDING
+last_commit: ad19959
 tests: PASS — forge-pipeline-baseline (2/2), orchestrator smoke (5/5)
 evidence: 20-scenario PASS/FAIL matrix (18 PASS expected, 2 documented FAIL gaps)
 next: P01-B01-A02

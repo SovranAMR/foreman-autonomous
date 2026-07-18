@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A01
-last_commit: PENDING
+last_commit: ad19959
 tests: PASS — `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2), `npx tsx src/orchestrator.test.ts` (5/5)
 evidence: |
   Versioned fixture `src/fixtures/forge-baseline-v1.json` + harness `src/forge-baseline-harness.ts`.
