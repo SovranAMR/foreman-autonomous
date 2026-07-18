@@ -5,6 +5,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import benchmarkEvalFixture from "./fixtures/forge-benchmark-eval-harness-v1.json" with { type: "json" };
@@ -23,11 +25,19 @@ import {
   validateBenchmarkEvalBoundaryProbeMatrix,
   validateBenchmarkEvalFailureRecoveryProbeMatrix,
   listBenchmarkEvalProbesByCategory,
+  listBenchmarkEvalFailureRecoveryProbeIds,
   BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES,
+  buildBenchmarkEvalProbeEvidence,
+  buildBenchmarkEvalProbeTelemetry,
+  buildBenchmarkEvalProvenance,
+  buildBenchmarkEvalRunRecord,
+  validateBenchmarkEvalFailureRecoveryRunRecord,
   type BenchmarkEvalCategory,
   type BenchmarkEvalFixture,
   type BenchmarkEvalProbeMatrixValidationResult,
   type BenchmarkEvalProbeResult,
+  type BenchmarkEvalRunRecord,
+  type BenchmarkEvalProbeDisposition,
 } from "./forge-benchmark-eval-harness.js";
 
 export type { BenchmarkEvalFixture, BenchmarkEvalProbeResult } from "./forge-benchmark-eval-harness.js";
@@ -40,6 +50,11 @@ export {
   listBenchmarkEvalProbesByCategory,
   listBenchmarkEvalFailureRecoveryProbeIds,
   BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES,
+  buildBenchmarkEvalProbeEvidence,
+  buildBenchmarkEvalProbeTelemetry,
+  buildBenchmarkEvalProvenance,
+  buildBenchmarkEvalRunRecord,
+  validateBenchmarkEvalFailureRecoveryRunRecord,
   summarizeBenchmarkEvalHarnessMatrix,
   summarizeBenchmarkEvalContractCoverage,
   listBenchmarkEvalHarnessProbesByExpected,
@@ -51,6 +66,7 @@ export {
   BENCHMARK_EVAL_CATEGORIES,
   BENCHMARK_EVAL_A01_MIN_PROBES,
   buildDefaultBenchmarkEvalSourcePipelineInvariantEngine,
+  type BenchmarkEvalRunRecord,
 } from "./forge-benchmark-eval-harness.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -593,6 +609,108 @@ export function runBenchmarkEvalHarnessProbes(
     return contractProbe?.criterion
       ? { ...result, criterion: contractProbe.criterion }
       : result;
+  });
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runBenchmarkEvalProbeWithTiming(
+  entry: BenchmarkEvalFixture["probes"][number],
+  contractProbe:
+    | { criterion: string; disposition: BenchmarkEvalProbeDisposition }
+    | undefined,
+): {
+  result: BenchmarkEvalProbeResult;
+  durationMs: number;
+  disposition: BenchmarkEvalProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildBenchmarkEvalRecordFromEntries(
+  entries: BenchmarkEvalFixture["probes"],
+  fixture: BenchmarkEvalFixture,
+  contract: ReturnType<typeof getActiveBenchmarkEvalContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly BenchmarkEvalCategory[];
+  },
+): BenchmarkEvalRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildBenchmarkEvalProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildBenchmarkEvalProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runBenchmarkEvalProbeWithTiming(
+      entry,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildBenchmarkEvalProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildBenchmarkEvalProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildBenchmarkEvalProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildBenchmarkEvalRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P01-B06-A06). */
+export function runBenchmarkEvalFailureRecoverySliceWithRecord(
+  fixture: BenchmarkEvalFixture = loadBenchmarkEvalHarnessFixture(),
+): BenchmarkEvalRunRecord {
+  const contract = getActiveBenchmarkEvalContract();
+  const failureRecoveryIds = new Set(listBenchmarkEvalFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildBenchmarkEvalRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P01-B06-A06",
+    sliceCategories: BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES,
   });
 }
 

@@ -13,7 +13,7 @@ import {
   PIPELINE_INVARIANT_ENGINE_CATEGORIES,
 } from "./forge-pipeline-invariant-engine.js";
 
-export const FORGE_BENCHMARK_EVAL_HARNESS_VERSION = "1.0.0-a01";
+export const FORGE_BENCHMARK_EVAL_HARNESS_VERSION = "1.0.0-a06";
 
 export const BENCHMARK_EVAL_CATEGORIES = [
   "latency_timing",
@@ -779,6 +779,287 @@ export function listBenchmarkEvalFailureRecoveryProbeIds(
   return BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
     listBenchmarkEvalProbesByCategory(category, contract).map(p => p.id),
   );
+}
+
+/** Per-probe evidence artifact — auditable proof of benchmark eval probe outcome (P01-B06-A06). */
+export interface BenchmarkEvalProbeEvidence {
+  probeId: string;
+  category: BenchmarkEvalCategory;
+  disposition: BenchmarkEvalProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for benchmark eval runs (P01-B06-A06). */
+export interface BenchmarkEvalProbeTelemetry {
+  probeId: string;
+  category: BenchmarkEvalCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P01-B06-A06). */
+export interface BenchmarkEvalProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourcePipelineInvariantEngineVersion: string;
+  sourcePipelineInvariantEngineAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly BenchmarkEvalCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated benchmark eval run record bundling evidence, telemetry and provenance. */
+export interface BenchmarkEvalRunRecord {
+  provenance: BenchmarkEvalProvenance;
+  evidence: BenchmarkEvalProbeEvidence[];
+  telemetry: BenchmarkEvalProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<BenchmarkEvalCategory, number>;
+    byDisposition: Record<BenchmarkEvalProbeDisposition, number>;
+  };
+}
+
+export interface BenchmarkEvalRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface BenchmarkEvalRunValidationResult {
+  valid: boolean;
+  issues: BenchmarkEvalRunValidationIssue[];
+}
+
+export function buildBenchmarkEvalProbeEvidence(
+  probeId: string,
+  category: BenchmarkEvalCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: BenchmarkEvalProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): BenchmarkEvalProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildBenchmarkEvalProbeTelemetry(
+  probeId: string,
+  category: BenchmarkEvalCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): BenchmarkEvalProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildBenchmarkEvalProvenance(
+  runId: string,
+  fixture: BenchmarkEvalFixture,
+  contract: BenchmarkEvalContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly BenchmarkEvalCategory[];
+  },
+): BenchmarkEvalProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_BENCHMARK_EVAL_HARNESS_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourcePipelineInvariantEngineVersion: fixture.sourcePipelineInvariantEngine.version,
+    sourcePipelineInvariantEngineAtom: fixture.sourcePipelineInvariantEngine.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildBenchmarkEvalRunRecord(
+  provenance: BenchmarkEvalProvenance,
+  evidence: BenchmarkEvalProbeEvidence[],
+  telemetry: BenchmarkEvalProbeTelemetry[],
+): BenchmarkEvalRunRecord {
+  const byCategory = {} as Record<BenchmarkEvalCategory, number>;
+  const byDisposition: Record<BenchmarkEvalProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of BENCHMARK_EVAL_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateBenchmarkEvalRunRecordAgainstProbeIds(
+  record: BenchmarkEvalRunRecord,
+  expectedProbeIds: string[],
+  contract: BenchmarkEvalContract,
+): BenchmarkEvalRunValidationResult {
+  const issues: BenchmarkEvalRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateBenchmarkEvalRunRecord(
+  record: BenchmarkEvalRunRecord,
+  contract: BenchmarkEvalContract = getActiveBenchmarkEvalContract(),
+): BenchmarkEvalRunValidationResult {
+  return validateBenchmarkEvalRunRecordAgainstProbeIds(
+    record,
+    listBenchmarkEvalContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateBenchmarkEvalFailureRecoveryRunRecord(
+  record: BenchmarkEvalRunRecord,
+  contract: BenchmarkEvalContract = getActiveBenchmarkEvalContract(),
+): BenchmarkEvalRunValidationResult {
+  const issues: BenchmarkEvalRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P01-B06-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P01-B06-A06`,
+    });
+  }
+
+  const expectedCategories = [...BENCHMARK_EVAL_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateBenchmarkEvalRunRecordAgainstProbeIds(
+    record,
+    listBenchmarkEvalFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
 }
 
 export function buildDefaultBenchmarkEvalSourcePipelineInvariantEngine(): BenchmarkEvalFixture["sourcePipelineInvariantEngine"] {

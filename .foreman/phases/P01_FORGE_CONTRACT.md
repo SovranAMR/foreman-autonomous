@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 54
+completed_atoms: 55
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -85,7 +85,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B06-A03 — Benchmark ve eval harness: en küçük üretim dikey dilimini uygula
 - [x] P01-B06-A04 — Benchmark ve eval harness: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B06-A05 — Benchmark ve eval harness: failure, recovery ve NO-GO yollarını uygula
-- [ ] P01-B06-A06 — Benchmark ve eval harness: evidence, telemetry ve provenance kaydını ekle
+- [x] P01-B06-A06 — Benchmark ve eval harness: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B06-A07 — Benchmark ve eval harness: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B06-A08 — Benchmark ve eval harness: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B06-A09 — Benchmark ve eval harness: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,13 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B06-A05
-last_commit: 00892ad
-tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (16/16)
+last_atom: P01-B06-A06
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (18/18)
 evidence: |
-  P01-B06-A05 failure/recovery slice: runBenchmarkEvalFailureRecoverySlice with 9 probes
-  (failure_path, recovery_path, nogo_path);
-  validateBenchmarkEvalFailureRecoveryProbeMatrix gate — 6 passAligned, 3 gapAligned, zero unexpected mismatches;
-  contract-wired criteria on bench.failure_pipeline_timing_on_block, bench.recovery_resume_wired, bench.nogo_reviewer_reject;
-  documented FAIL gaps bench.failure_eval_harness_on_block, bench.recovery_eval_baseline_reset, bench.nogo_eval_gate_on_reject preserved.
-next: P01-B06-A06
+  P01-B06-A06 failure/recovery run record slice: runBenchmarkEvalFailureRecoverySliceWithRecord with 9 probes;
+  validateBenchmarkEvalFailureRecoveryRunRecord gate — evidence/telemetry/provenance contract-wired;
+  sliceAtom P01-B06-A06; harnessVersion 1.0.0-a06; buildBenchmarkEvalProvenance with B05 source lineage;
+  summary mismatches=0; disposition breakdown failure/recovery/nogo/gap preserved.
+next: P01-B06-A07
