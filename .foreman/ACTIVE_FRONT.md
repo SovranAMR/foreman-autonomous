@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B02-A05
-last_commit: PENDING
+last_commit: 0579640
 tests: PASS — forge-pipeline-behavior-map (11/11), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: failure_path/recovery_path/nogo_path categories; 9 new probes (worker_blocked, atom_retry, block_abandon, re_decompose, recovery_runner, rollback_on_reject, reviewer_reject, rejection_feedback, hook_block); 26/26 aligned
 next: P01-B02-A06

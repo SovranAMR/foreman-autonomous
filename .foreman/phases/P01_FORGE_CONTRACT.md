@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B02-A05
-last_commit: PENDING
+last_commit: 0579640
 tests: PASS — `npx tsx --test src/forge-pipeline-behavior-map.test.ts` (11/11), forge-baseline-block-gate (6/6), forge-pipeline-baseline (3/3), forge-pipeline-regression.integration (4/4)
 evidence: |
   P01-B02-A05 failure/recovery/NO-GO slice: added failure_path, recovery_path, nogo_path categories with 9 probes;
