@@ -44,7 +44,7 @@ fallback: guard slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B03-A08
-last_commit: pending
+last_commit: 14e636b
 tests: PASS — forge-formal-state-machine (25/25 incl. 4/4 regression)
 evidence: runForgeFormalStateMachineRegressionGate 28/28 probes aligned; detectFormalStateMachineProbeRegression flags misalignment; verifyForgeFormalStateMachineRegression emits formal_state_machine_regression verification; validateForgeFormalStateMachineGuard adversarial=3/3
 next: P01-B03-A09

@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B03-A08
-last_commit: pending
+last_commit: 14e636b
 tests: PASS — `npx tsx --test src/forge-formal-state-machine.test.ts` (25/25)
 evidence: |
   P01-B03-A08 regression: runForgeFormalStateMachineRegressionGate 28/28 probes aligned with guard PASS;
