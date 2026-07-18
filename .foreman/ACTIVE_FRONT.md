@@ -44,7 +44,7 @@ fallback: evidence path seçilemezse BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B01-A05
-last_commit: (pending)
+last_commit: 35e109f
 tests: PASS — forge-baseline-contract (5/5), forge-pipeline-baseline (2/2), 27-probe matrix aligned
 evidence: ForgeProbeDisposition typed; 7 new probes (failure/recovery/nogo); state blocked→recover, reviewer NO-GO verdicts, rollback graceful fail, resume corrupt checkpoint
 next: P01-B01-A06

@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B01-A05
-last_commit: (pending)
+last_commit: 35e109f
 tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (5/5), `npx tsx --test src/forge-pipeline-baseline.test.ts` (2/2)
 evidence: |
   P01-B01-A05 failure/recovery/NO-GO slice: ForgeProbeDisposition (happy|failure|recovery|nogo) on all probes.
