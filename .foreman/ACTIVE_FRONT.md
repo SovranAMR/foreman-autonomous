@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B06-A02
-last_commit: pending
+last_commit: bea364a
 tests: PASS — forge-benchmark-eval-harness.test.ts (9/9)
 evidence: FORGE_BENCHMARK_EVAL_CONTRACT_V1; 26 probes / 9 categories; fixture ↔ contract aligned; criteria wired
 next: P01-B06-A03

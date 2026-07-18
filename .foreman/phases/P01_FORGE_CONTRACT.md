@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B06-A02
-last_commit: pending
+last_commit: bea364a
 tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (9/9)
 evidence: |
   P01-B06-A02 contract: FORGE_BENCHMARK_EVAL_CONTRACT_V1 with 26 probes across 9 categories
