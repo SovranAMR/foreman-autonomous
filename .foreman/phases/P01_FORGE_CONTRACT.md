@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 4
-completed_atoms: 45
+completed_atoms: 46
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -72,7 +72,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B05-A03 — Pipeline invariant engine: en küçük üretim dikey dilimini uygula
 - [x] P01-B05-A04 — Pipeline invariant engine: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B05-A05 — Pipeline invariant engine: failure, recovery ve NO-GO yollarını uygula
-- [ ] P01-B05-A06 — Pipeline invariant engine: evidence, telemetry ve provenance kaydını ekle
+- [x] P01-B05-A06 — Pipeline invariant engine: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B05-A07 — Pipeline invariant engine: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B05-A08 — Pipeline invariant engine: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B05-A09 — Pipeline invariant engine: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B05-A05
+last_atom: P01-B05-A06
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts` (17/17)
+tests: PASS — `npx tsx --test src/forge-pipeline-invariant-engine.test.ts` (20/20)
 evidence: |
-  P01-B05-A05 failure/recovery slice: runPipelineInvariantEngineFailureRecoverySlice with validatePipelineInvariantEngineFailureRecoveryProbeMatrix;
-  9 failure/recovery probes across failure_path, recovery_path, nogo_path;
-  6 passAligned + 3 gapAligned; zero unexpected mismatches; harness version 1.0.0-a05;
-  documented invariant engine wiring gaps (failure_invariant_engine_on_block, recovery_invariant_engine_wired, nogo_invariant_on_reject) preserved.
-next: P01-B05-A06
+  P01-B05-A06 evidence slice: runPipelineInvariantEngineFailureRecoverySliceWithRecord with validatePipelineInvariantEngineFailureRecoveryRunRecord;
+  9 failure/recovery probes with evidence, telemetry and provenance; runPipelineInvariantEngineProbesWithRecord 32/32 full matrix;
+  harness version 1.0.0-a06; sliceAtom P01-B05-A06 with failure_path/recovery_path/nogo_path categories; zero validation issues.
+next: P01-B05-A07

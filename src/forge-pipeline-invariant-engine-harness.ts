@@ -8,6 +8,8 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
 import pipelineInvariantEngineFixture from "./fixtures/forge-pipeline-invariant-engine-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -27,15 +29,24 @@ import {
   listPipelineInvariantEngineFailureRecoveryProbeIds,
   PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES,
   listPipelineInvariantEngineProbesByExpected,
+  buildPipelineInvariantEngineProbeEvidence,
+  buildPipelineInvariantEngineProbeTelemetry,
+  buildPipelineInvariantEngineProvenance,
+  buildPipelineInvariantEngineRunRecord,
+  validatePipelineInvariantEngineRunRecord,
+  validatePipelineInvariantEngineFailureRecoveryRunRecord,
   type PipelineInvariantEngineCategory,
   type PipelineInvariantEngineFixture,
   type PipelineInvariantEngineProbeResult,
   type PipelineInvariantEngineProbeMatrixValidationResult,
+  type PipelineInvariantEngineProbeDisposition,
+  type PipelineInvariantEngineRunRecord,
 } from "./forge-pipeline-invariant-engine.js";
 
 export type {
   PipelineInvariantEngineFixture,
   PipelineInvariantEngineProbeResult,
+  PipelineInvariantEngineRunRecord,
 } from "./forge-pipeline-invariant-engine.js";
 
 export {
@@ -53,6 +64,12 @@ export {
   listPipelineInvariantEngineProbesByDisposition,
   listPipelineInvariantEngineProbesByExpected,
   summarizePipelineInvariantEngineContractCoverage,
+  buildPipelineInvariantEngineProbeEvidence,
+  buildPipelineInvariantEngineProbeTelemetry,
+  buildPipelineInvariantEngineProvenance,
+  buildPipelineInvariantEngineRunRecord,
+  validatePipelineInvariantEngineRunRecord,
+  validatePipelineInvariantEngineFailureRecoveryRunRecord,
   FORGE_PIPELINE_INVARIANT_ENGINE_CONTRACT_V1,
   PIPELINE_INVARIANT_ENGINE_CATEGORIES,
   PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES,
@@ -730,6 +747,116 @@ export function runPipelineInvariantEngineProbes(
     return contractProbe?.criterion
       ? { ...result, criterion: contractProbe.criterion }
       : result;
+  });
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runPipelineInvariantEngineProbeWithTiming(
+  entry: PipelineInvariantEngineFixture["probes"][number],
+  contractProbe:
+    | { criterion: string; disposition: PipelineInvariantEngineProbeDisposition }
+    | undefined,
+): {
+  result: PipelineInvariantEngineProbeResult;
+  durationMs: number;
+  disposition: PipelineInvariantEngineProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildPipelineInvariantEngineRecordFromEntries(
+  entries: PipelineInvariantEngineFixture["probes"],
+  fixture: PipelineInvariantEngineFixture,
+  contract: ReturnType<typeof getActivePipelineInvariantEngineContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly PipelineInvariantEngineCategory[];
+  },
+): PipelineInvariantEngineRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildPipelineInvariantEngineProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildPipelineInvariantEngineProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runPipelineInvariantEngineProbeWithTiming(
+      entry,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildPipelineInvariantEngineProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildPipelineInvariantEngineProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildPipelineInvariantEngineProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildPipelineInvariantEngineRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all pipeline invariant engine probes and emit auditable evidence, telemetry and provenance (P01-B05-A06). */
+export function runPipelineInvariantEngineProbesWithRecord(
+  fixture: PipelineInvariantEngineFixture = loadPipelineInvariantEngineFixture(),
+): PipelineInvariantEngineRunRecord {
+  const contract = getActivePipelineInvariantEngineContract();
+  return buildPipelineInvariantEngineRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P01-B05-A06). */
+export function runPipelineInvariantEngineFailureRecoverySliceWithRecord(
+  fixture: PipelineInvariantEngineFixture = loadPipelineInvariantEngineFixture(),
+): PipelineInvariantEngineRunRecord {
+  const contract = getActivePipelineInvariantEngineContract();
+  const failureRecoveryIds = new Set(listPipelineInvariantEngineFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildPipelineInvariantEngineRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P01-B05-A06",
+    sliceCategories: PIPELINE_INVARIANT_ENGINE_FAILURE_RECOVERY_CATEGORIES,
   });
 }
 
