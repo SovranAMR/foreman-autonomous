@@ -704,3 +704,389 @@ export function validateBaselineRunRecord(
 
   return { valid: issues.length === 0, issues };
 }
+
+/** Structural property violation surfaced by contract property suite (P01-B01-A07). */
+export interface ContractPropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface ContractPropertyResult {
+  passed: number;
+  failed: ContractPropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type ContractPropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: ForgeBaselineContract) => string | null;
+};
+
+const CONTRACT_STRUCTURAL_PROPERTIES: readonly ContractPropertyCheck[] = [
+  {
+    id: "paths_complete",
+    description: "All six baseline path categories are declared",
+    check: contract => {
+      for (const path of FORGE_BASELINE_PATHS) {
+        if (!contract.paths[path]) return `missing path: ${path}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each path meets contract minProbeCount",
+    check: contract => {
+      for (const path of FORGE_BASELINE_PATHS) {
+        const pathContract = contract.paths[path];
+        if (pathContract.probes.length < pathContract.acceptance.minProbeCount) {
+          return `${path} has ${pathContract.probes.length} probes; requires >= ${pathContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const path of FORGE_BASELINE_PATHS) {
+        for (const probe of contract.paths[path].probes) {
+          if (probe.criterion.trim().length <= 10) {
+            return `${probe.id} criterion too short`;
+          }
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description: "summarizeContractCoverage totals match listContractProbeIds",
+    check: contract => {
+      const summary = summarizeContractCoverage(contract);
+      const ids = listContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.happy +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced by path category",
+    check: contract => {
+      for (const path of FORGE_BASELINE_PATHS) {
+        for (const probe of contract.paths[path].probes) {
+          if (!probe.id.startsWith(`${path}.`)) {
+            return `${probe.id} missing ${path}. prefix`;
+          }
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const probeIds = listContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const path = FORGE_BASELINE_PATHS.find(p => contract.paths[p].probes.some(probe => probe.id === id))!;
+        const probe = contract.paths[path].probes.find(p => p.id === id)!;
+        return buildProbeEvidence(id, path, probe.expected, probe.expected, true, probe.criterion, "synthetic", probe.disposition);
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const path = FORGE_BASELINE_PATHS.find(p => contract.paths[p].probes.some(probe => probe.id === id))!;
+        return buildProbeTelemetry(id, path, index, index);
+      });
+      const record = buildBaselineRunRecord(
+        buildBaselineProvenance(
+          "property-check",
+          { version: "0", atom: "x", purpose: "x", paths: {} as ForgeBaselineFixture["paths"] },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runContractPropertyChecks(
+  contract: ForgeBaselineContract = getActiveForgeBaselineContract(),
+): ContractPropertyResult {
+  const failed: ContractPropertyViolation[] = [];
+  for (const property of CONTRACT_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = CONTRACT_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type FuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "truncate_description";
+
+export interface FuzzMutationCase {
+  seed: number;
+  kind: FuzzMutationKind;
+  probeId?: string;
+  path?: ForgeBaselinePath;
+}
+
+export interface FuzzValidationCaseResult {
+  mutation: FuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface FuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: FuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneFixture(fixture: ForgeBaselineFixture): ForgeBaselineFixture {
+  const paths = {} as ForgeBaselineFixture["paths"];
+  for (const path of FORGE_BASELINE_PATHS) {
+    paths[path] = fixture.paths[path].map(entry => ({ ...entry }));
+  }
+  return { ...fixture, paths };
+}
+
+function pickFuzzTarget(
+  fixture: ForgeBaselineFixture,
+  rng: () => number,
+): { path: ForgeBaselinePath; index: number; entry: ForgeBaselineFixtureEntry } {
+  const path = FORGE_BASELINE_PATHS[Math.floor(rng() * FORGE_BASELINE_PATHS.length)]!;
+  const entries = fixture.paths[path];
+  const index = Math.floor(rng() * entries.length);
+  return { path, index, entry: entries[index]! };
+}
+
+export function applyFuzzMutation(
+  fixture: ForgeBaselineFixture,
+  mutation: FuzzMutationCase,
+): ForgeBaselineFixture {
+  const mutated = cloneFixture(fixture);
+  const targetPath = mutation.path ?? FORGE_BASELINE_PATHS[0]!;
+  const entries = mutated.paths[targetPath];
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? entries[0]!.id;
+      const entry = entries.find(e => e.id === probeId) ?? entries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? entries[0]!.id;
+      mutated.paths[targetPath] = entries.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.paths[targetPath] = [
+        ...entries,
+        {
+          id: `fuzz.extra.${mutation.seed}`,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? entries[0]!.id;
+      const entry = entries.find(e => e.id === probeId) ?? entries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "truncate_description": {
+      const probeId = mutation.probeId ?? entries[0]!.id;
+      const entry = entries.find(e => e.id === probeId) ?? entries[0]!;
+      entry.description = "";
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateFuzzMutationCases(
+  fixture: ForgeBaselineFixture,
+  seed: number,
+  iterations: number,
+): FuzzMutationCase[] {
+  const rng = createFuzzRng(seed);
+  const kinds: FuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "truncate_description",
+  ];
+  const cases: FuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      path: target.path,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P01-B01-A07). */
+export function runContractFuzzValidation(
+  fixture: ForgeBaselineFixture,
+  contract: ForgeBaselineContract = getActiveForgeBaselineContract(),
+  seed = 42,
+  iterations = 24,
+): FuzzValidationResult {
+  const cases = generateFuzzMutationCases(fixture, seed, iterations);
+  const results: FuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyFuzzMutation(fixture, mutation);
+    const validation = validateFixtureAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type RunRecordFuzzKind = "drop_evidence" | "drop_telemetry" | "wrong_total";
+
+export interface RunRecordFuzzCase {
+  kind: RunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyRunRecordFuzzMutation(
+  record: ForgeBaselineRunRecord,
+  mutation: RunRecordFuzzCase,
+): ForgeBaselineRunRecord {
+  const cloned: ForgeBaselineRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: { ...record.summary, byDisposition: { ...record.summary.byDisposition } },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+  }
+
+  cloned.summary = buildBaselineRunRecord(cloned.provenance, cloned.evidence, cloned.telemetry).summary;
+  return cloned;
+}
+
+export function runRunRecordFuzzValidation(
+  record: ForgeBaselineRunRecord,
+  contract: ForgeBaselineContract = getActiveForgeBaselineContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const baseline = validateBaselineRunRecord(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: RunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyRunRecordFuzzMutation(record, mutation);
+    const validation = validateBaselineRunRecord(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}

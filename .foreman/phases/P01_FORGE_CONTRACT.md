@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 6
+completed_atoms: 7
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -21,7 +21,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B01-A04 — Mission ve acceptance contract: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B01-A05 — Mission ve acceptance contract: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B01-A06 — Mission ve acceptance contract: evidence, telemetry ve provenance kaydını ekle
-- [ ] P01-B01-A07 — Mission ve acceptance contract: unit, property ve fuzz doğrulamasını ekle
+- [x] P01-B01-A07 — Mission ve acceptance contract: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B01-A08 — Mission ve acceptance contract: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B01-A09 — Mission ve acceptance contract: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B01-A10 — Mission ve acceptance contract: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B01-A06
-last_commit: f14d936
-tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3)
+last_atom: P01-B01-A07
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-baseline-contract.test.ts` (8/8), `npx tsx --test src/forge-baseline-contract.property-fuzz.test.ts` (4/4), `npx tsx --test src/forge-pipeline-baseline.test.ts` (3/3)
 evidence: |
-  P01-B01-A06 evidence/telemetry/provenance slice: ForgeProbeEvidence, ForgeProbeTelemetry,
-  ForgeBaselineProvenance, ForgeBaselineRunRecord typed schemas. runForgeBaselineProbesWithRecord
-  captures per-probe timing + disposition evidence; validateBaselineRunRecord enforces 27/27 coverage.
-  Provenance links contract/fixture atoms, runId, git commit, harness version.
-next: P01-B01-A07
+  P01-B01-A07 property/fuzz slice: runContractPropertyChecks (7 structural invariants on canonical contract),
+  runContractFuzzValidation with deterministic mulberry32 seeds (72/72 fixture mutations rejected),
+  runRunRecordFuzzValidation (valid baseline accepted; drop_evidence/drop_telemetry/wrong_total rejected).
+next: P01-B01-A08

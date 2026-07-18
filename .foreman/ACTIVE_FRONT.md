@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B01
-active_atom: P01-B01-A07
+active_atom: P01-B01-A08
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 6/1000
-phase_progress: 6/100
-block_progress: 6/10
+program_progress: 7/1000
+phase_progress: 7/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-18
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B01-A07 — Unit, property ve fuzz doğrulamasını ekle.
+P01-B01-A08 — Forge entegrasyonu ile regression testini tamamla.
 
-objective: Contract kabul kriterlerine unit, property ve fuzz doğrulamasını ekle.
-target: src/forge-baseline-contract.ts, ilgili seam (A07 kapsamında belirlenecek).
-hypothesis: Evidence/telemetry/provenance harness'ta; sıradaki dilim property/fuzz doğrulaması.
-acceptance: Property/fuzz davranışı + hedefli test PASS + regression PASS.
-commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili property/fuzz testi.
-blast_radius: A07 kapsamında belirlenecek tek seam.
-rollback: A07 değişikliklerini geri al.
+objective: Contract kabul kriterlerine Forge entegrasyonu ile regression testini ekle.
+target: src/forge-baseline-harness.ts, orchestrator seam (A08 kapsamında belirlenecek).
+hypothesis: Property/fuzz doğrulaması contract seam'de; sıradaki dilim Forge pipeline regression entegrasyonu.
+acceptance: Forge regression davranışı + hedefli test PASS + regression PASS.
+commands: npx tsx --test src/forge-pipeline-baseline.test.ts; ilgili Forge entegrasyon testi.
+blast_radius: A08 kapsamında belirlenecek tek seam.
+rollback: A08 değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: property/fuzz path seçilemezse BLOCKED raporla.
+fallback: entegrasyon path seçilemezse BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B01-A06
-last_commit: f14d936
-tests: PASS — forge-baseline-contract (8/8), forge-pipeline-baseline (3/3), evidence run record 27/27 validated
-evidence: ForgeProbeEvidence/Telemetry/Provenance typed; runForgeBaselineProbesWithRecord; validateBaselineRunRecord; git commit in provenance
-next: P01-B01-A07
+last_atom: P01-B01-A07
+last_commit: PENDING
+tests: PASS — forge-baseline-contract (8/8), forge-baseline-contract.property-fuzz (4/4), forge-pipeline-baseline (3/3)
+evidence: runContractPropertyChecks (7 structural properties), runContractFuzzValidation (72/72 mutations rejected), runRunRecordFuzzValidation (3/3 corrupted records rejected)
+next: P01-B01-A08
