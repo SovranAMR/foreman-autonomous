@@ -44,7 +44,7 @@ fallback: block gate requires scoring contract refactor beyond slice scope ise B
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B08-A09
-last_commit: 95bd33e
+last_commit: 8f5027a
 tests: PASS — forge-p02-visioner-scoring.guard.test.ts (8/8)
 evidence: validateForgeVisionerScoringGuard adversarial=3/3; perf/cost/safety; orchestrator verifyForgeVisionerScoringGuard visioner_scoring_guard
 next: P02-B08-A10
