@@ -44,7 +44,7 @@ fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B03-A10
-last_commit: pending
+last_commit: 7a1c984
 tests: PASS — forge-p02-visioner-synthesis-block-gate.test.ts (6/6); forge-p02-visioner-synthesis*.test.ts (40/40); forge-p02-*.test.ts (129/129)
 evidence: runVisionerSynthesisBlockGate passed=true handoffValid=true regression=PASS guard=PASS handoff→P02-B04 entry=P02-B04-A01; harnessVersion=1.0.0-a10
 next: P02-B04-A01
