@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B07-A08
-last_commit: pending
+last_commit: bc8994c
 tests: PASS — forge-reproducible-fixture-baseline.test.ts (27/27); forge-pipeline-regression.integration.test.ts (+5)
 evidence: runReproducibleFixtureRegressionIntegration; detectReproducibleFixtureProbeRegression; runForgeReproducibleFixtureRegressionGate 21/21 aligned; verifyForgeReproducibleFixtureRegression orchestrator seam; guard adversarial=3/3
 next: P01-B07-A09

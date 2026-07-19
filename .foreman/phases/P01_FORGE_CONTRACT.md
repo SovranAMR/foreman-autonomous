@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B07-A08
-last_commit: pending
+last_commit: bc8994c
 tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (27/27); forge-pipeline-regression.integration.test.ts (+5 P01-B07-A08)
 evidence: |
   P01-B07-A08 Forge regression integration: runReproducibleFixtureProbesWithRecord (21 probes) +
