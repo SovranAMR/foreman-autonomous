@@ -44,7 +44,7 @@ fallback: A01 baseline invalid ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B10-A01
-last_commit: pending
+last_commit: b5e7084
 tests: PASS — forge-integrated-baseline*.test.ts (3/3); 24 probes; 8 documented FAIL gaps; B09 handoff aligned
 evidence: forge-integrated-baseline-v1.json, runIntegratedBaselineProbes, validateIntegratedBaseline, SEALED_FORGE_BLOCK_INVENTORY
 next: P01-B10-A02

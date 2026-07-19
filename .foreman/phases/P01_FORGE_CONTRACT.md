@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B10-A01
-last_commit: pending
+last_commit: b5e7084
 tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (3/3); 24 probes; 8 documented FAIL gaps; B09 handoff aligned
 evidence: |
   P01-B10-A01: forge-integrated-baseline-v1.json, forge-integrated-baseline.ts,
