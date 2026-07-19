@@ -5,8 +5,11 @@
  * P04-B04 benchmark prior-art block gate artifacts.
  * A04: boundary-category slice gate for citation input edge cases and probe matrix alignment.
  * A05: failure/recovery/NO-GO slice gate for failure_path, recovery_path and nogo_path probes.
+ * A06: evidence, telemetry and provenance run record for failure/recovery slice gate.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +27,7 @@ import {
 import { validateInRepoEvidenceCollection } from "./forge-p04-researcher-in-repo-evidence.js";
 import { buildPlanProvenanceGraph } from "./plan-provenance-graph.js";
 
-export const FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_VERSION = "1.0.0";
+export const FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P04_B04_SEALED_ATOM_COUNT = 10;
 
@@ -1974,5 +1977,458 @@ export function runResearcherCitationProvenanceGraphFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P04-B05-A06). */
+export interface ResearcherCitationProvenanceGraphProbeEvidence {
+  probeId: string;
+  category: ResearcherCitationProvenanceGraphCategory;
+  disposition: ResearcherCitationProvenanceGraphProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for citation graph runs (P04-B05-A06). */
+export interface ResearcherCitationProvenanceGraphProbeTelemetry {
+  probeId: string;
+  category: ResearcherCitationProvenanceGraphCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B05-A06). */
+export interface ResearcherCitationProvenanceGraphProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherCitationProvenanceGraphCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated citation provenance graph run record bundling evidence, telemetry and provenance. */
+export interface ResearcherCitationProvenanceGraphRunRecord {
+  provenance: ResearcherCitationProvenanceGraphProvenance;
+  evidence: ResearcherCitationProvenanceGraphProbeEvidence[];
+  telemetry: ResearcherCitationProvenanceGraphProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherCitationProvenanceGraphCategory, number>;
+    byDisposition: Record<ResearcherCitationProvenanceGraphProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherCitationProvenanceGraphRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherCitationProvenanceGraphRunValidationResult {
+  valid: boolean;
+  issues: ResearcherCitationProvenanceGraphRunValidationIssue[];
+}
+
+export function buildResearcherCitationProvenanceGraphProbeEvidence(
+  probeId: string,
+  category: ResearcherCitationProvenanceGraphCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherCitationProvenanceGraphProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherCitationProvenanceGraphProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherCitationProvenanceGraphProbeTelemetry(
+  probeId: string,
+  category: ResearcherCitationProvenanceGraphCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherCitationProvenanceGraphProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherCitationProvenanceGraphProvenance(
+  runId: string,
+  fixture: ResearcherCitationProvenanceGraphBaseline,
+  contract: ResearcherCitationProvenanceGraphContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherCitationProvenanceGraphCategory[];
+  },
+): ResearcherCitationProvenanceGraphProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherCitationProvenanceGraphRunRecord(
+  provenance: ResearcherCitationProvenanceGraphProvenance,
+  evidence: ResearcherCitationProvenanceGraphProbeEvidence[],
+  telemetry: ResearcherCitationProvenanceGraphProbeTelemetry[],
+): ResearcherCitationProvenanceGraphRunRecord {
+  const byCategory = {} as Record<ResearcherCitationProvenanceGraphCategory, number>;
+  const byDisposition: Record<ResearcherCitationProvenanceGraphProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherCitationProvenanceGraphRunRecordAgainstProbeIds(
+  record: ResearcherCitationProvenanceGraphRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherCitationProvenanceGraphContract,
+): ResearcherCitationProvenanceGraphRunValidationResult {
+  const issues: ResearcherCitationProvenanceGraphRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherCitationProvenanceGraphRunRecord(
+  record: ResearcherCitationProvenanceGraphRunRecord,
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): ResearcherCitationProvenanceGraphRunValidationResult {
+  return validateResearcherCitationProvenanceGraphRunRecordAgainstProbeIds(
+    record,
+    listResearcherCitationProvenanceGraphContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherCitationProvenanceGraphEvidenceRunRecord(
+  record: ResearcherCitationProvenanceGraphRunRecord,
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): ResearcherCitationProvenanceGraphRunValidationResult {
+  const issues: ResearcherCitationProvenanceGraphRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B05-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B05-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherCitationProvenanceGraphRunRecordAgainstProbeIds(
+    record,
+    listResearcherCitationProvenanceGraphFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherCitationProvenanceGraphEvidenceSliceResult {
+  atom: "P04-B05-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherCitationProvenanceGraphProbeResult[];
+  evidenceResults: ResearcherCitationProvenanceGraphProbeResult[];
+  matrixValidation: ResearcherCitationProvenanceGraphProbeMatrixValidationResult;
+  record: ResearcherCitationProvenanceGraphRunRecord;
+  recordValidation: ResearcherCitationProvenanceGraphRunValidationResult;
+}
+
+function resolveResearcherCitationProvenanceGraphGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherCitationProvenanceGraphProbeWithTiming(
+  entry: ResearcherCitationProvenanceGraphFixtureEntry,
+  fixture: ResearcherCitationProvenanceGraphBaseline,
+  contractProbe: ResearcherCitationProvenanceGraphProbeContract | undefined,
+): {
+  result: ResearcherCitationProvenanceGraphProbeResult;
+  durationMs: number;
+  disposition: ResearcherCitationProvenanceGraphProbeDisposition;
+} {
+  const start = performance.now();
+  const expected = contractProbe?.expected ?? entry.expected;
+  const result = runSingleProbe(entry.id, entry.category, expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherCitationProvenanceGraphRecordFromEntries(
+  entries: ResearcherCitationProvenanceGraphFixtureEntry[],
+  fixture: ResearcherCitationProvenanceGraphBaseline,
+  contract: ResearcherCitationProvenanceGraphContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherCitationProvenanceGraphCategory[];
+  },
+): ResearcherCitationProvenanceGraphRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ResearcherCitationProvenanceGraphProbeEvidence[] = [];
+  const telemetry: ResearcherCitationProvenanceGraphProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherCitationProvenanceGraphProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherCitationProvenanceGraphProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherCitationProvenanceGraphProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherCitationProvenanceGraphProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherCitationProvenanceGraphGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherCitationProvenanceGraphRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all citation provenance graph probes and emit auditable evidence, telemetry and provenance (P04-B05-A06). */
+export function runResearcherCitationProvenanceGraphProbesWithRecord(
+  fixture: ResearcherCitationProvenanceGraphBaseline = loadResearcherCitationProvenanceGraphBaseline(),
+): ResearcherCitationProvenanceGraphRunRecord {
+  const contract = getActiveResearcherCitationProvenanceGraphContract();
+  return buildResearcherCitationProvenanceGraphRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B05-A06). */
+export function runResearcherCitationProvenanceGraphFailureRecoverySliceWithRecord(
+  fixture: ResearcherCitationProvenanceGraphBaseline = loadResearcherCitationProvenanceGraphBaseline(),
+): ResearcherCitationProvenanceGraphRunRecord {
+  const contract = getActiveResearcherCitationProvenanceGraphContract();
+  const failureRecoveryIds = new Set(
+    listResearcherCitationProvenanceGraphFailureRecoveryProbeIds(contract),
+  );
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherCitationProvenanceGraphRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B05-A06",
+    sliceCategories: RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherCitationProvenanceGraphEvidenceSlice(
+  fixture: ResearcherCitationProvenanceGraphBaseline = loadResearcherCitationProvenanceGraphBaseline(),
+): ResearcherCitationProvenanceGraphEvidenceSliceResult {
+  const contract = getActiveResearcherCitationProvenanceGraphContract();
+  const results = runResearcherCitationProvenanceGraphProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherCitationProvenanceGraphContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherCitationProvenanceGraphFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherCitationProvenanceGraphFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherCitationProvenanceGraphEvidenceRunRecord(
+    record,
+    contract,
+  );
+
+  return {
+    atom: "P04-B05-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
