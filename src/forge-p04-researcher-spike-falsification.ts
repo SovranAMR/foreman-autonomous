@@ -1609,3 +1609,67 @@ export function runResearcherSpikeFalsificationProductionSlice(
     matrixValidation,
   };
 }
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherSpikeFalsificationBoundaryProbeMatrix(
+  results: ResearcherSpikeFalsificationProbeResult[],
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): ResearcherSpikeFalsificationProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherSpikeFalsificationContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryContract: ResearcherSpikeFalsificationContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherSpikeFalsificationProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherSpikeFalsificationBoundarySliceResult {
+  atom: "P04-B08-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherSpikeFalsificationProbeResult[];
+  boundaryResults: ResearcherSpikeFalsificationProbeResult[];
+  matrixValidation: ResearcherSpikeFalsificationProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (spike falsification input edge cases,
+ * probe runner, documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherSpikeFalsificationBoundarySlice(
+  fixture: ResearcherSpikeFalsificationBaseline = loadResearcherSpikeFalsificationBaseline(),
+): ResearcherSpikeFalsificationBoundarySliceResult {
+  const contract = getActiveResearcherSpikeFalsificationContract();
+  const results = runResearcherSpikeFalsificationProbes(fixture);
+  const boundaryProbes = listResearcherSpikeFalsificationContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherSpikeFalsificationBoundaryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B08-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}

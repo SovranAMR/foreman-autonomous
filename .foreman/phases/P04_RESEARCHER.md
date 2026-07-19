@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 69
+completed_atoms: 70
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -109,7 +109,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B08-A01 — Spike ve falsification deneyi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B08-A02 — Spike ve falsification deneyi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B08-A03 — Spike ve falsification deneyi: en küçük üretim dikey dilimini uygula
-- [ ] P04-B08-A04 — Spike ve falsification deneyi: boundary ve edge-case davranışlarını tamamla
+- [x] P04-B08-A04 — Spike ve falsification deneyi: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B08-A05 — Spike ve falsification deneyi: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B08-A06 — Spike ve falsification deneyi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B08-A07 — Spike ve falsification deneyi: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B08-A03
+last_atom: P04-B08-A04
 last_commit: pending
-tests: PASS — forge-p04-researcher-spike-falsification.test.ts (11/11); forge-p04-researcher-spike-falsification-baseline.test.ts (10/10); production slice 23/23 probes, 0 FAIL gaps
-evidence: parseResearchSpikeExperiment (parser.ts) + validateSpikeFalsificationExperiment + orchestrator wiring + runResearcherSpikeFalsificationProductionSlice
-next: P04-B08-A04
+tests: PASS — forge-p04-researcher-spike-falsification.test.ts (14/14); forge-p04-researcher-spike-falsification-baseline.test.ts (15/15); boundary slice 6/6 probes, 0 unexpected mismatches
+evidence: validateResearcherSpikeFalsificationBoundaryProbeMatrix + runResearcherSpikeFalsificationBoundarySlice + validateSpikeFalsificationExperiment boundary guards
+next: P04-B08-A05

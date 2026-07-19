@@ -15,7 +15,9 @@ import {
   RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES,
   FORGE_RESEARCHER_SPIKE_FALSIFICATION_CONTRACT_V1,
   runResearcherSpikeFalsificationProductionSlice,
+  runResearcherSpikeFalsificationBoundarySlice,
   validateResearcherSpikeFalsificationProbeMatrix,
+  validateResearcherSpikeFalsificationBoundaryProbeMatrix,
   validateSpikeFalsificationExperiment,
 } from "./forge-p04-researcher-spike-falsification.js";
 import { parseResearchSpikeExperiment } from "./parser.js";
@@ -203,5 +205,75 @@ describe("Forge Researcher Spike Falsification Production Slice — P04-B08-A03"
     assert.ok(validatorProbe);
     assert.equal(validatorProbe!.expected, "PASS");
     assert.equal(validatorProbe!.actual, "PASS");
+  });
+});
+
+describe("Forge Researcher Spike Falsification Boundary Slice — P04-B08-A04", () => {
+  it("defines six boundary probes for spike falsification input edge cases", () => {
+    const contract = getActiveResearcherSpikeFalsificationContract();
+    const boundary = listResearcherSpikeFalsificationContractProbesByCategory(
+      "boundary",
+      contract,
+    );
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "rsf.empty_experiment_input_boundary",
+      "rsf.known_gaps_documented",
+      "rsf.long_experiment_input_truncation_boundary",
+      "rsf.probe_runner_exported",
+      "rsf.source_block_gate_ref",
+      "rsf.whitespace_experiment_input_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on experiment edge probes", () => {
+    const contract = getActiveResearcherSpikeFalsificationContract();
+    const slice = runResearcherSpikeFalsificationBoundarySlice();
+
+    assert.equal(slice.atom, "P04-B08-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listResearcherSpikeFalsificationContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateResearcherSpikeFalsificationBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("validateSpikeFalsificationExperiment rejects invalid boundary inputs", () => {
+    const emptyValidation = validateSpikeFalsificationExperiment("");
+    assert.equal(emptyValidation.valid, false);
+    assert.ok(emptyValidation.issues.some(i => i.includes("empty")));
+
+    const whitespaceValidation = validateSpikeFalsificationExperiment("   \t\n  ");
+    assert.equal(whitespaceValidation.valid, false);
+    assert.equal(whitespaceValidation.experimentCount, 0);
+
+    const nullByteValidation = validateSpikeFalsificationExperiment("experiment\0parse");
+    assert.equal(nullByteValidation.valid, false);
+    assert.equal(nullByteValidation.spikePresent, false);
   });
 });

@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B08
-active_atom: P04-B08-A04
+active_atom: P04-B08-A05
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 373/1000
-phase_progress: 72/100
-block_progress: 3/10
+program_progress: 374/1000
+phase_progress: 73/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B08-A04 — Spike ve falsification deneyi: boundary ve edge-case davranışlarını tamamla.
+P04-B08-A05 — Spike ve falsification deneyi: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P04-B08-A03 PASS; parseResearchSpikeExperiment + validateSpikeFalsificationExperiment wired with zero FAIL gaps.
-target: Boundary-category probe matrix for spike falsification input edge cases.
-hypothesis: Boundary slice closes remaining edge-case probes without regressing A03 production wiring.
-acceptance: Boundary slice tests pass; zero unexpected mismatches on boundary probes.
+objective: P04-B08-A04 PASS; failure_path + recovery_path + nogo_path probe matrix wired with zero unexpected mismatches.
+target: Failure/recovery/NO-GO category probe matrix for spike falsification guard paths.
+hypothesis: Failure slice closes guard-path probes without regressing A04 boundary wiring.
+acceptance: Failure/recovery slice tests pass; zero unexpected mismatches on guard-path probes.
 commands: npx tsx --test src/forge-p04-researcher-spike-falsification.test.ts
 blast_radius: src/forge-p04-researcher-spike-falsification*.ts
-rollback: P04-B08-A04 boundary slice değişikliklerini geri al.
+rollback: P04-B08-A05 failure slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B08-A03
+last_atom: P04-B08-A04
 last_commit: pending
-tests: PASS — forge-p04-researcher-spike-falsification.test.ts (11/11); forge-p04-researcher-spike-falsification-baseline.test.ts (10/10); production slice 23/23 probes zero mismatches
-evidence: parseResearchSpikeExperiment + validateSpikeFalsificationExperiment + runResearcherSpikeFalsificationProductionSlice + orchestrator wiring
-next: P04-B08-A04
+tests: PASS — forge-p04-researcher-spike-falsification.test.ts (14/14); forge-p04-researcher-spike-falsification-baseline.test.ts (15/15); boundary slice 6/6 probes zero mismatches
+evidence: validateResearcherSpikeFalsificationBoundaryProbeMatrix + runResearcherSpikeFalsificationBoundarySlice + boundary input edge-case guards
+next: P04-B08-A05

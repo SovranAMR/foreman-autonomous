@@ -11,6 +11,11 @@ import {
   validateSpikeFalsificationCollection,
   recoverSpikeFalsificationEvidence,
   getActiveResearcherSpikeFalsificationContract,
+  listResearcherSpikeFalsificationContractProbesByCategory,
+  runResearcherSpikeFalsificationBoundarySlice,
+  validateResearcherSpikeFalsificationBoundaryProbeMatrix,
+  validateSpikeFalsificationCollection,
+  validateSpikeFalsificationExperiment,
   RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES,
   RESEARCHER_SPIKE_FALSIFICATION_INPUT_MAX_LENGTH,
   FORGE_RESEARCHER_SPIKE_FALSIFICATION_VERSION,
@@ -153,5 +158,68 @@ describe("Forge Researcher Spike Falsification — P04-B08-A01", () => {
       assert.ok(categoryContract.acceptance.invariant.length > 20, `${category} invariant too short`);
       assert.ok(categoryContract.probes.length >= categoryContract.acceptance.minProbeCount);
     }
+  });
+});
+
+describe("Forge Researcher Spike Falsification Boundary Slice — P04-B08-A04", () => {
+  it("assessSpikeFalsificationInputBoundary edge cases align with boundary probe matrix", () => {
+    const slice = runResearcherSpikeFalsificationBoundarySlice();
+    const experimentProbes = [
+      "rsf.empty_experiment_input_boundary",
+      "rsf.whitespace_experiment_input_boundary",
+      "rsf.long_experiment_input_truncation_boundary",
+    ] as const;
+
+    for (const probeId of experimentProbes) {
+      const result = slice.boundaryResults.find(r => r.id === probeId);
+      assert.ok(result, `missing ${probeId}`);
+      assert.equal(result!.actual, "PASS");
+      assert.equal(result!.aligned, true);
+    }
+  });
+
+  it("validateSpikeFalsificationCollection rejects whitespace-only topic at boundary", () => {
+    const validation = validateSpikeFalsificationCollection("   \t\n  ", [
+      {
+        hypothesis: "Bounded concurrency reduces p99 latency",
+        scope: "worker pool sizing",
+      },
+    ]);
+    assert.equal(validation.valid, false);
+    assert.equal(validation.experimentCount, 0);
+    assert.ok(validation.issues.some(issue => issue.includes("whitespace-only")));
+  });
+
+  it("recoverSpikeFalsificationEvidence rejects whitespace-only parse at boundary", () => {
+    const recovery = recoverSpikeFalsificationEvidence("  \t  ");
+    assert.equal(recovery.recovered, false);
+    assert.deepEqual(recovery.parseErrors, ["whitespace_only"]);
+    assert.equal(recovery.detail, "cannot recover whitespace-only experiment parse");
+  });
+
+  it("boundary slice matrix validation passes with contract-wired probes", () => {
+    const contract = getActiveResearcherSpikeFalsificationContract();
+    const slice = runResearcherSpikeFalsificationBoundarySlice();
+    const boundary = listResearcherSpikeFalsificationContractProbesByCategory(
+      "boundary",
+      contract,
+    );
+
+    assert.equal(boundary.length, slice.boundaryProbeCount);
+    assert.equal(slice.matrixValid, true);
+
+    const matrixValidation = validateResearcherSpikeFalsificationBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(matrixValidation.unexpectedMismatches, 0);
+    assert.equal(matrixValidation.valid, true);
+  });
+
+  it("validateSpikeFalsificationExperiment rejects null-byte input at boundary", () => {
+    const validation = validateSpikeFalsificationExperiment("SPIKE\0experiment");
+    assert.equal(validation.valid, false);
+    assert.equal(validation.falsificationPresent, false);
+    assert.ok(validation.issues.some(i => i.includes("null byte")));
   });
 });
