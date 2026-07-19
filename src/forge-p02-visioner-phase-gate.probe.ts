@@ -42,6 +42,7 @@ import {
   buildVisionerPhaseGateRunRecord,
   validateVisionerPhaseGateRunRecord,
   detectVisionerPhaseGateProbeRegression,
+  validateForgeVisionerPhaseGateGuard,
   runVisionerPhaseGatePropertyChecks,
   runVisionerPhaseGateFuzzValidation,
   runVisionerPhaseGateRunRecordFuzzValidation,
@@ -749,6 +750,7 @@ export interface ForgeVisionerPhaseGateRegressionResult {
   recordValid: boolean;
   validationIssues: string[];
   probeRegression: ReturnType<typeof detectVisionerPhaseGateProbeRegression> | null;
+  guard: ReturnType<typeof validateForgeVisionerPhaseGateGuard>;
   propertyFuzz: ForgeVisionerPhaseGateRegressionPropertyFuzzResult;
   detail: string;
 }
@@ -772,6 +774,7 @@ export function runForgeVisionerPhaseGateRegressionGate(
     ? detectVisionerPhaseGateProbeRegression(priorRecord, record)
     : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeVisionerPhaseGateGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
 
   const properties = runVisionerPhaseGatePropertyChecks(contract);
   const contractFuzz = runVisionerPhaseGateFuzzValidation(fixture, contract);
@@ -793,7 +796,8 @@ export function runForgeVisionerPhaseGateRegressionGate(
 
   const productionSliceOk =
     productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
-  const passed = productionSliceOk && recordValid && !alignmentRegression && propertyFuzzPassed;
+  const passed =
+    productionSliceOk && recordValid && !alignmentRegression && guard.passed && propertyFuzzPassed;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
@@ -807,6 +811,15 @@ export function runForgeVisionerPhaseGateRegressionGate(
   detailParts.push(
     `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
   );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   return {
     passed,
@@ -815,6 +828,7 @@ export function runForgeVisionerPhaseGateRegressionGate(
     recordValid,
     validationIssues,
     probeRegression,
+    guard,
     propertyFuzz,
     detail: detailParts.join(" | "),
   };

@@ -112,7 +112,7 @@ import {
   runVisionerPhaseGateProbesWithRecord,
   runVisionerPhaseGateRegressionIntegration,
 } from "./forge-p02-visioner-phase-gate.probe.js";
-import { detectVisionerPhaseGateProbeRegression } from "./forge-p02-visioner-phase-gate.js";
+import { detectVisionerPhaseGateProbeRegression, validateForgeVisionerPhaseGateGuard } from "./forge-p02-visioner-phase-gate.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -1929,12 +1929,14 @@ describe("Forge Visioner Phase Gate Regression Integration — P02-B10-A08", () 
     assert.equal(result.record.summary.mismatches, 0);
     assert.equal(result.record.evidence.length, 24);
     assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
     assert.equal(result.propertyFuzz.passed, true);
     assert.equal(result.productionSlice.matrixValid, true);
     assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
     assert.ok(result.detail.includes("24/24 probes aligned"));
     assert.ok(result.detail.includes("productionSlice:"));
     assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
   });
 
   it("runVisionerPhaseGateRegressionIntegration alias matches regression gate", () => {
@@ -2005,6 +2007,52 @@ describe("Forge Visioner Phase Gate Regression Integration — P02-B10-A08", () 
     if (verification?.type === "verification") {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("24/24 probes aligned"));
+    }
+  });
+});
+
+describe("Forge Visioner Phase Gate Guard Integration — P02-B10-A09", () => {
+  it("validateForgeVisionerPhaseGateGuard passes on canonical run record", () => {
+    const record = runVisionerPhaseGateProbesWithRecord();
+    const guard = validateForgeVisionerPhaseGateGuard(record);
+    assert.equal(guard.passed, true, guard.issues.map(i => i.detail).join("; "));
+    assert.equal(guard.metrics.adversarialScenariosRejected, 3);
+  });
+
+  it("runForgeVisionerPhaseGateRegressionGate guard metrics included when prior record supplied", () => {
+    const prior = runVisionerPhaseGateProbesWithRecord();
+    const result = runForgeVisionerPhaseGateRegressionGate(prior);
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("orchestrator verifyForgeP02VisionerPhaseGateGuard emits visioner_phase_gate_guard verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-phase-guard-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-phase-gate" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeP02VisionerPhaseGateGuard();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_phase_gate_guard",
+    );
+
+    assert.equal(result.guard.passed, true);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("guard PASS"));
     }
   });
 });

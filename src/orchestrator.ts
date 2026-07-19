@@ -789,6 +789,28 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner phase gate guard gate (adversarial/perf/cost/safety) and emit verification event (P02-B10-A09).
+   */
+  async verifyForgeP02VisionerPhaseGateGuard(
+    priorRecord?: import("./forge-p02-visioner-phase-gate.js").VisionerPhaseGateRunRecord,
+  ): Promise<import("./forge-p02-visioner-phase-gate.probe.js").ForgeVisionerPhaseGateRegressionResult> {
+    const { runForgeVisionerPhaseGateRegressionGate } = await import(
+      "./forge-p02-visioner-phase-gate.probe.js"
+    );
+    const result = runForgeVisionerPhaseGateRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "visioner_phase_gate_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge visioner phase gate regression gate and emit verification event (P02-B10-A08).
    * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
    */
