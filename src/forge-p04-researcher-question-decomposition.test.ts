@@ -65,10 +65,10 @@ describe("Forge Researcher Question Decomposition Contract — P04-B01-A02", () 
     const coverage = validateResearcherQuestionDecompositionContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
-    assert.equal(summary.totalProbes, 25);
-    assert.equal(summary.expectedPass, 25);
+    assert.equal(summary.totalProbes, 27);
+    assert.equal(summary.expectedPass, 27);
     assert.equal(summary.expectedFail, 0);
-    assert.equal(summary.byDisposition.observed, 18);
+    assert.equal(summary.byDisposition.observed, 20);
     assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 3);
     assert.equal(summary.byDisposition.recovery, 2);
@@ -77,7 +77,7 @@ describe("Forge Researcher Question Decomposition Contract — P04-B01-A02", () 
     assert.equal(summary.byCategory.question_signal.probeCount, 5);
     assert.equal(summary.byCategory.subquery_signal.probeCount, 4);
     assert.equal(summary.byCategory.baseline_link.probeCount, 2);
-    assert.equal(summary.byCategory.boundary.probeCount, 4);
+    assert.equal(summary.byCategory.boundary.probeCount, 6);
     assert.equal(summary.byCategory.failure_path.probeCount, 3);
     assert.equal(summary.byCategory.recovery_path.probeCount, 2);
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
@@ -139,6 +139,6 @@ describe("Forge Researcher Question Decomposition Contract — P04-B01-A02", () 
 
   it("exports stable contract v1 reference for downstream block handoff", () => {
     assert.equal(FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1.version, "1.0.0");
-    assert.equal(FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1.probes.length, 25);
+    assert.equal(FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1.probes.length, 27);
   });
 });

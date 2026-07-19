@@ -120,6 +120,18 @@
       "expected": "PASS"
     },
     {
+      "id": "rques.whitespace_block_boundary",
+      "category": "boundary",
+      "description": "assessResearchQuestionInputBoundary rejects whitespace-only block task input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.long_block_truncation_boundary",
+      "category": "boundary",
+      "description": "assessResearchQuestionInputBoundary truncates block task exceeding max length",
+      "expected": "PASS"
+    },
+    {
       "id": "rques.invalid_version_rejected",
       "category": "failure_path",
       "description": "validateResearcherQuestionDecompositionBaseline rejects unexpected fixture version",

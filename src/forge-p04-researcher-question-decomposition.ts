@@ -21,7 +21,7 @@ import {
 } from "./forge-p03-strategist-provenance.js";
 import { parseResearchResponse } from "./parser.js";
 
-export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a03";
+export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P03_PHASE_GATE_SEALED_BLOCK_COUNT = P03_STRATEGIST_PHASE_BLOCK_COUNT;
 
@@ -420,6 +420,70 @@ export function runResearcherQuestionDecompositionProductionSlice(
   };
 }
 
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherQuestionDecompositionBoundaryProbeMatrix(
+  results: ResearcherQuestionDecompositionProbeResult[],
+  contract: ResearcherQuestionDecompositionContract = getActiveResearcherQuestionDecompositionContract(),
+): ResearcherQuestionDecompositionProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherQuestionDecompositionContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryContract: ResearcherQuestionDecompositionContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherQuestionDecompositionProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherQuestionDecompositionBoundarySliceResult {
+  atom: "P04-B01-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherQuestionDecompositionProbeResult[];
+  boundaryResults: ResearcherQuestionDecompositionProbeResult[];
+  matrixValidation: ResearcherQuestionDecompositionProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (block task input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherQuestionDecompositionBoundarySlice(
+  fixture: ResearcherQuestionDecompositionBaseline = loadResearcherQuestionDecompositionBaseline(),
+): ResearcherQuestionDecompositionBoundarySliceResult {
+  const contract = getActiveResearcherQuestionDecompositionContract();
+  const results = runResearcherQuestionDecompositionProbes(fixture);
+  const boundaryProbes = listResearcherQuestionDecompositionContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherQuestionDecompositionBoundaryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B01-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}
+
 export const RESEARCHER_QUESTION_DECOMPOSITION_A01_MIN_PROBES: Readonly<
   Record<ResearcherQuestionDecompositionCategory, number>
 > = {
@@ -427,7 +491,7 @@ export const RESEARCHER_QUESTION_DECOMPOSITION_A01_MIN_PROBES: Readonly<
   question_signal: 5,
   subquery_signal: 4,
   baseline_link: 2,
-  boundary: 4,
+  boundary: 6,
   failure_path: 3,
   recovery_path: 2,
   nogo_path: 2,
@@ -723,8 +787,8 @@ const RESEARCHER_QUESTION_DECOMPOSITION_CATEGORY_CONTRACTS: Record<
     category: "boundary",
     acceptance: {
       invariant:
-        "Question decomposition baseline documents source phase gate references and block input boundaries.",
-      minProbeCount: 4,
+        "Block task input boundary assessment handles empty, whitespace-only and oversized inputs; probe runner and documented gaps wired.",
+      minProbeCount: 6,
       requireFullAlignment: true,
     },
     probes: [
@@ -763,6 +827,22 @@ const RESEARCHER_QUESTION_DECOMPOSITION_CATEGORY_CONTRACTS: Record<
         expected: "PASS",
         disposition: "observed",
         criterion: "assessResearchQuestionInputBoundary rejects empty block task input",
+      },
+      {
+        id: "rques.whitespace_block_boundary",
+        category: "boundary",
+        description: "assessResearchQuestionInputBoundary rejects whitespace-only block task input",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessResearchQuestionInputBoundary rejects whitespace-only block task input",
+      },
+      {
+        id: "rques.long_block_truncation_boundary",
+        category: "boundary",
+        description: "assessResearchQuestionInputBoundary truncates block task exceeding max length",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessResearchQuestionInputBoundary truncates block task exceeding max length",
       },
     ],
   },
@@ -1541,7 +1621,46 @@ function runResearcherQuestionDecompositionProbe(
         hasProductionExport("assessResearchQuestionInputBoundary") &&
         result.disposition === "empty" &&
         result.acceptable === false;
-      return probe(id, category, expected, ok, `disposition=${result.disposition}`, criterion);
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `disposition=${result.disposition}, acceptable=${result.acceptable}`,
+        criterion,
+      );
+    }
+    case "rques.whitespace_block_boundary": {
+      const result = assessResearchQuestionInputBoundary("   \t\n  ");
+      const ok =
+        hasProductionExport("assessResearchQuestionInputBoundary") &&
+        result.disposition === "whitespace_only" &&
+        result.acceptable === false;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `disposition=${result.disposition}, acceptable=${result.acceptable}`,
+        criterion,
+      );
+    }
+    case "rques.long_block_truncation_boundary": {
+      const longBlock = "x".repeat(RESEARCHER_QUESTION_BLOCK_MAX_LENGTH + 500);
+      const result = assessResearchQuestionInputBoundary(longBlock);
+      const ok =
+        hasProductionExport("assessResearchQuestionInputBoundary") &&
+        result.truncated === true &&
+        result.normalizedBlock.length === RESEARCHER_QUESTION_BLOCK_MAX_LENGTH &&
+        result.acceptable === true;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `truncated=${result.truncated}, length=${result.normalizedBlock.length}`,
+        criterion,
+      );
     }
     case "rques.invalid_version_rejected": {
       const invalid = { ...fixture, version: "9.9.9" };
