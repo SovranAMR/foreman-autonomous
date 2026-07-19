@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B05-A08
-last_commit: pending
+last_commit: 5239f42
 tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (40/40); runForgeResearcherCitationProvenanceGraphRegressionGate; 23/23 probes aligned; propertyFuzz properties=8/8; guard adversarial=3/3; orchestrator verifyForgeResearcherCitationProvenanceGraphRegression
 evidence: runResearcherCitationProvenanceGraphForgeRegression + detectResearcherCitationProvenanceGraphProbeRegression + forge-pipeline-regression integration slice; prior record tamper rejection via applyResearcherCitationProvenanceGraphRunRecordFuzzMutation
 next: P04-B05-A09

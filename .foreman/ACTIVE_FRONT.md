@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B05-A08
-last_commit: pending
+last_commit: 5239f42
 tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (40/40); runForgeResearcherCitationProvenanceGraphRegressionGate; 23/23 probes aligned; propertyFuzz=8/8; guard adversarial=3/3
 evidence: runResearcherCitationProvenanceGraphForgeRegression + runForgeResearcherCitationProvenanceGraphRegressionGate + verifyForgeResearcherCitationProvenanceGraphRegression orchestrator seam; probe regression detection; prior record tamper rejection
 next: P04-B05-A09
