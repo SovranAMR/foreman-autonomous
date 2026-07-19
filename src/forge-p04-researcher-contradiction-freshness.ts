@@ -18,7 +18,7 @@ import {
   FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_CONTRACT_V1,
 } from "./forge-p04-researcher-citation-provenance-graph.js";
 
-export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION = "1.0.0-a01";
+export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION = "1.0.0-a02";
 
 export const EXPECTED_P04_B05_SEALED_ATOM_COUNT = 10;
 
@@ -322,6 +322,7 @@ export interface ResearcherContradictionFreshnessProbeResult {
   actual: ForgeAcceptanceOutcome;
   aligned: boolean;
   detail: string;
+  criterion?: string;
 }
 
 export interface ResearcherContradictionFreshnessProbeSummary {
@@ -345,6 +346,642 @@ export interface ResearcherContradictionFreshnessValidationIssue {
 export interface ResearcherContradictionFreshnessValidationResult {
   valid: boolean;
   issues: ResearcherContradictionFreshnessValidationIssue[];
+}
+
+export type ResearcherContradictionFreshnessProbeDisposition =
+  | "observed"
+  | "gap"
+  | "failure"
+  | "recovery"
+  | "nogo";
+
+export interface ResearcherContradictionFreshnessProbeContract {
+  id: string;
+  category: ResearcherContradictionFreshnessCategory;
+  description: string;
+  expected: ForgeAcceptanceOutcome;
+  disposition: ResearcherContradictionFreshnessProbeDisposition;
+  criterion: string;
+}
+
+export interface ResearcherContradictionFreshnessCategoryAcceptance {
+  invariant: string;
+  minProbeCount: number;
+  requireFullAlignment: boolean;
+}
+
+export interface ResearcherContradictionFreshnessCategoryContract {
+  category: ResearcherContradictionFreshnessCategory;
+  acceptance: ResearcherContradictionFreshnessCategoryAcceptance;
+  probes: readonly ResearcherContradictionFreshnessProbeContract[];
+}
+
+export interface ResearcherContradictionFreshnessContract {
+  version: string;
+  atom: string;
+  purpose: string;
+  categories: Record<
+    ResearcherContradictionFreshnessCategory,
+    ResearcherContradictionFreshnessCategoryContract
+  >;
+  probes: readonly ResearcherContradictionFreshnessProbeContract[];
+}
+
+function flattenContradictionFreshnessCategoryProbes(
+  categories: Record<
+    ResearcherContradictionFreshnessCategory,
+    ResearcherContradictionFreshnessCategoryContract
+  >,
+): readonly ResearcherContradictionFreshnessProbeContract[] {
+  return RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES.flatMap(
+    category => categories[category].probes,
+  );
+}
+
+const RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORY_CONTRACTS: Record<
+  ResearcherContradictionFreshnessCategory,
+  ResearcherContradictionFreshnessCategoryContract
+> = {
+  evidence_versioning: {
+    category: "evidence_versioning",
+    acceptance: {
+      invariant:
+        "Contradiction freshness baseline declares semver version, atom id and exported harness version.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rcfr.version_tagged",
+        category: "evidence_versioning",
+        description: "Contradiction freshness baseline declares semver version field",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Contradiction freshness baseline declares semver version field",
+      },
+      {
+        id: "rcfr.atom_tagged",
+        category: "evidence_versioning",
+        description: "Contradiction freshness baseline declares P04-B06-A01 atom id",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Contradiction freshness baseline declares P04-B06-A01 atom id",
+      },
+      {
+        id: "rcfr.harness_version_exported",
+        category: "evidence_versioning",
+        description:
+          "FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION exported for contradiction freshness harness",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION exported for contradiction freshness harness",
+      },
+    ],
+  },
+  contradiction_signal: {
+    category: "contradiction_signal",
+    acceptance: {
+      invariant:
+        "Researcher and strategist prompts surface explicit contradiction signals against vision or strategy.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rcfr.researcher_contradiction_prompt",
+        category: "contradiction_signal",
+        description:
+          "RESEARCHER_SYSTEM prompt requires explicit contradiction reporting against vision or strategy",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "RESEARCHER_SYSTEM prompt requires explicit contradiction reporting against vision or strategy",
+      },
+      {
+        id: "rcfr.strategist_contradiction_block",
+        category: "contradiction_signal",
+        description: "STRATEGIST_SYSTEM prompt can BLOCK visioner on internal contradictions",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "STRATEGIST_SYSTEM prompt can BLOCK visioner on internal contradictions",
+      },
+      {
+        id: "rcfr.citation_graph_claim_nodes",
+        category: "contradiction_signal",
+        description:
+          "buildResearchCitationProvenanceGraph exposes claim nodes for contradiction linkage via provenance",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "buildResearchCitationProvenanceGraph exposes claim nodes for contradiction linkage via provenance",
+      },
+    ],
+  },
+  freshness_signal: {
+    category: "freshness_signal",
+    acceptance: {
+      invariant:
+        "Web search and research engine expose freshness filtering signals for stale-source detection.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rcfr.web_search_freshness_param",
+        category: "freshness_signal",
+        description: "web-search-engine validates and normalizes Brave freshness query parameter",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "web-search-engine validates and normalizes Brave freshness query parameter",
+      },
+      {
+        id: "rcfr.brave_freshness_shortcuts",
+        category: "freshness_signal",
+        description: "web-search-engine declares BRAVE_FRESHNESS_SHORTCUTS for pd/pw/pm/py filters",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "web-search-engine declares BRAVE_FRESHNESS_SHORTCUTS for pd/pw/pm/py filters",
+      },
+      {
+        id: "rcfr.research_engine_freshness_docs",
+        category: "freshness_signal",
+        description: "research-engine documents Brave Search freshness filtering support",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "research-engine documents Brave Search freshness filtering support",
+      },
+    ],
+  },
+  baseline_link: {
+    category: "baseline_link",
+    acceptance: {
+      invariant:
+        "Contradiction freshness baseline links to sealed P04-B05 citation provenance graph block gate handoff.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rcfr.b05_block_handoff_entry",
+        category: "baseline_link",
+        description: "FORGE_P04_B05_TO_B06_HANDOFF_V1 targets P04-B06-A01 entry atom",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "FORGE_P04_B05_TO_B06_HANDOFF_V1 targets P04-B06-A01 entry atom",
+      },
+      {
+        id: "rcfr.b05_sealed_citation_probes",
+        category: "baseline_link",
+        description:
+          "P04-B05→B06 handoff sealed probeCount matches active citation provenance graph contract",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "P04-B05→B06 handoff sealed probeCount matches active citation provenance graph contract",
+      },
+    ],
+  },
+  boundary: {
+    category: "boundary",
+    acceptance: {
+      invariant:
+        "Contradiction freshness boundary assessment rejects invalid input; probe runner and documented gaps wired.",
+      minProbeCount: 6,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rcfr.source_block_gate_ref",
+        category: "boundary",
+        description:
+          "Baseline fixture references sealed P04-B05 citation provenance graph block gate source artifacts",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "Baseline fixture references sealed P04-B05 citation provenance graph block gate source artifacts",
+      },
+      {
+        id: "rcfr.probe_runner_exported",
+        category: "boundary",
+        description: "runResearcherContradictionFreshnessProbes executes contract-wired probe matrix",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "runResearcherContradictionFreshnessProbes executes contract-wired probe matrix",
+      },
+      {
+        id: "rcfr.known_gaps_documented",
+        category: "boundary",
+        description: "Baseline fixture documents at least one measurable FAIL contradiction freshness gap",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Baseline fixture documents at least one measurable FAIL contradiction freshness gap",
+      },
+      {
+        id: "rcfr.empty_evidence_input_boundary",
+        category: "boundary",
+        description: "assessContradictionFreshnessInputBoundary rejects empty evidence parse input",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessContradictionFreshnessInputBoundary rejects empty evidence parse input",
+      },
+      {
+        id: "rcfr.whitespace_evidence_input_boundary",
+        category: "boundary",
+        description:
+          "assessContradictionFreshnessInputBoundary rejects whitespace-only evidence parse input",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "assessContradictionFreshnessInputBoundary rejects whitespace-only evidence parse input",
+      },
+      {
+        id: "rcfr.long_evidence_input_truncation_boundary",
+        category: "boundary",
+        description:
+          "assessContradictionFreshnessInputBoundary truncates evidence input exceeding max length",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "assessContradictionFreshnessInputBoundary truncates evidence input exceeding max length",
+      },
+    ],
+  },
+  failure_path: {
+    category: "failure_path",
+    acceptance: {
+      invariant: "Invalid fixture versions and null-byte evidence input are rejected safely.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rcfr.invalid_version_rejected",
+        category: "failure_path",
+        description:
+          "validateResearcherContradictionFreshnessBaseline rejects unexpected fixture version",
+        expected: "PASS",
+        disposition: "failure",
+        criterion:
+          "validateResearcherContradictionFreshnessBaseline rejects unexpected fixture version",
+      },
+      {
+        id: "rcfr.malformed_evidence_guard",
+        category: "failure_path",
+        description: "assessContradictionFreshnessInputBoundary rejects null-byte evidence input safely",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "assessContradictionFreshnessInputBoundary rejects null-byte evidence input safely",
+      },
+    ],
+  },
+  recovery_path: {
+    category: "recovery_path",
+    acceptance: {
+      invariant:
+        "Recovery paths restructure malformed contradiction/freshness parses into actionable resolution plans.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rcfr.recovery_contradiction_plan_repair",
+        category: "recovery_path",
+        description:
+          "recoverContradictionFreshnessEvidence restructures failed contradiction parse into actionable resolution plan",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion:
+          "recoverContradictionFreshnessEvidence restructures failed contradiction parse into actionable resolution plan",
+      },
+      {
+        id: "rcfr.recovery_stale_source_fallback",
+        category: "recovery_path",
+        description:
+          "Contradiction freshness recovery infers stale-source freshness hint when explicit STALE marker is missing",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion:
+          "Contradiction freshness recovery infers stale-source freshness hint when explicit STALE marker is missing",
+      },
+    ],
+  },
+  nogo_path: {
+    category: "nogo_path",
+    acceptance: {
+      invariant:
+        "Contradiction resolver and freshness validator exports gate orchestrator NO-GO wiring.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rcfr.resolve_contradiction_conflicts",
+        category: "nogo_path",
+        description: "resolveResearchContradictions exports contradiction→resolution edges from researcher output",
+        expected: "FAIL",
+        disposition: "nogo",
+        criterion:
+          "resolveResearchContradictions exports contradiction→resolution edges from researcher output",
+      },
+      {
+        id: "rcfr.exported_freshness_validator",
+        category: "nogo_path",
+        description: "validateResearchFreshness exported for orchestrator contradiction freshness checks",
+        expected: "FAIL",
+        disposition: "nogo",
+        criterion: "validateResearchFreshness exported for orchestrator contradiction freshness checks",
+      },
+    ],
+  },
+};
+
+export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_CONTRACT_V1: ResearcherContradictionFreshnessContract =
+  {
+    version: "1.0.0",
+    atom: "P04-B06-A06",
+    purpose:
+      "Typed contradiction freshness contract declaring measurable contradiction, freshness and guard probes.",
+    categories: RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORY_CONTRACTS,
+    probes: flattenContradictionFreshnessCategoryProbes(
+      RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORY_CONTRACTS,
+    ),
+  };
+
+export function getActiveResearcherContradictionFreshnessContract(): ResearcherContradictionFreshnessContract {
+  return FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_CONTRACT_V1;
+}
+
+export function getResearcherContradictionFreshnessCategoryContract(
+  category: ResearcherContradictionFreshnessCategory,
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): ResearcherContradictionFreshnessCategoryContract {
+  return contract.categories[category];
+}
+
+export function listResearcherContradictionFreshnessContractProbeIds(
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listResearcherContradictionFreshnessProbesByDisposition(
+  disposition: ResearcherContradictionFreshnessProbeDisposition,
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): ResearcherContradictionFreshnessProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listResearcherContradictionFreshnessContractProbesByCategory(
+  category: ResearcherContradictionFreshnessCategory,
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): readonly ResearcherContradictionFreshnessProbeContract[] {
+  return [...contract.categories[category].probes];
+}
+
+export function summarizeResearcherContradictionFreshnessContractCoverage(
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<
+    ResearcherContradictionFreshnessCategory,
+    { probeCount: number; invariant: string }
+  >;
+  byDisposition: Record<ResearcherContradictionFreshnessProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    ResearcherContradictionFreshnessCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<ResearcherContradictionFreshnessProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probe of categoryContract.probes) {
+      totalProbes++;
+      if (probe.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probe.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export interface ResearcherContradictionFreshnessContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: ResearcherContradictionFreshnessCategory;
+  detail: string;
+}
+
+export interface ResearcherContradictionFreshnessContractCoverageResult {
+  valid: boolean;
+  issues: ResearcherContradictionFreshnessContractCoverageIssue[];
+}
+
+export function validateResearcherContradictionFreshnessContractCoverage(
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): ResearcherContradictionFreshnessContractCoverageResult {
+  const issues: ResearcherContradictionFreshnessContractCoverageIssue[] = [];
+
+  for (const category of RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({
+        kind: "missing_category",
+        category,
+        detail: `missing category contract: ${category}`,
+      });
+      continue;
+    }
+    if (
+      categoryContract.acceptance.minProbeCount <
+      RESEARCHER_CONTRADICTION_FRESHNESS_A01_MIN_PROBES[category]
+    ) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${RESEARCHER_CONTRADICTION_FRESHNESS_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listResearcherContradictionFreshnessContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeResearcherContradictionFreshnessContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("rcfr.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing rcfr. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherContradictionFreshnessContract(
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): ResearcherContradictionFreshnessContractCoverageResult {
+  return validateResearcherContradictionFreshnessContractCoverage(contract);
+}
+
+export function validateResearcherContradictionFreshnessAgainstContract(
+  fixture: ResearcherContradictionFreshnessBaseline,
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): ResearcherContradictionFreshnessValidationResult {
+  const issues: ResearcherContradictionFreshnessValidationIssue[] = [];
+  const fixtureIds = new Set(fixture.probes.map(p => p.id));
+  const contractIds = new Set(contract.probes.map(p => p.id));
+
+  if (fixture.contractAtom && fixture.contractAtom !== contract.atom) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `contractAtom=${fixture.contractAtom} contract=${contract.atom}`,
+    });
+  }
+
+  for (const category of RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    const categoryProbes = fixture.probes.filter(p => p.category === category);
+    if (categoryProbes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryProbes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+  }
+
+  for (const probeEntry of contract.probes) {
+    if (!fixtureIds.has(probeEntry.id)) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: probeEntry.id,
+        detail: `fixture missing ${probeEntry.id}`,
+      });
+    }
+  }
+
+  for (const entry of fixture.probes) {
+    if (!contractIds.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: `fixture extra ${entry.id}` });
+      continue;
+    }
+    const expected = contract.probes.find(p => p.id === entry.id)!;
+    if (entry.expected !== expected.expected) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `expected mismatch fixture=${entry.expected} contract=${expected.expected}`,
+      });
+    }
+    if (entry.category !== expected.category) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
+      });
+    }
+    if (entry.description !== expected.description) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `description mismatch for ${entry.id}`,
+      });
+    }
+  }
+
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
+  if (expectedFailCount > 0 && failGaps.length === 0) {
+    issues.push({
+      kind: "missing_category",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
+    });
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_A01_PROBE_MATRIX: readonly ResearcherContradictionFreshnessFixtureEntry[] =
@@ -473,6 +1110,12 @@ export function validateResearcherContradictionFreshnessBaseline(
       detail: "fixture must document at least one measurable FAIL gap",
     });
   }
+
+  const contractAlignment = validateResearcherContradictionFreshnessAgainstContract(
+    fixture,
+    getActiveResearcherContradictionFreshnessContract(),
+  );
+  issues.push(...contractAlignment.issues);
 
   return { valid: issues.length === 0, issues };
 }
@@ -703,8 +1346,10 @@ function runSingleProbe(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "rcfr.known_gaps_documented": {
+      const contract = getActiveResearcherContradictionFreshnessContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount >= 1;
+      const ok = failCount === expectedFail && failCount >= 1;
       return probe(id, category, expected, ok, `documentedFail=${failCount}`);
     }
     case "rcfr.empty_evidence_input_boundary": {
@@ -814,7 +1459,13 @@ function runSingleProbe(
 export function runResearcherContradictionFreshnessProbes(
   fixture: ResearcherContradictionFreshnessBaseline = loadResearcherContradictionFreshnessBaseline(),
 ): ResearcherContradictionFreshnessProbeResult[] {
-  return fixture.probes.map(entry =>
-    runSingleProbe(entry.id, entry.category, entry.expected, fixture),
-  );
+  const contract = getActiveResearcherContradictionFreshnessContract();
+  return fixture.probes.map(entry => {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const expected = contractProbe?.expected ?? entry.expected;
+    const result = runSingleProbe(entry.id, entry.category, expected, fixture);
+    return contractProbe?.criterion
+      ? { ...result, criterion: contractProbe.criterion }
+      : result;
+  });
 }

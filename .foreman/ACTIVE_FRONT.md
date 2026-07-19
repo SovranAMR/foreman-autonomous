@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B06
-active_atom: P04-B06-A02
+active_atom: P04-B06-A03
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 351/1000
-phase_progress: 51/100
-block_progress: 1/10
+program_progress: 352/1000
+phase_progress: 52/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B06-A02 — Contradiction ve freshness çözümü: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P04-B06-A03 — Contradiction ve freshness çözümü: en küçük üretim dikey dilimini uygula.
 
-objective: P04-B06-A01 PASS; baseline fixture frozen; probe matrix documents FAIL gaps.
-target: Forge contradiction freshness typed contract with measurable acceptance criteria.
-hypothesis: Typed contract aligns fixture probe matrix to contradiction/freshness categories and dispositions.
-acceptance: Contract validates; fixture aligns; category minProbeCount satisfied.
+objective: P04-B06-A02 PASS; typed contract frozen; fixture aligns with contract probe matrix.
+target: Forge contradiction freshness production slice wiring resolveResearchContradictions and validateResearchFreshness.
+hypothesis: Minimal production exports close documented nogo FAIL gaps while preserving contract alignment.
+acceptance: Documented nogo probes flip to PASS; contract matrix remains aligned; regression suite green.
 commands: npx tsx --test src/forge-p04-researcher-contradiction-freshness*.test.ts
 blast_radius: src/forge-p04-researcher-contradiction-freshness*.ts
-rollback: P04-B06-A02 contract slice değişikliklerini geri al.
+rollback: P04-B06-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B06-A01
-last_commit: 2eacf1a
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (7/7); 23-probe matrix; 2 FAIL gaps aligned
-evidence: forge-researcher-contradiction-freshness-v1.json + forge-p04-researcher-contradiction-freshness.ts + runResearcherContradictionFreshnessProbes + B05 handoff validation
-next: P04-B06-A02
+last_atom: P04-B06-A02
+last_commit: pending
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (15/15); typed contract 23 probes; 2 nogo FAIL gaps documented
+evidence: FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_CONTRACT_V1 + validateResearcherContradictionFreshnessAgainstContract + category dispositions + criterion wiring
+next: P04-B06-A03

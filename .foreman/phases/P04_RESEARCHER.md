@@ -81,7 +81,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P04-B06 — Contradiction ve freshness çözümü
 
 - [x] P04-B06-A01 — Contradiction ve freshness çözümü: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P04-B06-A02 — Contradiction ve freshness çözümü: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P04-B06-A02 — Contradiction ve freshness çözümü: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B06-A03 — Contradiction ve freshness çözümü: en küçük üretim dikey dilimini uygula
 - [ ] P04-B06-A04 — Contradiction ve freshness çözümü: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B06-A05 — Contradiction ve freshness çözümü: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B06-A01
-last_commit: 2eacf1a
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (7/7); 23-probe matrix with 2 documented FAIL gaps; B05 handoff contract validated
-evidence: forge-researcher-contradiction-freshness-v1.json + forge-p04-researcher-contradiction-freshness.ts + assessContradictionFreshnessInputBoundary + recoverContradictionFreshnessEvidence + runResearcherContradictionFreshnessProbes
-next: P04-B06-A02
+last_atom: P04-B06-A02
+last_commit: pending
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (15/15); FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_CONTRACT_V1 with 23 probes, 8 categories, 2 nogo FAIL gaps; fixture↔contract alignment validated
+evidence: forge-p04-researcher-contradiction-freshness.ts + validateResearcherContradictionFreshnessContract + validateResearcherContradictionFreshnessAgainstContract + summarizeResearcherContradictionFreshnessContractCoverage
+next: P04-B06-A03
