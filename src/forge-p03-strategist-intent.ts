@@ -20,7 +20,7 @@ import {
 } from "./forge-p02-visioner-phase-gate.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_INTENT_VERSION = "1.0.0-a06";
+export const FORGE_STRATEGIST_INTENT_VERSION = "1.0.0-a07";
 
 /** Maximum normalized vision length before truncation (P03-B01-A01 boundary). */
 export const STRATEGIST_VISION_MAX_LENGTH = 32000;
@@ -2170,5 +2170,525 @@ export function runStrategistIntentEvidenceSlice(
     matrixValidation,
     record,
     recordValidation,
+  };
+}
+
+// ─── Property and fuzz validation (P03-B01-A07) ─────────────────────────────
+
+export interface StrategistIntentPropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface StrategistIntentPropertyResult {
+  passed: number;
+  failed: StrategistIntentPropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type StrategistIntentPropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: StrategistIntentContract) => string | null;
+};
+
+const STRATEGIST_INTENT_STRUCTURAL_PROPERTIES: readonly StrategistIntentPropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All eight strategist intent categories are declared",
+    check: contract => {
+      for (const category of STRATEGIST_INTENT_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listStrategistIntentContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of STRATEGIST_INTENT_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description:
+      "summarizeStrategistIntentContractCoverage totals match listStrategistIntentContractProbeIds",
+    check: contract => {
+      const summary = summarizeStrategistIntentContractCoverage(contract);
+      const ids = listStrategistIntentContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with sint. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("sint.")) {
+          return `${probe.id} missing sint. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const fixture = loadStrategistIntentBaseline();
+      const probeIds = listStrategistIntentContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildStrategistIntentProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildStrategistIntentProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildStrategistIntentRunRecord(
+        buildStrategistIntentProvenance(
+          "property-check",
+          fixture,
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "failure_recovery_run_record_gate",
+    description:
+      "Synthetic failure/recovery slice record passes validateStrategistIntentEvidenceRunRecord",
+    check: contract => {
+      const fixture = loadStrategistIntentBaseline();
+      const probeIds = listStrategistIntentFailureRecoveryProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildStrategistIntentProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildStrategistIntentProbeTelemetry(id, probe.category, index, index * 0.5);
+      });
+      const record = buildStrategistIntentRunRecord(
+        buildStrategistIntentProvenance(
+          "property-check-failure-recovery",
+          fixture,
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+          {
+            sliceAtom: "P03-B01-A06",
+            sliceCategories: STRATEGIST_INTENT_FAILURE_RECOVERY_CATEGORIES,
+          },
+        ),
+        evidence,
+        telemetry,
+      );
+      const validation = validateStrategistIntentEvidenceRunRecord(record, contract);
+      if (!validation.valid) {
+        return validation.issues.map(i => i.detail).join("; ");
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runStrategistIntentPropertyChecks(
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): StrategistIntentPropertyResult {
+  const failed: StrategistIntentPropertyViolation[] = [];
+  for (const property of STRATEGIST_INTENT_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = STRATEGIST_INTENT_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type StrategistIntentFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface StrategistIntentFuzzMutationCase {
+  seed: number;
+  kind: StrategistIntentFuzzMutationKind;
+  probeId?: string;
+  category?: StrategistIntentCategory;
+}
+
+export interface StrategistIntentFuzzValidationCaseResult {
+  mutation: StrategistIntentFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface StrategistIntentFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: StrategistIntentFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createStrategistIntentFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneStrategistIntentBaseline(fixture: StrategistIntentBaseline): StrategistIntentBaseline {
+  return {
+    ...fixture,
+    sourcePhaseGate: { ...fixture.sourcePhaseGate },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickStrategistIntentFuzzTarget(
+  fixture: StrategistIntentBaseline,
+  rng: () => number,
+): { category: StrategistIntentCategory; index: number; entry: StrategistIntentFixtureEntry } {
+  const category = STRATEGIST_INTENT_CATEGORIES[Math.floor(rng() * STRATEGIST_INTENT_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyStrategistIntentFuzzMutation(
+  fixture: StrategistIntentBaseline,
+  mutation: StrategistIntentFuzzMutationCase,
+): StrategistIntentBaseline {
+  const mutated = cloneStrategistIntentBaseline(fixture);
+  const targetCategory = mutation.category ?? STRATEGIST_INTENT_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `sint.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = STRATEGIST_INTENT_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateStrategistIntentFuzzMutationCases(
+  fixture: StrategistIntentBaseline,
+  seed: number,
+  iterations: number,
+): StrategistIntentFuzzMutationCase[] {
+  const rng = createStrategistIntentFuzzRng(seed);
+  const kinds: StrategistIntentFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: StrategistIntentFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickStrategistIntentFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P03-B01-A07). */
+export function runStrategistIntentFuzzValidation(
+  fixture: StrategistIntentBaseline,
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+  seed = 42,
+  iterations = 24,
+): StrategistIntentFuzzValidationResult {
+  const cases = generateStrategistIntentFuzzMutationCases(fixture, seed, iterations);
+  const results: StrategistIntentFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyStrategistIntentFuzzMutation(fixture, mutation);
+    const validation = validateStrategistIntentAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type StrategistIntentRunRecordFuzzKind =
+  | "drop_evidence"
+  | "drop_telemetry"
+  | "wrong_total"
+  | "wrong_slice_atom"
+  | "wrong_slice_categories";
+
+export interface StrategistIntentRunRecordFuzzCase {
+  kind: StrategistIntentRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyStrategistIntentRunRecordFuzzMutation(
+  record: StrategistIntentRunRecord,
+  mutation: StrategistIntentRunRecordFuzzCase,
+): StrategistIntentRunRecord {
+  const cloned: StrategistIntentRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+    case "wrong_slice_atom":
+      cloned.provenance = { ...cloned.provenance, sliceAtom: "P03-B01-A99" };
+      break;
+    case "wrong_slice_categories":
+      cloned.provenance = {
+        ...cloned.provenance,
+        sliceCategories: ["intent_versioning"],
+      };
+      break;
+  }
+
+  cloned.summary = buildStrategistIntentRunRecord(
+    cloned.provenance,
+    cloned.evidence,
+    cloned.telemetry,
+  ).summary;
+  return cloned;
+}
+
+function resolveStrategistIntentRunRecordValidator(
+  record: StrategistIntentRunRecord,
+): (
+  record: StrategistIntentRunRecord,
+  contract: StrategistIntentContract,
+) => StrategistIntentRunValidationResult {
+  return record.provenance.sliceAtom === "P03-B01-A06"
+    ? validateStrategistIntentEvidenceRunRecord
+    : validateStrategistIntentRunRecord;
+}
+
+/** Fuzz harness: tampered run records must fail validation deterministically (P03-B01-A07). */
+export function runStrategistIntentRunRecordFuzzValidation(
+  record: StrategistIntentRunRecord,
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const validate = resolveStrategistIntentRunRecordValidator(record);
+  const baseline = validate(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: StrategistIntentRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  if (record.provenance.sliceAtom === "P03-B01-A06") {
+    mutations.push({ kind: "wrong_slice_atom" }, { kind: "wrong_slice_categories" });
+  }
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyStrategistIntentRunRecordFuzzMutation(record, mutation);
+    const validation = validate(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}
+
+export interface StrategistIntentPropertyFuzzSliceResult {
+  atom: "P03-B01-A07";
+  propertyChecksPassed: boolean;
+  contractFuzzRejected: boolean;
+  runRecordFuzzRejected: boolean;
+  propertyResult: StrategistIntentPropertyResult;
+  contractFuzz: StrategistIntentFuzzValidationResult;
+  runRecordFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+/**
+ * A07 property/fuzz slice: structural property checks and contract fuzz gates
+ * with zero accepted mutations.
+ */
+export function runStrategistIntentPropertyFuzzSlice(
+  fixture: StrategistIntentBaseline = loadStrategistIntentBaseline(),
+): StrategistIntentPropertyFuzzSliceResult {
+  const contract = getActiveStrategistIntentContract();
+  const propertyResult = runStrategistIntentPropertyChecks(contract);
+  const contractFuzz = runStrategistIntentFuzzValidation(fixture, contract);
+  const record = runStrategistIntentFailureRecoverySliceWithRecord(fixture);
+  const runRecordFuzz = runStrategistIntentRunRecordFuzzValidation(record, contract);
+
+  return {
+    atom: "P03-B01-A07",
+    propertyChecksPassed: propertyResult.allPassed,
+    contractFuzzRejected: contractFuzz.allMutationsRejected,
+    runRecordFuzzRejected: runRecordFuzz.mutationsAccepted === 0,
+    propertyResult,
+    contractFuzz,
+    runRecordFuzz,
   };
 }

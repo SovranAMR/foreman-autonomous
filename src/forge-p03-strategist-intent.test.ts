@@ -30,6 +30,12 @@ import {
   runStrategistIntentFailureRecoverySliceWithRecord,
   runStrategistIntentProbesWithRecord,
   FORGE_STRATEGIST_INTENT_VERSION,
+  runStrategistIntentPropertyChecks,
+  runStrategistIntentFuzzValidation,
+  runStrategistIntentRunRecordFuzzValidation,
+  runStrategistIntentPropertyFuzzSlice,
+  createStrategistIntentFuzzRng,
+  FORGE_STRATEGIST_INTENT_CONTRACT_V1,
 } from "./forge-p03-strategist-intent.js";
 
 describe("Forge Strategist Intent Contract — P03-B01-A02", () => {
@@ -365,7 +371,7 @@ describe("Forge Strategist Intent Evidence — P03-B01-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_INTENT_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -397,7 +403,7 @@ describe("Forge Strategist Intent Evidence — P03-B01-A06", () => {
     assert.equal(record.evidence.length, 23);
     assert.equal(record.telemetry.length, 23);
     assert.equal(record.provenance.totalProbes, 23);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 23);
@@ -410,5 +416,117 @@ describe("Forge Strategist Intent Evidence — P03-B01-A06", () => {
 
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.aligned, 6);
+  });
+});
+
+describe("Forge Strategist Intent Property/Fuzz — P03-B01-A07", () => {
+  it("passes all structural properties on canonical contract", () => {
+    const result = runStrategistIntentPropertyChecks(FORGE_STRATEGIST_INTENT_CONTRACT_V1);
+    assert.equal(
+      result.allPassed,
+      true,
+      result.failed.map(f => `${f.propertyId}: ${f.detail}`).join("\n"),
+    );
+    assert.equal(result.passed, result.total);
+    assert.equal(result.total, 8);
+  });
+
+  it("createStrategistIntentFuzzRng is deterministic for reproducible fuzz seeds", () => {
+    const rngA = createStrategistIntentFuzzRng(1337);
+    const rngB = createStrategistIntentFuzzRng(1337);
+    const seqA = Array.from({ length: 5 }, () => rngA());
+    const seqB = Array.from({ length: 5 }, () => rngB());
+    assert.deepEqual(seqA, seqB);
+    assert.notDeepEqual(seqA, Array.from({ length: 5 }, () => createStrategistIntentFuzzRng(1338)()));
+  });
+
+  it("rejects all deterministic fixture mutations", () => {
+    const fixture = loadStrategistIntentBaseline();
+    const contract = getActiveStrategistIntentContract();
+
+    for (const seed of [42, 99, 20260719]) {
+      const fuzz = runStrategistIntentFuzzValidation(fixture, contract, seed, 24);
+      assert.equal(fuzz.iterations, 24);
+      assert.equal(fuzz.rejected, 24, `seed=${seed} accepted=${fuzz.accepted}`);
+      assert.equal(fuzz.allMutationsRejected, true);
+      for (const item of fuzz.cases) {
+        assert.equal(item.valid, false, `${item.mutation.kind}@${item.mutation.probeId} should fail`);
+        assert.ok(item.issueKinds.length > 0);
+      }
+    }
+  });
+
+  it("accepts valid failure/recovery record and rejects corrupted mutations", () => {
+    const contract = getActiveStrategistIntentContract();
+    const record = runStrategistIntentFailureRecoverySliceWithRecord();
+
+    assert.equal(
+      validateStrategistIntentEvidenceRunRecord(record, contract).valid,
+      true,
+      validateStrategistIntentEvidenceRunRecord(record, contract).issues.map(i => i.detail).join("\n"),
+    );
+
+    const fuzz = runStrategistIntentRunRecordFuzzValidation(record, contract);
+    assert.equal(fuzz.validBaseline, true);
+    assert.equal(fuzz.mutationsAccepted, 0);
+    assert.equal(fuzz.mutationsRejected, 5);
+  });
+
+  it("validates full contract run record and rejects tampered evidence/telemetry/provenance", () => {
+    const contract = getActiveStrategistIntentContract();
+    const fixture = loadStrategistIntentBaseline();
+    const probeIds = listStrategistIntentContractProbeIds(contract);
+    const startedAt = "2026-07-19T02:00:00.000Z";
+    const completedAt = "2026-07-19T02:00:01.000Z";
+
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistIntentProbeEvidence(
+        id,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "synthetic",
+        probe.disposition,
+        startedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistIntentProbeTelemetry(id, probe.category, index, index * 0.05);
+    });
+
+    const provenance = buildStrategistIntentProvenance(
+      "property-fuzz-full-run",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+    );
+    const record = buildStrategistIntentRunRecord(provenance, evidence, telemetry);
+
+    assert.equal(validateStrategistIntentRunRecord(record, contract).valid, true);
+
+    const fuzz = runStrategistIntentRunRecordFuzzValidation(record, contract);
+    assert.equal(fuzz.validBaseline, true);
+    assert.equal(fuzz.mutationsAccepted, 0);
+    assert.equal(fuzz.mutationsRejected, 3);
+  });
+
+  it("executes property/fuzz slice with zero accepted mutations", () => {
+    const slice = runStrategistIntentPropertyFuzzSlice();
+
+    assert.equal(slice.atom, "P03-B01-A07");
+    assert.equal(slice.propertyChecksPassed, true);
+    assert.equal(slice.contractFuzzRejected, true);
+    assert.equal(slice.runRecordFuzzRejected, true);
+    assert.equal(slice.propertyResult.allPassed, true);
+    assert.equal(slice.contractFuzz.allMutationsRejected, true);
+    assert.equal(slice.contractFuzz.accepted, 0);
+    assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
   });
 });
