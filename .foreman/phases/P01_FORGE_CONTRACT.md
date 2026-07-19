@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 75
+completed_atoms: 76
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -113,7 +113,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B08-A05 — Evidence ve artifact şeması: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B08-A06 — Evidence ve artifact şeması: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B08-A07 — Evidence ve artifact şeması: unit, property ve fuzz doğrulamasını ekle
-- [ ] P01-B08-A08 — Evidence ve artifact şeması: Forge entegrasyonu ile regression testini tamamla
+- [x] P01-B08-A08 — Evidence ve artifact şeması: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B08-A09 — Evidence ve artifact şeması: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B08-A10 — Evidence ve artifact şeması: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B08-A07
+last_atom: P01-B08-A08
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (23/23); 8 property checks; 72 fixture fuzz mutations rejected; 5 failure/recovery run-record mutations rejected
+tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts src/forge-pipeline-regression.integration.test.ts` (61/61); regression gate 25/25 aligned; propertyFuzz properties=8/8 contractFuzz rejected=24/24 runFuzz rejected=3/3; guard adversarial=3/3
 evidence: |
-  P01-B08-A07 property/fuzz: runEvidenceArtifactPropertyChecks (8 structural properties including
-  failure_recovery_run_record_gate); runEvidenceArtifactFuzzValidation rejects all 72 deterministic
-  fixture mutations; runEvidenceArtifactRunRecordFuzzValidation rejects 5 corrupted failure/recovery
-  records via validateEvidenceArtifactFailureRecoveryRunRecord — zero pass mismatches.
-next: P01-B08-A08
+  P01-B08-A08 regression: runForgeEvidenceArtifactRegressionGate wires probe matrix run record validation,
+  detectEvidenceArtifactProbeRegression prior-record comparison, validateForgeEvidenceArtifactGuard (A09 foundation),
+  runEvidenceArtifactPropertyChecks + runEvidenceArtifactFuzzValidation + runEvidenceArtifactRunRecordFuzzValidation;
+  orchestrator verifyForgeEvidenceArtifactRegression emits evidence_artifact_regression verification — zero pass mismatches.
+next: P01-B08-A09

@@ -284,6 +284,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge evidence artifact regression gate and emit verification event (P01-B08-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeEvidenceArtifactRegression(
+    priorRecord?: import("./forge-evidence-artifact.js").EvidenceArtifactRunRecord,
+  ): Promise<import("./forge-evidence-artifact.probe.js").ForgeEvidenceArtifactRegressionResult> {
+    const { runForgeEvidenceArtifactRegressionGate } = await import("./forge-evidence-artifact.probe.js");
+    const result = runForgeEvidenceArtifactRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "evidence_artifact_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge reproducible fixture guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B07-A09).
    */
   async verifyForgeReproducibleFixtureGuard(

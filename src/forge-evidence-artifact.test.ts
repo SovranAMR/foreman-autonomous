@@ -7,6 +7,9 @@ import {
   runEvidenceArtifactBoundarySlice,
   runEvidenceArtifactFailureRecoverySlice,
   runEvidenceArtifactFailureRecoverySliceWithRecord,
+  runEvidenceArtifactProbesWithRecord,
+  runForgeEvidenceArtifactRegressionGate,
+  runEvidenceArtifactRegressionIntegration,
   validateEvidenceArtifactProbeMatrix,
   validateEvidenceArtifactBoundaryProbeMatrix,
   validateEvidenceArtifactFailureRecoveryProbeMatrix,
@@ -36,6 +39,8 @@ import {
   buildEvidenceArtifactProvenance,
   buildEvidenceArtifactRunRecord,
   validateEvidenceArtifactFailureRecoveryRunRecord,
+  validateEvidenceArtifactRunRecord,
+  detectEvidenceArtifactProbeRegression,
 } from "./forge-evidence-artifact.js";
 
 describe("Forge Evidence Artifact Contract — P01-B08-A02", () => {
@@ -424,5 +429,70 @@ describe("Forge Evidence Artifact Evidence — P01-B08-A06", () => {
       assert.equal(item.aligned, true);
       assert.ok(item.recordedAt.length > 10);
     }
+  });
+});
+
+describe("Forge Evidence Artifact Regression — P01-B08-A08", () => {
+  it("runForgeEvidenceArtifactRegressionGate passes on canonical evidence artifact matrix", () => {
+    const result = runForgeEvidenceArtifactRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 25);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
+    assert.equal(result.propertyFuzz.passed, true);
+    assert.ok(result.detail.includes("25/25 probes aligned"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+  });
+
+  it("runEvidenceArtifactRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeEvidenceArtifactRegressionGate();
+    const integration = runEvidenceArtifactRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
+    assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
+    assert.ok(integration.detail.includes("25/25 probes aligned"));
+    assert.ok(integration.detail.includes("propertyFuzz:"));
+    assert.equal(integration.record.summary.total, 25);
+  });
+
+  it("detectEvidenceArtifactProbeRegression flags newly misaligned probes", () => {
+    const prior = runEvidenceArtifactProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectEvidenceArtifactProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeEvidenceArtifactRegressionGate compares against prior record without false regression", () => {
+    const prior = runEvidenceArtifactProbesWithRecord();
+    const result = runForgeEvidenceArtifactRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("regression gate rejects pass probe mismatches on canonical matrix", () => {
+    const results = runEvidenceArtifactProbes();
+    const passMismatches = results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
   });
 });

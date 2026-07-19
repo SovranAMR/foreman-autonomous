@@ -41,12 +41,22 @@ import {
   buildEvidenceArtifactProbeTelemetry,
   buildEvidenceArtifactProvenance,
   buildEvidenceArtifactRunRecord,
+  validateEvidenceArtifactRunRecord,
+  detectEvidenceArtifactProbeRegression,
+  validateForgeEvidenceArtifactGuard,
+  runEvidenceArtifactPropertyChecks,
+  runEvidenceArtifactFuzzValidation,
+  runEvidenceArtifactRunRecordFuzzValidation,
   type EvidenceArtifactBaseline,
   type EvidenceArtifactCategory,
   type EvidenceArtifactProbeDisposition,
   type EvidenceArtifactProbeResult,
   type EvidenceArtifactProbeMatrixValidationResult,
   type EvidenceArtifactRunRecord,
+  type EvidenceArtifactProbeRegressionReport,
+  type EvidenceArtifactGuardCheckResult,
+  type EvidenceArtifactPropertyResult,
+  type EvidenceArtifactFuzzValidationResult,
 } from "./forge-evidence-artifact.js";
 
 export type { EvidenceArtifactBaseline, EvidenceArtifactProbeResult } from "./forge-evidence-artifact.js";
@@ -78,9 +88,19 @@ export {
   buildEvidenceArtifactProvenance,
   buildEvidenceArtifactRunRecord,
   validateEvidenceArtifactFailureRecoveryRunRecord,
+  validateEvidenceArtifactRunRecord,
+  detectEvidenceArtifactProbeRegression,
+  validateForgeEvidenceArtifactGuard,
+  runEvidenceArtifactPropertyChecks,
+  runEvidenceArtifactFuzzValidation,
+  runEvidenceArtifactRunRecordFuzzValidation,
   FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1,
   type EvidenceArtifactProbeMatrixValidationResult,
   type EvidenceArtifactRunRecord,
+  type EvidenceArtifactProbeRegressionReport,
+  type EvidenceArtifactGuardCheckResult,
+  type EvidenceArtifactPropertyResult,
+  type EvidenceArtifactFuzzValidationResult,
 } from "./forge-evidence-artifact.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -838,3 +858,105 @@ export function runEvidenceArtifactFailureRecoverySliceWithRecord(
     sliceCategories: EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES,
   });
 }
+
+/** Run all evidence artifact probes and emit auditable evidence, telemetry and provenance (P01-B08-A08). */
+export function runEvidenceArtifactProbesWithRecord(
+  fixture: EvidenceArtifactBaseline = loadEvidenceArtifactBaseline(),
+): EvidenceArtifactRunRecord {
+  const contract = getActiveEvidenceArtifactContract();
+  return buildEvidenceArtifactRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+export interface ForgeEvidenceArtifactRegressionPropertyFuzzResult {
+  passed: boolean;
+  properties: EvidenceArtifactPropertyResult;
+  contractFuzz: EvidenceArtifactFuzzValidationResult;
+  runFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface ForgeEvidenceArtifactRegressionResult {
+  passed: boolean;
+  record: EvidenceArtifactRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: EvidenceArtifactProbeRegressionReport | null;
+  guard: EvidenceArtifactGuardCheckResult;
+  propertyFuzz: ForgeEvidenceArtifactRegressionPropertyFuzzResult;
+  detail: string;
+}
+
+/**
+ * Execute evidence artifact probes, validate run record, property/fuzz gates, and optionally detect regression vs prior run.
+ * Forge pipeline integration gate (P01-B08-A08).
+ */
+export function runForgeEvidenceArtifactRegressionGate(
+  priorRecord?: EvidenceArtifactRunRecord,
+): ForgeEvidenceArtifactRegressionResult {
+  const fixture = loadEvidenceArtifactBaseline();
+  const contract = getActiveEvidenceArtifactContract();
+  const record = runEvidenceArtifactProbesWithRecord(fixture);
+  const validation = validateEvidenceArtifactRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord ? detectEvidenceArtifactProbeRegression(priorRecord, record) : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeEvidenceArtifactGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
+
+  const properties = runEvidenceArtifactPropertyChecks(contract);
+  const contractFuzz = runEvidenceArtifactFuzzValidation(fixture, contract);
+  const runFuzz = runEvidenceArtifactRunRecordFuzzValidation(record, contract);
+  const propertyFuzzPassed =
+    properties.allPassed &&
+    contractFuzz.allMutationsRejected &&
+    runFuzz.mutationsAccepted === 0;
+  const propertyFuzz: ForgeEvidenceArtifactRegressionPropertyFuzzResult = {
+    passed: propertyFuzzPassed,
+    properties,
+    contractFuzz,
+    runFuzz: {
+      validBaseline: runFuzz.validBaseline,
+      mutationsRejected: runFuzz.mutationsRejected,
+      mutationsAccepted: runFuzz.mutationsAccepted,
+    },
+  };
+
+  const passed = recordValid && !alignmentRegression && guard.passed && propertyFuzzPassed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    passed,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    guard,
+    propertyFuzz,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P01-B08-A08). */
+export const runEvidenceArtifactRegressionIntegration = runForgeEvidenceArtifactRegressionGate;

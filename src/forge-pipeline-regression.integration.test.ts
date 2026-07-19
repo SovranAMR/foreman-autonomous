@@ -30,6 +30,12 @@ import {
   runReproducibleFixtureRegressionIntegration,
 } from "./forge-reproducible-fixture.probe.js";
 import { detectReproducibleFixtureProbeRegression } from "./forge-reproducible-fixture.js";
+import {
+  runForgeEvidenceArtifactRegressionGate,
+  runEvidenceArtifactProbesWithRecord,
+  runEvidenceArtifactRegressionIntegration,
+} from "./forge-evidence-artifact.probe.js";
+import { detectEvidenceArtifactProbeRegression } from "./forge-evidence-artifact.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -417,6 +423,94 @@ describe("Forge Pipeline Regression — P01-B07-A08", () => {
     if (verification?.type === "verification") {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("21/21 probes aligned"));
+    }
+  });
+});
+
+describe("Forge Evidence Artifact Regression Integration — P01-B08-A08", () => {
+  it("runForgeEvidenceArtifactRegressionGate passes on canonical evidence artifact matrix", () => {
+    const result = runForgeEvidenceArtifactRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 25);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
+    assert.equal(result.propertyFuzz.passed, true);
+    assert.ok(result.detail.includes("25/25 probes aligned"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+  });
+
+  it("runEvidenceArtifactRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeEvidenceArtifactRegressionGate();
+    const integration = runEvidenceArtifactRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
+    assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
+    assert.ok(integration.detail.includes("25/25 probes aligned"));
+    assert.equal(integration.record.summary.total, 25);
+  });
+
+  it("detectEvidenceArtifactProbeRegression flags newly misaligned probes", () => {
+    const prior = runEvidenceArtifactProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectEvidenceArtifactProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeEvidenceArtifactRegressionGate compares against prior record without false regression", () => {
+    const prior = runEvidenceArtifactProbesWithRecord();
+    const result = runForgeEvidenceArtifactRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("orchestrator verifyForgeEvidenceArtifactRegression emits evidence_artifact_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-evidence-artifact-regression-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "evidence-artifact" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeEvidenceArtifactRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "evidence_artifact_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("25/25 probes aligned"));
     }
   });
 });

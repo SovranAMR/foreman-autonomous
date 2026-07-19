@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B08
-active_atom: P01-B08-A08
+active_atom: P01-B08-A09
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 76/1000
-phase_progress: 75/100
+program_progress: 77/1000
+phase_progress: 76/100
 block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B08-A08 — Evidence ve artifact şeması: Forge entegrasyonu ile regression testini tamamla.
+P01-B08-A09 — Evidence ve artifact şeması: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: A07 property/fuzz PASS; Forge entegrasyonu ile regression testini tamamla.
-target: runForgeEvidenceArtifactRegressionGate; probe regression integration with property/fuzz gates.
-hypothesis: A07 property/fuzz + A06 run record builder yeterli regression giriş kanıtı sağlar.
-acceptance: regression gate passes; probe alignment stable; property/fuzz wired in gate; zero pass mismatches.
-commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A08 suite)
+objective: A08 regression gate PASS; adversarial/perf/cost/safety guard kontrollerini tamamla.
+target: validateForgeEvidenceArtifactGuard; adversarial guard scenarios; performance/cost/safety domains.
+hypothesis: A08 regression gate guard foundation + A09 sealed controls yeterli adversarial kanıt sağlar.
+acceptance: guard passes; adversarial scenarios reject tampered records; perf/cost/safety domains validated.
+commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A09 suite)
 blast_radius: forge-evidence-artifact*.ts
-rollback: A08 regression slice değişikliklerini geri al.
+rollback: A09 guard slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: regression uygulanamazsa BLOCKED raporla.
+fallback: guard uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B08-A07
+last_atom: P01-B08-A08
 last_commit: pending
-tests: PASS — forge-evidence-artifact*.test.ts (23/23); property/fuzz gates 8 properties + 72 fixture mutations + 5 run-record mutations rejected
-evidence: runEvidenceArtifactPropertyChecks; runEvidenceArtifactFuzzValidation; runEvidenceArtifactRunRecordFuzzValidation; validateEvidenceArtifactFailureRecoveryRunRecord
-next: P01-B08-A08
+tests: PASS — forge-evidence-artifact*.test.ts (34/34); regression gate 25/25 aligned; propertyFuzz 8/8 properties + 24/24 contract fuzz + 3/3 run-record fuzz; guard adversarial 3/3
+evidence: runForgeEvidenceArtifactRegressionGate; runEvidenceArtifactProbesWithRecord; detectEvidenceArtifactProbeRegression; validateForgeEvidenceArtifactGuard; orchestrator verifyForgeEvidenceArtifactRegression
+next: P01-B08-A09
