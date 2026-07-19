@@ -7,7 +7,6 @@ import {
   summarizeStrategistAtomizationMatrix,
   listStrategistAtomizationProbesByExpected,
   listStrategistAtomizationKnownGaps,
-  getStrategistAtomizationA01ExpectedFailCount,
   STRATEGIST_ATOMIZATION_CATEGORIES,
 } from "./forge-p03-strategist-atomization.js";
 
@@ -33,27 +32,19 @@ describe("Forge Strategist Atomization — P03-B03-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures atomization probes with documented FAIL gaps from P03-B02 sealed handoff", () => {
+  it("measures atomization probes with full alignment after A03 recovery slice", () => {
     const results = runStrategistAtomizationProbes();
     const summary = summarizeStrategistAtomizationMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listStrategistAtomizationProbesByExpected(
       "FAIL",
       loadStrategistAtomizationBaseline(),
     );
-    assert.equal(documentedFail.length, getStrategistAtomizationA01ExpectedFailCount());
-    assert.ok(documentedFail.some(p => p.id === "satom.structured_atom_recovery"));
-    assert.ok(documentedFail.some(p => p.id === "satom.empty_atomize_boundary"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of STRATEGIST_ATOMIZATION_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -68,19 +59,8 @@ describe("Forge Strategist Atomization — P03-B03-A01", () => {
     );
   });
 
-  it("documents remaining atomization gaps as measurable baseline debt", () => {
+  it("documents zero remaining atomization gaps after structured recovery slice", () => {
     const gaps = listStrategistAtomizationKnownGaps(runStrategistAtomizationProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "satom.empty_atomize_boundary",
-      "satom.malformed_atomize_guard",
-      "satom.structured_atom_recovery",
-      "satom.whitespace_atomize_boundary",
-    ]);
-    assert.ok(
-      gaps.every(g => STRATEGIST_ATOMIZATION_CATEGORIES.includes(g.category)),
-      "documented gaps are atomization probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });

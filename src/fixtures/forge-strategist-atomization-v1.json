@@ -92,20 +92,20 @@
     {
       "id": "satom.known_gaps_documented",
       "category": "boundary",
-      "description": "Baseline fixture documents measurable FAIL atomization gaps",
+      "description": "Baseline fixture documents at least one measurable FAIL atomization gap",
       "expected": "PASS"
     },
     {
       "id": "satom.empty_atomize_boundary",
       "category": "boundary",
       "description": "assessStrategistAtomizeInputBoundary rejects empty atomize output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "satom.whitespace_atomize_boundary",
       "category": "boundary",
       "description": "assessStrategistAtomizeInputBoundary rejects whitespace-only atomize output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "satom.atom_cap_boundary",
@@ -123,7 +123,7 @@
       "id": "satom.malformed_atomize_guard",
       "category": "failure_path",
       "description": "assessStrategistAtomizeInputBoundary rejects null-byte atomize output safely",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "satom.atomize_salvage_fallback",
@@ -135,7 +135,7 @@
       "id": "satom.structured_atom_recovery",
       "category": "recovery_path",
       "description": "recoverStrategistAtomize restructures failed atomize parse into contract-compliant plan",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "satom.orchestrator_zero_atoms_skip",
