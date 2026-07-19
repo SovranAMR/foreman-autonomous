@@ -1,0 +1,183 @@
+{
+  "version": "1.0.0",
+  "atom": "P03-B09-A01",
+  "contractAtom": "P03-B09-A06",
+  "purpose": "Strategist plan provenance and drift baseline measured from sealed P03-B08 replan block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P03-B08-A10",
+    "contractVersion": "1.0.0",
+    "replanProbeCount": 28,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "sprov.version_tagged",
+      "category": "provenance_versioning",
+      "description": "Strategist plan provenance baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.atom_tagged",
+      "category": "provenance_versioning",
+      "description": "Strategist plan provenance baseline declares P03-B09-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.harness_version_exported",
+      "category": "provenance_versioning",
+      "description": "FORGE_STRATEGIST_PROVENANCE_VERSION exported for plan provenance harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.state_history_audit",
+      "category": "plan_lineage",
+      "description": "StateManager persists transition history audit trail for plan state lineage",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.orchestrator_replan_lineage",
+      "category": "plan_lineage",
+      "description": "Orchestrator preserves replanLineage entries after block failure recovery",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.thought_chain_lineage",
+      "category": "plan_lineage",
+      "description": "ThoughtManager and ChainManager wire thought chain lineage for plan execution",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.orchestrator_reflect_phase",
+      "category": "drift_detection",
+      "description": "Orchestrator emits reflect phase for periodic vision drift checks",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.prompt_alignment_section",
+      "category": "drift_detection",
+      "description": "Reviewer prompt declares ALIGNMENT section for vision drift detection",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.prompt_plan_provenance",
+      "category": "drift_detection",
+      "description": "STRATEGIST decompose format declares PLAN PROVENANCE section",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sprov.orchestrator_pre_exec_drift_gate",
+      "category": "drift_detection",
+      "description": "Orchestrator validates plan drift before block execution starts",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sprov.replan_provenance_builder",
+      "category": "provenance_seam",
+      "description": "buildStrategistReplanProvenance exports run-level provenance builder from replan harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.parser_provenance_fields",
+      "category": "provenance_seam",
+      "description": "parseDecomposeResponse exports planProvenance fields from decompose output",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sprov.plan_provenance_graph",
+      "category": "provenance_seam",
+      "description": "Plan provenance graph links vision→blocks→atoms with auditable lineage edges",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sprov.b08_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P03_B08_TO_B09_HANDOFF_V1 targets P03-B09-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.b08_sealed_replan_probes",
+      "category": "baseline_link",
+      "description": "P03-B08→B09 handoff sealed probeCount matches active replan contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P03-B08 replan block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.probe_runner_exported",
+      "category": "boundary",
+      "description": "runStrategistProvenanceProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL provenance gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.empty_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistProvenanceInputBoundary rejects empty decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.whitespace_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistProvenanceInputBoundary rejects whitespace-only decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.long_decompose_truncation_boundary",
+      "category": "boundary",
+      "description": "assessStrategistProvenanceInputBoundary truncates decompose exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateStrategistProvenanceBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.malformed_decompose_guard",
+      "category": "failure_path",
+      "description": "assessStrategistProvenanceInputBoundary rejects null-byte decompose output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.min_category_probes",
+      "category": "failure_path",
+      "description": "validateStrategistProvenanceBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.recovery_reflecting_drift",
+      "category": "recovery_path",
+      "description": "VALID_TRANSITIONS accepts reflecting→decomposing and reflecting→visioning drift recovery edges",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.recovery_replan_lineage_checkpoint",
+      "category": "recovery_path",
+      "description": "Rollback checkpoint preserves replan lineage after block failure recovery",
+      "expected": "PASS"
+    },
+    {
+      "id": "sprov.nogo_undetected_drift",
+      "category": "nogo_path",
+      "description": "NO-GO gate rejects run when plan drift exceeds threshold undetected",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sprov.exported_plan_drift_validator",
+      "category": "nogo_path",
+      "description": "validatePlanDrift exported for orchestrator pre-execution drift checks",
+      "expected": "FAIL"
+    }
+  ]
+}

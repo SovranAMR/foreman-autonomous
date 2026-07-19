@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B09
-active_atom: P03-B09-A01
+active_atom: P03-B09-A02
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 279/1000
-phase_progress: 79/100
-block_progress: 10/10
+program_progress: 280/1000
+phase_progress: 80/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B09-A01 — Plan provenance ve drift: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P03-B09-A02 — Plan provenance ve drift: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P03-B08-A10 PASS; P03-B09-A01 measure plan provenance/drift and create failing baseline fixture.
-target: baseline fixture, probe matrix, documented gaps from sealed P03-B08 block gate.
-hypothesis: P03-B09-A01 loads versioned baseline aligned to sealed replan block gate handoff.
-acceptance: Baseline loads; probe matrix runs; gaps documented.
+objective: P03-B09-A01 PASS; P03-B09-A02 define typed contract with measurable acceptance criteria.
+target: typed contract, category invariants, probe criteria wired to baseline matrix.
+hypothesis: P03-B09-A02 formalizes plan provenance/drift contract aligned to A01 baseline handoff.
+acceptance: Contract loads; coverage validates; fixture aligns with contract probes.
 commands: npx tsx --test src/forge-p03-strategist-provenance*.test.ts
 blast_radius: src/forge-p03-strategist-provenance.ts
-rollback: P03-B09-A01 baseline değişikliklerini geri al.
+rollback: P03-B09-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Baseline fixture blocked ise BLOCKED raporla.
+fallback: Contract blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B08-A10
-last_commit: d8d4e11
-tests: PASS — forge-p03-strategist-replan*.test.ts (51/51); runStrategistReplanBlockGate; validateStrategistReplanBlockHandoffContract; runForgeStrategistReplanRegressionGate
-evidence: runStrategistReplanBlockGate; getForgeP03B08BlockGate; getForgeP03B08ToB09Handoff; verifyForgeStrategistReplanBlockGate
-next: P03-B09-A01
+last_atom: P03-B09-A01
+last_commit: 83e9d89
+tests: PASS — forge-p03-strategist-provenance-baseline.test.ts (3/3); loadStrategistProvenanceBaseline; runStrategistProvenanceProbes; validateStrategistProvenanceBaseline
+evidence: runStrategistProvenanceProbes; getForgeP03B08ToB09Handoff; summarizeStrategistProvenanceMatrix; listStrategistProvenanceKnownGaps
+next: P03-B09-A02
