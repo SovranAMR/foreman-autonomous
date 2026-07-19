@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B05-A10
-last_commit: pending
+last_commit: 713a51c
 tests: PASS — forge-p02-visioner-research-trigger-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts P02-B05-A10 (2/2)
 evidence: runForgeVisionerResearchTriggerBlockGate seals 10/10 atom seals; handoff=PASS→P02-B06; orchestrator visioner_research_trigger_block_gate verification PASS
 next: P02-B06-A01
