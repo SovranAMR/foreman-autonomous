@@ -6,8 +6,8 @@ active_phase: P02
 active_block: P02-B01
 active_atom: P02-B01-A03
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 102/1000
-phase_progress: 2/100
+program_progress: 103/1000
+phase_progress: 3/100
 block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B01-A03 — Intent ve görev anlamlandırma: en küçük üretim dikey dilimini uygula.
+P02-B01-A04 — Intent ve görev anlamlandırma: boundary ve edge-case davranışlarını tamamla.
 
-objective: P02-B01-A02 contract sealed; production slice A03 next.
-target: visioner intent production exports for parse/classify/route gaps.
-hypothesis: typed contract gap probes define minimal production slice scope.
-acceptance: production slice probes flip documented gaps; regression suite passes.
+objective: P02-B01-A03 parse/classify/route slice sealed; boundary slice A04 next.
+target: visioner intent boundary probes for edge cases and invalid inputs.
+hypothesis: boundary dispositions close remaining edge-case gaps without scope creep.
+acceptance: boundary slice probes flip or preserve documented gaps; regression suite passes.
 commands: npx tsx --test src/forge-p02-*.test.ts
 blast_radius: src/forge-p02-visioner-intent*.ts, src/orchestrator.ts
-rollback: P02-B01-A03 slice değişikliklerini geri al.
+rollback: P02-B01-A04 boundary değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: production slice cannot flip gap probes without scope creep ise BLOCKED raporla.
+fallback: boundary slice cannot flip probes without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B01-A02
-last_commit: a497a84
-tests: PASS — forge-p02-visioner-intent.test.ts (7/7); forge-p02-visioner-intent-baseline.test.ts (3/3); contract coverage 20 probes 15 PASS + 5 gap FAIL
-evidence: validateVisionerIntentContractCoverage PASS; validateVisionerIntentAgainstContract PASS; 5 gap dispositions wired; criterion source-of-truth from FORGE_VISIONER_INTENT_CONTRACT_V1
-next: P02-B01-A03
+last_atom: P02-B01-A03
+last_commit: pending
+tests: PASS — forge-p02-visioner-intent.test.ts (10/10); forge-p02-visioner-intent-baseline.test.ts (3/3); production slice 18 PASS + 2 gap FAIL; matrixValidation unexpectedMismatches=0
+evidence: parseVisionerTaskIntent + classifyVisionerTaskDepth + buildVisionPromptForDepth exported; orchestrator depth-routed vision prompt; 3 gap probes flipped PASS
+next: P02-B01-A04

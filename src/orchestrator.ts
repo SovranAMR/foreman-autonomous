@@ -53,6 +53,11 @@ import { extractReasoning, extractAllReasoningBlocks, analyzeReasoningContent } 
 import { getModelCapabilities } from "./model-capabilities.js";
 import { ArtifactEngine } from "./artifact-engine.js";
 import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
+import {
+  parseVisionerTaskIntent,
+  classifyVisionerTaskDepth,
+  buildVisionPromptForDepth,
+} from "./forge-p02-visioner-intent.js";
 
 /** Canonical ordered pipeline phases for behavior-map probes and downstream tooling. */
 export const FORGE_PIPELINE_PHASES = FORGE_PIPELINE_CORE_PHASES;
@@ -935,9 +940,17 @@ export class Orchestrator {
         parsed: undefined,
       } as StepResult;
     } else {
+      const taskIntent = parseVisionerTaskIntent(task);
+      const taskDepth = classifyVisionerTaskDepth(task, taskIntent);
+      const visionPrompt = buildVisionPromptForDepth(
+        taskDepth,
+        task,
+        projectContext,
+        identityContext,
+      );
       visionResult = await this.engine.stepWithPhase(
         visionChain.id,
-        `Define the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}${identityContext ? `\n\n${identityContext}` : ""}`,
+        visionPrompt,
         "visioner",
         "vision",
       );

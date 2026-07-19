@@ -44,9 +44,9 @@ describe("Forge Visioner Intent — P02-B01-A01", () => {
       "FAIL",
       loadVisionerIntentBaseline(),
     );
-    assert.equal(documentedFail.length, 5);
-    assert.ok(documentedFail.some(p => p.id === "vint.structured_intent_parse"));
-    assert.ok(documentedFail.some(p => p.id === "vint.programmatic_depth_classifier"));
+    assert.equal(documentedFail.length, 2);
+    assert.ok(documentedFail.some(p => p.id === "vint.structured_intent_recovery"));
+    assert.ok(documentedFail.some(p => p.id === "vint.intent_ambiguity_nogo"));
 
     for (const gap of summary.knownGaps) {
       assert.equal(gap.expected, "FAIL");
@@ -67,15 +67,12 @@ describe("Forge Visioner Intent — P02-B01-A01", () => {
     );
   });
 
-  it("documents visioner intent gaps as measurable baseline debt", () => {
+  it("documents remaining visioner intent gaps as measurable baseline debt", () => {
     const gaps = listVisionerIntentKnownGaps(runVisionerIntentProbes());
     const ids = gaps.map(g => g.id).sort();
 
     assert.deepEqual(ids, [
-      "vint.depth_routed_prompt",
       "vint.intent_ambiguity_nogo",
-      "vint.programmatic_depth_classifier",
-      "vint.structured_intent_parse",
       "vint.structured_intent_recovery",
     ]);
     assert.ok(

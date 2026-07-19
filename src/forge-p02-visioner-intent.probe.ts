@@ -20,6 +20,8 @@ import {
 } from "./forge-integrated-baseline.js";
 import {
   validateVisionerIntentBaseline,
+  validateVisionerIntentAgainstContract,
+  validateVisionerIntentProbeMatrix,
   getActiveVisionerIntentContract,
   summarizeVisionerIntentMatrix,
   listVisionerIntentProbesByExpected,
@@ -46,6 +48,7 @@ export {
   validateVisionerIntentContractCoverage,
   validateVisionerIntentAgainstContract,
   buildDefaultSourcePhaseGate,
+  validateVisionerIntentProbeMatrix,
   FORGE_VISIONER_INTENT_VERSION,
   VISIONER_INTENT_CATEGORIES,
 } from "./forge-p02-visioner-intent.js";
@@ -180,9 +183,10 @@ function probeIntentDepth(
     }
     case "vint.depth_routed_prompt": {
       const ok =
-        orchestrator.includes("classifyVisionerTaskDepth") ||
-        orchestrator.includes("selectVisionerPromptByDepth") ||
-        orchestrator.includes("routeVisionPromptByDepth");
+        orchestrator.includes("classifyVisionerTaskDepth") &&
+        (orchestrator.includes("buildVisionPromptForDepth") ||
+          orchestrator.includes("selectVisionerPromptByDepth") ||
+          orchestrator.includes("routeVisionPromptByDepth"));
       return probe(id, category, expected, ok, `depthRoutedPrompt=${ok}`);
     }
     default:
@@ -380,4 +384,39 @@ export function runVisionerIntentProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface VisionerIntentProductionSliceResult {
+  atom: "P02-B01-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerIntentProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerIntentMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerIntentProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: parse/classify/route intent wiring with contract-wired
+ * probe execution and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runVisionerIntentProductionSlice(
+  fixture: VisionerIntentBaseline = loadVisionerIntentBaseline(),
+): VisionerIntentProductionSliceResult {
+  const contract = getActiveVisionerIntentContract();
+  const fixtureValidation = validateVisionerIntentBaseline(fixture);
+  const contractValidation = validateVisionerIntentAgainstContract(fixture, contract);
+  const results = runVisionerIntentProbes(fixture);
+  const summary = summarizeVisionerIntentMatrix(results);
+  const matrixValidation = validateVisionerIntentProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B01-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

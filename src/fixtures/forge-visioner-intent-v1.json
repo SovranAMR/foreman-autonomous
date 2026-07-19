@@ -45,7 +45,7 @@
       "id": "vint.structured_intent_parse",
       "category": "task_signal",
       "description": "Typed parseVisionerTaskIntent exports structured intent from raw task",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "vint.prompt_depth_tiers",
@@ -57,13 +57,13 @@
       "id": "vint.programmatic_depth_classifier",
       "category": "intent_depth",
       "description": "classifyVisionerTaskDepth programmatically classifies task complexity",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "vint.depth_routed_prompt",
       "category": "intent_depth",
       "description": "Orchestrator routes vision prompt variant by classified task depth",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "vint.p01_phase_handoff_entry",

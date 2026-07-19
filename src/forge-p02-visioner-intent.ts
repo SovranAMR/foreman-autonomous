@@ -16,7 +16,250 @@ import {
   summarizeIntegratedBaselineContractCoverage,
 } from "./forge-integrated-baseline.js";
 
-export const FORGE_VISIONER_INTENT_VERSION = "1.0.0-b01";
+export const FORGE_VISIONER_INTENT_VERSION = "1.0.0-b03";
+
+export type VisionerTaskDepth = "simple" | "medium" | "complex";
+
+export interface VisionerTaskIntent {
+  rawTask: string;
+  normalizedTask: string;
+  wordCount: number;
+  signals: string[];
+  goals: string[];
+  fileReferences: string[];
+  ambiguityScore: number;
+  depth: VisionerTaskDepth;
+}
+
+const SIMPLE_TASK_SIGNALS = [
+  /\b(fix|patch|rename|typo|update\s+\w+\.\w+|delete\s+\w+\.\w+|add\s+\w+\.\w+)\b/i,
+  /\b(single\s+file|config\s+change|one\s+line)\b/i,
+] as const;
+
+const COMPLEX_TASK_SIGNALS = [
+  /\b(architecture|full\s+system|multi-?component|ui\s+design|redesign|platform|end-?to-?end)\b/i,
+  /\b(comprehensive|entire\s+codebase|from\s+scratch)\b/i,
+] as const;
+
+const FILE_REFERENCE_PATTERN = /(?:[\w.-]+\/)+[\w.-]+\.\w+|\b[\w.-]+\.\w{1,6}\b/g;
+
+/**
+ * Parse raw user task into structured visioner intent (P02-B01-A03 production slice).
+ */
+export function parseVisionerTaskIntent(rawTask: string): VisionerTaskIntent {
+  const normalizedTask = rawTask.trim().replace(/\s+/g, " ");
+  const words = normalizedTask.split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+  const fileReferences = [...new Set(normalizedTask.match(FILE_REFERENCE_PATTERN) ?? [])];
+
+  const signals: string[] = [];
+  if (/\b(fix|bug|patch|repair|resolve)\b/i.test(normalizedTask)) signals.push("fix");
+  if (/\b(add|create|implement|build|introduce)\b/i.test(normalizedTask)) signals.push("create");
+  if (/\b(refactor|restructure|migrate|optimize)\b/i.test(normalizedTask)) signals.push("refactor");
+  if (/\b(test|verify|validate|benchmark)\b/i.test(normalizedTask)) signals.push("verify");
+  if (/\b(design|ui|ux|layout|theme)\b/i.test(normalizedTask)) signals.push("design");
+
+  const goals = normalizedTask
+    .split(/[.!?]\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length >= 8)
+    .slice(0, 4);
+
+  let ambiguityScore = 0;
+  if (wordCount < 4) ambiguityScore += 0.4;
+  if (/\b(maybe|perhaps|something|stuff|etc\.?|whatever)\b/i.test(normalizedTask)) ambiguityScore += 0.3;
+  if (/\b(or|either)\b/i.test(normalizedTask)) ambiguityScore += 0.2;
+  if (goals.length === 0 && wordCount > 0) ambiguityScore += 0.1;
+  ambiguityScore = Math.min(1, ambiguityScore);
+
+  const depth = classifyVisionerTaskDepth(rawTask, {
+    rawTask,
+    normalizedTask,
+    wordCount,
+    signals,
+    goals,
+    fileReferences,
+    ambiguityScore,
+    depth: "medium",
+  });
+
+  return {
+    rawTask,
+    normalizedTask,
+    wordCount,
+    signals,
+    goals: goals.length > 0 ? goals : [normalizedTask],
+    fileReferences,
+    ambiguityScore,
+    depth,
+  };
+}
+
+/**
+ * Programmatically classify task complexity for vision depth routing (P02-B01-A03).
+ */
+export function classifyVisionerTaskDepth(
+  rawTask: string,
+  intent?: Pick<VisionerTaskIntent, "normalizedTask" | "wordCount" | "fileReferences" | "signals">,
+): VisionerTaskDepth {
+  const task = intent?.normalizedTask ?? rawTask.trim().replace(/\s+/g, " ");
+  const wordCount = intent?.wordCount ?? task.split(/\s+/).filter(Boolean).length;
+  const fileCount = intent?.fileReferences?.length ?? [...new Set(task.match(FILE_REFERENCE_PATTERN) ?? [])].length;
+  const signalCount = intent?.signals?.length ?? 0;
+
+  if (
+    COMPLEX_TASK_SIGNALS.some(p => p.test(task)) ||
+    wordCount > 80 ||
+    fileCount > 5 ||
+    signalCount >= 4
+  ) {
+    return "complex";
+  }
+
+  if (
+    wordCount <= 18 &&
+    fileCount <= 1 &&
+    SIMPLE_TASK_SIGNALS.some(p => p.test(task))
+  ) {
+    return "simple";
+  }
+
+  if (wordCount <= 12 && fileCount === 0 && signalCount <= 1) {
+    return "simple";
+  }
+
+  return "medium";
+}
+
+const VISIONER_DEPTH_DIRECTIVES: Record<VisionerTaskDepth, string> = {
+  simple:
+    "This is a SIMPLE task. Keep vision SHORT and PRACTICAL — goal, acceptance criteria, constraints only.",
+  medium:
+    "This is a MEDIUM complexity task. Provide moderate vision with clear technical direction and scope boundaries.",
+  complex:
+    "This is a COMPLEX task. Produce a full creative vision document with design principles and emotional targets.",
+};
+
+/**
+ * Select depth-routed vision prompt variant for orchestrator vision phase (P02-B01-A03).
+ */
+export function buildVisionPromptForDepth(
+  depth: VisionerTaskDepth,
+  task: string,
+  projectContext: string,
+  identityContext: string,
+): string {
+  const directive = VISIONER_DEPTH_DIRECTIVES[depth];
+  const identitySuffix = identityContext ? `\n\n${identityContext}` : "";
+  return `${directive}\n\nDefine the complete vision for this project. What should it feel like? What makes it unique? What are the design principles?\n\nProject: ${task}${projectContext}${identitySuffix}`;
+}
+
+export interface VisionerIntentProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface VisionerIntentProbeMatrixValidationResult {
+  valid: boolean;
+  issues: VisionerIntentProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ * PASS probes must align; documented FAIL gaps must remain aligned (actual === FAIL).
+ */
+export function validateVisionerIntentProbeMatrix(
+  results: VisionerIntentProbeResult[],
+  contract: VisionerIntentContract = getActiveVisionerIntentContract(),
+): VisionerIntentProbeMatrixValidationResult {
+  const issues: VisionerIntentProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(r => [r.id, r]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(p => p.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
 
 export const VISIONER_INTENT_CATEGORIES = [
   "intent_versioning",
@@ -202,7 +445,7 @@ const VISIONER_INTENT_CATEGORY_CONTRACTS: Record<
     category: "task_signal",
     acceptance: {
       invariant:
-        "Raw user task signal reaches visioner layer; structured intent parse is a documented gap until A03.",
+        "Raw user task signal reaches visioner layer; parseVisionerTaskIntent exports typed structured intent.",
       minProbeCount: 3,
       requireFullAlignment: true,
     },
@@ -227,8 +470,8 @@ const VISIONER_INTENT_CATEGORY_CONTRACTS: Record<
         id: "vint.structured_intent_parse",
         category: "task_signal",
         description: "Typed parseVisionerTaskIntent exports structured intent from raw task",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Typed parseVisionerTaskIntent exports structured intent from raw task",
       },
     ],
@@ -237,7 +480,7 @@ const VISIONER_INTENT_CATEGORY_CONTRACTS: Record<
     category: "intent_depth",
     acceptance: {
       invariant:
-        "Prompt declares depth tiers; programmatic classifier and depth-routed prompts are documented gaps.",
+        "Programmatic depth classifier and depth-routed vision prompts wired in orchestrator.",
       minProbeCount: 3,
       requireFullAlignment: true,
     },
@@ -254,16 +497,16 @@ const VISIONER_INTENT_CATEGORY_CONTRACTS: Record<
         id: "vint.programmatic_depth_classifier",
         category: "intent_depth",
         description: "classifyVisionerTaskDepth programmatically classifies task complexity",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "classifyVisionerTaskDepth programmatically classifies task complexity",
       },
       {
         id: "vint.depth_routed_prompt",
         category: "intent_depth",
         description: "Orchestrator routes vision prompt variant by classified task depth",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Orchestrator routes vision prompt variant by classified task depth",
       },
     ],

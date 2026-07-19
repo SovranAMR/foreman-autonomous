@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 2
+completed_atoms: 3
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -17,7 +17,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P02-B01-A01 — Intent ve görev anlamlandırma: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P02-B01-A02 — Intent ve görev anlamlandırma: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P02-B01-A03 — Intent ve görev anlamlandırma: en küçük üretim dikey dilimini uygula
+- [x] P02-B01-A03 — Intent ve görev anlamlandırma: en küçük üretim dikey dilimini uygula
 - [ ] P02-B01-A04 — Intent ve görev anlamlandırma: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B01-A05 — Intent ve görev anlamlandırma: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B01-A06 — Intent ve görev anlamlandırma: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B01-A02
+last_atom: P02-B01-A03
 last_commit: pending
-tests: PASS — forge-p02-visioner-intent.test.ts (7/7); forge-p02-visioner-intent-baseline.test.ts (3/3); validateVisionerIntentContractCoverage PASS; fixture↔contract alignment PASS
-evidence: FORGE_VISIONER_INTENT_CONTRACT_V1 — 20 probes, 8 categories, 5 gap dispositions; summarizeVisionerIntentContractCoverage 15 PASS + 5 FAIL; harness criteria wired from contract
-next: P02-B01-A03
+tests: PASS — forge-p02-visioner-intent.test.ts (10/10); forge-p02-visioner-intent-baseline.test.ts (3/3); runVisionerIntentProductionSlice matrixValid; 18 PASS + 2 gap FAIL
+evidence: parseVisionerTaskIntent, classifyVisionerTaskDepth, buildVisionPromptForDepth; orchestrator depth-routed vision; vint.structured_intent_parse/programmatic_depth_classifier/depth_routed_prompt flipped PASS
+next: P02-B01-A04
