@@ -55,6 +55,10 @@ import { ArtifactEngine } from "./artifact-engine.js";
 import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
 import { validateStrategistReplan } from "./forge-p03-strategist-replan.js";
 import {
+  validatePlanDrift,
+  rejectUndetectedPlanDrift,
+} from "./forge-p03-strategist-provenance.js";
+import {
   parseVisionerTaskIntent,
   classifyVisionerTaskDepth,
   buildVisionPromptForDepth,
@@ -1918,6 +1922,30 @@ ${visionOutput}`,
       }
       console.warn(
         `[forge] validateStrategistReplan: ${replanValidation.issues.join(", ") || "decompose replan check failed"}`,
+      );
+    }
+
+    // ─── STRATEGIST PLAN DRIFT GATE — validate plan drift before block execution (P03-B09-A03) ───
+    const planDriftValidation = validatePlanDrift(
+      decomposeResult.thought.output ?? "",
+      visionOutput,
+    );
+    if (rejectUndetectedPlanDrift(planDriftValidation)) {
+      const detail =
+        `undetected drift: score ${planDriftValidation.driftScore.toFixed(2)} ` +
+        `exceeds driftThreshold ${planDriftValidation.driftThreshold} — ` +
+        `${planDriftValidation.issues.join(", ") || "plan drift rejected"}`;
+      this.engine.streaming.error(detail);
+      this.emit({
+        type: "block_detected",
+        thought: decomposeResult.thought,
+        reason: detail,
+      });
+      return this.buildResult(false, totalThoughts, visionChain.id, "decompose");
+    }
+    if (!planDriftValidation.valid && planDriftValidation.issues.length > 0) {
+      console.warn(
+        `[forge] validatePlanDrift: ${planDriftValidation.issues.join(", ") || "plan drift check failed"}`,
       );
     }
 

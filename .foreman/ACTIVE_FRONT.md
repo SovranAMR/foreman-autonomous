@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B09
-active_atom: P03-B09-A03
+active_atom: P03-B09-A04
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 281/1000
-phase_progress: 81/100
-block_progress: 2/10
+program_progress: 282/1000
+phase_progress: 82/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -43,8 +43,8 @@ fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B09-A02
-last_commit: f02c308
-tests: PASS — forge-p03-strategist-provenance.test.ts (9/9); forge-p03-strategist-provenance-baseline.test.ts (3/3)
-evidence: FORGE_STRATEGIST_PROVENANCE_CONTRACT_V1; summarizeStrategistProvenanceCoverage; validateStrategistProvenanceAgainstContract
-next: P03-B09-A03
+last_atom: P03-B09-A03
+last_commit: pending
+tests: PASS — forge-p03-strategist-provenance.test.ts (11/11); forge-p03-strategist-provenance-baseline.test.ts (3/3)
+evidence: validatePlanDrift; rejectUndetectedPlanDrift; runStrategistProvenanceProductionSlice; buildPlanProvenanceGraph; orchestrator pre-exec drift gate
+next: P03-B09-A04

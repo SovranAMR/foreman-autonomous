@@ -63,13 +63,13 @@
       "id": "sprov.prompt_plan_provenance",
       "category": "drift_detection",
       "description": "STRATEGIST decompose format declares PLAN PROVENANCE section",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sprov.orchestrator_pre_exec_drift_gate",
       "category": "drift_detection",
       "description": "Orchestrator validates plan drift before block execution starts",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sprov.replan_provenance_builder",
@@ -81,13 +81,13 @@
       "id": "sprov.parser_provenance_fields",
       "category": "provenance_seam",
       "description": "parseDecomposeResponse exports planProvenance fields from decompose output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sprov.plan_provenance_graph",
       "category": "provenance_seam",
       "description": "Plan provenance graph links vision→blocks→atoms with auditable lineage edges",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sprov.b08_block_handoff_entry",
@@ -171,13 +171,13 @@
       "id": "sprov.nogo_undetected_drift",
       "category": "nogo_path",
       "description": "NO-GO gate rejects run when plan drift exceeds threshold undetected",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sprov.exported_plan_drift_validator",
       "category": "nogo_path",
       "description": "validatePlanDrift exported for orchestrator pre-execution drift checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

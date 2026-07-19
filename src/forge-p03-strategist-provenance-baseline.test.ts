@@ -33,28 +33,19 @@ describe("Forge Strategist Plan Provenance — P03-B09-A01", () => {
     assert.equal(fixture.probes.length, 28);
   });
 
-  it("measures provenance probes with documented FAIL gaps from B08 sealed handoff", () => {
+  it("measures provenance probes with full alignment after A03 production slice", () => {
     const results = runStrategistProvenanceProbes();
     const summary = summarizeStrategistProvenanceMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 28);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listStrategistProvenanceProbesByExpected(
       "FAIL",
       loadStrategistProvenanceBaseline(),
     );
-    assert.equal(documentedFail.length, 6);
-    assert.ok(documentedFail.some(p => p.id === "sprov.prompt_plan_provenance"));
-    assert.ok(documentedFail.some(p => p.id === "sprov.orchestrator_pre_exec_drift_gate"));
-    assert.ok(documentedFail.some(p => p.id === "sprov.parser_provenance_fields"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of STRATEGIST_PROVENANCE_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -71,19 +62,6 @@ describe("Forge Strategist Plan Provenance — P03-B09-A01", () => {
 
   it("documents provenance gaps as measurable baseline debt", () => {
     const gaps = listStrategistProvenanceKnownGaps(runStrategistProvenanceProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "sprov.exported_plan_drift_validator",
-      "sprov.nogo_undetected_drift",
-      "sprov.orchestrator_pre_exec_drift_gate",
-      "sprov.parser_provenance_fields",
-      "sprov.plan_provenance_graph",
-      "sprov.prompt_plan_provenance",
-    ]);
-    assert.ok(
-      gaps.every(g => STRATEGIST_PROVENANCE_CATEGORIES.includes(g.category)),
-      "documented gaps are provenance probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });

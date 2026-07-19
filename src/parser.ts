@@ -29,6 +29,8 @@ export interface DecomposeParseResult {
   tokenBudget?: string;
   /** Strategist-declared block/atom replan repair plan (P03-B08 replan contract). */
   replanPlan?: string;
+  /** Strategist-declared plan lineage from vision to blocks (P03-B09 provenance contract). */
+  planProvenance?: string;
   confidence: number;
 }
 
@@ -157,6 +159,7 @@ export function parseDecomposeResponse(text: string): { ok: true; data: Decompos
   const resourcePlan = extractLineField(text, "RESOURCE PLAN");
   const tokenBudget = extractLineField(text, "TOKEN BUDGET");
   const replanPlan = extractLineField(text, "REPLAN PLAN");
+  const planProvenance = extractLineField(text, "PLAN PROVENANCE");
   const confidence = extractNumber(text, "CONFIDENCE");
 
   const missing: string[] = [];
@@ -194,6 +197,7 @@ export function parseDecomposeResponse(text: string): { ok: true; data: Decompos
       resourcePlan: resourcePlan ?? undefined,
       tokenBudget: tokenBudget ?? undefined,
       replanPlan: replanPlan ?? undefined,
+      planProvenance: planProvenance ?? undefined,
       confidence: confidence ?? 0.7,
     },
   };
