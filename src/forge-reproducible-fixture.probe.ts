@@ -18,9 +18,14 @@ import {
   SEALED_FORGE_FIXTURE_FILES,
   validateReproducibleFixtureBaseline,
   getActiveReproducibleFixtureContract,
+  canonicalFixtureHash,
+  validateReproducibleFixtureProbeMatrix,
+  summarizeReproducibleFixtureMatrix,
+  validateReproducibleFixtureBaselineAgainstContract,
   type ReproducibleFixtureBaseline,
   type ReproducibleFixtureCategory,
   type ReproducibleFixtureProbeResult,
+  type ReproducibleFixtureProbeMatrixValidationResult,
 } from "./forge-reproducible-fixture.js";
 
 export type { ReproducibleFixtureBaseline, ReproducibleFixtureProbeResult } from "./forge-reproducible-fixture.js";
@@ -38,6 +43,8 @@ export {
   summarizeReproducibleFixtureContractCoverage,
   validateReproducibleFixtureContractCoverage,
   validateReproducibleFixtureBaselineAgainstContract,
+  validateReproducibleFixtureProbeMatrix,
+  canonicalFixtureHash,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
   SEALED_FORGE_FIXTURE_FILES,
 } from "./forge-reproducible-fixture.js";
@@ -167,13 +174,20 @@ function probeFixtureIntegrity(
       );
     }
     case "fix.canonical_fixture_hash": {
-      const ok = hasProductionExport("canonicalFixtureHash");
+      const sample = { version: "1.0.0", probes: [{ id: "fix.sample" }] };
+      const hash1 = canonicalFixtureHash(sample);
+      const hash2 = canonicalFixtureHash(sample);
+      const ok =
+        hash1.length === 64 &&
+        hash1 === hash2 &&
+        /^[a-f0-9]+$/.test(hash1) &&
+        canonicalFixtureHash("stable") !== canonicalFixtureHash("changed");
       return probe(
         id,
         category,
         expected,
         ok,
-        `canonicalFixtureHash=${ok}`,
+        `hash=${hash1.slice(0, 12)}… stable=${hash1 === hash2}`,
         "Central canonicalFixtureHash computes stable SHA-256 over fixture content",
       );
     }
@@ -518,4 +532,39 @@ export function runReproducibleFixtureProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface ReproducibleFixtureProductionSliceResult {
+  atom: "P01-B07-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ReproducibleFixtureProbeResult[];
+  summary: ReturnType<typeof summarizeReproducibleFixtureMatrix>;
+  matrixValidation: ReproducibleFixtureProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: fixture ↔ contract validation, contract-wired probe
+ * execution, and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runReproducibleFixtureProductionSlice(
+  fixture: ReproducibleFixtureBaseline = loadReproducibleFixtureBaseline(),
+): ReproducibleFixtureProductionSliceResult {
+  const contract = getActiveReproducibleFixtureContract();
+  const fixtureValidation = validateReproducibleFixtureBaseline(fixture);
+  const contractValidation = validateReproducibleFixtureBaselineAgainstContract(fixture, contract);
+  const results = runReproducibleFixtureProbes(fixture);
+  const summary = summarizeReproducibleFixtureMatrix(results);
+  const matrixValidation = validateReproducibleFixtureProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B07-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

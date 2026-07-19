@@ -39,7 +39,7 @@
       "id": "fix.canonical_fixture_hash",
       "category": "fixture_integrity",
       "description": "Central canonicalFixtureHash computes stable SHA-256 over fixture content",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "fix.content_addressable_store",

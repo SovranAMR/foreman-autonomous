@@ -5,6 +5,7 @@
  * benchmark eval harness artifacts.
  */
 
+import { createHash } from "node:crypto";
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
   getForgeP01B06ToB07Handoff,
@@ -13,7 +14,7 @@ import {
   BENCHMARK_EVAL_CATEGORIES,
 } from "./forge-benchmark-eval-harness.js";
 
-export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a02";
+export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a03";
 
 export const REPRODUCIBLE_FIXTURE_CATEGORIES = [
   "fixture_versioning",
@@ -220,8 +221,8 @@ const REPRODUCIBLE_FIXTURE_CATEGORY_CONTRACTS: Record<
         id: "fix.canonical_fixture_hash",
         category: "fixture_integrity",
         description: "Central canonicalFixtureHash computes stable SHA-256 over fixture content",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Central canonicalFixtureHash computes stable SHA-256 over fixture content",
       },
       {
@@ -792,4 +793,122 @@ export function listReproducibleFixtureKnownGaps(
   results: ReproducibleFixtureProbeResult[],
 ): ReproducibleFixtureProbeResult[] {
   return summarizeReproducibleFixtureMatrix(results).knownGaps;
+}
+
+export interface ReproducibleFixtureProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "unexpected_mismatch"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "criterion_mismatch"
+    | "extra_result";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ReproducibleFixtureProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ReproducibleFixtureProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Compute stable SHA-256 digest over fixture content for content-addressable integrity (P01-B07-A03).
+ */
+export function canonicalFixtureHash(content: string | Buffer | Record<string, unknown>): string {
+  const payload =
+    typeof content === "string" || Buffer.isBuffer(content)
+      ? content
+      : JSON.stringify(content);
+  return createHash("sha256").update(payload).digest("hex");
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ * PASS probes must align; documented FAIL gaps must remain aligned (actual === FAIL).
+ */
+export function validateReproducibleFixtureProbeMatrix(
+  results: ReproducibleFixtureProbeResult[],
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixtureProbeMatrixValidationResult {
+  const issues: ReproducibleFixtureProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(r => [r.id, r]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(p => p.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
 }

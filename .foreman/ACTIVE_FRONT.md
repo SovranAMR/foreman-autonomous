@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B07
-active_atom: P01-B07-A03
+active_atom: P01-B07-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 61/1000
-phase_progress: 60/100
-block_progress: 2/10
+program_progress: 62/1000
+phase_progress: 61/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B07-A03 — Reproducible fixture sistemi: en küçük üretim dikey dilimini uygula.
+P01-B07-A04 — Reproducible fixture sistemi: boundary ve edge-case davranışlarını tamamla.
 
-objective: A02 contract üzerine en küçük üretim dikey dilimini uygula.
-target: runReproducibleFixtureProductionSlice; contract-wired probe execution.
-hypothesis: Production slice closes at least one documented FAIL gap without regressions.
-acceptance: production slice test PASS; contract alignment preserved.
+objective: A03 production slice üzerine boundary ve edge-case davranışlarını uygula.
+target: runReproducibleFixtureBoundarySlice; contract-wired boundary probe execution.
+hypothesis: Boundary slice closes edge-case gaps without regressions on PASS probes.
+acceptance: boundary slice test PASS; contract alignment preserved.
 commands: npx tsx --test src/forge-reproducible-fixture-baseline.test.ts
 blast_radius: forge-reproducible-fixture*.ts
-rollback: A03 production slice değişikliklerini geri al.
+rollback: A04 boundary slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B07-A02
-last_commit: 26d35ae
-tests: PASS — forge-reproducible-fixture-baseline.test.ts (9/9)
-evidence: getActiveReproducibleFixtureContract; validateReproducibleFixtureContractCoverage; 21-probe typed contract with 8 categories minProbeCount+criteria; fixture↔contract alignment
-next: P01-B07-A03
+last_atom: P01-B07-A03
+last_commit: pending
+tests: PASS — forge-reproducible-fixture-baseline.test.ts (11/11)
+evidence: runReproducibleFixtureProductionSlice; validateReproducibleFixtureProbeMatrix; canonicalFixtureHash SHA-256; fix.canonical_fixture_hash gap closed (7→6 documented FAIL gaps)
+next: P01-B07-A04

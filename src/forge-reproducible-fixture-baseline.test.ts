@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   loadReproducibleFixtureBaseline,
   runReproducibleFixtureProbes,
+  runReproducibleFixtureProductionSlice,
   validateReproducibleFixtureBaseline,
   summarizeReproducibleFixtureMatrix,
   listReproducibleFixtureProbesByExpected,
@@ -14,6 +15,8 @@ import {
   summarizeReproducibleFixtureContractCoverage,
   validateReproducibleFixtureContractCoverage,
   validateReproducibleFixtureBaselineAgainstContract,
+  validateReproducibleFixtureProbeMatrix,
+  canonicalFixtureHash,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
 } from "./forge-reproducible-fixture.probe.js";
 
@@ -51,9 +54,7 @@ describe("Forge Reproducible Fixture — P01-B07-A01", () => {
       "FAIL",
       loadReproducibleFixtureBaseline(),
     );
-    assert.equal(documentedFail.length, 7);
-    assert.ok(documentedFail.some(p => p.id === "fix.canonical_fixture_hash"));
-    assert.ok(documentedFail.some(p => p.id === "fix.deterministic_eval_seed"));
+    assert.equal(documentedFail.length, 6);
     assert.ok(documentedFail.some(p => p.id === "fix.content_addressable_store"));
 
     for (const gap of summary.knownGaps) {
@@ -80,7 +81,6 @@ describe("Forge Reproducible Fixture — P01-B07-A01", () => {
     const ids = gaps.map(g => g.id).sort();
 
     assert.deepEqual(ids, [
-      "fix.canonical_fixture_hash",
       "fix.content_addressable_store",
       "fix.deterministic_eval_seed",
       "fix.nogo_fixture_drift_gate",
@@ -122,17 +122,17 @@ describe("Forge Reproducible Fixture Contract — P01-B07-A02", () => {
     }
   });
 
-  it("maps 21 probes with seven documented gap dispositions from A01 baseline", () => {
+  it("maps 21 probes with six documented gap dispositions from A01 baseline", () => {
     const contract = getActiveReproducibleFixtureContract();
     const summary = summarizeReproducibleFixtureContractCoverage(contract);
     const coverage = validateReproducibleFixtureContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 21);
-    assert.equal(summary.expectedPass, 14);
-    assert.equal(summary.expectedFail, 7);
-    assert.equal(summary.byDisposition.observed, 12);
-    assert.equal(summary.byDisposition.gap, 7);
+    assert.equal(summary.expectedPass, 15);
+    assert.equal(summary.expectedFail, 6);
+    assert.equal(summary.byDisposition.observed, 13);
+    assert.equal(summary.byDisposition.gap, 6);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 0);
     assert.equal(summary.byDisposition.nogo, 0);
@@ -146,11 +146,10 @@ describe("Forge Reproducible Fixture Contract — P01-B07-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists seven documented gap probes for reproducible fixture wiring", () => {
+  it("lists six documented gap probes for reproducible fixture wiring", () => {
     const gaps = listReproducibleFixtureProbesByDisposition("gap");
     const ids = gaps.map(p => p.id).sort();
     assert.deepEqual(ids, [
-      "fix.canonical_fixture_hash",
       "fix.content_addressable_store",
       "fix.deterministic_eval_seed",
       "fix.nogo_fixture_drift_gate",
@@ -193,5 +192,68 @@ describe("Forge Reproducible Fixture Contract — P01-B07-A02", () => {
       assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
       assert.equal(result.criterion, contractProbe.criterion);
     }
+  });
+});
+
+describe("Forge Reproducible Fixture Production Slice — P01-B07-A03", () => {
+  it("computes stable SHA-256 via canonicalFixtureHash", () => {
+    const sample = { version: "1.0.0", atom: "P01-B07-A03" };
+    const hash1 = canonicalFixtureHash(sample);
+    const hash2 = canonicalFixtureHash(sample);
+
+    assert.equal(hash1.length, 64);
+    assert.equal(hash1, hash2);
+    assert.match(hash1, /^[a-f0-9]+$/);
+    assert.notEqual(canonicalFixtureHash("a"), canonicalFixtureHash("b"));
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    const slice = runReproducibleFixtureProductionSlice();
+
+    assert.equal(slice.atom, "P01-B07-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 21);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 15);
+    assert.equal(slice.matrixValidation.gapAligned, 6);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateReproducibleFixtureProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 6);
+    assert.deepEqual(
+      slice.summary.knownGaps.map(g => g.id).sort(),
+      [
+        "fix.content_addressable_store",
+        "fix.deterministic_eval_seed",
+        "fix.nogo_fixture_drift_gate",
+        "fix.nogo_hash_mismatch_gate",
+        "fix.recovery_baseline_reset",
+        "fix.recovery_missing_fixture_file",
+      ],
+    );
+
+    const closedGap = slice.results.find(r => r.id === "fix.canonical_fixture_hash");
+    assert.ok(closedGap);
+    assert.equal(closedGap!.expected, "PASS");
+    assert.equal(closedGap!.actual, "PASS");
+    assert.equal(closedGap!.aligned, true);
   });
 });
