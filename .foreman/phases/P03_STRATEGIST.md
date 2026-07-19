@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B07-A02
-last_commit: pending
+last_commit: ecf995a
 tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (12/12); 27 probes; contract coverage validated
 evidence: getActiveStrategistParallelWaveContract; validateStrategistParallelWaveCoverage; validateStrategistParallelWaveAgainstContract
 next: P03-B07-A03
