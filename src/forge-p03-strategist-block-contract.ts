@@ -19,7 +19,7 @@ import {
 } from "./forge-p03-strategist-intent.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION = "1.0.0-a03";
+export const FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION = "1.0.0-a04";
 
 /** Maximum normalized decompose length before truncation (P03-B02-A01 boundary). */
 export const STRATEGIST_BLOCK_DECOMPOSE_MAX_LENGTH = 64000;
@@ -258,6 +258,28 @@ export function validateStrategistBlockContractProbeMatrix(
   };
 }
 
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateStrategistBlockContractBoundaryProbeMatrix(
+  results: StrategistBlockContractProbeResult[],
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): StrategistBlockContractProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistBlockContractContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistBlockContractContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistBlockContractProbeMatrix(boundaryResults, boundaryContract);
+}
+
 export interface StrategistBlockContractProductionSliceResult {
   atom: "P03-B02-A03";
   fixtureValid: boolean;
@@ -289,6 +311,39 @@ export function runStrategistBlockContractProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface StrategistBlockContractBoundarySliceResult {
+  atom: "P03-B02-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistBlockContractProbeResult[];
+  boundaryResults: StrategistBlockContractProbeResult[];
+  matrixValidation: StrategistBlockContractProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (decompose input edge cases, probe runner,
+ * documented gaps, block cap) with zero unexpected mismatches.
+ */
+export function runStrategistBlockContractBoundarySlice(
+  fixture: StrategistBlockContractBaseline = loadStrategistBlockContractBaseline(),
+): StrategistBlockContractBoundarySliceResult {
+  const contract = getActiveStrategistBlockContract();
+  const results = runStrategistBlockContractProbes(fixture);
+  const boundaryProbes = listStrategistBlockContractContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistBlockContractBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B02-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

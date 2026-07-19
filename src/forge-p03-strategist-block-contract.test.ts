@@ -11,7 +11,12 @@ import {
   validateStrategistBlockContractAgainstContract,
   recoverStrategistBlockProduction,
   runStrategistBlockContractProductionSlice,
+  runStrategistBlockContractBoundarySlice,
   validateStrategistBlockContractProbeMatrix,
+  validateStrategistBlockContractBoundaryProbeMatrix,
+  listStrategistBlockContractContractProbesByCategory,
+  assessStrategistBlockInputBoundary,
+  STRATEGIST_BLOCK_DECOMPOSE_MAX_LENGTH,
   STRATEGIST_BLOCK_CONTRACT_CATEGORIES,
   FORGE_STRATEGIST_BLOCK_CONTRACT_V1,
 } from "./forge-p03-strategist-block-contract.js";
@@ -166,5 +171,82 @@ CONFIDENCE: 0.8`;
     assert.equal(recoveryProbe!.expected, "PASS");
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
+  });
+});
+
+describe("Forge Strategist Block Contract Boundary Slice — P03-B02-A04", () => {
+  it("assessStrategistBlockInputBoundary handles decompose edge cases", () => {
+    const empty = assessStrategistBlockInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistBlockInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistBlockInputBoundary("bad\0decompose");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const valid = assessStrategistBlockInputBoundary("Block 1: valid decompose output");
+    assert.equal(valid.disposition, "valid");
+    assert.equal(valid.acceptable, true);
+
+    const longInput = "x".repeat(STRATEGIST_BLOCK_DECOMPOSE_MAX_LENGTH + 500);
+    const truncated = assessStrategistBlockInputBoundary(longInput);
+    assert.equal(truncated.disposition, "exceeds_max_length");
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedDecompose.length, STRATEGIST_BLOCK_DECOMPOSE_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("defines boundary category with decompose input edge-case probes", () => {
+    const boundary = listStrategistBlockContractContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "sblk.block_cap_boundary",
+      "sblk.empty_decompose_boundary",
+      "sblk.known_gaps_documented",
+      "sblk.probe_runner_exported",
+      "sblk.source_block_gate_ref",
+      "sblk.whitespace_decompose_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistBlockContract();
+    const slice = runStrategistBlockContractBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B02-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistBlockContractContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistBlockContractBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });
