@@ -44,7 +44,7 @@ fallback: Failure/recovery slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B06-A04
-last_commit: pending
+last_commit: c7dcfd9
 tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (13/13); boundary slice 6/6 probes; zero unexpected mismatches
 evidence: assessStrategistResourceBudgetInputBoundary; validateStrategistResourceBudgetBoundaryProbeMatrix; runStrategistResourceBudgetBoundarySlice; recovery rejects empty/whitespace at boundary
 next: P03-B06-A05
