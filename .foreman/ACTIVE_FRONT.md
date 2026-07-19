@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B09-A07
-last_commit: pending
+last_commit: 094df89
 tests: PASS — forge-p03-strategist-provenance.test.ts (31/31); forge-p03-strategist-provenance-baseline.test.ts (3/3)
 evidence: runStrategistProvenancePropertyFuzzSlice; runStrategistProvenancePropertyChecks; runStrategistProvenanceFuzzValidation; runStrategistProvenanceRunRecordFuzzValidation (8 structural properties, 72 fuzz mutations rejected)
 next: P03-B09-A08
