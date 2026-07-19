@@ -23,6 +23,8 @@ import {
   validateVisionerAlternativeAgainstContract,
   validateVisionerAlternativeProbeMatrix,
   validateVisionerAlternativeBoundaryProbeMatrix,
+  validateVisionerAlternativeFailureRecoveryProbeMatrix,
+  VISIONER_ALTERNATIVE_FAILURE_RECOVERY_CATEGORIES,
   summarizeVisionerAlternativeMatrix,
   listVisionerAlternativeContractProbesByCategory,
   listVisionerAlternativeProbesByExpected,
@@ -566,7 +568,44 @@ export function runVisionerAlternativeBoundarySlice(
   };
 }
 
+export interface VisionerAlternativeFailureRecoverySliceResult {
+  atom: "P02-B07-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerAlternativeProbeResult[];
+  failureRecoveryResults: VisionerAlternativeProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerAlternativeFailureRecoveryProbeMatrix>;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runVisionerAlternativeFailureRecoverySlice(
+  fixture: VisionerAlternativeBaseline = loadVisionerAlternativeBaseline(),
+): VisionerAlternativeFailureRecoverySliceResult {
+  const contract = getActiveVisionerAlternativeContract();
+  const results = runVisionerAlternativeProbes(fixture);
+  const failureRecoveryProbes = VISIONER_ALTERNATIVE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listVisionerAlternativeContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateVisionerAlternativeFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B07-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
+    matrixValidation,
+  };
+}
+
 export {
   validateVisionerAlternativeAgainstContract,
   validateVisionerAlternativeBoundaryProbeMatrix,
+  validateVisionerAlternativeFailureRecoveryProbeMatrix,
+  VISIONER_ALTERNATIVE_FAILURE_RECOVERY_CATEGORIES,
 };
