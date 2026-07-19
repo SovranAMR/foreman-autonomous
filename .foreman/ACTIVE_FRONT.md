@@ -44,7 +44,7 @@ fallback: Failure/recovery slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B04-A04
-last_commit: pending
+last_commit: 02d24d4
 tests: PASS — forge-p05-worker-shell-process-boundary.test.ts (6/6), forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
 evidence: assessShellTimeoutBoundary + normalizeShellCommandRequest + trimmed command boundary + validateWorkerShellProcessBoundaryProbeMatrix + runWorkerShellProcessBoundarySlice; 7/7 boundary probes aligned
 next: P05-B04-A05
