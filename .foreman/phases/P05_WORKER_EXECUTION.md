@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B03-A06
-last_commit: pending
+last_commit: 02cd2de
 tests: PASS — forge-p05-worker-edit-engine-evidence.test.ts (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 38 total
 evidence: runWorkerEditEngineEvidenceSlice + validateWorkerEditEngineEvidenceProbeMatrix + runWorkerEditEngineProbesWithRecord; 7/7 evidence slice probes aligned with auditable run record
 next: P05-B03-A07
