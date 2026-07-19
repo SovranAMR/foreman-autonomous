@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 0
+completed_atoms: 1
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -15,7 +15,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P02-B01 — Intent ve görev anlamlandırma
 
-- [ ] P02-B01-A01 — Intent ve görev anlamlandırma: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P02-B01-A01 — Intent ve görev anlamlandırma: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P02-B01-A02 — Intent ve görev anlamlandırma: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B01-A03 — Intent ve görev anlamlandırma: en küçük üretim dikey dilimini uygula
 - [ ] P02-B01-A04 — Intent ve görev anlamlandırma: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: NONE
-last_commit: NONE
-tests: NOT-RUN
-evidence: Phase backlog initialized
-next: P02-B01-A01
+last_atom: P02-B01-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-intent-baseline.test.ts (3/3); 20 probes aligned; 5 documented FAIL intent gaps
+evidence: forge-visioner-intent-v1.json + forge-p02-visioner-intent.ts probe harness; P01 phase gate handoff validated; gaps: parse/classify/route/recover/ambiguity
+next: P02-B01-A02

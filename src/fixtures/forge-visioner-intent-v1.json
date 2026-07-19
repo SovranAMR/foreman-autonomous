@@ -1,0 +1,135 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B01-A01",
+  "contractAtom": "P02-B01-A05",
+  "purpose": "Visioner intent and task understanding baseline measured from sealed P01 phase gate artifacts (includes documented FAIL gaps).",
+  "sourcePhaseGate": {
+    "version": "1.0.0",
+    "atom": "P01-PHASE-GATE",
+    "contractVersion": "1.0.0",
+    "integratedBaselineProbeCount": 24,
+    "sealedBlockCount": 9
+  },
+  "probes": [
+    {
+      "id": "vint.version_tagged",
+      "category": "intent_versioning",
+      "description": "Visioner intent baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.atom_tagged",
+      "category": "intent_versioning",
+      "description": "Visioner intent baseline declares P02-B01-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.harness_version_exported",
+      "category": "intent_versioning",
+      "description": "FORGE_VISIONER_INTENT_VERSION exported for visioner intent harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.raw_task_wired",
+      "category": "task_signal",
+      "description": "Orchestrator passes raw user task into visioner step input",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.visioner_layer_invoke",
+      "category": "task_signal",
+      "description": "Vision phase invokes engine.stepWithPhase with visioner layer",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.structured_intent_parse",
+      "category": "task_signal",
+      "description": "Typed parseVisionerTaskIntent exports structured intent from raw task",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vint.prompt_depth_tiers",
+      "category": "intent_depth",
+      "description": "VISIONER_SYSTEM prompt declares simple, medium and complex task depth tiers",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.programmatic_depth_classifier",
+      "category": "intent_depth",
+      "description": "classifyVisionerTaskDepth programmatically classifies task complexity",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vint.depth_routed_prompt",
+      "category": "intent_depth",
+      "description": "Orchestrator routes vision prompt variant by classified task depth",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vint.p01_phase_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P01_TO_P02_PHASE_HANDOFF_V1 targets P02-B01-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.p01_integrated_sealed_probes",
+      "category": "baseline_link",
+      "description": "P01-B10→P02 handoff sealed probeCount matches active integrated baseline contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.source_phase_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P01 phase gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerIntentProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL intent gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.empty_vision_guard",
+      "category": "failure_path",
+      "description": "Orchestrator rejects empty or trivially short vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerIntentBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.vision_checkpoint_resume",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses prior checkpoint vision output without re-invoking LLM",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.structured_intent_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerIntent restructures failed intent parse into actionable vision input",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vint.vision_fact_check_block",
+      "category": "nogo_path",
+      "description": "Vision after_thought hook can BLOCK pipeline on fact-check failure",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.intent_ambiguity_nogo",
+      "category": "nogo_path",
+      "description": "checkVisionerIntentAmbiguity NO-GO gate blocks ambiguous tasks before vision spend",
+      "expected": "FAIL"
+    }
+  ]
+}

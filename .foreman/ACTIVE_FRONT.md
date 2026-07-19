@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B01
-active_atom: P02-B01-A01
+active_atom: P02-B01-A02
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 100/1000
-phase_progress: 0/100
+program_progress: 101/1000
+phase_progress: 1/100
 block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B01-A01 — Intent ve görev anlamlandırma: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P02-B01-A02 — Intent ve görev anlamlandırma: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P01 phase gate sealed; visioner intent baseline A01 next.
-target: visioner intent baseline fixture + failing probe matrix.
-hypothesis: Sealed P01 phase gate artifacts sufficient entry baseline for P02-B01-A01.
-acceptance: failing baseline fixture exists; typed contract probes declared.
-commands: npx tsx --test src/forge-p02-*.test.ts (when present)
+objective: P02-B01-A01 baseline sealed; typed intent contract A02 next.
+target: visioner intent typed contract + measurable acceptance probes.
+hypothesis: A01 failing baseline matrix sufficient to declare A02 contract coverage.
+acceptance: typed contract probes declared; contract coverage validation passes.
+commands: npx tsx --test src/forge-p02-*.test.ts
 blast_radius: src/forge-p02-visioner-intent*.ts
-rollback: P02-B01-A01 slice değişikliklerini geri al.
+rollback: P02-B01-A02 slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: baseline probe alignment fails ise BLOCKED raporla.
+fallback: contract coverage alignment fails ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-PHASE-GATE
+last_atom: P02-B01-A01
 last_commit: pending
-tests: PASS — forge-p01-phase-gate.test.ts (6/6); runForgeP01PhaseGate blocks=10/10 atoms=100/100 regression=PASS handoff=PASS→P02-B01; verifyForgeP01PhaseGate orchestrator wiring
-evidence: runForgeP01PhaseGate seals all ten P01 block gates; validateForgeP01PhaseGateEvidence PASS; FORGE_P01_TO_P02_PHASE_HANDOFF_V1 targets P02-B01-A01; P01 phase_gate SEALED
-next: P02-B01-A01
+tests: PASS — forge-p02-visioner-intent-baseline.test.ts (3/3); 20 probes 14 PASS + 5 aligned FAIL gaps; validateVisionerIntentBaseline PASS; P01 handoff link PASS
+evidence: loadVisionerIntentBaseline v1.0.0 atom P02-B01-A01; runVisionerIntentProbes matrix 20/20 aligned; documented gaps: structured_intent_parse, programmatic_depth_classifier, depth_routed_prompt, structured_intent_recovery, intent_ambiguity_nogo
+next: P02-B01-A02
