@@ -44,7 +44,7 @@ fallback: Evidence slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B06-A05
-last_commit: pending
+last_commit: f17373b
 tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (16/16); failure/recovery slice 7/7 probes; zero unexpected mismatches
 evidence: validateStrategistResourceBudgetFailureRecoveryProbeMatrix; runStrategistResourceBudgetFailureRecoverySlice; 5 PASS + 2 documented NO-GO gaps aligned
 next: P03-B06-A06
