@@ -44,7 +44,7 @@ fallback: B02 handoff misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B02-A10
-last_commit: pending
+last_commit: dc4fa49
 tests: PASS — forge-p03-strategist-block-contract*.test.ts (45/45); block gate 10/10 seals; handoff→P03-B03
 evidence: runForgeStrategistBlockContractBlockGate; buildStrategistBlockContractBlockGateEvidence
 next: P03-B03-A01
