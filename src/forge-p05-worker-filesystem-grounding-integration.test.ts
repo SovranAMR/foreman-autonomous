@@ -43,7 +43,7 @@ describe("Forge Worker Filesystem Grounding Integration — P05-B02-A08", () => 
     assert.ok(result.detail.includes("propertyFuzz:"));
     assert.equal(result.guard.passed, true);
     assert.ok(result.detail.includes("guard:"));
-    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a09");
+    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a10");
   });
 
   it("maps integration sub-slices through validateWorkerFilesystemGroundingIntegrationProbeMatrix", () => {

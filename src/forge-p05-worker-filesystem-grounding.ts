@@ -13,7 +13,12 @@ import { fileURLToPath } from "node:url";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import workerFilesystemGroundingBaseline from "./fixtures/forge-worker-filesystem-grounding-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP05B01ToB02Handoff,
   getActiveWorkerToolDispatchContract,
@@ -23,7 +28,7 @@ import { TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
-export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a09";
+export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a10";
 
 export const EXPECTED_P05_B01_SEALED_ATOM_COUNT = 10;
 
@@ -3651,4 +3656,286 @@ export function runWorkerFilesystemGroundingGuardSlice(): WorkerFilesystemGround
     guard,
     detail: detailParts.join(" | "),
   };
+}
+
+// ─── Block gate and handoff (P05-B02-A10) ─────────────────────────────────────
+
+export interface WorkerFilesystemGroundingBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface WorkerFilesystemGroundingBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    workerFilesystemGroundingCategories: readonly WorkerFilesystemGroundingCategory[];
+    sourceWorkerToolDispatchBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    workerFilesystemGroundingRecordRequired: true;
+  };
+}
+
+export const FORGE_P05_B02_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P05-B02-A10",
+  blockId: "P05-B02",
+  title: "Filesystem okuma ve grounding",
+  requiredAtomIds: [
+    "P05-B02-A01",
+    "P05-B02-A02",
+    "P05-B02-A03",
+    "P05-B02-A04",
+    "P05-B02-A05",
+    "P05-B02-A06",
+    "P05-B02-A07",
+    "P05-B02-A08",
+    "P05-B02-A09",
+    "P05-B02-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P05-B02-A01",
+      description:
+        "Worker filesystem grounding baseline aligns with typed contract and P05-B01 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P05-B02-A02",
+      description: "Contract declares measurable probes for all filesystem grounding categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P05-B02-A03",
+      description: "Filesystem grounding probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P05-B02-A04",
+      description:
+        "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P05-B02-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P05-B02-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P05-B02-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P05-B02-A08",
+      description: "Regression gate passes on canonical filesystem grounding matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P05-B02-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P05-B02-A10",
+      description: "Block gate evidence sealed with valid B03 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P05_B02_TO_B03_HANDOFF_V1: WorkerFilesystemGroundingBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P05-B02-A10",
+  sourceBlock: {
+    blockId: "P05-B02",
+    title: "Filesystem okuma ve grounding",
+    completedAtoms: FORGE_P05_B02_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P05-B03",
+    title: "Cerrahi edit engine",
+    entryAtom: "P05-B03-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.version,
+    harnessVersion: FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION,
+    probeCount: summarizeWorkerFilesystemGroundingContractCoverage(
+      FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1,
+    ).totalProbes,
+    workerFilesystemGroundingCategories: WORKER_FILESYSTEM_GROUNDING_CATEGORIES,
+    sourceWorkerToolDispatchBlockGateAtom: "P05-B01-A10",
+  },
+  prerequisites: [
+    "Worker filesystem grounding contract v1 with measurable read, path and boundary probes",
+    "Versioned filesystem grounding baseline aligned to contract probe matrix and sealed P05-B01 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P05-B01 worker tool dispatch block gate referenced by sourceWorkerToolDispatchBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P05-B03-A01 formalizes surgical edit engine using sealed worker filesystem grounding artifacts",
+    requiresBlockGatePass: true,
+    workerFilesystemGroundingRecordRequired: true,
+  },
+};
+
+export function getForgeP05B02BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P05_B02_BLOCK_GATE_V1;
+}
+
+export function getForgeP05B02ToB03Handoff(): WorkerFilesystemGroundingBlockHandoffContract {
+  return FORGE_P05_B02_TO_B03_HANDOFF_V1;
+}
+
+export function validateWorkerFilesystemGroundingBlockHandoffContract(
+  handoff: WorkerFilesystemGroundingBlockHandoffContract,
+  evidence: Pick<
+    WorkerFilesystemGroundingBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeWorkerFilesystemGroundingContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.workerFilesystemGroundingCategories.length !==
+    WORKER_FILESYSTEM_GROUNDING_CATEGORIES.length
+  ) {
+    issues.push("handoff workerFilesystemGroundingCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceWorkerToolDispatchBlockGateAtom !== "P05-B01-A10") {
+    issues.push(
+      `unexpected source worker tool dispatch block gate atom: ${handoff.sealedArtifacts.sourceWorkerToolDispatchBlockGateAtom}`,
+    );
+  }
+  if (handoff.targetBlock.entryAtom !== "P05-B03-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildWorkerFilesystemGroundingBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P05_B02_BLOCK_GATE_V1.blockId,
+): WorkerFilesystemGroundingBlockGateEvidence {
+  const handoff = getForgeP05B02ToB03Handoff();
+  const handoffValid = validateWorkerFilesystemGroundingBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P05-B02-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}
+
+/**
+ * Validate block gate atom seals and handoff contract — rejects incomplete or failed seals.
+ */
+export function validateForgeWorkerFilesystemGroundingBlockGate(
+  atomSeals: ForgeBlockAtomSeal[],
+  evidence: Pick<
+    WorkerFilesystemGroundingBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  blockGate: ForgeBlockGateDefinition = getForgeP05B02BlockGate(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+
+  if (atomSeals.length !== blockGate.requiredAtomIds.length) {
+    issues.push(
+      `atomSeals count=${atomSeals.length} expected=${blockGate.requiredAtomIds.length}`,
+    );
+  }
+
+  for (const atomId of blockGate.requiredAtomIds) {
+    const seal = atomSeals.find(item => item.atomId === atomId);
+    if (!seal) {
+      issues.push(`missing atom seal: ${atomId}`);
+    } else if (!seal.passed) {
+      issues.push(`atom seal failed: ${atomId} — ${seal.detail}`);
+    }
+  }
+
+  const handoffValidation = validateWorkerFilesystemGroundingBlockHandoffContract(
+    getForgeP05B02ToB03Handoff(),
+    evidence,
+  );
+  if (!handoffValidation.valid) {
+    issues.push(...handoffValidation.issues);
+  }
+
+  return { valid: issues.length === 0, issues };
 }
