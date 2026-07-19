@@ -140,7 +140,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B10-A06 — Stratejist phase gate: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B10-A07 — Stratejist phase gate: unit, property ve fuzz doğrulamasını ekle
 - [x] P03-B10-A08 — Stratejist phase gate: Forge entegrasyonu ile regression testini tamamla
-- [ ] P03-B10-A09 — Stratejist phase gate: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P03-B10-A09 — Stratejist phase gate: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B10-A10 — Stratejist phase gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## Phase acceptance
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B10-A08
-last_commit: a87533e
-tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (38/38); forge-p03-strategist-phase-gate.property-fuzz.test.ts (6/6)
-evidence: runForgeStrategistPhaseGateRegressionGate atom=P03-B10-A08 24/24 aligned; detectStrategistPhaseGateProbeRegression; propertyFuzz embedded; verifyForgeP03StrategistPhaseGateRegression orchestrator seam
-next: P03-B10-A09
+last_atom: P03-B10-A09
+last_commit: 8d7e8a3
+tests: PASS — forge-p03-strategist-phase-gate.guard.test.ts (9/9); forge-p03-strategist-phase-gate*.test.ts (53/53)
+evidence: validateForgeStrategistPhaseGateGuard adversarial=3/3 rejected; runForgeStrategistPhaseGateGuardGate atom=P03-B10-A09; regression gate guard embedded; verifyForgeP03StrategistPhaseGateGuard orchestrator seam
+next: P03-B10-A10

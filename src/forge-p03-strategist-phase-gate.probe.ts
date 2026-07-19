@@ -47,6 +47,7 @@ import {
   runStrategistPhaseGateRunRecordFuzzValidation,
   detectStrategistPhaseGateProbeRegression,
   validateStrategistPhaseGateProbeRegression,
+  validateForgeStrategistPhaseGateGuard,
   FORGE_STRATEGIST_PHASE_GATE_VERSION,
   STRATEGIST_PHASE_GATE_MANIFEST_MAX_LENGTH,
   STRATEGIST_PHASE_GATE_CATEGORIES,
@@ -815,6 +816,13 @@ export function runStrategistPhaseGatePropertyFuzzSlice(
 
 export const runForgeStrategistPhaseGatePropertyFuzzSlice = runStrategistPhaseGatePropertyFuzzSlice;
 
+export interface ForgeStrategistPhaseGateGuardResult {
+  atom: "P03-B10-A09";
+  passed: boolean;
+  guard: ReturnType<typeof validateForgeStrategistPhaseGateGuard>;
+  detail: string;
+}
+
 export interface ForgeStrategistPhaseGateRegressionResult {
   atom: "P03-B10-A08";
   passed: boolean;
@@ -826,6 +834,7 @@ export interface ForgeStrategistPhaseGateRegressionResult {
   validationIssues: string[];
   priorValidationIssues: string[];
   probeRegression: ReturnType<typeof detectStrategistPhaseGateProbeRegression> | null;
+  guard: ReturnType<typeof validateForgeStrategistPhaseGateGuard>;
   detail: string;
 }
 
@@ -857,6 +866,7 @@ export function runForgeStrategistPhaseGateRegressionGate(
     ? detectStrategistPhaseGateProbeRegression(priorRecord, record)
     : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeStrategistPhaseGateGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
 
   const productionSliceOk =
     productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
@@ -866,7 +876,12 @@ export function runForgeStrategistPhaseGateRegressionGate(
     propertyFuzzSlice.runRecordFuzzRejected;
 
   const passed =
-    productionSliceOk && recordValid && priorRecordValid && !alignmentRegression && propertyFuzzOk;
+    productionSliceOk &&
+    recordValid &&
+    priorRecordValid &&
+    !alignmentRegression &&
+    guard.passed &&
+    propertyFuzzOk;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
@@ -885,6 +900,15 @@ export function runForgeStrategistPhaseGateRegressionGate(
   detailParts.push(
     `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
   );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   return {
     atom: "P03-B10-A08",
@@ -897,9 +921,41 @@ export function runForgeStrategistPhaseGateRegressionGate(
     validationIssues,
     priorValidationIssues,
     probeRegression,
+    guard,
     detail: detailParts.join(" | "),
   };
 }
+
+/**
+ * Execute strategist phase gate guard controls (adversarial/perf/cost/safety) on run record (P03-B10-A09).
+ */
+export function runForgeStrategistPhaseGateGuardGate(
+  record?: StrategistPhaseGateRunRecord,
+  options: { totalCostUsd?: number; llmCalls?: number } = {},
+): ForgeStrategistPhaseGateGuardResult {
+  const fixture = loadStrategistPhaseGateBaseline();
+  const contract = getActiveStrategistPhaseGateContract();
+  const runRecord = record ?? runStrategistPhaseGateProbesWithRecord(fixture);
+  const guard = validateForgeStrategistPhaseGateGuard(runRecord, {
+    totalCostUsd: options.totalCostUsd ?? 0,
+    llmCalls: options.llmCalls ?? 0,
+    contract,
+  });
+
+  const detail = guard.passed
+    ? `guard PASS: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`
+    : `guard FAIL: ${guard.issues.map(i => `${i.domain}/${i.code}`).join(", ")}`;
+
+  return {
+    atom: "P03-B10-A09",
+    passed: guard.passed,
+    guard,
+    detail,
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runStrategistPhaseGateGuardIntegration = runForgeStrategistPhaseGateGuardGate;
 
 /** Alias for forge-pipeline-regression integration seam (P03-B10-A08). */
 export const runStrategistPhaseGateRegressionIntegration = runForgeStrategistPhaseGateRegressionGate;
