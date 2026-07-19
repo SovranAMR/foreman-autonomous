@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B05-A10
-last_commit: 4e96dd4
-tests: PASS — forge-p03-strategist-risk-reversibility*.test.ts (50/50); block gate 7/7; orchestrator verifyForgeStrategistRiskReversibilityBlockGate
-evidence: runStrategistRiskReversibilityBlockGate; getForgeP03B05BlockGate; buildStrategistRiskReversibilityBlockGateEvidence; FORGE_P03_B05_TO_B06_HANDOFF_V1
-next: P03-B06-A01
+last_atom: P03-B06-A01
+last_commit: pending
+tests: PASS — forge-p03-strategist-resource-budget-baseline.test.ts (3/3); 27 probes; 6 documented FAIL gaps; B05 handoff alignment validated
+evidence: loadStrategistResourceBudgetBaseline; validateStrategistResourceBudgetBaseline; runStrategistResourceBudgetProbes; summarizeStrategistResourceBudgetMatrix; FORGE_P03_B05_TO_B06_HANDOFF_V1
+next: P03-B06-A02
