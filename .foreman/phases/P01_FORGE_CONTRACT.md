@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 69
+completed_atoms: 70
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -107,7 +107,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P01-B08 — Evidence ve artifact şeması
 
 - [x] P01-B08-A01 — Evidence ve artifact şeması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P01-B08-A02 — Evidence ve artifact şeması: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P01-B08-A02 — Evidence ve artifact şeması: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B08-A03 — Evidence ve artifact şeması: en küçük üretim dikey dilimini uygula
 - [ ] P01-B08-A04 — Evidence ve artifact şeması: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B08-A05 — Evidence ve artifact şeması: failure, recovery ve NO-GO yollarını uygula
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B08-A01
+last_atom: P01-B08-A02
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (3/3); forge-pipeline-regression.integration.test.ts
+tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (9/9); FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1 25 probes / 7 FAIL gaps
 evidence: |
-  P01-B08-A01 baseline: forge-evidence-artifact-v1.json (25 probes, 7 documented FAIL gaps);
-  runEvidenceArtifactProbes measures 7 sealed block evidence/telemetry/provenance/run-record shapes;
-  B07 handoff entryCriteria satisfied; unified schema registry gaps documented as baseline debt.
-next: P01-B08-A02
+  P01-B08-A02 contract: FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1 with 11 category contracts, 25 probes
+  (16 observed + 3 gap + 2 failure + 2 recovery + 2 nogo); validateEvidenceArtifactBaselineAgainstContract
+  fixture↔contract aligned; runEvidenceArtifactProbes wires criteria from contract source of truth.
+next: P01-B08-A03
