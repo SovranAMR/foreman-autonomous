@@ -13,7 +13,7 @@ import {
   summarizeVisionerConstraintContractCoverage,
 } from "./forge-p02-visioner-constraint.js";
 
-export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a07";
+export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a09";
 
 /** Maximum normalized vision length before truncation (P02-B03-A04 boundary). */
 export const VISIONER_SYNTHESIS_VISION_MAX_LENGTH = 32000;
