@@ -1,0 +1,177 @@
+{
+  "version": "1.0.0",
+  "atom": "P05-B03-A01",
+  "contractAtom": "P05-B03-A02",
+  "purpose": "Worker surgical edit engine baseline measured from sealed P05-B02 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P05-B02-A10",
+    "contractVersion": "1.0.0",
+    "workerFilesystemGroundingProbeCount": 27,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "wee.version_tagged",
+      "category": "edit_versioning",
+      "description": "Edit engine baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.atom_tagged",
+      "category": "edit_versioning",
+      "description": "Edit engine baseline declares P05-B03-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.harness_version_exported",
+      "category": "edit_versioning",
+      "description": "FORGE_WORKER_EDIT_ENGINE_VERSION exported for edit harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.edit_file_tool_defined",
+      "category": "edit_signal",
+      "description": "edit_file tool routes worker surgical edits through EditEngine dispatch",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.edit_engine_class_exported",
+      "category": "edit_signal",
+      "description": "EditEngine class exports surgical edit with fuzzy and line-range support",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.typed_edit_call_union",
+      "category": "edit_signal",
+      "description": "TypedEditCall discriminated union narrows path and old/new text args before edit",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wee.worker_prompt_edit_contract",
+      "category": "edit_signal",
+      "description": "WORKER_SYSTEM prompt declares surgical edit engine contract for worker execution",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wee.fuzzy_match_exported",
+      "category": "match_signal",
+      "description": "findFuzzyMatch exports whitespace-insensitive closest-match recovery for edit_file",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.find_text_cascade",
+      "category": "match_signal",
+      "description": "findTextInFileContents exports 5-tier cascade matching for surgical edits",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.line_range_edit_tool",
+      "category": "match_signal",
+      "description": "edit_range tool and editByLineRange support deterministic line-range replacement",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.multi_occurrence_dispatch",
+      "category": "match_signal",
+      "description": "executeEditFileV2 passes occurrence selector into EditEngine.edit dispatch",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wee.b02_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P05_B02_TO_B03_HANDOFF_V1 targets P05-B03-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.b02_sealed_grounding_probes",
+      "category": "baseline_link",
+      "description": "P05-B02→B03 handoff sealed probeCount matches active worker filesystem grounding contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P05-B02 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.probe_runner_exported",
+      "category": "boundary",
+      "description": "runWorkerEditEngineProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL surgical edit gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.empty_old_text_boundary",
+      "category": "boundary",
+      "description": "assessEditInputBoundary rejects empty old_text input",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.whitespace_old_text_boundary",
+      "category": "boundary",
+      "description": "assessEditInputBoundary rejects whitespace-only old_text input",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.null_byte_old_text_boundary",
+      "category": "boundary",
+      "description": "assessEditInputBoundary rejects null-byte old_text safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.long_old_text_truncation_boundary",
+      "category": "boundary",
+      "description": "assessEditInputBoundary truncates old_text exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateWorkerEditEngineBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.malformed_edit_guard",
+      "category": "failure_path",
+      "description": "assessEditInputBoundary rejects null-byte new_text segments safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.recovery_string_args_coercion",
+      "category": "recovery_path",
+      "description": "recoverEditRequest coerces JSON string edit args into dispatch-ready record",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.recovery_missing_path_rejected",
+      "category": "recovery_path",
+      "description": "recoverEditRequest rejects unrecoverable missing file path input",
+      "expected": "PASS"
+    },
+    {
+      "id": "wee.orchestrator_pre_edit_validation",
+      "category": "nogo_path",
+      "description": "Orchestrator validates surgical edit calls through forge edit engine contract before dispatch",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wee.edit_telemetry_record",
+      "category": "nogo_path",
+      "description": "buildEditEngineTelemetry records edit provenance for worker tool loop",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wee.exported_edit_validator",
+      "category": "nogo_path",
+      "description": "validateSurgicalEdit exported for orchestrator pre-edit contract checks",
+      "expected": "FAIL"
+    }
+  ]
+}

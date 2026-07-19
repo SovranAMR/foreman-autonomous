@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 20
+completed_atoms: 21
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -41,7 +41,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P05-B03 — Cerrahi edit engine
 
-- [ ] P05-B03-A01 — Cerrahi edit engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P05-B03-A01 — Cerrahi edit engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P05-B03-A02 — Cerrahi edit engine: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P05-B03-A03 — Cerrahi edit engine: en küçük üretim dikey dilimini uygula
 - [ ] P05-B03-A04 — Cerrahi edit engine: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B02-A10
-last_commit: 6f179b9
-tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (70/70)
-evidence: runWorkerFilesystemGroundingBlockGate; validateForgeWorkerFilesystemGroundingBlockGate; 10/10 atom seals; regression+guard PASS; handoff=PASS→P05-B03; orchestrator worker_filesystem_grounding_block_gate
-next: P05-B03-A01
+last_atom: P05-B03-A01
+last_commit: PENDING
+tests: PASS — forge-p05-worker-edit-engine-baseline.test.ts (8/8)
+evidence: loadWorkerEditEngineBaseline + runWorkerEditEngineProbes; 27 probes, 6 documented FAIL gaps aligned to P05-B02 handoff (entry=P05-B03-A01)
+next: P05-B03-A02

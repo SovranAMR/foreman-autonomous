@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
-active_block: P05-B02
-active_atom: P05-B03-A01
+active_block: P05-B03
+active_atom: P05-B03-A02
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 419/1000
-phase_progress: 17/100
-block_progress: 10/10
+program_progress: 420/1000
+phase_progress: 18/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B03-A01 — Cerrahi edit engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P05-B03-A02 — Cerrahi edit engine: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P05-B02 block gate sealed; B03 handoff contract valid; zero unexpected mismatches on sealed criteria.
-target: Measure edit-engine behavior and create failing baseline fixture linked to sealed P05-B02 filesystem grounding block gate.
-hypothesis: Existing edit-engine.ts provides measurable surgical edit signals for Forge baseline harness.
-acceptance: Baseline fixture loads; probes run with documented FAIL gaps; source block gate refs valid.
+objective: P05-B03-A01 baseline sealed; typed contract for surgical edit engine acceptance.
+target: Define measurable acceptance criteria with typed contract aligned to P05-B03-A01 baseline probes.
+hypothesis: getActiveWorkerEditEngineContract returns versioned contract with criterion per probe and FAIL gap mapping.
+acceptance: Contract loads, validates against baseline fixture refs, and exposes measurable acceptance probes.
 commands: npx tsx --test src/forge-p05-worker-edit-engine*.test.ts
-blast_radius: src/forge-p05-worker-edit-engine.ts, src/fixtures/forge-worker-edit-engine-v1.json
-rollback: P05-B03-A01 baseline değişikliklerini geri al.
+blast_radius: src/forge-p05-worker-edit-engine.ts
+rollback: P05-B03-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Baseline blocked ise BLOCKED raporla.
+fallback: Contract blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B02-A10
-last_commit: 6f179b9
-tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts
-evidence: runWorkerFilesystemGroundingBlockGate; validateForgeWorkerFilesystemGroundingBlockGate; 10/10 atom seals; regression+guard PASS; handoff=PASS→P05-B03; orchestrator worker_filesystem_grounding_block_gate; 70/70 tests
-next: P05-B03-A01
+last_atom: P05-B03-A01
+last_commit: PENDING
+tests: PASS — forge-p05-worker-edit-engine-baseline.test.ts (8/8)
+evidence: loadWorkerEditEngineBaseline + runWorkerEditEngineProbes; 27 probes, 6 documented FAIL gaps aligned to P05-B02 handoff (entry=P05-B03-A01)
+next: P05-B03-A02
