@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 35
+completed_atoms: 36
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -68,7 +68,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P05-B05 — Git ve worktree transaction
 
 - [x] P05-B05-A01 — Git ve worktree transaction: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P05-B05-A02 — Git ve worktree transaction: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P05-B05-A02 — Git ve worktree transaction: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P05-B05-A03 — Git ve worktree transaction: en küçük üretim dikey dilimini uygula
 - [ ] P05-B05-A04 — Git ve worktree transaction: boundary ve edge-case davranışlarını tamamla
 - [ ] P05-B05-A05 — Git ve worktree transaction: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B05-A01
-last_commit: 6b76f70
-tests: PASS — forge-p05-worker-git-worktree-baseline.test.ts (8/8), forge-p05-worker-git-worktree*.test.ts (8/8)
-evidence: loadWorkerGitWorktreeBaseline + validateWorkerGitWorktreeBaseline + runWorkerGitWorktreeProbes + assessGitBranchInputBoundary + recoverGitCommitRequest + probeDangerousGitOperationBlocked; 27 probes, 5 documented FAIL gaps aligned to P05-B04→B05 handoff
-next: P05-B05-A02
+last_atom: P05-B05-A02
+last_commit: PENDING
+tests: PASS — forge-p05-worker-git-worktree-contract.test.ts (8/8), forge-p05-worker-git-worktree-baseline.test.ts (8/8)
+evidence: getActiveWorkerGitWorktreeContract + validateWorkerGitWorktreeAgainstContract + summarizeWorkerGitWorktreeContractCoverage + listWorkerGitWorktreeProbesByDisposition; 27 probes, 5 gap dispositions (typed git union, worktree transaction engine, worker prompt contract, orchestrator pre-git validation, exported git validator)
+next: P05-B05-A03

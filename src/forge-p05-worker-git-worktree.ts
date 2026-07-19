@@ -17,7 +17,7 @@ import {
 } from "./forge-p05-worker-shell-process.js";
 import { TOOL_DEFINITIONS } from "./tools.js";
 
-export const FORGE_WORKER_GIT_WORKTREE_VERSION = "1.0.0-a01";
+export const FORGE_WORKER_GIT_WORKTREE_VERSION = "1.0.0-a02";
 
 export const EXPECTED_P05_B04_SEALED_ATOM_COUNT = 10;
 
@@ -102,6 +102,7 @@ export interface WorkerGitWorktreeProbeResult {
   actual: ForgeAcceptanceOutcome;
   aligned: boolean;
   detail: string;
+  criterion?: string;
 }
 
 export interface WorkerGitWorktreeValidationIssue {
@@ -125,6 +126,622 @@ export interface WorkerGitWorktreeProbeSummary {
     WorkerGitWorktreeCategory,
     { total: number; aligned: number; expectedFail: number }
   >;
+}
+
+export type WorkerGitWorktreeProbeDisposition =
+  | "observed"
+  | "gap"
+  | "failure"
+  | "recovery"
+  | "nogo";
+
+export interface WorkerGitWorktreeProbeContract {
+  id: string;
+  category: WorkerGitWorktreeCategory;
+  description: string;
+  expected: ForgeAcceptanceOutcome;
+  disposition: WorkerGitWorktreeProbeDisposition;
+  criterion: string;
+}
+
+export interface WorkerGitWorktreeCategoryAcceptance {
+  invariant: string;
+  minProbeCount: number;
+  requireFullAlignment: boolean;
+}
+
+export interface WorkerGitWorktreeCategoryContract {
+  category: WorkerGitWorktreeCategory;
+  acceptance: WorkerGitWorktreeCategoryAcceptance;
+  probes: readonly WorkerGitWorktreeProbeContract[];
+}
+
+export interface WorkerGitWorktreeContract {
+  version: string;
+  atom: string;
+  purpose: string;
+  categories: Record<WorkerGitWorktreeCategory, WorkerGitWorktreeCategoryContract>;
+  probes: readonly WorkerGitWorktreeProbeContract[];
+}
+
+function flattenWorkerGitWorktreeCategoryProbes(
+  categories: Record<WorkerGitWorktreeCategory, WorkerGitWorktreeCategoryContract>,
+): readonly WorkerGitWorktreeProbeContract[] {
+  return WORKER_GIT_WORKTREE_CATEGORIES.flatMap(category => categories[category].probes);
+}
+
+const WORKER_GIT_WORKTREE_CATEGORY_CONTRACTS: Record<
+  WorkerGitWorktreeCategory,
+  WorkerGitWorktreeCategoryContract
+> = {
+  git_versioning: {
+    category: "git_versioning",
+    acceptance: {
+      invariant:
+        "Worker git worktree baseline declares semver version, atom id and exported harness version.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "wgt.version_tagged",
+        category: "git_versioning",
+        description: "Git worktree baseline declares semver version field",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Git worktree baseline declares semver version field",
+      },
+      {
+        id: "wgt.atom_tagged",
+        category: "git_versioning",
+        description: "Git worktree baseline declares P05-B05-A01 atom id",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Git worktree baseline declares P05-B05-A01 atom id",
+      },
+      {
+        id: "wgt.harness_version_exported",
+        category: "git_versioning",
+        description: "FORGE_WORKER_GIT_WORKTREE_VERSION exported for git worktree harness",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "FORGE_WORKER_GIT_WORKTREE_VERSION exported for git worktree harness",
+      },
+    ],
+  },
+  git_signal: {
+    category: "git_signal",
+    acceptance: {
+      invariant:
+        "git_status tool, GitEngine class, ExecutionEngine gitCommit and typed git union gate worker git dispatch.",
+      minProbeCount: 4,
+      requireFullAlignment: false,
+    },
+    probes: [
+      {
+        id: "wgt.git_status_tool_defined",
+        category: "git_signal",
+        description: "git_status tool routes worker git status through GitEngine dispatch",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "git_status tool routes worker git status through GitEngine dispatch",
+      },
+      {
+        id: "wgt.git_engine_exported",
+        category: "git_signal",
+        description: "GitEngine exports thought-aware commit and branch orchestration",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "GitEngine exports thought-aware commit and branch orchestration",
+      },
+      {
+        id: "wgt.execution_engine_git_commit",
+        category: "git_signal",
+        description: "ExecutionEngine.gitCommit provides secure project-root git commits",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "ExecutionEngine.gitCommit provides secure project-root git commits",
+      },
+      {
+        id: "wgt.typed_git_call_union",
+        category: "git_signal",
+        description: "TypedGitCall discriminated union narrows branch and message args before git dispatch",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "TypedGitCall discriminated union narrows branch and message args before git dispatch",
+      },
+    ],
+  },
+  worktree_signal: {
+    category: "worktree_signal",
+    acceptance: {
+      invariant:
+        "GitEngine task branching, stash guard, ExecutionEngine gitBranch and worktree transaction engine gate worktree lifecycle.",
+      minProbeCount: 4,
+      requireFullAlignment: false,
+    },
+    probes: [
+      {
+        id: "wgt.git_engine_task_branching",
+        category: "worktree_signal",
+        description: "GitEngine.createTaskBranch provides Foreman-prefixed task branch isolation",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "GitEngine.createTaskBranch provides Foreman-prefixed task branch isolation",
+      },
+      {
+        id: "wgt.git_engine_stash_guard",
+        category: "worktree_signal",
+        description: "GitEngine.stashSave protects work-in-progress before branch and merge operations",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "GitEngine.stashSave protects work-in-progress before branch and merge operations",
+      },
+      {
+        id: "wgt.execution_engine_git_branch",
+        category: "worktree_signal",
+        description: "ExecutionEngine.gitBranch provides create, checkout and delete branch primitives",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "ExecutionEngine.gitBranch provides create, checkout and delete branch primitives",
+      },
+      {
+        id: "wgt.worktree_transaction_engine",
+        category: "worktree_signal",
+        description: "GitEngine worktree transaction engine supports add, remove and atomic rollback",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "GitEngine worktree transaction engine supports add, remove and atomic rollback",
+      },
+    ],
+  },
+  baseline_link: {
+    category: "baseline_link",
+    acceptance: {
+      invariant:
+        "Worker git worktree baseline links to sealed P05-B04 worker shell process block gate.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "wgt.b04_handoff_entry",
+        category: "baseline_link",
+        description: "FORGE_P05_B04_TO_B05_HANDOFF_V1 targets P05-B05-A01 entry atom",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "FORGE_P05_B04_TO_B05_HANDOFF_V1 targets P05-B05-A01 entry atom",
+      },
+      {
+        id: "wgt.b04_sealed_shell_process_probes",
+        category: "baseline_link",
+        description: "P05-B04→B05 handoff sealed probeCount matches active worker shell process contract",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "P05-B04→B05 handoff sealed probeCount matches active worker shell process contract",
+      },
+    ],
+  },
+  boundary: {
+    category: "boundary",
+    acceptance: {
+      invariant:
+        "Git branch boundary assessment rejects invalid input; probe runner and documented gaps wired.",
+      minProbeCount: 7,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "wgt.source_block_gate_ref",
+        category: "boundary",
+        description: "Baseline fixture references sealed P05-B04 block gate source artifacts",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Baseline fixture references sealed P05-B04 block gate source artifacts",
+      },
+      {
+        id: "wgt.probe_runner_exported",
+        category: "boundary",
+        description: "runWorkerGitWorktreeProbes executes contract-wired probe matrix",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "runWorkerGitWorktreeProbes executes contract-wired probe matrix",
+      },
+      {
+        id: "wgt.known_gaps_documented",
+        category: "boundary",
+        description: "Baseline fixture documents at least one measurable FAIL git worktree gap",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Baseline fixture documents at least one measurable FAIL git worktree gap",
+      },
+      {
+        id: "wgt.empty_branch_boundary",
+        category: "boundary",
+        description: "assessGitBranchInputBoundary rejects empty branch name input",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessGitBranchInputBoundary rejects empty branch name input",
+      },
+      {
+        id: "wgt.whitespace_branch_boundary",
+        category: "boundary",
+        description: "assessGitBranchInputBoundary rejects whitespace-only branch name input",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessGitBranchInputBoundary rejects whitespace-only branch name input",
+      },
+      {
+        id: "wgt.null_byte_branch_boundary",
+        category: "boundary",
+        description: "assessGitBranchInputBoundary rejects null-byte branch name safely",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessGitBranchInputBoundary rejects null-byte branch name safely",
+      },
+      {
+        id: "wgt.long_branch_truncation_boundary",
+        category: "boundary",
+        description: "assessGitBranchInputBoundary truncates branch name exceeding max length",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessGitBranchInputBoundary truncates branch name exceeding max length",
+      },
+    ],
+  },
+  failure_path: {
+    category: "failure_path",
+    acceptance: {
+      invariant: "Invalid fixture versions and null-byte git branch input are rejected safely.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "wgt.invalid_version_rejected",
+        category: "failure_path",
+        description: "validateWorkerGitWorktreeBaseline rejects unexpected fixture version",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "validateWorkerGitWorktreeBaseline rejects unexpected fixture version",
+      },
+      {
+        id: "wgt.malformed_branch_guard",
+        category: "failure_path",
+        description: "assessGitBranchInputBoundary rejects embedded null-byte branch segments safely",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "assessGitBranchInputBoundary rejects embedded null-byte branch segments safely",
+      },
+    ],
+  },
+  recovery_path: {
+    category: "recovery_path",
+    acceptance: {
+      invariant: "Recovery paths coerce malformed git_commit args into dispatch-ready commit records.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "wgt.recovery_string_args_coercion",
+        category: "recovery_path",
+        description: "recoverGitCommitRequest coerces JSON string args into dispatch-ready record",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: "recoverGitCommitRequest coerces JSON string args into dispatch-ready record",
+      },
+      {
+        id: "wgt.recovery_missing_message_rejected",
+        category: "recovery_path",
+        description: "recoverGitCommitRequest rejects unrecoverable missing commit message input",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: "recoverGitCommitRequest rejects unrecoverable missing commit message input",
+      },
+    ],
+  },
+  nogo_path: {
+    category: "nogo_path",
+    acceptance: {
+      invariant:
+        "Worker prompt git contract, orchestrator pre-git validation and exported git validator gate NO-GO paths.",
+      minProbeCount: 3,
+      requireFullAlignment: false,
+    },
+    probes: [
+      {
+        id: "wgt.worker_prompt_git_contract",
+        category: "nogo_path",
+        description: "WORKER_SYSTEM prompt declares git and worktree transaction contract for worker execution",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "WORKER_SYSTEM prompt declares git and worktree transaction contract for worker execution",
+      },
+      {
+        id: "wgt.orchestrator_pre_git_validation",
+        category: "nogo_path",
+        description: "Orchestrator validates git branch boundary before git tool dispatch",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Orchestrator validates git branch boundary before git tool dispatch",
+      },
+      {
+        id: "wgt.exported_git_validator",
+        category: "nogo_path",
+        description: "validateGitTransaction exported for orchestrator git worktree checks",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "validateGitTransaction exported for orchestrator git worktree checks",
+      },
+    ],
+  },
+};
+
+export const FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1: WorkerGitWorktreeContract = {
+  version: "1.0.0",
+  atom: "P05-B05-A02",
+  purpose: "Worker git and worktree transaction typed contract with measurable acceptance probes.",
+  categories: WORKER_GIT_WORKTREE_CATEGORY_CONTRACTS,
+  probes: flattenWorkerGitWorktreeCategoryProbes(WORKER_GIT_WORKTREE_CATEGORY_CONTRACTS),
+};
+
+export function getActiveWorkerGitWorktreeContract(): WorkerGitWorktreeContract {
+  return FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1;
+}
+
+export function getWorkerGitWorktreeCategoryContract(
+  category: WorkerGitWorktreeCategory,
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): WorkerGitWorktreeCategoryContract {
+  return contract.categories[category];
+}
+
+export function listWorkerGitWorktreeContractProbeIds(
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listWorkerGitWorktreeProbesByDisposition(
+  disposition: WorkerGitWorktreeProbeDisposition,
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): WorkerGitWorktreeProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listWorkerGitWorktreeContractProbesByCategory(
+  category: WorkerGitWorktreeCategory,
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): readonly WorkerGitWorktreeProbeContract[] {
+  return [...contract.categories[category].probes];
+}
+
+export interface WorkerGitWorktreeContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: WorkerGitWorktreeCategory;
+  detail: string;
+}
+
+export interface WorkerGitWorktreeContractCoverageResult {
+  valid: boolean;
+  issues: WorkerGitWorktreeContractCoverageIssue[];
+}
+
+export function summarizeWorkerGitWorktreeContractCoverage(
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<WorkerGitWorktreeCategory, { probeCount: number; invariant: string }>;
+  byDisposition: Record<WorkerGitWorktreeProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    WorkerGitWorktreeCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<WorkerGitWorktreeProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of WORKER_GIT_WORKTREE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probeEntry of categoryContract.probes) {
+      totalProbes++;
+      if (probeEntry.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probeEntry.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateWorkerGitWorktreeContractCoverage(
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): WorkerGitWorktreeContractCoverageResult {
+  const issues: WorkerGitWorktreeContractCoverageIssue[] = [];
+
+  for (const category of WORKER_GIT_WORKTREE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({
+        kind: "missing_category",
+        category,
+        detail: `missing category contract: ${category}`,
+      });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < WORKER_GIT_WORKTREE_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${WORKER_GIT_WORKTREE_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listWorkerGitWorktreeContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeWorkerGitWorktreeContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("wgt.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing wgt. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateWorkerGitWorktreeContract(
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): WorkerGitWorktreeContractCoverageResult {
+  return validateWorkerGitWorktreeContractCoverage(contract);
+}
+
+export function validateWorkerGitWorktreeAgainstContract(
+  fixture: WorkerGitWorktreeBaseline,
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): WorkerGitWorktreeValidationResult {
+  const issues: WorkerGitWorktreeValidationIssue[] = [];
+  const fixtureIds = new Set(fixture.probes.map(p => p.id));
+  const contractIds = new Set(contract.probes.map(p => p.id));
+
+  if (fixture.contractAtom && fixture.contractAtom !== contract.atom) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `contractAtom=${fixture.contractAtom} contract=${contract.atom}`,
+    });
+  }
+
+  for (const category of WORKER_GIT_WORKTREE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    const categoryProbes = fixture.probes.filter(p => p.category === category);
+    if (categoryProbes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryProbes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+  }
+
+  for (const probeEntry of contract.probes) {
+    if (!fixtureIds.has(probeEntry.id)) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: probeEntry.id,
+        detail: `fixture missing ${probeEntry.id}`,
+      });
+    }
+  }
+
+  for (const entry of fixture.probes) {
+    if (!contractIds.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: `fixture extra ${entry.id}` });
+      continue;
+    }
+    const expected = contract.probes.find(p => p.id === entry.id)!;
+    if (entry.expected !== expected.expected) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `expected mismatch fixture=${entry.expected} contract=${expected.expected}`,
+      });
+    }
+    if (entry.category !== expected.category) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
+      });
+    }
+    if (entry.description !== expected.description) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `description mismatch for ${entry.id}`,
+      });
+    }
+  }
+
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
+  if (expectedFailCount > 0 && failGaps.length === 0) {
+    issues.push({
+      kind: "missing_category",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
+    });
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 function readSrc(relativePath: string): string {
@@ -589,7 +1206,8 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "wgt.known_gaps_documented": {
-      const expectedFail = getWorkerGitWorktreeA01ExpectedFailCount();
+      const contract = getActiveWorkerGitWorktreeContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
       const ok = failCount === expectedFail && failCount >= 1;
       return probe(
@@ -597,7 +1215,7 @@ function probeBoundary(
         category,
         expected,
         ok,
-        `documentedFail=${failCount}, matrixExpectedFail=${expectedFail}`,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
       );
     }
     case "wgt.empty_branch_boundary": {
@@ -743,9 +1361,12 @@ function runSingleProbe(
 export function runWorkerGitWorktreeProbes(
   fixture: WorkerGitWorktreeBaseline = loadWorkerGitWorktreeBaseline(),
 ): WorkerGitWorktreeProbeResult[] {
-  return fixture.probes.map(entry =>
-    runSingleProbe(entry.id, entry.category, entry.expected, fixture),
-  );
+  const contract = getActiveWorkerGitWorktreeContract();
+  return fixture.probes.map(entry => {
+    const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  });
 }
 
 export function summarizeWorkerGitWorktreeMatrix(

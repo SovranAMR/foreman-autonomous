@@ -130,6 +130,6 @@ describe("Forge Worker Git Worktree — P05-B05-A01", () => {
   });
 
   it("exports harness version for git worktree baseline", () => {
-    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a01");
+    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a02");
   });
 });

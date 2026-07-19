@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B05-A02 — Git ve worktree transaction: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P05-B05-A03 — Git ve worktree transaction: en küçük üretim dikey dilimini uygula.
 
-objective: P05-B05-A01 baseline sealed; begin typed git/worktree contract definition.
-target: Worker git worktree typed contract with measurable acceptance criteria against A01 baseline gaps.
-hypothesis: Documented FAIL gaps from A01 provide stable contract entry for git/worktree transaction probes.
-acceptance: Contract loads; probe matrix aligned to baseline; targeted tests PASS.
-commands: npx tsx --test src/forge-p05-worker-git-worktree-contract*.test.ts
-blast_radius: src/forge-p05-worker-git-worktree.ts
-rollback: P05-B05-A02 contract değişikliklerini geri al.
+objective: P05-B05-A02 contract sealed; begin smallest production vertical slice for git/worktree gaps.
+target: Worker git worktree typed contract production slice closing first measurable A01 baseline gap.
+hypothesis: Typed contract gap matrix provides deterministic entry for TypedGitCall or worktree transaction slice.
+acceptance: Production slice loads; first gap probe flips PASS; targeted tests PASS.
+commands: npx tsx --test src/forge-p05-worker-git-worktree-production*.test.ts
+blast_radius: src/tools.ts, src/git-engine.ts, src/forge-p05-worker-git-worktree.ts
+rollback: P05-B05-A03 production değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Contract blocked ise BLOCKED raporla.
+fallback: Production blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B05-A01
-last_commit: 6b76f70
-tests: PASS — forge-p05-worker-git-worktree-baseline.test.ts (8/8)
-evidence: loadWorkerGitWorktreeBaseline + validateWorkerGitWorktreeBaseline + runWorkerGitWorktreeProbes + assessGitBranchInputBoundary + recoverGitCommitRequest; 27 probes, 5 documented FAIL gaps (typed git union, worktree transaction engine, worker prompt contract, orchestrator pre-git validation, exported git validator)
-next: P05-B05-A02
+last_atom: P05-B05-A02
+last_commit: PENDING
+tests: PASS — forge-p05-worker-git-worktree-contract.test.ts (8/8), forge-p05-worker-git-worktree-baseline.test.ts (8/8)
+evidence: getActiveWorkerGitWorktreeContract + validateWorkerGitWorktreeAgainstContract + summarizeWorkerGitWorktreeContractCoverage; 27 probes, 5 gap dispositions aligned to A01 baseline FAIL debt
+next: P05-B05-A03
