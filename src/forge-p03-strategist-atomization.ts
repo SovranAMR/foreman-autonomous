@@ -5,6 +5,8 @@
  * on sealed P03-B02 block production contract block gate artifacts.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +20,7 @@ import {
 } from "./forge-p03-strategist-block-contract.js";
 import { parseAtomizeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a05";
+export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a06";
 
 /** Maximum normalized atomize length before truncation (P03-B03-A01 boundary debt). */
 export const STRATEGIST_ATOMIZE_MAX_LENGTH = 32000;
@@ -952,6 +954,456 @@ export function runStrategistAtomizationFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe auditable evidence — aligned outcomes with criterion provenance (P03-B03-A06). */
+export interface StrategistAtomizationProbeEvidence {
+  probeId: string;
+  category: StrategistAtomizationCategory;
+  disposition: StrategistAtomizationProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for atomization runs (P03-B03-A06). */
+export interface StrategistAtomizationProbeTelemetry {
+  probeId: string;
+  category: StrategistAtomizationCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P03-B03-A06). */
+export interface StrategistAtomizationProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  sliceAtom?: string;
+  sliceCategories?: readonly StrategistAtomizationCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated atomization run record bundling evidence, telemetry and provenance. */
+export interface StrategistAtomizationRunRecord {
+  provenance: StrategistAtomizationProvenance;
+  evidence: StrategistAtomizationProbeEvidence[];
+  telemetry: StrategistAtomizationProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<StrategistAtomizationCategory, number>;
+    byDisposition: Record<StrategistAtomizationProbeDisposition, number>;
+  };
+}
+
+export interface StrategistAtomizationRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistAtomizationRunValidationResult {
+  valid: boolean;
+  issues: StrategistAtomizationRunValidationIssue[];
+}
+
+export function buildStrategistAtomizationProbeEvidence(
+  probeId: string,
+  category: StrategistAtomizationCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: StrategistAtomizationProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): StrategistAtomizationProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildStrategistAtomizationProbeTelemetry(
+  probeId: string,
+  category: StrategistAtomizationCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): StrategistAtomizationProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildStrategistAtomizationProvenance(
+  runId: string,
+  fixture: StrategistAtomizationBaseline,
+  contract: StrategistAtomizationContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistAtomizationCategory[];
+  },
+): StrategistAtomizationProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_STRATEGIST_ATOMIZATION_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildStrategistAtomizationRunRecord(
+  provenance: StrategistAtomizationProvenance,
+  evidence: StrategistAtomizationProbeEvidence[],
+  telemetry: StrategistAtomizationProbeTelemetry[],
+): StrategistAtomizationRunRecord {
+  const byCategory = {} as Record<StrategistAtomizationCategory, number>;
+  const byDisposition: Record<StrategistAtomizationProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of STRATEGIST_ATOMIZATION_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateStrategistAtomizationRunRecordAgainstProbeIds(
+  record: StrategistAtomizationRunRecord,
+  expectedProbeIds: string[],
+  contract: StrategistAtomizationContract,
+): StrategistAtomizationRunValidationResult {
+  const issues: StrategistAtomizationRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateStrategistAtomizationRunRecord(
+  record: StrategistAtomizationRunRecord,
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationRunValidationResult {
+  return validateStrategistAtomizationRunRecordAgainstProbeIds(
+    record,
+    listStrategistAtomizationContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateStrategistAtomizationFailureRecoveryRunRecord(
+  record: StrategistAtomizationRunRecord,
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationRunValidationResult {
+  const issues: StrategistAtomizationRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P03-B03-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P03-B03-A06`,
+    });
+  }
+
+  const expectedCategories = [...STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateStrategistAtomizationRunRecordAgainstProbeIds(
+    record,
+    listStrategistAtomizationFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface StrategistAtomizationEvidenceSliceResult {
+  atom: "P03-B03-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: StrategistAtomizationProbeResult[];
+  evidenceResults: StrategistAtomizationProbeResult[];
+  matrixValidation: StrategistAtomizationProbeMatrixValidationResult;
+  record: StrategistAtomizationRunRecord;
+  recordValidation: StrategistAtomizationRunValidationResult;
+}
+
+function resolveStrategistAtomizationGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runStrategistAtomizationProbeWithTiming(
+  entry: StrategistAtomizationFixtureEntry,
+  fixture: StrategistAtomizationBaseline,
+  contractProbe:
+    | { criterion: string; disposition: StrategistAtomizationProbeDisposition }
+    | undefined,
+): {
+  result: StrategistAtomizationProbeResult;
+  durationMs: number;
+  disposition: StrategistAtomizationProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildStrategistAtomizationRecordFromEntries(
+  entries: StrategistAtomizationFixtureEntry[],
+  fixture: StrategistAtomizationBaseline,
+  contract: StrategistAtomizationContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistAtomizationCategory[];
+  },
+): StrategistAtomizationRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: StrategistAtomizationProbeEvidence[] = [];
+  const telemetry: StrategistAtomizationProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runStrategistAtomizationProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildStrategistAtomizationProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildStrategistAtomizationProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildStrategistAtomizationProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveStrategistAtomizationGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildStrategistAtomizationRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all atomization probes and emit auditable evidence, telemetry and provenance (P03-B03-A06). */
+export function runStrategistAtomizationProbesWithRecord(
+  fixture: StrategistAtomizationBaseline = loadStrategistAtomizationBaseline(),
+): StrategistAtomizationRunRecord {
+  const contract = getActiveStrategistAtomizationContract();
+  return buildStrategistAtomizationRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P03-B03-A06). */
+export function runStrategistAtomizationFailureRecoverySliceWithRecord(
+  fixture: StrategistAtomizationBaseline = loadStrategistAtomizationBaseline(),
+): StrategistAtomizationRunRecord {
+  const contract = getActiveStrategistAtomizationContract();
+  const failureRecoveryIds = new Set(listStrategistAtomizationFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildStrategistAtomizationRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P03-B03-A06",
+    sliceCategories: STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runStrategistAtomizationEvidenceSlice(
+  fixture: StrategistAtomizationBaseline = loadStrategistAtomizationBaseline(),
+): StrategistAtomizationEvidenceSliceResult {
+  const contract = getActiveStrategistAtomizationContract();
+  const results = runStrategistAtomizationProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistAtomizationContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistAtomizationFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runStrategistAtomizationFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateStrategistAtomizationFailureRecoveryRunRecord(
+    record,
+    contract,
+  );
+
+  return {
+    atom: "P03-B03-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
 

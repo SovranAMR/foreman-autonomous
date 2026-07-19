@@ -46,7 +46,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B03-A03 — Atomization ve atom boyutu: en küçük üretim dikey dilimini uygula
 - [x] P03-B03-A04 — Atomization ve atom boyutu: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B03-A05 — Atomization ve atom boyutu: failure, recovery ve NO-GO yollarını uygula
-- [ ] P03-B03-A06 — Atomization ve atom boyutu: evidence, telemetry ve provenance kaydını ekle
+- [x] P03-B03-A06 — Atomization ve atom boyutu: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B03-A07 — Atomization ve atom boyutu: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B03-A08 — Atomization ve atom boyutu: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B03-A09 — Atomization ve atom boyutu: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B03-A05
-last_commit: df98136
-tests: PASS — forge-p03-strategist-atomization*.test.ts (20/20); contract 24 probes; failure/recovery slice 6/6 aligned
-evidence: runStrategistAtomizationFailureRecoverySlice; validateStrategistAtomizationFailureRecoveryProbeMatrix; satom.malformed_atomize_guard; satom.structured_atom_recovery; satom.orchestrator_zero_atoms_skip
-next: P03-B03-A06
+last_atom: P03-B03-A06
+last_commit: pending
+tests: PASS — forge-p03-strategist-atomization*.test.ts (24/24); evidence slice 6/6; full run record 24/24
+evidence: runStrategistAtomizationEvidenceSlice; runStrategistAtomizationFailureRecoverySliceWithRecord; validateStrategistAtomizationFailureRecoveryRunRecord; satom.structured_atom_recovery; satom.malformed_atomize_guard
+next: P03-B03-A07
