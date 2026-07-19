@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B01-A05
-last_commit: pending
+last_commit: b58060f
 tests: PASS — forge-p02-visioner-intent.test.ts (21/21); failure/recovery slice 6/6 PASS; passAligned=5 gapAligned=1; matrixValidation unexpectedMismatches=0; structured_intent_recovery gap preserved
 evidence: validateVisionerIntentFailureRecoveryProbeMatrix, runVisionerIntentFailureRecoverySlice, listVisionerIntentFailureRecoveryProbeIds, VISIONER_INTENT_FAILURE_RECOVERY_CATEGORIES; 6 failure/recovery/NO-GO probes aligned
 next: P02-B01-A06

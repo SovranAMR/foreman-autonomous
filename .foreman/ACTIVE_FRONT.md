@@ -44,7 +44,7 @@ fallback: run record cannot validate without scope creep ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B01-A05
-last_commit: pending
+last_commit: b58060f
 tests: PASS — forge-p02-visioner-intent.test.ts (21/21); failure/recovery slice 6/6 PASS; passAligned=5 gapAligned=1; matrixValidation unexpectedMismatches=0
 evidence: validateVisionerIntentFailureRecoveryProbeMatrix, runVisionerIntentFailureRecoverySlice, listVisionerIntentFailureRecoveryProbeIds; structured_intent_recovery gap preserved
 next: P02-B01-A06
