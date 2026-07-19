@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 24
+completed_atoms: 25
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -47,7 +47,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B03-A04 — Cerrahi edit engine: boundary ve edge-case davranışlarını tamamla
 - [x] P05-B03-A05 — Cerrahi edit engine: failure, recovery ve NO-GO yollarını uygula
 - [x] P05-B03-A06 — Cerrahi edit engine: evidence, telemetry ve provenance kaydını ekle
-- [ ] P05-B03-A07 — Cerrahi edit engine: unit, property ve fuzz doğrulamasını ekle
+- [x] P05-B03-A07 — Cerrahi edit engine: unit, property ve fuzz doğrulamasını ekle
 - [ ] P05-B03-A08 — Cerrahi edit engine: Forge entegrasyonu ile regression testini tamamla
 - [ ] P05-B03-A09 — Cerrahi edit engine: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P05-B03-A10 — Cerrahi edit engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B03-A06
-last_commit: 02cd2de
-tests: PASS — forge-p05-worker-edit-engine-evidence.test.ts (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 38 total
-evidence: runWorkerEditEngineEvidenceSlice + validateWorkerEditEngineEvidenceProbeMatrix + runWorkerEditEngineProbesWithRecord; 7/7 evidence slice probes aligned with auditable run record
-next: P05-B03-A07
+last_atom: P05-B03-A07
+last_commit: pending
+tests: PASS — forge-p05-worker-edit-engine-property-fuzz.test.ts (7/7), evidence (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 45 total
+evidence: runWorkerEditEnginePropertyFuzzSlice + validateWorkerEditEnginePropertyProbeMatrix; 8/8 structural properties, 24/24 fixture fuzz rejected, 5/5 run record mutations rejected
+next: P05-B03-A08
