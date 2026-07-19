@@ -9,6 +9,11 @@ import {
   runStrategistParallelWaveFailureRecoverySliceWithRecord,
   runStrategistParallelWaveProbesWithRecord,
   runStrategistParallelWaveEvidenceSlice,
+  runStrategistParallelWavePropertyChecks,
+  runStrategistParallelWaveFuzzValidation,
+  runStrategistParallelWaveRunRecordFuzzValidation,
+  runStrategistParallelWavePropertyFuzzSlice,
+  createStrategistParallelWaveFuzzRng,
   buildStrategistParallelWaveProbeEvidence,
   buildStrategistParallelWaveProbeTelemetry,
   buildStrategistParallelWaveProvenance,
@@ -25,11 +30,13 @@ import {
   listStrategistParallelWaveKnownGaps,
   listStrategistParallelWaveContractProbesByCategory,
   listStrategistParallelWaveFailureRecoveryProbeIds,
+  listStrategistParallelWaveContractProbeIds,
   assessStrategistParallelWaveInputBoundary,
   STRATEGIST_PARALLEL_WAVE_CATEGORIES,
   STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_PARALLEL_WAVE_DECOMPOSE_MAX_LENGTH,
   FORGE_STRATEGIST_PARALLEL_WAVE_VERSION,
+  FORGE_STRATEGIST_PARALLEL_WAVE_CONTRACT_V1,
 } from "./forge-p03-strategist-parallel-wave.js";
 
 function formatMismatchReport(
@@ -493,5 +500,117 @@ describe("Forge Strategist Parallel Wave Evidence — P03-B07-A06", () => {
 
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.aligned, 7);
+  });
+});
+
+describe("Forge Strategist Parallel Wave Property/Fuzz — P03-B07-A07", () => {
+  it("passes all structural properties on canonical contract", () => {
+    const result = runStrategistParallelWavePropertyChecks(FORGE_STRATEGIST_PARALLEL_WAVE_CONTRACT_V1);
+    assert.equal(
+      result.allPassed,
+      true,
+      result.failed.map(f => `${f.propertyId}: ${f.detail}`).join("\n"),
+    );
+    assert.equal(result.passed, result.total);
+    assert.equal(result.total, 8);
+  });
+
+  it("createStrategistParallelWaveFuzzRng is deterministic for reproducible fuzz seeds", () => {
+    const rngA = createStrategistParallelWaveFuzzRng(1337);
+    const rngB = createStrategistParallelWaveFuzzRng(1337);
+    const seqA = Array.from({ length: 5 }, () => rngA());
+    const seqB = Array.from({ length: 5 }, () => rngB());
+    assert.deepEqual(seqA, seqB);
+    assert.notDeepEqual(seqA, Array.from({ length: 5 }, () => createStrategistParallelWaveFuzzRng(1338)()));
+  });
+
+  it("rejects all deterministic fixture mutations", () => {
+    const fixture = loadStrategistParallelWaveBaseline();
+    const contract = getActiveStrategistParallelWaveContract();
+
+    for (const seed of [42, 99, 20260719]) {
+      const fuzz = runStrategistParallelWaveFuzzValidation(fixture, contract, seed, 24);
+      assert.equal(fuzz.iterations, 24);
+      assert.equal(fuzz.rejected, 24, `seed=${seed} accepted=${fuzz.accepted}`);
+      assert.equal(fuzz.allMutationsRejected, true);
+      for (const item of fuzz.cases) {
+        assert.equal(item.valid, false, `${item.mutation.kind}@${item.mutation.probeId} should fail`);
+        assert.ok(item.issueKinds.length > 0);
+      }
+    }
+  });
+
+  it("accepts valid failure/recovery record and rejects corrupted mutations", () => {
+    const contract = getActiveStrategistParallelWaveContract();
+    const record = runStrategistParallelWaveFailureRecoverySliceWithRecord();
+
+    assert.equal(
+      validateStrategistParallelWaveFailureRecoveryRunRecord(record, contract).valid,
+      true,
+      validateStrategistParallelWaveFailureRecoveryRunRecord(record, contract).issues.map(i => i.detail).join("\n"),
+    );
+
+    const fuzz = runStrategistParallelWaveRunRecordFuzzValidation(record, contract);
+    assert.equal(fuzz.validBaseline, true);
+    assert.equal(fuzz.mutationsAccepted, 0);
+    assert.equal(fuzz.mutationsRejected, 5);
+  });
+
+  it("validates full contract run record and rejects tampered evidence/telemetry/provenance", () => {
+    const contract = getActiveStrategistParallelWaveContract();
+    const fixture = loadStrategistParallelWaveBaseline();
+    const probeIds = listStrategistParallelWaveContractProbeIds(contract);
+    const startedAt = "2026-07-19T02:00:00.000Z";
+    const completedAt = "2026-07-19T02:00:01.000Z";
+
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistParallelWaveProbeEvidence(
+        id,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "synthetic",
+        probe.disposition,
+        startedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistParallelWaveProbeTelemetry(id, probe.category, index, index * 0.05);
+    });
+
+    const provenance = buildStrategistParallelWaveProvenance(
+      "property-fuzz-full-run",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+    );
+    const record = buildStrategistParallelWaveRunRecord(provenance, evidence, telemetry);
+
+    assert.equal(validateStrategistParallelWaveRunRecord(record, contract).valid, true);
+
+    const fuzz = runStrategistParallelWaveRunRecordFuzzValidation(record, contract);
+    assert.equal(fuzz.validBaseline, true);
+    assert.equal(fuzz.mutationsAccepted, 0);
+    assert.equal(fuzz.mutationsRejected, 3);
+  });
+
+  it("executes property/fuzz slice with zero accepted mutations", () => {
+    const slice = runStrategistParallelWavePropertyFuzzSlice();
+
+    assert.equal(slice.atom, "P03-B07-A07");
+    assert.equal(slice.propertyChecksPassed, true);
+    assert.equal(slice.contractFuzzRejected, true);
+    assert.equal(slice.runRecordFuzzRejected, true);
+    assert.equal(slice.propertyResult.allPassed, true);
+    assert.equal(slice.contractFuzz.allMutationsRejected, true);
+    assert.equal(slice.contractFuzz.accepted, 0);
+    assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
   });
 });
