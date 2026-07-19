@@ -44,7 +44,7 @@ fallback: baseline cannot anchor without scope creep ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B01-A10
-last_commit: pending
+last_commit: 7931a29
 tests: PASS — forge-p02-visioner-intent-block-gate.test.ts (6/6); forge-p02-visioner-intent*.test.ts (43/43); forge-pipeline-regression.integration.test.ts P02-B01-A10 (2/2)
 evidence: runForgeVisionerIntentBlockGate, verifyForgeVisionerIntentBlockGate; block=PASS seals=10/10 handoff=PASS→P02-B02
 next: P02-B02-A01

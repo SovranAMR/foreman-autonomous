@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B01-A10
-last_commit: pending
+last_commit: 7931a29
 tests: PASS — forge-p02-visioner-intent-block-gate.test.ts (6/6); forge-p02-visioner-intent*.test.ts (43/43); forge-pipeline-regression.integration.test.ts P02-B01-A10 (2/2); block gate seals=10/10 handoff→P02-B02
 evidence: runForgeVisionerIntentBlockGate, verifyForgeVisionerIntentBlockGate, validateVisionerIntentBlockHandoffContract, buildVisionerIntentBlockGateEvidence
 next: P02-B02-A01
