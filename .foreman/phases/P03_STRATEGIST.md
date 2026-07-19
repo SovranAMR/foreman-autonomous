@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B09-A08
-last_commit: 801c14b
+last_commit: 9fe47e3
 tests: PASS — forge-p03-strategist-provenance.test.ts (39/39); forge-p03-strategist-provenance-baseline.test.ts (3/3); runStrategistProvenanceForgeRegression; runForgeStrategistProvenanceRegressionGate; detectStrategistProvenanceProbeRegression (28/28 probes aligned, prior/current drift rejected)
 evidence: runStrategistProvenanceForgeRegression; runStrategistProvenanceProbeRegression; validateStrategistProvenanceProbeRegression; runForgeStrategistProvenanceRegressionGate
 next: P03-B09-A09
