@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B06
-active_atom: P04-B06-A08
+active_atom: P04-B06-A09
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 357/1000
-phase_progress: 57/100
-block_progress: 7/10
+program_progress: 358/1000
+phase_progress: 58/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B06-A08 — Contradiction ve freshness çözümü: Forge entegrasyonu ile regression testini tamamla.
+P04-B06-A09 — Contradiction ve freshness çözümü: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P04-B06-A07 PASS; property/fuzz slice exports; 8 structural properties; contract fuzz 72/72 rejected; run record fuzz 5/5 rejected; evidence slice 6/6 preserved.
-target: Forge contradiction freshness regression integration for probe alignment drift detection.
-hypothesis: Regression slice detects probe misalignment between prior and current run records without weakening A07 property/fuzz gates.
-acceptance: Regression exports; property/fuzz slice remains green; regression suite green.
+objective: P04-B06-A08 PASS; regression exports; probe alignment drift detection; property/fuzz slice green; guard foundation exported.
+target: Forge contradiction freshness adversarial guard gate with performance, cost and safety controls.
+hypothesis: Guard gate rejects tampered records and false alignment without weakening A08 regression or A07 property/fuzz gates.
+acceptance: Guard exports; regression slice remains green; guard suite green.
 commands: npx tsx --test src/forge-p04-researcher-contradiction-freshness*.test.ts
 blast_radius: src/forge-p04-researcher-contradiction-freshness*.ts
-rollback: P04-B06-A08 regression değişikliklerini geri al.
+rollback: P04-B06-A09 guard değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B06-A07
-last_commit: 1f9f9f4
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (37/37); property/fuzz slice 8/8 properties + 72/72 contract fuzz rejected + 5/5 run record fuzz rejected; evidence slice 6/6 preserved
-evidence: runResearcherContradictionFreshnessPropertyValidation + runResearcherContradictionFreshnessFuzzValidation + runResearcherContradictionFreshnessRunRecordFuzzValidation + runResearcherContradictionFreshnessPropertyFuzzSlice exported; harnessVersion 1.0.0-a07
-next: P04-B06-A08
+last_atom: P04-B06-A08
+last_commit: pending
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (45/45); regression gate 23/23 probes aligned; property/fuzz slice 8/8 properties + 72/72 contract fuzz rejected + 5/5 run record fuzz rejected; guard adversarial=3/3
+evidence: runForgeResearcherContradictionFreshnessRegressionGate + runResearcherContradictionFreshnessRegressionIntegration + detectResearcherContradictionFreshnessProbeRegression + runResearcherContradictionFreshnessForgeRegression + validateForgeResearcherContradictionFreshnessGuard exported; orchestrator verifyForgeResearcherContradictionFreshnessRegression wired
+next: P04-B06-A09
