@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
-active_block: P01-B08
-active_atom: P01-B08-A09
+active_block: P01-B09
+active_atom: P01-B09-A01
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 77/1000
-phase_progress: 76/100
-block_progress: 7/10
+program_progress: 79/1000
+phase_progress: 78/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B08-A09 — Evidence ve artifact şeması: adversarial, performance, cost ve safety kontrolünü geçir.
+P01-B09-A01 — Orchestrator seam ve modülerleşme: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: A08 regression gate PASS; adversarial/perf/cost/safety guard kontrollerini tamamla.
-target: validateForgeEvidenceArtifactGuard; adversarial guard scenarios; performance/cost/safety domains.
-hypothesis: A08 regression gate guard foundation + A09 sealed controls yeterli adversarial kanıt sağlar.
-acceptance: guard passes; adversarial scenarios reject tampered records; perf/cost/safety domains validated.
-commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A09 suite)
-blast_radius: forge-evidence-artifact*.ts
-rollback: A09 guard slice değişikliklerini geri al.
+objective: B08 handoff sealed; orchestrator seam baseline fixture with measurable FAIL gaps.
+target: orchestrator.ts seam inventory; baseline fixture aligned to sealed B08 evidence artifact handoff.
+hypothesis: Sealed B08 evidence artifact schema + orchestrator method inventory yeterli A01 baseline sağlar.
+acceptance: versioned baseline fixture loads; probes measure orchestrator seam gaps; B08 handoff refs valid.
+commands: npx tsx --test src/forge-orchestrator-seam*.test.ts (A01 suite when present)
+blast_radius: forge-orchestrator-seam*.ts, fixtures/
+rollback: A01 baseline slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: guard uygulanamazsa BLOCKED raporla.
+fallback: handoff invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B08-A08
+last_atom: P01-B08-A10
 last_commit: pending
-tests: PASS — forge-evidence-artifact*.test.ts (34/34); regression gate 25/25 aligned; propertyFuzz 8/8 properties + 24/24 contract fuzz + 3/3 run-record fuzz; guard adversarial 3/3
-evidence: runForgeEvidenceArtifactRegressionGate; runEvidenceArtifactProbesWithRecord; detectEvidenceArtifactProbeRegression; validateForgeEvidenceArtifactGuard; orchestrator verifyForgeEvidenceArtifactRegression
-next: P01-B08-A09
+tests: PASS — forge-evidence-artifact*.test.ts (40/40); A09 guard 3/3; A10 block gate seals=10/10 handoff→P01-B09
+evidence: runEvidenceArtifactBlockGate; FORGE_P01_B08_TO_B09_HANDOFF_V1; verifyForgeEvidenceArtifactBlockGate
+next: P01-B09-A01

@@ -6,7 +6,12 @@
  */
 
 import { createHash } from "node:crypto";
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP01B07ToB08Handoff,
   getActiveReproducibleFixtureContract,
@@ -2299,5 +2304,188 @@ export function validateForgeEvidenceArtifactGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P01-B08-A10) ───────────────────────────────────
+
+export interface EvidenceArtifactBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface EvidenceArtifactBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    evidenceArtifactCategories: readonly EvidenceArtifactCategory[];
+    sourceReproducibleFixtureAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    evidenceArtifactRecordRequired: true;
+  };
+}
+
+export const FORGE_P01_B08_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P01-B08-A10",
+  blockId: "P01-B08",
+  title: "Evidence ve artifact şeması",
+  requiredAtomIds: [
+    "P01-B08-A01",
+    "P01-B08-A02",
+    "P01-B08-A03",
+    "P01-B08-A04",
+    "P01-B08-A05",
+    "P01-B08-A06",
+    "P01-B08-A07",
+    "P01-B08-A08",
+    "P01-B08-A09",
+    "P01-B08-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P01-B08-A01", description: "Evidence artifact baseline aligns with typed contract and B07 handoff" },
+    { id: "typed_contract_coverage", atomId: "P01-B08-A02", description: "Contract declares measurable probes for all evidence artifact categories" },
+    { id: "probe_matrix_aligned", atomId: "P01-B08-A03", description: "Evidence artifact probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P01-B08-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P01-B08-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P01-B08-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P01-B08-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P01-B08-A08", description: "Regression gate passes on canonical evidence artifact matrix" },
+    { id: "guard_controls", atomId: "P01-B08-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P01-B08-A10", description: "Block gate evidence sealed with valid B09 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P01_B08_TO_B09_HANDOFF_V1: EvidenceArtifactBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P01-B08-A10",
+  sourceBlock: {
+    blockId: "P01-B08",
+    title: "Evidence ve artifact şeması",
+    completedAtoms: FORGE_P01_B08_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P01-B09",
+    title: "Orchestrator seam ve modülerleşme",
+    entryAtom: "P01-B09-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1.version,
+    harnessVersion: FORGE_EVIDENCE_ARTIFACT_VERSION,
+    probeCount: summarizeEvidenceArtifactContractCoverage(FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1).totalProbes,
+    evidenceArtifactCategories: EVIDENCE_ARTIFACT_CATEGORIES,
+    sourceReproducibleFixtureAtom: "P01-B07-A10",
+  },
+  prerequisites: [
+    "Evidence artifact contract v1 with measurable schema, telemetry, provenance and run-record probes",
+    "Versioned evidence artifact baseline aligned to contract probe matrix and sealed B07 handoff",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P01-B07 reproducible fixture artifacts referenced by sourceReproducibleFixture",
+  ],
+  entryCriteria: {
+    description:
+      "B09-A01 formalizes orchestrator seam and modularization using sealed evidence artifact schema artifacts",
+    requiresBlockGatePass: true,
+    evidenceArtifactRecordRequired: true,
+  },
+};
+
+export function getForgeP01B08BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P01_B08_BLOCK_GATE_V1;
+}
+
+export function getForgeP01B08ToB09Handoff(): EvidenceArtifactBlockHandoffContract {
+  return FORGE_P01_B08_TO_B09_HANDOFF_V1;
+}
+
+export function validateEvidenceArtifactBlockHandoffContract(
+  handoff: EvidenceArtifactBlockHandoffContract,
+  evidence: Pick<EvidenceArtifactBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: EvidenceArtifactContract = getActiveEvidenceArtifactContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeEvidenceArtifactContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.evidenceArtifactCategories.length !== EVIDENCE_ARTIFACT_CATEGORIES.length) {
+    issues.push("handoff evidenceArtifactCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P01-B09-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildEvidenceArtifactBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P01_B08_BLOCK_GATE_V1.blockId,
+): EvidenceArtifactBlockGateEvidence {
+  const handoff = getForgeP01B08ToB09Handoff();
+  const handoffValid = validateEvidenceArtifactBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P01-B08-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    gitCommit,
   };
 }

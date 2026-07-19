@@ -547,6 +547,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01-B08 block gate and emit verification event with B09 handoff (P01-B08-A10).
+   */
+  async verifyForgeEvidenceArtifactBlockGate(): Promise<import("./forge-evidence-artifact.probe.js").ForgeEvidenceArtifactBlockGateResult> {
+    const { runEvidenceArtifactBlockGate } = await import("./forge-evidence-artifact.probe.js");
+    const result = runEvidenceArtifactBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "evidence_artifact_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

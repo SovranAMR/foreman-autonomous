@@ -114,8 +114,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B08-A06 — Evidence ve artifact şeması: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B08-A07 — Evidence ve artifact şeması: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B08-A08 — Evidence ve artifact şeması: Forge entegrasyonu ile regression testini tamamla
-- [ ] P01-B08-A09 — Evidence ve artifact şeması: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P01-B08-A10 — Evidence ve artifact şeması: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P01-B08-A09 — Evidence ve artifact şeması: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P01-B08-A10 — Evidence ve artifact şeması: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B09 — Orchestrator seam ve modülerleşme
 
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B08-A08
+last_atom: P01-B08-A10
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts src/forge-pipeline-regression.integration.test.ts` (61/61); regression gate 25/25 aligned; propertyFuzz properties=8/8 contractFuzz rejected=24/24 runFuzz rejected=3/3; guard adversarial=3/3
+tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (40/40); A09 guard adversarial=3/3 perf/cost/safety validated; A10 block gate seals=10/10 handoff→P01-B09
 evidence: |
-  P01-B08-A08 regression: runForgeEvidenceArtifactRegressionGate wires probe matrix run record validation,
-  detectEvidenceArtifactProbeRegression prior-record comparison, validateForgeEvidenceArtifactGuard (A09 foundation),
-  runEvidenceArtifactPropertyChecks + runEvidenceArtifactFuzzValidation + runEvidenceArtifactRunRecordFuzzValidation;
-  orchestrator verifyForgeEvidenceArtifactRegression emits evidence_artifact_regression verification — zero pass mismatches.
-next: P01-B08-A09
+  P01-B08-A09: validateForgeEvidenceArtifactGuard, runEvidenceArtifactAdversarialGuardChecks (3/3 tamper reject),
+  validateEvidenceArtifactPerformance/Cost/Safety; regression gate guard wiring PASS.
+  P01-B08-A10: FORGE_P01_B08_BLOCK_GATE_V1, FORGE_P01_B08_TO_B09_HANDOFF_V1, runEvidenceArtifactBlockGate,
+  orchestrator verifyForgeEvidenceArtifactBlockGate emits evidence_artifact_block_gate verification.
+next: P01-B09-A01

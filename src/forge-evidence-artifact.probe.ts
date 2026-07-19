@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import { execSync } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import evidenceArtifactBaseline from "./fixtures/forge-evidence-artifact-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 import {
   getForgeP01B07ToB08Handoff,
   getActiveReproducibleFixtureContract,
@@ -47,6 +47,12 @@ import {
   runEvidenceArtifactPropertyChecks,
   runEvidenceArtifactFuzzValidation,
   runEvidenceArtifactRunRecordFuzzValidation,
+  listEvidenceArtifactProbesByDisposition,
+  summarizeEvidenceArtifactContractCoverage,
+  getForgeP01B08BlockGate,
+  getForgeP01B08ToB09Handoff,
+  validateEvidenceArtifactBlockHandoffContract,
+  buildEvidenceArtifactBlockGateEvidence,
   type EvidenceArtifactBaseline,
   type EvidenceArtifactCategory,
   type EvidenceArtifactProbeDisposition,
@@ -95,6 +101,10 @@ export {
   runEvidenceArtifactFuzzValidation,
   runEvidenceArtifactRunRecordFuzzValidation,
   FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1,
+  getForgeP01B08BlockGate,
+  getForgeP01B08ToB09Handoff,
+  validateEvidenceArtifactBlockHandoffContract,
+  buildEvidenceArtifactBlockGateEvidence,
   type EvidenceArtifactProbeMatrixValidationResult,
   type EvidenceArtifactRunRecord,
   type EvidenceArtifactProbeRegressionReport,
@@ -960,3 +970,186 @@ export function runForgeEvidenceArtifactRegressionGate(
 
 /** Alias for forge-pipeline-regression integration seam (P01-B08-A08). */
 export const runEvidenceArtifactRegressionIntegration = runForgeEvidenceArtifactRegressionGate;
+
+export interface ForgeEvidenceArtifactBlockGateResult {
+  passed: boolean;
+  evidence: import("./forge-evidence-artifact.js").EvidenceArtifactBlockGateEvidence;
+  handoff: import("./forge-evidence-artifact.js").EvidenceArtifactBlockHandoffContract;
+  regression: ForgeEvidenceArtifactRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealEvidenceArtifactBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P01-B08 block gate: validate A01–A09 deliverables, regression, guard, and B09 handoff (P01-B08-A10).
+ */
+export function runEvidenceArtifactBlockGate(): ForgeEvidenceArtifactBlockGateResult {
+  const blockGate = getForgeP01B08BlockGate();
+  const handoff = getForgeP01B08ToB09Handoff();
+  const contract = getActiveEvidenceArtifactContract();
+  const fixture = loadEvidenceArtifactBaseline();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateEvidenceArtifactBaselineAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A01",
+      "evidence_artifact",
+      fixtureValidation.valid && fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeEvidenceArtifactContractCoverage(contract).totalProbes} probes)`
+        : fixtureValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeEvidenceArtifactContractCoverage(contract);
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${EVIDENCE_ARTIFACT_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runEvidenceArtifactProductionSlice(fixture);
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runEvidenceArtifactBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.gap > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runEvidenceArtifactFailureRecoverySlice(fixture);
+  const nogoProbes = listEvidenceArtifactProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgeEvidenceArtifactRegressionGate();
+  const recordValidation = validateEvidenceArtifactRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const properties = runEvidenceArtifactPropertyChecks(contract);
+  const contractFuzz = runEvidenceArtifactFuzzValidation(fixture, contract);
+  const runFuzz = runEvidenceArtifactRunRecordFuzzValidation(regression.record, contract);
+  const fuzzOk = properties.allPassed && contractFuzz.allMutationsRejected && runFuzz.mutationsAccepted === 0;
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A07",
+      "property_fuzz",
+      fuzzOk,
+      `properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validateEvidenceArtifactBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealEvidenceArtifactBlockAtom(
+      "P01-B08-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildEvidenceArtifactBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runForgeEvidenceArtifactBlockGate = runEvidenceArtifactBlockGate;
