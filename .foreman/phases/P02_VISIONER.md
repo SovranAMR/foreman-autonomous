@@ -75,7 +75,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B05-A06 — Research trigger belirleme: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B05-A07 — Research trigger belirleme: unit, property ve fuzz doğrulamasını ekle
 - [x] P02-B05-A08 — Research trigger belirleme: Forge entegrasyonu ile regression testini tamamla
-- [ ] P02-B05-A09 — Research trigger belirleme: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P02-B05-A09 — Research trigger belirleme: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B05-A10 — Research trigger belirleme: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P02-B06 — Uncertainty ve clarification policy
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B05-A08
-last_commit: bc65313
-tests: PASS — forge-pipeline-regression.integration.test.ts P02-B05-A08 (5/5); forge-p02-visioner-research-trigger.test.ts (24/24); forge-p02-visioner-research-trigger.property-fuzz.test.ts (5/5)
-evidence: runForgeVisionerResearchTriggerRegressionGate 23/23 probes; propertyFuzz properties=8/8 contractFuzz rejected=72/72 runFuzz rejected=3/3; guard adversarial=3/3; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a08
-next: P02-B05-A09
+last_atom: P02-B05-A09
+last_commit: pending
+tests: PASS — forge-pipeline-regression.integration.test.ts P02-B05-A09 (2/2); forge-p02-visioner-research-trigger.guard.test.ts (8/8)
+evidence: validateForgeVisionerResearchTriggerGuard adversarial=3/3; orchestrator visioner_research_trigger_guard verification; guard perf/cost/safety checks PASS
+next: P02-B05-A10

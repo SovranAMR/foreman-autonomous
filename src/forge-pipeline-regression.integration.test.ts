@@ -1380,3 +1380,45 @@ describe("Forge Visioner Research Trigger Regression Integration — P02-B05-A08
     }
   });
 });
+
+describe("Forge Visioner Research Trigger Guard Integration — P02-B05-A09", () => {
+  it("runForgeVisionerResearchTriggerRegressionGate guard passes on canonical research trigger matrix", () => {
+    const result = runForgeVisionerResearchTriggerRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.guard.passed, true);
+    assert.equal(result.guard.metrics.adversarialScenariosRejected, 3);
+    assert.ok(result.detail.includes("guard:"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("orchestrator verifyForgeVisionerResearchTriggerGuard emits visioner_research_trigger_guard verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-research-trigger-guard-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-research-trigger" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeVisionerResearchTriggerGuard();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_research_trigger_guard",
+    );
+
+    assert.equal(result.guard.passed, true);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("guard PASS"));
+      assert.ok(verification.detail.includes("adversarial=3/3"));
+    }
+  });
+});

@@ -6,7 +6,7 @@ active_phase: P02
 active_block: P05
 active_atom: P02-B05-A09
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 147/1000
+program_progress: 148/1000
 phase_progress: 47/100
 block_progress: 8/10
 parallel_front: NONE
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B05-A09 — Research trigger belirleme: adversarial, performance, cost ve safety kontrolünü geçir.
+P02-B05-A10 — Research trigger belirleme: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P02-B05-A08 regression integration sealed; guard integration slice next.
-target: Wire visioner research trigger guard controls into Forge guard integration harness.
-hypothesis: validateForgeVisionerResearchTriggerGuard and runVisionerResearchTriggerAdversarialGuardChecks provide stable guard entry points.
-acceptance: guard integration test passes; adversarial scenarios rejected in record gate.
-commands: npx tsx --test src/forge-pipeline-regression.integration.test.ts
-blast_radius: src/forge-pipeline-regression.integration.test.ts, src/forge-p02-visioner-research-trigger*
-rollback: P02-B05-A09 guard integration değişikliklerini geri al.
+objective: P02-B05-A09 guard integration sealed; block gate slice next.
+target: Seal P02-B05 block gate with full atom inventory and B06 handoff.
+hypothesis: runForgeVisionerResearchTriggerBlockGate and verifyForgeVisionerResearchTriggerBlockGate provide stable block gate entry points.
+acceptance: block gate test passes; all 10 atom seals PASS; handoff to P02-B06 documented.
+commands: npx tsx --test src/forge-p02-visioner-research-trigger-block-gate.test.ts
+blast_radius: src/forge-p02-visioner-research-trigger*, src/orchestrator.ts
+rollback: P02-B05-A10 block gate değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: guard harness requires unrelated orchestrator refactor ise BLOCKED raporla.
+fallback: block gate requires unrelated orchestrator refactor ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B05-A08
-last_commit: bc65313
-tests: PASS — forge-pipeline-regression.integration.test.ts P02-B05-A08 (5/5); forge-p02-visioner-research-trigger.test.ts (24/24); forge-p02-visioner-research-trigger.property-fuzz.test.ts (5/5)
-evidence: runForgeVisionerResearchTriggerRegressionGate 23/23 probes; propertyFuzz properties=8/8 contractFuzz rejected=72/72 runFuzz rejected=3/3; guard adversarial=3/3; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a08
-next: P02-B05-A09
+last_atom: P02-B05-A09
+last_commit: pending
+tests: PASS — forge-pipeline-regression.integration.test.ts P02-B05-A09 (2/2); forge-p02-visioner-research-trigger.guard.test.ts (8/8)
+evidence: validateForgeVisionerResearchTriggerGuard adversarial=3/3; orchestrator visioner_research_trigger_guard verification; guard perf/cost/safety checks PASS
+next: P02-B05-A10
