@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B06-A02
-last_commit: pending
+last_commit: dfd1309
 tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (3/3); 27 probes; 6 FAIL gaps; contract↔fixture alignment validated
 evidence: getActiveStrategistResourceBudgetContract; validateStrategistResourceBudgetAgainstContract; validateStrategistResourceBudgetCoverage; summarizeStrategistResourceBudgetCoverage; listStrategistResourceBudgetContractProbeIds
 next: P03-B06-A03

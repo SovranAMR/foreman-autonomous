@@ -44,7 +44,7 @@ fallback: Production slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B06-A02
-last_commit: pending
+last_commit: dfd1309
 tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (3/3); 27 probes; 6 documented FAIL gaps; contract coverage validated
 evidence: getActiveStrategistResourceBudgetContract; validateStrategistResourceBudgetAgainstContract; validateStrategistResourceBudgetCoverage; summarizeStrategistResourceBudgetCoverage; FORGE_STRATEGIST_RESOURCE_BUDGET_CONTRACT_V1
 next: P03-B06-A03
