@@ -6,7 +6,12 @@
  */
 
 import strategistPhaseGateBaseline from "./fixtures/forge-strategist-phase-gate-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import { P03_STRATEGIST_PHASE_ID as P03_FROM_P02 } from "./forge-p02-visioner-phase-gate.js";
 import {
   getForgeP03B09ToB10Handoff,
@@ -2671,6 +2676,286 @@ export function validateForgeStrategistPhaseGateGuard(
       adversarialScenariosTotal: adversarial.total,
     },
   };
+}
+
+// ─── Block gate and handoff (P03-B10-A10) ───────────────────────────────────
+
+export interface StrategistPhaseGateBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  sealedBlockCount: number;
+  gitCommit?: string;
+}
+
+export interface StrategistPhaseGateBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    strategistPhaseGateCategories: readonly StrategistPhaseGateCategory[];
+    sealedBlockInventoryCount: number;
+    sourceStrategistProvenanceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    strategistPhaseGateRecordRequired: true;
+  };
+}
+
+export const FORGE_P03_B10_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P03-B10-A10",
+  blockId: "P03-B10",
+  title: "Stratejist phase gate",
+  requiredAtomIds: [
+    "P03-B10-A01",
+    "P03-B10-A02",
+    "P03-B10-A03",
+    "P03-B10-A04",
+    "P03-B10-A05",
+    "P03-B10-A06",
+    "P03-B10-A07",
+    "P03-B10-A08",
+    "P03-B10-A09",
+    "P03-B10-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P03-B10-A01",
+      description: "Strategist phase gate baseline aligns with typed contract and P03-B09 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P03-B10-A02",
+      description: "Contract declares measurable probes for all strategist phase gate categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P03-B10-A03",
+      description: "Strategist phase gate probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P03-B10-A04",
+      description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P03-B10-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P03-B10-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P03-B10-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P03-B10-A08",
+      description: "Regression gate passes on canonical strategist phase gate matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P03-B10-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P03-B10-A10",
+      description: "Block gate evidence sealed with valid P04 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P03_B10_TO_P04_HANDOFF_V1: StrategistPhaseGateBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P03-B10-A10",
+  sourceBlock: {
+    blockId: "P03-B10",
+    title: "Stratejist phase gate",
+    completedAtoms: FORGE_P03_B10_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P04-B01",
+    title: "Research question decomposition",
+    entryAtom: "P04-B01-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_STRATEGIST_PHASE_GATE_CONTRACT_V1.version,
+    harnessVersion: FORGE_STRATEGIST_PHASE_GATE_VERSION,
+    probeCount: summarizeStrategistPhaseGateCoverage(FORGE_STRATEGIST_PHASE_GATE_CONTRACT_V1).totalProbes,
+    strategistPhaseGateCategories: STRATEGIST_PHASE_GATE_CATEGORIES,
+    sealedBlockInventoryCount: P03_STRATEGIST_PHASE_BLOCK_COUNT,
+    sourceStrategistProvenanceBlockGateAtom: "P03-B09-A10",
+  },
+  prerequisites: [
+    "Strategist phase gate contract v1 with measurable block gate signal, phase inventory and guard probes",
+    "Versioned strategist phase gate baseline aligned to contract probe matrix and sealed P03-B09 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Nine sealed P03 strategist block gates referenced by phase block inventory",
+  ],
+  entryCriteria: {
+    description:
+      "P04-B01-A01 formalizes researcher question baseline using sealed P03 strategist phase gate artifacts",
+    requiresBlockGatePass: true,
+    strategistPhaseGateRecordRequired: true,
+  },
+};
+
+export function getForgeP03B10BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P03_B10_BLOCK_GATE_V1;
+}
+
+export function getForgeP03B10ToP04Handoff(): StrategistPhaseGateBlockHandoffContract {
+  return FORGE_P03_B10_TO_P04_HANDOFF_V1;
+}
+
+export function validateStrategistPhaseGateBlockHandoffContract(
+  handoff: StrategistPhaseGateBlockHandoffContract,
+  evidence: Pick<
+    StrategistPhaseGateBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed" | "sealedBlockCount"
+  >,
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeStrategistPhaseGateCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.strategistPhaseGateCategories.length !== STRATEGIST_PHASE_GATE_CATEGORIES.length
+  ) {
+    issues.push("handoff strategistPhaseGateCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sealedBlockInventoryCount !== P03_STRATEGIST_PHASE_BLOCK_COUNT) {
+    issues.push(
+      `handoff sealedBlockInventoryCount=${handoff.sealedArtifacts.sealedBlockInventoryCount} expected=${P03_STRATEGIST_PHASE_BLOCK_COUNT}`,
+    );
+  }
+  if (handoff.sealedArtifacts.sourceStrategistProvenanceBlockGateAtom !== "P03-B09-A10") {
+    issues.push(
+      `unexpected source block gate atom: ${handoff.sealedArtifacts.sourceStrategistProvenanceBlockGateAtom}`,
+    );
+  }
+  if (handoff.targetBlock.entryAtom !== "P04-B01-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+  if (evidence.sealedBlockCount !== EXPECTED_P03_STRATEGIST_PRIOR_BLOCK_GATE_COUNT) {
+    issues.push(
+      `evidence sealedBlockCount=${evidence.sealedBlockCount} expected=${EXPECTED_P03_STRATEGIST_PRIOR_BLOCK_GATE_COUNT}`,
+    );
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildStrategistPhaseGateBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P03_B10_BLOCK_GATE_V1.blockId,
+): StrategistPhaseGateBlockGateEvidence {
+  const handoff = getForgeP03B10ToP04Handoff();
+  const handoffValid = validateStrategistPhaseGateBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+    sealedBlockCount: EXPECTED_P03_STRATEGIST_PRIOR_BLOCK_GATE_COUNT,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P03-B10-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    sealedBlockCount: EXPECTED_P03_STRATEGIST_PRIOR_BLOCK_GATE_COUNT,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}
+
+/** Validate sealed strategist phase gate block evidence against P04 handoff contract. */
+export function validateForgeP03StrategistPhaseGateBlockGate(
+  evidence: StrategistPhaseGateBlockGateEvidence,
+  handoff: StrategistPhaseGateBlockHandoffContract = getForgeP03B10ToP04Handoff(),
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+
+  if (evidence.blockId !== handoff.sourceBlock.blockId) {
+    issues.push(`evidence blockId=${evidence.blockId} handoff=${handoff.sourceBlock.blockId}`);
+  }
+  if (evidence.atom !== handoff.atom) {
+    issues.push(`evidence atom=${evidence.atom} handoff=${handoff.atom}`);
+  }
+  if (evidence.atomSeals.length !== handoff.sourceBlock.completedAtoms.length) {
+    issues.push(
+      `atom seal count=${evidence.atomSeals.length} expected=${handoff.sourceBlock.completedAtoms.length}`,
+    );
+  }
+  if (!evidence.atomSeals.every(seal => seal.passed)) {
+    issues.push("one or more atom seals failed");
+  }
+  if (!evidence.handoffValid) {
+    issues.push("evidence handoffValid=false");
+  }
+
+  const handoffValidation = validateStrategistPhaseGateBlockHandoffContract(handoff, evidence, contract);
+  issues.push(...handoffValidation.issues);
+
+  return { valid: issues.length === 0, issues };
 }
 
 export { FORGE_STRATEGIST_PROVENANCE_VERSION };

@@ -10,7 +10,7 @@ import { execSync } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 import {
   getForgeP03B09ToB10Handoff,
   getActiveStrategistProvenanceContract,
@@ -48,6 +48,15 @@ import {
   detectStrategistPhaseGateProbeRegression,
   validateStrategistPhaseGateProbeRegression,
   validateForgeStrategistPhaseGateGuard,
+  summarizeStrategistPhaseGateCoverage,
+  listStrategistPhaseGateProbesByDisposition,
+  validateStrategistPhaseGateRunRecord,
+  getForgeP03B10BlockGate,
+  getForgeP03B10ToP04Handoff,
+  validateStrategistPhaseGateBlockHandoffContract,
+  buildStrategistPhaseGateBlockGateEvidence,
+  validateForgeP03StrategistPhaseGateBlockGate,
+  EXPECTED_P03_STRATEGIST_PRIOR_BLOCK_GATE_COUNT,
   FORGE_STRATEGIST_PHASE_GATE_VERSION,
   STRATEGIST_PHASE_GATE_MANIFEST_MAX_LENGTH,
   STRATEGIST_PHASE_GATE_CATEGORIES,
@@ -73,6 +82,13 @@ export {
   listStrategistPhaseGateKnownGaps,
   getActiveStrategistPhaseGateContract,
   getForgeP03ToP04PhaseHandoff,
+  getForgeP03B10BlockGate,
+  getForgeP03B10ToP04Handoff,
+  validateStrategistPhaseGateBlockHandoffContract,
+  buildStrategistPhaseGateBlockGateEvidence,
+  validateForgeP03StrategistPhaseGateBlockGate,
+  summarizeStrategistPhaseGateCoverage,
+  EXPECTED_P03_STRATEGIST_PRIOR_BLOCK_GATE_COUNT,
   loadStrategistPhaseGateBaseline,
   FORGE_STRATEGIST_PHASE_GATE_VERSION,
   STRATEGIST_PHASE_GATE_CATEGORIES,
@@ -959,6 +975,207 @@ export const runStrategistPhaseGateGuardIntegration = runForgeStrategistPhaseGat
 
 /** Alias for forge-pipeline-regression integration seam (P03-B10-A08). */
 export const runStrategistPhaseGateRegressionIntegration = runForgeStrategistPhaseGateRegressionGate;
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+export interface ForgeStrategistPhaseGateBlockGateResult {
+  passed: boolean;
+  evidence: ReturnType<typeof buildStrategistPhaseGateBlockGateEvidence>;
+  handoff: ReturnType<typeof getForgeP03B10ToP04Handoff>;
+  regression: ForgeStrategistPhaseGateRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealStrategistPhaseGateBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P03-B10 block gate: validate A01–A09 deliverables, regression, guard, and P04 handoff (P03-B10-A10).
+ */
+export function runStrategistPhaseGateBlockGate(): ForgeStrategistPhaseGateBlockGateResult {
+  const blockGate = getForgeP03B10BlockGate();
+  const handoff = getForgeP03B10ToP04Handoff();
+  const contract = getActiveStrategistPhaseGateContract();
+  const fixture = loadStrategistPhaseGateBaseline();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateStrategistPhaseGateBaseline(fixture);
+  const contractValidation = validateStrategistPhaseGateAgainstContract(fixture, contract);
+  const coverage = summarizeStrategistPhaseGateCoverage(contract);
+  const b09Handoff = getForgeP03B09ToB10Handoff();
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A01",
+      "strategist_phase_gate",
+      fixtureValidation.valid &&
+        contractValidation.valid &&
+        fixture.version === handoff.sealedArtifacts.fixtureVersion &&
+        fixture.sourceBlockGate.atom === b09Handoff.atom,
+      fixtureValidation.valid && contractValidation.valid
+        ? `fixture v${fixture.version} aligned (${coverage.totalProbes} probes)`
+        : [...fixtureValidation.issues, ...contractValidation.issues].map(i => i.detail).join("; "),
+    ),
+  );
+
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${STRATEGIST_PHASE_GATE_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runStrategistPhaseGateProductionSlice(fixture);
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runStrategistPhaseGateBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runStrategistPhaseGateFailureRecoverySlice(fixture);
+  const nogoProbes = listStrategistPhaseGateProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgeStrategistPhaseGateRegressionGate();
+  const recordValidation = validateStrategistPhaseGateRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const propertyFuzzSlice = regression.propertyFuzzSlice;
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A07",
+      "property_fuzz",
+      propertyFuzzSlice.propertyChecksPassed &&
+        propertyFuzzSlice.contractFuzzRejected &&
+        propertyFuzzSlice.runRecordFuzzRejected,
+      `properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+    ),
+  );
+
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const orchestratorSrc = readSrc("orchestrator.ts");
+  const inventoryOk =
+    ORCHESTRATOR_STRATEGIST_BLOCK_GATE_METHODS.every(method => orchestratorSrc.includes(method)) &&
+    orchestratorSrc.includes("verifyForgeStrategistPhaseGateBlockGate");
+  const handoffValidation = validateStrategistPhaseGateBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+    sealedBlockCount: EXPECTED_P03_STRATEGIST_PRIOR_BLOCK_GATE_COUNT,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid && inventoryOk;
+  atomSeals.push(
+    sealStrategistPhaseGateBlockAtom(
+      "P03-B10-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom} inventory=${EXPECTED_P03_STRATEGIST_PRIOR_BLOCK_GATE_COUNT}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildStrategistPhaseGateBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+  validateForgeP03StrategistPhaseGateBlockGate(evidence, handoff, contract);
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `inventory=${inventoryOk ? "PASS" : "FAIL"}:${EXPECTED_P03_STRATEGIST_PRIOR_BLOCK_GATE_COUNT}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runForgeStrategistPhaseGateBlockGate = runStrategistPhaseGateBlockGate;
 
 export {
   buildStrategistPhaseGateProbeEvidence,
