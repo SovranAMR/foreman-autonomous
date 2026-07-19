@@ -94,7 +94,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P03-B07 — Parallel execution wave planı
 
 - [x] P03-B07-A01 — Parallel execution wave planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P03-B07-A02 — Parallel execution wave planı: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P03-B07-A02 — Parallel execution wave planı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B07-A03 — Parallel execution wave planı: en küçük üretim dikey dilimini uygula
 - [ ] P03-B07-A04 — Parallel execution wave planı: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B07-A05 — Parallel execution wave planı: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B07-A01
-last_commit: 4f98b70
-tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (3/3); 27 probes; 6 documented FAIL gaps aligned
-evidence: loadStrategistParallelWaveBaseline; validateStrategistParallelWaveBaseline; runStrategistParallelWaveProbes
-next: P03-B07-A02
+last_atom: P03-B07-A02
+last_commit: pending
+tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (12/12); 27 probes; contract coverage validated
+evidence: getActiveStrategistParallelWaveContract; validateStrategistParallelWaveCoverage; validateStrategistParallelWaveAgainstContract
+next: P03-B07-A03
