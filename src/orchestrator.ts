@@ -1896,6 +1896,25 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher contradiction freshness block gate and emit verification event (P04-B06-A10).
+   */
+  async verifyForgeResearcherContradictionFreshnessBlockGate(): Promise<
+    import("./forge-p04-researcher-contradiction-freshness.probe.js").ForgeResearcherContradictionFreshnessBlockGateResult
+  > {
+    const { runForgeResearcherContradictionFreshnessBlockGate } = await import(
+      "./forge-p04-researcher-contradiction-freshness.probe.js"
+    );
+    const result = runForgeResearcherContradictionFreshnessBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "researcher_contradiction_freshness_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

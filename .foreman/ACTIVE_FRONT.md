@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
-active_block: P04-B06
-active_atom: P04-B06-A10
+active_block: P04-B07
+active_atom: P04-B07-A01
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 359/1000
-phase_progress: 59/100
-block_progress: 9/10
+program_progress: 360/1000
+phase_progress: 60/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B06-A10 — Contradiction ve freshness çözümü: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P04-B07-A01 — Risk ve trade-off araştırması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P04-B06-A09 PASS; guard exports; regression slice remains green; guard suite green; orchestrator guard wired.
-target: Seal P04-B06 block gate with contradiction freshness handoff to P04-B07.
-hypothesis: Block gate evidence seals all ten atoms with valid B07 handoff contract.
-acceptance: Block gate sealed; handoff contract valid; block gate test green.
-commands: npx tsx --test src/forge-p04-researcher-contradiction-freshness*.test.ts src/forge-p04-researcher-contradiction-freshness-block-gate.test.ts
-blast_radius: src/forge-p04-researcher-contradiction-freshness*.ts
-rollback: P04-B06-A10 block gate değişikliklerini geri al.
+objective: P04-B06-A10 PASS; block gate sealed; B07 handoff contract valid; contradiction freshness suite green.
+target: Measure risk and trade-off research baseline from sealed P04-B06 contradiction freshness block gate.
+hypothesis: B07 baseline fixture links to sealed B06 handoff with documented FAIL gaps for risk/trade-off probes.
+acceptance: Baseline loads; fixture validates; probe matrix aligned; failing gaps documented.
+commands: npx tsx --test src/forge-p04-researcher-risk-tradeoff*.test.ts
+blast_radius: src/forge-p04-researcher-risk-tradeoff*.ts
+rollback: P04-B07-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B06-A09
+last_atom: P04-B06-A10
 last_commit: pending
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (53/53); guard adversarial=3/3; performance/cost/safety guard green; orchestrator verifyForgeResearcherContradictionFreshnessGuard wired
-evidence: validateForgeResearcherContradictionFreshnessGuard + runResearcherContradictionFreshnessAdversarialGuardChecks + forge-p04-researcher-contradiction-freshness.guard.test.ts; orchestrator researcher_contradiction_freshness_guard verification
-next: P04-B06-A10
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (60/60); block gate seals=10/10; handoff=PASS→P04-B07; orchestrator researcher_contradiction_freshness_block_gate wired
+evidence: runResearcherContradictionFreshnessBlockGate + validateResearcherContradictionFreshnessBlockHandoffContract + forge-p04-researcher-contradiction-freshness-block-gate.test.ts; orchestrator verifyForgeResearcherContradictionFreshnessBlockGate
+next: P04-B07-A01
