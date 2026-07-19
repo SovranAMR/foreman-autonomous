@@ -156,6 +156,12 @@ import {
   runResearcherSpikeFalsificationRegressionIntegration,
 } from "./forge-p04-researcher-spike-falsification.probe.js";
 import { detectResearcherSpikeFalsificationProbeRegression } from "./forge-p04-researcher-spike-falsification.js";
+import {
+  runForgeResearcherResearchToWorkerHandoffRegressionGate,
+  runResearcherResearchToWorkerHandoffProbesWithRecord,
+  runResearcherResearchToWorkerHandoffRegressionIntegration,
+} from "./forge-p04-researcher-research-to-worker-handoff.probe.js";
+import { detectResearcherResearchToWorkerHandoffProbeRegression } from "./forge-p04-researcher-research-to-worker-handoff.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -2755,6 +2761,75 @@ describe("Forge Researcher Spike Falsification Regression Integration — P04-B0
   it("runForgeResearcherSpikeFalsificationRegressionGate compares against prior record without false regression", () => {
     const prior = runResearcherSpikeFalsificationProbesWithRecord();
     const result = runForgeResearcherSpikeFalsificationRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+});
+
+describe("Forge Researcher Research-to-Worker Handoff Regression Integration — P04-B09-A08", () => {
+  it("runForgeResearcherResearchToWorkerHandoffRegressionGate passes on canonical handoff matrix", () => {
+    const result = runForgeResearcherResearchToWorkerHandoffRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("runForgeResearcherResearchToWorkerHandoffRegressionGate guard passes on canonical handoff matrix", () => {
+    const result = runForgeResearcherResearchToWorkerHandoffRegressionGate();
+    assert.equal(result.guard.passed, true, result.guard.issues.map(i => i.detail).join("; "));
+    assert.equal(result.guard.metrics.adversarialScenariosRejected, 3);
+    assert.equal(result.guard.metrics.adversarialScenariosTotal, 3);
+  });
+
+  it("runResearcherResearchToWorkerHandoffRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeResearcherResearchToWorkerHandoffRegressionGate();
+    const integration = runResearcherResearchToWorkerHandoffRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzzSlice.propertyChecksPassed, gate.propertyFuzzSlice.propertyChecksPassed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("23/23 probes aligned"));
+    assert.equal(integration.record.summary.total, 23);
+  });
+
+  it("detectResearcherResearchToWorkerHandoffProbeRegression flags newly misaligned probes", () => {
+    const prior = runResearcherResearchToWorkerHandoffProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectResearcherResearchToWorkerHandoffProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeResearcherResearchToWorkerHandoffRegressionGate compares against prior record without false regression", () => {
+    const prior = runResearcherResearchToWorkerHandoffProbesWithRecord();
+    const result = runForgeResearcherResearchToWorkerHandoffRegressionGate(prior);
 
     assert.equal(result.passed, true, result.detail);
     assert.ok(result.probeRegression);

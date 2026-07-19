@@ -126,7 +126,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B09-A05 — Research-to-worker handoff: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B09-A06 — Research-to-worker handoff: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B09-A07 — Research-to-worker handoff: unit, property ve fuzz doğrulamasını ekle
-- [ ] P04-B09-A08 — Research-to-worker handoff: Forge entegrasyonu ile regression testini tamamla
+- [x] P04-B09-A08 — Research-to-worker handoff: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B09-A09 — Research-to-worker handoff: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B09-A10 — Research-to-worker handoff: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B09-A07
-last_commit: 6917d7c
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (42/42); property 8/8; contractFuzz rejected=72/72; runRecordFuzz mutationsAccepted=0
-evidence: runResearcherResearchToWorkerHandoffPropertyFuzzSlice + runResearcherResearchToWorkerHandoffPropertyValidation + runResearcherResearchToWorkerHandoffFuzzValidation + runResearcherResearchToWorkerHandoffRunRecordFuzzValidation
-next: P04-B09-A08
+last_atom: P04-B09-A08
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (50/50); regression 8/8; propertyFuzz wired; guard adversarial=3/3
+evidence: runResearcherResearchToWorkerHandoffForgeRegression + runForgeResearcherResearchToWorkerHandoffRegressionGate + validateForgeResearcherResearchToWorkerHandoffGuard
+next: P04-B09-A09

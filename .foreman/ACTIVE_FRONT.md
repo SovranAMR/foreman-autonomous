@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B09
-active_atom: P04-B09-A08
+active_atom: P04-B09-A09
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 387/1000
-phase_progress: 85/100
-block_progress: 7/10
+program_progress: 388/1000
+phase_progress: 86/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B09-A08 — Research-to-worker handoff: Forge entegrasyonu ile regression testini tamamla.
+P04-B09-A09 — Research-to-worker handoff: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P04-B09-A07 PASS; property-fuzz slice closes contract/run-record gates with zero accepted mutations.
-target: Wire research-to-worker handoff property/fuzz slice into Forge probe regression gate.
-hypothesis: A07 property-fuzz slice enables A08 regression probe with contract-wired property checks and fuzz rejection.
-acceptance: Property checks hold on contract; fuzz rejects tampered evidence/telemetry/provenance; slice zero accepted mutations.
+objective: P04-B09-A08 PASS; regression gate wired with property/fuzz and guard foundation.
+target: Extend guard controls for adversarial, performance, cost and safety on research-to-worker handoff slice.
+hypothesis: A08 guard foundation enables A09 dedicated guard verification with adversarial scenario rejection.
+acceptance: Guard passes on canonical record; adversarial tamper rejected; perf/cost/safety within bounds.
 commands: npx tsx --test src/forge-p04-researcher-research-to-worker-handoff*.test.ts
 blast_radius: src/forge-p04-researcher-research-to-worker-handoff*.ts
-rollback: P04-B09-A08 regression probe değişikliklerini geri al.
+rollback: P04-B09-A09 guard değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Regression probe blocked ise BLOCKED raporla.
+fallback: Guard blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B09-A07
-last_commit: 6917d7c
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (42/42); property 8/8; contractFuzz rejected=72/72; runRecordFuzz mutationsAccepted=0
-evidence: runResearcherResearchToWorkerHandoffPropertyFuzzSlice + runResearcherResearchToWorkerHandoffPropertyValidation + runResearcherResearchToWorkerHandoffFuzzValidation + runResearcherResearchToWorkerHandoffRunRecordFuzzValidation
-next: P04-B09-A08
+last_atom: P04-B09-A08
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (50/50); regression 8/8; propertyFuzz wired; guard adversarial=3/3
+evidence: runResearcherResearchToWorkerHandoffForgeRegression + runForgeResearcherResearchToWorkerHandoffRegressionGate + validateForgeResearcherResearchToWorkerHandoffGuard
+next: P04-B09-A09
