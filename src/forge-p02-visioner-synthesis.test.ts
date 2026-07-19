@@ -454,7 +454,7 @@ describe("Forge Visioner Synthesis Evidence — P02-B03-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_VISIONER_SYNTHESIS_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
 
@@ -487,7 +487,7 @@ describe("Forge Visioner Synthesis Evidence — P02-B03-A06", () => {
     assert.equal(record.evidence.length, 23);
     assert.equal(record.telemetry.length, 23);
     assert.equal(record.provenance.totalProbes, 23);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
   });

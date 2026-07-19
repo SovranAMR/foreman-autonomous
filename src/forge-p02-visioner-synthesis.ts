@@ -13,7 +13,7 @@ import {
   summarizeVisionerConstraintContractCoverage,
 } from "./forge-p02-visioner-constraint.js";
 
-export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a06";
+export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a07";
 
 /** Maximum normalized vision length before truncation (P02-B03-A04 boundary). */
 export const VISIONER_SYNTHESIS_VISION_MAX_LENGTH = 32000;
@@ -1463,5 +1463,497 @@ export function validateVisionerSynthesisFailureRecoveryRunRecord(
   return {
     valid: issues.length === 0 && probeValidation.valid,
     issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+// ─── Property and fuzz validation (P02-B03-A07) ─────────────────────────────
+
+export interface VisionerSynthesisPropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface VisionerSynthesisPropertyResult {
+  passed: number;
+  failed: VisionerSynthesisPropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type VisionerSynthesisPropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: VisionerSynthesisContract) => string | null;
+};
+
+const SYNTHESIS_PROPERTY_CHECK_FIXTURE: VisionerSynthesisBaseline = {
+  version: "0",
+  atom: "x",
+  purpose: "x",
+  sourceBlockGate: {
+    version: "0",
+    atom: "x",
+    contractVersion: "0",
+    visionerConstraintProbeCount: 0,
+    sealedAtomCount: 0,
+  },
+  probes: [],
+};
+
+const VISIONER_SYNTHESIS_STRUCTURAL_PROPERTIES: readonly VisionerSynthesisPropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All eight visioner synthesis categories are declared",
+    check: contract => {
+      for (const category of VISIONER_SYNTHESIS_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listVisionerSynthesisContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of VISIONER_SYNTHESIS_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description: "summarizeVisionerSynthesisContractCoverage totals match listVisionerSynthesisContractProbeIds",
+    check: contract => {
+      const summary = summarizeVisionerSynthesisContractCoverage(contract);
+      const ids = listVisionerSynthesisContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with vsyn. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("vsyn.")) {
+          return `${probe.id} missing vsyn. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const probeIds = listVisionerSynthesisContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildVisionerSynthesisProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildVisionerSynthesisProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildVisionerSynthesisRunRecord(
+        buildVisionerSynthesisProvenance(
+          "property-check",
+          SYNTHESIS_PROPERTY_CHECK_FIXTURE,
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "failure_recovery_run_record_gate",
+    description: "Synthetic failure/recovery slice record passes validateVisionerSynthesisFailureRecoveryRunRecord",
+    check: contract => {
+      const probeIds = listVisionerSynthesisFailureRecoveryProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildVisionerSynthesisProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildVisionerSynthesisProbeTelemetry(id, probe.category, index, index * 0.5);
+      });
+      const record = buildVisionerSynthesisRunRecord(
+        buildVisionerSynthesisProvenance(
+          "property-check-failure-recovery",
+          SYNTHESIS_PROPERTY_CHECK_FIXTURE,
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+          {
+            sliceAtom: "P02-B03-A06",
+            sliceCategories: VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES,
+          },
+        ),
+        evidence,
+        telemetry,
+      );
+      const validation = validateVisionerSynthesisFailureRecoveryRunRecord(record, contract);
+      if (!validation.valid) {
+        return validation.issues.map(i => i.detail).join("; ");
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runVisionerSynthesisPropertyChecks(
+  contract: VisionerSynthesisContract = getActiveVisionerSynthesisContract(),
+): VisionerSynthesisPropertyResult {
+  const failed: VisionerSynthesisPropertyViolation[] = [];
+  for (const property of VISIONER_SYNTHESIS_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = VISIONER_SYNTHESIS_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type VisionerSynthesisFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface VisionerSynthesisFuzzMutationCase {
+  seed: number;
+  kind: VisionerSynthesisFuzzMutationKind;
+  probeId?: string;
+  category?: VisionerSynthesisCategory;
+}
+
+export interface VisionerSynthesisFuzzValidationCaseResult {
+  mutation: VisionerSynthesisFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface VisionerSynthesisFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: VisionerSynthesisFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createVisionerSynthesisFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneVisionerSynthesisBaseline(fixture: VisionerSynthesisBaseline): VisionerSynthesisBaseline {
+  return {
+    ...fixture,
+    sourceBlockGate: { ...fixture.sourceBlockGate },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickVisionerSynthesisFuzzTarget(
+  fixture: VisionerSynthesisBaseline,
+  rng: () => number,
+): { category: VisionerSynthesisCategory; index: number; entry: VisionerSynthesisFixtureEntry } {
+  const category = VISIONER_SYNTHESIS_CATEGORIES[Math.floor(rng() * VISIONER_SYNTHESIS_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyVisionerSynthesisFuzzMutation(
+  fixture: VisionerSynthesisBaseline,
+  mutation: VisionerSynthesisFuzzMutationCase,
+): VisionerSynthesisBaseline {
+  const mutated = cloneVisionerSynthesisBaseline(fixture);
+  const targetCategory = mutation.category ?? VISIONER_SYNTHESIS_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `vsyn.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = VISIONER_SYNTHESIS_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateVisionerSynthesisFuzzMutationCases(
+  fixture: VisionerSynthesisBaseline,
+  seed: number,
+  iterations: number,
+): VisionerSynthesisFuzzMutationCase[] {
+  const rng = createVisionerSynthesisFuzzRng(seed);
+  const kinds: VisionerSynthesisFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: VisionerSynthesisFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickVisionerSynthesisFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P02-B03-A07). */
+export function runVisionerSynthesisFuzzValidation(
+  fixture: VisionerSynthesisBaseline,
+  contract: VisionerSynthesisContract = getActiveVisionerSynthesisContract(),
+  seed = 42,
+  iterations = 24,
+): VisionerSynthesisFuzzValidationResult {
+  const cases = generateVisionerSynthesisFuzzMutationCases(fixture, seed, iterations);
+  const results: VisionerSynthesisFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyVisionerSynthesisFuzzMutation(fixture, mutation);
+    const validation = validateVisionerSynthesisAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type VisionerSynthesisRunRecordFuzzKind =
+  | "drop_evidence"
+  | "drop_telemetry"
+  | "wrong_total"
+  | "wrong_slice_atom"
+  | "wrong_slice_categories";
+
+export interface VisionerSynthesisRunRecordFuzzCase {
+  kind: VisionerSynthesisRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyVisionerSynthesisRunRecordFuzzMutation(
+  record: VisionerSynthesisRunRecord,
+  mutation: VisionerSynthesisRunRecordFuzzCase,
+): VisionerSynthesisRunRecord {
+  const cloned: VisionerSynthesisRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+    case "wrong_slice_atom":
+      cloned.provenance = { ...cloned.provenance, sliceAtom: "P02-B03-A99" };
+      break;
+    case "wrong_slice_categories":
+      cloned.provenance = {
+        ...cloned.provenance,
+        sliceCategories: ["synthesis_versioning"],
+      };
+      break;
+  }
+
+  cloned.summary = buildVisionerSynthesisRunRecord(
+    cloned.provenance,
+    cloned.evidence,
+    cloned.telemetry,
+  ).summary;
+  return cloned;
+}
+
+function resolveVisionerSynthesisRunRecordValidator(
+  record: VisionerSynthesisRunRecord,
+): (
+  record: VisionerSynthesisRunRecord,
+  contract: VisionerSynthesisContract,
+) => VisionerSynthesisRunValidationResult {
+  return record.provenance.sliceAtom === "P02-B03-A06"
+    ? validateVisionerSynthesisFailureRecoveryRunRecord
+    : validateVisionerSynthesisRunRecord;
+}
+
+/** Fuzz harness: tampered run records must fail validation deterministically (P02-B03-A07). */
+export function runVisionerSynthesisRunRecordFuzzValidation(
+  record: VisionerSynthesisRunRecord,
+  contract: VisionerSynthesisContract = getActiveVisionerSynthesisContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const validate = resolveVisionerSynthesisRunRecordValidator(record);
+  const baseline = validate(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: VisionerSynthesisRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  if (record.provenance.sliceAtom === "P02-B03-A06") {
+    mutations.push({ kind: "wrong_slice_atom" }, { kind: "wrong_slice_categories" });
+  }
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyVisionerSynthesisRunRecordFuzzMutation(record, mutation);
+    const validation = validate(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
   };
 }

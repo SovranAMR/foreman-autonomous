@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B03
-active_atom: P02-B03-A07
+active_atom: P02-B03-A08
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 125/1000
-phase_progress: 25/100
-block_progress: 6/10
+program_progress: 126/1000
+phase_progress: 26/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B03-A07 — Ürün vizyonu sentezi: unit, property ve fuzz doğrulamasını ekle.
+P02-B03-A08 — Ürün vizyonu sentezi: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P02-B03-A06 evidence/telemetry slice sealed; B03 property/fuzz slice next.
-target: Add unit, property and fuzz validation gates for visioner synthesis evidence slice.
-hypothesis: A06 evidence run record provides stable anchor for property/fuzz probes.
-acceptance: property/fuzz slice validates run record integrity with zero unexpected rejections.
+objective: P02-B03-A07 property/fuzz slice sealed; B03 regression integration slice next.
+target: Wire visioner synthesis property/fuzz gates into Forge regression integration harness.
+hypothesis: A07 run record fuzz anchor enables stable regression detection without scope creep.
+acceptance: regression slice validates synthesis probe matrix with zero unexpected rejections.
 commands: npx tsx --test src/forge-p02-*.test.ts
-blast_radius: src/forge-p02-visioner-synthesis.ts
-rollback: P02-B03-A07 property/fuzz slice değişikliklerini geri al.
+blast_radius: src/forge-p02-visioner-synthesis.ts, src/forge-p02-visioner-synthesis.probe.ts
+rollback: P02-B03-A08 regression integration değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
 fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B03-A06
-last_commit: 65273a5
-tests: PASS — forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis.test.ts (21/21); forge-p02-visioner-synthesis*.test.ts (24/24); forge-p02-*.test.ts (110/110)
-evidence: runVisionerSynthesisFailureRecoverySliceWithRecord atom=P02-B03-A06 failureRecoveryProbeCount=6 matrixValid=true unexpectedMismatches=0 passAligned=5 gapAligned=1; validateVisionerSynthesisFailureRecoveryRunRecord valid=true; knownGaps preserved vsyn.structured_synthesis_recovery
-next: P02-B03-A07
+last_atom: P02-B03-A07
+last_commit: pending
+tests: PASS — forge-p02-visioner-synthesis.property-fuzz.test.ts (5/5); forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis.test.ts (21/21); forge-p02-visioner-synthesis*.test.ts (29/29); forge-p02-*.test.ts (115/115)
+evidence: runVisionerSynthesisPropertyChecks allPassed=true total=8; runVisionerSynthesisFuzzValidation seeds=[42,99,20260719] rejected=24/24; runVisionerSynthesisRunRecordFuzzValidation failureRecovery mutationsRejected=5 mutationsAccepted=0 fullRun mutationsRejected=3; harnessVersion=1.0.0-a07
+next: P02-B03-A08
