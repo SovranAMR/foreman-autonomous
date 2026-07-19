@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B05-A09
-last_commit: pending
+last_commit: 72f89da
 tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (48/48); guard adversarial=3/3; performance/cost/safety violations flagged; orchestrator verifyForgeResearcherCitationProvenanceGraphGuard researcher_citation_provenance_graph_guard
 evidence: forge-p04-researcher-citation-provenance-graph.guard.test.ts + validateForgeResearcherCitationProvenanceGraphGuard + runResearcherCitationProvenanceGraphAdversarialGuardChecks + orchestrator guard verification seam
 next: P04-B05-A10
