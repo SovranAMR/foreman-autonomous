@@ -44,7 +44,7 @@ fallback: P03-B01-A03 production slice misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B01-A03
-last_commit: pending
+last_commit: 4c2d525
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (7/7); 23 probes; 0 documented FAIL gaps
 evidence: recoverStrategistDecompose; runStrategistIntentProductionSlice; validateStrategistIntentProbeMatrix; gap=sint.structured_decompose_recovery closed
 next: P03-B01-A04
