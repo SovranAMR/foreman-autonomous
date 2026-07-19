@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B07
-active_atom: P02-B07-A02
+active_atom: P02-B07-A03
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 160/1000
-phase_progress: 59/100
-block_progress: 1/10
+program_progress: 161/1000
+phase_progress: 60/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B07-A02 — Alternative vision typed contract: define measurable acceptance criteria.
+P02-B07-A03 — Alternative vision production slice: apply smallest vertical slice.
 
-objective: P02-B07-A01 baseline sealed; typed contract next.
-target: Define forge-visioner-alternative contract with measurable probes aligned to P02-B07-A01 baseline fixture.
-hypothesis: documented FAIL gap valt.structured_alternative_recovery anchors A02 contract recovery probes.
-acceptance: forge-p02-visioner-alternative.test.ts contract coverage PASS.
+objective: P02-B07-A02 contract sealed; production slice next.
+target: Implement recoverVisionerAlternatives or equivalent smallest production wiring for valt.structured_alternative_recovery gap.
+hypothesis: structured alternative recovery closes documented FAIL gap with contract-aligned probes.
+acceptance: forge-p02-visioner-alternative.test.ts production slice PASS.
 commands: npx tsx --test src/forge-p02-visioner-alternative.test.ts
 blast_radius: src/forge-p02-visioner-alternative*
-rollback: P02-B07-A02 contract slice değişikliklerini geri al.
+rollback: P02-B07-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
 fallback: contract requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B07-A01
+last_atom: P02-B07-A02
 last_commit: pending
-tests: PASS — forge-p02-visioner-alternative-baseline.test.ts (3/3)
-evidence: forge-visioner-alternative-v1 baseline with 23 probes; B06 handoff aligned; valt.structured_alternative_recovery documented FAIL gap
-next: P02-B07-A02
+tests: PASS — forge-p02-visioner-alternative.test.ts (9/9)
+evidence: FORGE_VISIONER_ALTERNATIVE_CONTRACT_V1 with 23 probes; valt.structured_alternative_recovery gap probe; contract coverage helpers and probe matrix validation
+next: P02-B07-A03
