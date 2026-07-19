@@ -53,6 +53,7 @@ import {
   runForgeVisionerIntentRegressionGate,
   runVisionerIntentProbesWithRecord,
   runVisionerIntentRegressionIntegration,
+  runForgeVisionerIntentBlockGate,
 } from "./forge-p02-visioner-intent.probe.js";
 import { detectVisionerIntentProbeRegression } from "./forge-p02-visioner-intent.js";
 import { Orchestrator } from "./orchestrator.js";
@@ -913,6 +914,47 @@ describe("Forge Visioner Intent Guard Integration — P02-B01-A09", () => {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("guard PASS"));
       assert.ok(verification.detail.includes("adversarial=3/3"));
+    }
+  });
+});
+
+describe("Forge Visioner Intent Block Gate Integration — P02-B01-A10", () => {
+  it("runForgeVisionerIntentBlockGate seals P02-B01 with full block inventory", () => {
+    const result = runForgeVisionerIntentBlockGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.evidence.blockId, "P02-B01");
+    assert.equal(result.atomSeals.length, 10);
+    assert.ok(result.atomSeals.every(seal => seal.passed));
+    assert.ok(result.detail.includes("handoff=PASS→P02-B02"));
+  });
+
+  it("orchestrator verifyForgeVisionerIntentBlockGate emits visioner_intent_block_gate verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-intent-block-gate-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-intent" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeVisionerIntentBlockGate();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_intent_block_gate",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("handoff=PASS→P02-B02"));
     }
   });
 });

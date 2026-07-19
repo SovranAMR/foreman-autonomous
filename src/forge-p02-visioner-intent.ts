@@ -5,7 +5,12 @@
  * on sealed P01 phase gate artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP01ToP02PhaseHandoff,
   P01_PHASE_ATOM_COUNT,
@@ -2397,5 +2402,188 @@ export function validateForgeVisionerIntentGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P02-B01-A10) ─────────────────────────────────────
+
+export interface VisionerIntentBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface VisionerIntentBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    visionerIntentCategories: readonly VisionerIntentCategory[];
+    sourceIntegratedBaselineAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    visionerIntentRecordRequired: true;
+  };
+}
+
+export const FORGE_P02_B01_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P02-B01-A10",
+  blockId: "P02-B01",
+  title: "Intent ve görev anlamlandırma",
+  requiredAtomIds: [
+    "P02-B01-A01",
+    "P02-B01-A02",
+    "P02-B01-A03",
+    "P02-B01-A04",
+    "P02-B01-A05",
+    "P02-B01-A06",
+    "P02-B01-A07",
+    "P02-B01-A08",
+    "P02-B01-A09",
+    "P02-B01-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P02-B01-A01", description: "Visioner intent baseline aligns with typed contract and P01 integrated handoff" },
+    { id: "typed_contract_coverage", atomId: "P02-B01-A02", description: "Contract declares measurable probes for all visioner intent categories" },
+    { id: "probe_matrix_aligned", atomId: "P02-B01-A03", description: "Visioner intent probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P02-B01-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P02-B01-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P02-B01-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P02-B01-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P02-B01-A08", description: "Regression gate passes on canonical visioner intent matrix" },
+    { id: "guard_controls", atomId: "P02-B01-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P02-B01-A10", description: "Block gate evidence sealed with valid B02 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P02_B01_TO_B02_HANDOFF_V1: VisionerIntentBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P02-B01-A10",
+  sourceBlock: {
+    blockId: "P02-B01",
+    title: "Intent ve görev anlamlandırma",
+    completedAtoms: FORGE_P02_B01_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P02-B02",
+    title: "Constraint ve non-goal çıkarımı",
+    entryAtom: "P02-B02-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_VISIONER_INTENT_CONTRACT_V1.version,
+    harnessVersion: FORGE_VISIONER_INTENT_VERSION,
+    probeCount: summarizeVisionerIntentContractCoverage(FORGE_VISIONER_INTENT_CONTRACT_V1).totalProbes,
+    visionerIntentCategories: VISIONER_INTENT_CATEGORIES,
+    sourceIntegratedBaselineAtom: "P01-B10-A10",
+  },
+  prerequisites: [
+    "Visioner intent contract v1 with measurable task signal, depth routing and ambiguity probes",
+    "Versioned visioner intent baseline aligned to contract probe matrix and sealed P01 integrated handoff",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P01-B10 integrated baseline gate referenced by sourceIntegratedBaselineAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P02-B02-A01 formalizes constraint and non-goal extraction using sealed visioner intent artifacts",
+    requiresBlockGatePass: true,
+    visionerIntentRecordRequired: true,
+  },
+};
+
+export function getForgeP02B01BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P02_B01_BLOCK_GATE_V1;
+}
+
+export function getForgeP02B01ToB02Handoff(): VisionerIntentBlockHandoffContract {
+  return FORGE_P02_B01_TO_B02_HANDOFF_V1;
+}
+
+export function validateVisionerIntentBlockHandoffContract(
+  handoff: VisionerIntentBlockHandoffContract,
+  evidence: Pick<VisionerIntentBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: VisionerIntentContract = getActiveVisionerIntentContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeVisionerIntentContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.visionerIntentCategories.length !== VISIONER_INTENT_CATEGORIES.length) {
+    issues.push("handoff visionerIntentCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P02-B02-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildVisionerIntentBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P02_B01_BLOCK_GATE_V1.blockId,
+): VisionerIntentBlockGateEvidence {
+  const handoff = getForgeP02B01ToB02Handoff();
+  const handoffValid = validateVisionerIntentBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P02-B01-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }

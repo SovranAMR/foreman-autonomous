@@ -382,6 +382,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P02-B01 block gate and emit verification event with B02 handoff (P02-B01-A10).
+   */
+  async verifyForgeVisionerIntentBlockGate(): Promise<import("./forge-p02-visioner-intent.probe.js").ForgeVisionerIntentBlockGateResult> {
+    const { runForgeVisionerIntentBlockGate } = await import("./forge-p02-visioner-intent.probe.js");
+    const result = runForgeVisionerIntentBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "visioner_intent_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge integrated baseline guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B10-A09).
    */
   async verifyForgeIntegratedGuard(

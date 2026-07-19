@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
-active_block: P02-B01
-active_atom: P02-B01-A10
+active_block: P02-B02
+active_atom: P02-B02-A01
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 109/1000
-phase_progress: 9/100
-block_progress: 9/10
+program_progress: 110/1000
+phase_progress: 10/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B01-A10 — Intent ve görev anlamlandırma: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P02-B02-A01 — Constraint ve non-goal çıkarımı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P02-B01-A09 guard gate sealed; block gate A10 next.
-target: visioner intent block gate with full inventory, sealed evidence and P02-B02 handoff.
-hypothesis: regression + guard + property/fuzz gates from A01-A09 compose into block gate without scope creep.
-acceptance: block gate passes; orchestrator verifyForgeVisionerIntentBlockGate emits verification; full block inventory sealed.
-commands: npx tsx --test src/forge-p02-*.test.ts; npx tsx --test src/forge-pipeline-regression.integration.test.ts
-blast_radius: src/forge-p02-visioner-intent.ts, src/forge-p02-visioner-intent.probe.ts, src/orchestrator.ts
-rollback: P02-B01-A10 block gate değişikliklerini geri al.
+objective: P02-B01 block gate sealed; B02 baseline A01 next.
+target: constraint/non-goal baseline fixture with measurable FAIL gaps and P02-B01 handoff entry.
+hypothesis: sealed visioner intent block inventory provides stable source for constraint extraction baseline.
+acceptance: baseline fixture loads; contract alignment probes pass; at least one documented FAIL gap.
+commands: npx tsx --test src/forge-p02-*.test.ts
+blast_radius: src/forge-p02-visioner-constraint.ts (new), src/fixtures/
+rollback: P02-B02-A01 baseline fixture değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: block gate cannot seal without scope creep ise BLOCKED raporla.
+fallback: baseline cannot anchor without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B01-A09
-last_commit: d4363b8
-tests: PASS — forge-p02-visioner-intent.guard.test.ts (8/8); forge-p02-visioner-intent*.test.ts (37/37); forge-pipeline-regression.integration.test.ts P02-B01-A09 (2/2)
-evidence: verifyForgeVisionerIntentGuard, validateForgeVisionerIntentGuard canonical matrix adversarial=3/3; orchestrator visioner_intent_guard verification
-next: P02-B01-A10
+last_atom: P02-B01-A10
+last_commit: pending
+tests: PASS — forge-p02-visioner-intent-block-gate.test.ts (6/6); forge-p02-visioner-intent*.test.ts (43/43); forge-pipeline-regression.integration.test.ts P02-B01-A10 (2/2)
+evidence: runForgeVisionerIntentBlockGate, verifyForgeVisionerIntentBlockGate; block=PASS seals=10/10 handoff=PASS→P02-B02
+next: P02-B02-A01
