@@ -5,6 +5,7 @@ import {
   runVisionerUncertaintyProbes,
   runVisionerUncertaintyProductionSlice,
   runVisionerUncertaintyBoundarySlice,
+  runVisionerUncertaintyFailureRecoverySlice,
 } from "./forge-p02-visioner-uncertainty.probe.js";
 import {
   getActiveVisionerUncertaintyContract,
@@ -20,6 +21,9 @@ import {
   recoverVisionerUncertaintyClarification,
   assessVisionerUncertaintyInputBoundary,
   assessVisionerUncertaintyPresence,
+  validateVisionerUncertaintyFailureRecoveryProbeMatrix,
+  listVisionerUncertaintyFailureRecoveryProbeIds,
+  VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES,
   VISIONER_UNCERTAINTY_CATEGORIES,
   VISIONER_UNCERTAINTY_VISION_MAX_LENGTH,
   FORGE_VISIONER_UNCERTAINTY_VERSION,
@@ -292,5 +296,83 @@ describe("Forge Visioner Uncertainty Boundary Slice — P02-B06-A04", () => {
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
     assert.equal(slice.results.filter(r => !r.aligned).length, 0);
+  });
+});
+
+describe("Forge Visioner Uncertainty Failure/Recovery Slice — P02-B06-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveVisionerUncertaintyContract();
+    const failure = listVisionerUncertaintyContractProbesByCategory("failure_path", contract);
+    const recovery = listVisionerUncertaintyContractProbesByCategory("recovery_path", contract);
+    const nogo = listVisionerUncertaintyContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveVisionerUncertaintyContract();
+    const slice = runVisionerUncertaintyFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P02-B06-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listVisionerUncertaintyContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateVisionerUncertaintyFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with full alignment after A03 recovery slice", () => {
+    const slice = runVisionerUncertaintyFailureRecoverySlice();
+    const probeIds = listVisionerUncertaintyFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "vunc.malformed_vision_uncertainty_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "vunc.structured_clarification_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const confidenceNogo = slice.failureRecoveryResults.find(
+      r => r.id === "vunc.visioner_confidence_block_gate",
+    );
+    assert.ok(confidenceNogo);
+    assert.equal(confidenceNogo!.expected, "PASS");
+    assert.equal(confidenceNogo!.actual, "PASS");
   });
 });

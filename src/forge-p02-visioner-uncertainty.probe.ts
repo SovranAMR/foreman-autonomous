@@ -27,6 +27,9 @@ import {
   getActiveVisionerUncertaintyContract,
   validateVisionerUncertaintyProbeMatrix,
   validateVisionerUncertaintyBoundaryProbeMatrix,
+  validateVisionerUncertaintyFailureRecoveryProbeMatrix,
+  listVisionerUncertaintyFailureRecoveryProbeIds,
+  VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES,
   listVisionerUncertaintyContractProbesByCategory,
   summarizeVisionerUncertaintyContractCoverage,
   VISIONER_UNCERTAINTY_CATEGORIES,
@@ -55,6 +58,9 @@ export {
   listVisionerUncertaintyContractProbesByCategory,
   listVisionerUncertaintyProbesByDisposition,
   validateVisionerUncertaintyProbeMatrix,
+  validateVisionerUncertaintyFailureRecoveryProbeMatrix,
+  listVisionerUncertaintyFailureRecoveryProbeIds,
+  VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES,
   validateVisionerUncertaintyContractCoverage,
   summarizeVisionerUncertaintyContractCoverage,
   assessVisionerUncertaintyInputBoundary,
@@ -576,6 +582,41 @@ export function runVisionerUncertaintyBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface VisionerUncertaintyFailureRecoverySliceResult {
+  atom: "P02-B06-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerUncertaintyProbeResult[];
+  failureRecoveryResults: VisionerUncertaintyProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerUncertaintyFailureRecoveryProbeMatrix>;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runVisionerUncertaintyFailureRecoverySlice(
+  fixture: VisionerUncertaintyBaseline = loadVisionerUncertaintyBaseline(),
+): VisionerUncertaintyFailureRecoverySliceResult {
+  const contract = getActiveVisionerUncertaintyContract();
+  const results = runVisionerUncertaintyProbes(fixture);
+  const failureRecoveryProbes = VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listVisionerUncertaintyContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateVisionerUncertaintyFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B06-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }
