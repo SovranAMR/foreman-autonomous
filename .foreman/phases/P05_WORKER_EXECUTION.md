@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B02-A09
-last_commit: pending
+last_commit: 3058958
 tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (61/61)
 evidence: runWorkerFilesystemGroundingGuardSlice; validateForgeWorkerFilesystemGroundingGuard; adversarial 3/3 rejected; perf/cost/safety PASS; integration guard wired; 27/27 probes aligned
 next: P05-B02-A10

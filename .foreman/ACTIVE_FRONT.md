@@ -44,7 +44,7 @@ fallback: Block gate blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B02-A09
-last_commit: pending
+last_commit: 3058958
 tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts
 evidence: runWorkerFilesystemGroundingGuardSlice; validateForgeWorkerFilesystemGroundingGuard; adversarial 3/3 rejected; perf/cost/safety PASS; integration guard wired; 27/27 probes; 61/61 tests
 next: P05-B02-A10
