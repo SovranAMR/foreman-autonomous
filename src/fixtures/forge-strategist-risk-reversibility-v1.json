@@ -1,0 +1,177 @@
+{
+  "version": "1.0.0",
+  "atom": "P03-B05-A01",
+  "contractAtom": "P03-B05-A06",
+  "purpose": "Strategist risk and reversibility baseline measured from sealed P03-B04 dependency DAG block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P03-B04-A10",
+    "contractVersion": "1.0.0-a10",
+    "dependencyDagProbeCount": 27,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "srisk.version_tagged",
+      "category": "risk_versioning",
+      "description": "Strategist risk reversibility baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.atom_tagged",
+      "category": "risk_versioning",
+      "description": "Strategist risk reversibility baseline declares P03-B05-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.harness_version_exported",
+      "category": "risk_versioning",
+      "description": "FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION exported for risk reversibility harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.approval_execution_risk_scoring",
+      "category": "risk_assessment",
+      "description": "ApprovalEngine risk scoring wired to ExecutionEngine command approval gate",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.researcher_interactive_risk_fields",
+      "category": "risk_assessment",
+      "description": "Researcher RISKS field and interactive-confirm assessRisk assess command risk",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.prompt_decompose_risk_plan",
+      "category": "risk_assessment",
+      "description": "STRATEGIST decompose format declares RISKS and ROLLBACK PLAN sections",
+      "expected": "FAIL"
+    },
+    {
+      "id": "srisk.prompt_atom_blast_radius",
+      "category": "risk_assessment",
+      "description": "STRATEGIST atomize format declares blast_radius per atom",
+      "expected": "FAIL"
+    },
+    {
+      "id": "srisk.orchestrator_pre_exec_risk_gate",
+      "category": "risk_assessment",
+      "description": "Orchestrator validates strategist risk plan before atom execution",
+      "expected": "FAIL"
+    },
+    {
+      "id": "srisk.rollback_engine_exported",
+      "category": "reversibility_plan",
+      "description": "RollbackEngine exported for checkpoint-based reversibility",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.orchestrator_rollback_seams",
+      "category": "reversibility_plan",
+      "description": "Orchestrator wires rollback.createPoint, rollbackLastAtom and rollbackBlock",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.messaging_rollback_command",
+      "category": "reversibility_plan",
+      "description": "Messaging gateway exposes /rollback command for last-atom rollback",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.parser_risk_plan_fields",
+      "category": "reversibility_plan",
+      "description": "parseDecomposeResponse exports risk plan and rollback plan fields",
+      "expected": "FAIL"
+    },
+    {
+      "id": "srisk.b04_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P03_B04_TO_B05_HANDOFF_V1 targets P03-B05-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.b04_sealed_dependency_dag_probes",
+      "category": "baseline_link",
+      "description": "P03-B04→B05 handoff sealed probeCount matches active dependency DAG contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P03-B04 dependency DAG block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.probe_runner_exported",
+      "category": "boundary",
+      "description": "runStrategistRiskReversibilityProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL risk reversibility gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.empty_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistRiskReversibilityInputBoundary rejects empty decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.whitespace_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistRiskReversibilityInputBoundary rejects whitespace-only decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.long_decompose_truncation_boundary",
+      "category": "boundary",
+      "description": "assessStrategistRiskReversibilityInputBoundary truncates decompose exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateStrategistRiskReversibilityBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.malformed_decompose_guard",
+      "category": "failure_path",
+      "description": "assessStrategistRiskReversibilityInputBoundary rejects null-byte decompose output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.min_category_probes",
+      "category": "failure_path",
+      "description": "validateStrategistRiskReversibilityBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.recovery_worker_failure_rollback",
+      "category": "recovery_path",
+      "description": "Pipeline rolls back last atom when worker execution or verification fails",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.recovery_vision_violation_rollback_block",
+      "category": "recovery_path",
+      "description": "Pipeline rolls back block when reflection detects vision violation",
+      "expected": "PASS"
+    },
+    {
+      "id": "srisk.nogo_irreversible_halt",
+      "category": "nogo_path",
+      "description": "Pipeline halts irreversible atom when rollback checkpoint is missing",
+      "expected": "FAIL"
+    },
+    {
+      "id": "srisk.exported_orchestrator_risk_validator",
+      "category": "nogo_path",
+      "description": "validateStrategistRiskReversibility exported for orchestrator pre-execution checks",
+      "expected": "FAIL"
+    }
+  ]
+}
