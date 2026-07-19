@@ -49,6 +49,12 @@ import {
   runIntegratedBaselineRegressionIntegration,
 } from "./forge-integrated-baseline.probe.js";
 import { detectIntegratedBaselineProbeRegression } from "./forge-integrated-baseline.js";
+import {
+  runForgeVisionerIntentRegressionGate,
+  runVisionerIntentProbesWithRecord,
+  runVisionerIntentRegressionIntegration,
+} from "./forge-p02-visioner-intent.probe.js";
+import { detectVisionerIntentProbeRegression } from "./forge-p02-visioner-intent.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -773,6 +779,98 @@ describe("Forge Pipeline Regression — P01-B10-A10", () => {
     if (verification?.type === "verification") {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("handoff=PASS→P02-B01"));
+    }
+  });
+});
+
+describe("Forge Visioner Intent Regression Integration — P02-B01-A08", () => {
+  it("runForgeVisionerIntentRegressionGate passes on canonical visioner intent matrix", () => {
+    const result = runForgeVisionerIntentRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
+    assert.equal(result.propertyFuzz.passed, true);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+  });
+
+  it("runVisionerIntentRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeVisionerIntentRegressionGate();
+    const integration = runVisionerIntentRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
+    assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("23/23 probes aligned"));
+    assert.equal(integration.record.summary.total, 23);
+  });
+
+  it("detectVisionerIntentProbeRegression flags newly misaligned probes", () => {
+    const prior = runVisionerIntentProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectVisionerIntentProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeVisionerIntentRegressionGate compares against prior record without false regression", () => {
+    const prior = runVisionerIntentProbesWithRecord();
+    const result = runForgeVisionerIntentRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("orchestrator verifyForgeVisionerIntentRegression emits visioner_intent_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-intent-regression-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-intent" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeVisionerIntentRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_intent_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("23/23 probes aligned"));
     }
   });
 });

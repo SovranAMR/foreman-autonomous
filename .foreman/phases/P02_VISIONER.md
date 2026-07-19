@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 7
+completed_atoms: 8
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -22,7 +22,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B01-A05 — Intent ve görev anlamlandırma: failure, recovery ve NO-GO yollarını uygula
 - [x] P02-B01-A06 — Intent ve görev anlamlandırma: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B01-A07 — Intent ve görev anlamlandırma: unit, property ve fuzz doğrulamasını ekle
-- [ ] P02-B01-A08 — Intent ve görev anlamlandırma: Forge entegrasyonu ile regression testini tamamla
+- [x] P02-B01-A08 — Intent ve görev anlamlandırma: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B01-A09 — Intent ve görev anlamlandırma: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B01-A10 — Intent ve görev anlamlandırma: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B01-A07
-last_commit: ff93be8
-tests: PASS — forge-p02-visioner-intent.test.ts (24/24); forge-p02-visioner-intent.property-fuzz.test.ts (5/5); property checks 8/8; fixture fuzz 72/72 rejected; failure/recovery run record fuzz 5/5 rejected; full run record fuzz 3/3 rejected; harnessVersion=1.0.0-b07
-evidence: runVisionerIntentPropertyChecks, runVisionerIntentFuzzValidation, runVisionerIntentRunRecordFuzzValidation; 8 structural properties; fixture mutations flip/drop/extra/rename/flip_category; run record mutations drop_evidence/drop_telemetry/wrong_total/wrong_slice_atom/wrong_slice_categories
-next: P02-B01-A08
+last_atom: P02-B01-A08
+last_commit: pending
+tests: PASS — forge-p02-visioner-intent.test.ts (24/24); forge-p02-visioner-intent.property-fuzz.test.ts (5/5); forge-pipeline-regression.integration.test.ts P02-B01-A08 (5/5); regression gate 23/23 probes aligned; productionSlice unexpected=0; propertyFuzz 8/8 + contractFuzz 72/72 + runFuzz 3/3; guard adversarial=3/3
+evidence: runForgeVisionerIntentRegressionGate, runVisionerIntentRegressionIntegration, detectVisionerIntentProbeRegression, verifyForgeVisionerIntentRegression; validateForgeVisionerIntentGuard foundation for A09
+next: P02-B01-A09

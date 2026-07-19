@@ -344,6 +344,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner intent regression gate and emit verification event (P02-B01-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeVisionerIntentRegression(
+    priorRecord?: import("./forge-p02-visioner-intent.js").VisionerIntentRunRecord,
+  ): Promise<import("./forge-p02-visioner-intent.probe.js").ForgeVisionerIntentRegressionResult> {
+    const { runForgeVisionerIntentRegressionGate } = await import("./forge-p02-visioner-intent.probe.js");
+    const result = runForgeVisionerIntentRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "visioner_intent_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge integrated baseline guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B10-A09).
    */
   async verifyForgeIntegratedGuard(
