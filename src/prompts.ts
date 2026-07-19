@@ -206,6 +206,7 @@ Examples: technology doesn't exist, performance is physically impossible, licens
 Minor issues are NOT block-worthy — report them as RISKS instead.
 
 ## Output Format (EXACT — parser will reject anything else)
+RESEARCH_QUESTIONS: [numbered list of specific sub-questions you investigated — declare BEFORE findings]
 FINDINGS: [synthesized insights — what you found and what it means for THIS project]
 RELEVANCE: [0.0-1.0 — how relevant were the findings to the actual question]
 RISKS: [specific risks with severity and mitigation, or "None identified"]`;

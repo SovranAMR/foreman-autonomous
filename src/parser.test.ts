@@ -111,13 +111,17 @@ CONFIDENCE: 0.8`);
 // ─── RESEARCH PARSER ─────────────────────────────────────────
 
 await test("Research: parses valid response", () => {
-  const r = parseResearchResponse(`REASONING: looked at top sites
+  const r = parseResearchResponse(`RESEARCH_QUESTIONS:
+1. What are minimalist hero patterns?
+2. How do top sites handle gradients?
 FINDINGS: Minimalist heroes work best. Apple uses single gradient.
 RELEVANCE: 0.9
 RISKS: Heavy animations cause FPS drops`);
 
   assert.ok(r.ok);
   if (r.ok) {
+    assert.equal(r.data.researchQuestions.length, 2);
+    assert.ok(r.data.researchQuestions[0].includes("hero"));
     assert.ok(r.data.findings.includes("Minimalist"));
     assert.equal(r.data.relevance, 0.9);
     assert.ok(r.data.risks.includes("FPS"));

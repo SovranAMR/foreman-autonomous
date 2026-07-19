@@ -36,6 +36,7 @@ export interface DecomposeParseResult {
 
 export interface ResearchParseResult {
   reasoning: string;
+  researchQuestions: string[];
   findings: string;
   relevance: number;
   risks: string;
@@ -271,13 +272,42 @@ function parseBlockDependencies(text: string, blockCount: number): number[][] {
   return deps;
 }
 
+const NUMBERED_RESEARCH_QUESTION_LINE = /^\s*(?:\d+[.)]|[-*])\s+(.+)$/;
+
+function parseResearchQuestionsField(text: string): string[] {
+  const sectionMatch = text.match(
+    /RESEARCH_QUESTIONS:\s*([\s\S]*?)(?:\n(?:FINDINGS|RELEVANCE|RISKS|REASONING)|$)/i,
+  );
+  const source = sectionMatch?.[1]?.trim() ?? "";
+  if (source.length === 0) {
+    return [];
+  }
+
+  const questions: string[] = [];
+  for (const line of source.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) continue;
+    const numbered = trimmed.match(NUMBERED_RESEARCH_QUESTION_LINE);
+    if (numbered) {
+      questions.push(numbered[1].trim());
+      continue;
+    }
+    if (!/^(RESEARCH_QUESTIONS|FINDINGS|RELEVANCE|RISKS):/i.test(trimmed)) {
+      questions.push(trimmed);
+    }
+  }
+
+  return questions.filter(question => question.length > 0);
+}
+
 /**
  * Parse researcher output.
- * Beklenen: FINDINGS, RELEVANCE, RISKS
+ * Beklenen: RESEARCH_QUESTIONS (optional), FINDINGS, RELEVANCE, RISKS
  * REASONING optional (researcher sometimes goes directly to findings)
  */
 export function parseResearchResponse(text: string): { ok: true; data: ResearchParseResult } | { ok: false; error: ParseError } {
-  const reasoning = extractField(text, "REASONING", ["FINDINGS", "RELEVANCE", "RISKS"]);
+  const reasoning = extractField(text, "REASONING", ["RESEARCH_QUESTIONS", "FINDINGS", "RELEVANCE", "RISKS"]);
+  const researchQuestions = parseResearchQuestionsField(text);
   const findings = extractField(text, "FINDINGS", ["RELEVANCE", "RISKS"]);
   const relevance = extractNumber(text, "RELEVANCE");
   const risks = extractField(text, "RISKS", []);
@@ -293,6 +323,7 @@ export function parseResearchResponse(text: string): { ok: true; data: ResearchP
     ok: true,
     data: {
       reasoning: reasoning ?? "Direct research output",
+      researchQuestions,
       findings: findings!,
       relevance: relevance ?? 0.7,
       risks: risks ?? "None identified",

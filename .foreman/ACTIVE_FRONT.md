@@ -6,9 +6,9 @@ active_phase: P04
 active_block: P04-B01
 active_atom: P04-B01-A03
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 302/1000
-phase_progress: 2/100
-block_progress: 2/10
+program_progress: 303/1000
+phase_progress: 3/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B01-A03 — Research question decomposition: en küçük üretim dikey dilimini uygula.
+P04-B01-A04 — Research question decomposition: boundary ve edge-case davranışlarını tamamla.
 
-objective: P04-B01-A02 PASS; production slice for researcher question decomposition.
-target: Minimal production vertical slice implementing measurable question decomposition gaps.
-hypothesis: Typed contract from A02 enables targeted decomposeResearchQuestions and orchestrator wiring.
-acceptance: production exports wired; gap probes flip to PASS where implemented; targeted tests pass.
+objective: P04-B01-A03 PASS; boundary and edge-case behavior for researcher question decomposition.
+target: Complete boundary category probes with vision-input-style edge cases for block tasks.
+hypothesis: A03 production slice enables targeted boundary hardening without reopening gap probes.
+acceptance: boundary probes PASS; edge-case tests pass; zero unexpected matrix mismatches.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
-blast_radius: src/forge-p04-researcher-*.ts, src/orchestrator.ts, src/prompts.ts, src/parser.ts
-rollback: P04-B01-A03 production slice değişikliklerini geri al.
+blast_radius: src/forge-p04-researcher-*.ts
+rollback: P04-B01-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B01-A02
-last_commit: 301c07f
-tests: PASS — forge-p04-researcher-question-decomposition.test.ts (8/8); contract coverage 25 probes / 6 FAIL gaps documented
-evidence: FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1; validateResearcherQuestionDecompositionContractCoverage; fixture↔contract alignment valid
-next: P04-B01-A03
+last_atom: P04-B01-A03
+last_commit: pending
+tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (16/16); 25/25 probes aligned; 0 FAIL gaps
+evidence: decomposeResearchQuestions; validateResearchQuestionDecomposition orchestrator wiring; RESEARCH_QUESTIONS prompt+parser; runResearcherQuestionDecompositionProductionSlice matrixValid
+next: P04-B01-A04

@@ -21,7 +21,7 @@ import {
 } from "./forge-p03-strategist-provenance.js";
 import { parseResearchResponse } from "./parser.js";
 
-export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a02";
+export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P03_PHASE_GATE_SEALED_BLOCK_COUNT = P03_STRATEGIST_PHASE_BLOCK_COUNT;
 
@@ -214,6 +214,212 @@ export function validateResearchQuestionDecomposition(
   };
 }
 
+export interface ResearchQuestionDecompositionResult {
+  acceptable: boolean;
+  questions: string[];
+  questionCount: number;
+  detail: string;
+}
+
+const RESEARCH_STOP_WORDS =
+  /^(the|and|for|with|from|into|that|this|will|should|must|have|been|were|when|where|what|which|about)$/i;
+
+/**
+ * Split block task into measurable research sub-queries before unified research (P04-B01-A03).
+ */
+export function decomposeResearchQuestions(blockTask: string): ResearchQuestionDecompositionResult {
+  const boundary = assessResearchQuestionInputBoundary(blockTask);
+  if (!boundary.acceptable) {
+    return {
+      acceptable: false,
+      questions: [],
+      questionCount: 0,
+      detail: boundary.detail,
+    };
+  }
+
+  const normalized = boundary.normalizedBlock.trim();
+  const questions: string[] = [];
+  const segments = normalized
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map(segment => segment.trim())
+    .filter(segment => segment.length > 10);
+
+  for (const segment of segments) {
+    if (questions.length >= 6) break;
+    if (segment.endsWith("?")) {
+      questions.push(segment);
+      continue;
+    }
+    if (/^(implement|create|build|add|wire|update|refactor)\b/i.test(segment)) {
+      questions.push(`What are best practices, risks, and tradeoffs for: ${segment}?`);
+    }
+  }
+
+  if (questions.length === 0) {
+    const topic = normalized.replace(/\s+/g, " ").slice(0, 180);
+    questions.push(
+      `What are current best practices and industry standards for: ${topic}?`,
+      `What examples exist — what worked and what failed for: ${topic}?`,
+      `What technical constraints, performance implications, and risks apply to: ${topic}?`,
+    );
+  }
+
+  const keywords = normalized
+    .split(/\s+/)
+    .filter(word => word.length > 3 && !RESEARCH_STOP_WORDS.test(word))
+    .slice(0, 4);
+  if (keywords.length >= 2 && questions.length < 4) {
+    questions.push(`How do established projects handle ${keywords.join(" ")}?`);
+  }
+
+  const unique = [...new Set(questions.map(question => question.trim()).filter(question => question.length > 10))];
+  return {
+    acceptable: unique.length > 0,
+    questions: unique,
+    questionCount: unique.length,
+    detail: `decomposed ${unique.length} actionable sub-queries`,
+  };
+}
+
+export interface ResearcherQuestionDecompositionProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherQuestionDecompositionProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ResearcherQuestionDecompositionProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateResearcherQuestionDecompositionProbeMatrix(
+  results: ResearcherQuestionDecompositionProbeResult[],
+  contract: ResearcherQuestionDecompositionContract = getActiveResearcherQuestionDecompositionContract(),
+): ResearcherQuestionDecompositionProbeMatrixValidationResult {
+  const issues: ResearcherQuestionDecompositionProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (results.length !== contract.probes.length) {
+    issues.push({
+      kind: "extra_result",
+      detail: `results=${results.length} contract=${contract.probes.length}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface ResearcherQuestionDecompositionProductionSliceResult {
+  atom: "P04-B01-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherQuestionDecompositionProbeResult[];
+  summary: ResearcherQuestionDecompositionProbeSummary;
+  matrixValidation: ResearcherQuestionDecompositionProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: decomposeResearchQuestions wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runResearcherQuestionDecompositionProductionSlice(
+  fixture: ResearcherQuestionDecompositionBaseline = loadResearcherQuestionDecompositionBaseline(),
+): ResearcherQuestionDecompositionProductionSliceResult {
+  const contract = getActiveResearcherQuestionDecompositionContract();
+  const fixtureValidation = validateResearcherQuestionDecompositionBaseline(fixture);
+  const contractValidation = validateResearcherQuestionDecompositionAgainstContract(fixture, contract);
+  const results = runResearcherQuestionDecompositionProbes(fixture);
+  const summary = summarizeResearcherQuestionDecompositionMatrix(results);
+  const matrixValidation = validateResearcherQuestionDecompositionProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B01-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
+}
+
 export const RESEARCHER_QUESTION_DECOMPOSITION_A01_MIN_PROBES: Readonly<
   Record<ResearcherQuestionDecompositionCategory, number>
 > = {
@@ -401,16 +607,16 @@ const RESEARCHER_QUESTION_DECOMPOSITION_CATEGORY_CONTRACTS: Record<
         id: "rques.prompt_research_questions",
         category: "question_signal",
         description: "RESEARCHER_SYSTEM prompt declares RESEARCH_QUESTIONS output field before findings",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "RESEARCHER_SYSTEM prompt declares RESEARCH_QUESTIONS output field before findings",
       },
       {
         id: "rques.parser_research_questions_extract",
         category: "question_signal",
         description: "parseResearchResponse extracts RESEARCH_QUESTIONS list from researcher output",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "parseResearchResponse extracts RESEARCH_QUESTIONS list from researcher output",
       },
       {
@@ -454,16 +660,16 @@ const RESEARCHER_QUESTION_DECOMPOSITION_CATEGORY_CONTRACTS: Record<
         id: "rques.decompose_research_questions_fn",
         category: "subquery_signal",
         description: "decomposeResearchQuestions splits block task into measurable sub-queries",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "decomposeResearchQuestions splits block task into measurable sub-queries",
       },
       {
         id: "rques.orchestrator_pre_research_decompose",
         category: "subquery_signal",
         description: "Orchestrator decomposes research questions before researcher stepWithPhase",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Orchestrator decomposes research questions before researcher stepWithPhase",
       },
       {
@@ -639,7 +845,7 @@ const RESEARCHER_QUESTION_DECOMPOSITION_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description:
           "Pipeline halts research when question decomposition yields zero actionable sub-queries",
-        expected: "FAIL",
+        expected: "PASS",
         disposition: "nogo",
         criterion:
           "Pipeline halts research when question decomposition yields zero actionable sub-queries",
@@ -649,7 +855,7 @@ const RESEARCHER_QUESTION_DECOMPOSITION_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description:
           "validateResearchQuestionDecomposition exported for orchestrator pre-research checks",
-        expected: "FAIL",
+        expected: "PASS",
         disposition: "nogo",
         criterion:
           "validateResearchQuestionDecomposition exported for orchestrator pre-research checks",
@@ -1174,11 +1380,23 @@ function runResearcherQuestionDecompositionProbe(
       return probe(id, category, expected, ok, `researchQuestionsField=${ok}`, criterion);
     }
     case "rques.parser_research_questions_extract": {
+      const parsed = parseResearchResponse(SAMPLE_RESEARCH_OUTPUT);
       const ok =
         parser.includes("researchQuestions") &&
         parser.includes("RESEARCH_QUESTIONS") &&
-        /parseResearchResponse[\s\S]*researchQuestions/.test(parser);
-      return probe(id, category, expected, ok, `parserResearchQuestions=${ok}`, criterion);
+        /parseResearchResponse[\s\S]*researchQuestions/.test(parser) &&
+        parsed.ok &&
+        parsed.data.researchQuestions.length >= 2;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        parsed.ok
+          ? `researchQuestionsLen=${parsed.data.researchQuestions.length}`
+          : "parse failed",
+        criterion,
+      );
     }
     case "rques.researcher_findings_format": {
       const ok = /FINDINGS:/i.test(researcherPrompt);
@@ -1212,8 +1430,21 @@ function runResearcherQuestionDecompositionProbe(
       );
     }
     case "rques.decompose_research_questions_fn": {
-      const ok = hasProductionExport("decomposeResearchQuestions");
-      return probe(id, category, expected, ok, `decomposeFn=${ok}`, criterion);
+      const decomposition = decomposeResearchQuestions(
+        "Implement research question decomposition in orchestrator before researcher stepWithPhase.",
+      );
+      const ok =
+        hasProductionExport("decomposeResearchQuestions") &&
+        decomposition.acceptable &&
+        decomposition.questionCount >= 1;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `decomposeFn=${ok}, questionCount=${decomposition.questionCount}`,
+        criterion,
+      );
     }
     case "rques.orchestrator_pre_research_decompose": {
       const ok =
@@ -1294,13 +1525,13 @@ function runResearcherQuestionDecompositionProbe(
       const contract = getActiveResearcherQuestionDecompositionContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = expectedFail > 0 && failCount === expectedFail;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
         expected,
         ok,
-        `documentedFail=${failCount}`,
+        `documentedFail=${failCount}, expectedFail=${expectedFail}`,
         criterion,
       );
     }

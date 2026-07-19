@@ -59,17 +59,17 @@ describe("Forge Researcher Question Decomposition Contract — P04-B01-A02", () 
     }
   });
 
-  it("maps 25 probes with six documented FAIL gaps from A01 baseline", () => {
+  it("maps 25 probes with zero remaining gaps after A03 production slice", () => {
     const contract = getActiveResearcherQuestionDecompositionContract();
     const summary = summarizeResearcherQuestionDecompositionContractCoverage(contract);
     const coverage = validateResearcherQuestionDecompositionContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 25);
-    assert.equal(summary.expectedPass, 19);
-    assert.equal(summary.expectedFail, 6);
-    assert.equal(summary.byDisposition.observed, 14);
-    assert.equal(summary.byDisposition.gap, 4);
+    assert.equal(summary.expectedPass, 25);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 18);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 3);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
@@ -83,23 +83,15 @@ describe("Forge Researcher Question Decomposition Contract — P04-B01-A02", () 
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists six remaining gap and nogo probes from A01 baseline debt", () => {
+  it("lists zero remaining gap probes after A03 production slice", () => {
     const gaps = listResearcherQuestionDecompositionProbesByDisposition("gap");
     const nogos = listResearcherQuestionDecompositionProbesByDisposition("nogo");
-    assert.deepEqual(
-      gaps.map(p => p.id).sort(),
-      [
-        "rques.decompose_research_questions_fn",
-        "rques.orchestrator_pre_research_decompose",
-        "rques.parser_research_questions_extract",
-        "rques.prompt_research_questions",
-      ],
-    );
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
     assert.deepEqual(
       nogos.map(p => p.id).sort(),
       ["rques.exported_orchestrator_question_validator", "rques.nogo_empty_question_halt"],
     );
-    assert.ok([...gaps, ...nogos].every(p => p.expected === "FAIL"));
+    assert.ok([...gaps, ...nogos].every(p => p.expected === "PASS"));
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {

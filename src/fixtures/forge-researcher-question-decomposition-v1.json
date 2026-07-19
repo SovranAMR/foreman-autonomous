@@ -33,13 +33,13 @@
       "id": "rques.prompt_research_questions",
       "category": "question_signal",
       "description": "RESEARCHER_SYSTEM prompt declares RESEARCH_QUESTIONS output field before findings",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rques.parser_research_questions_extract",
       "category": "question_signal",
       "description": "parseResearchResponse extracts RESEARCH_QUESTIONS list from researcher output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rques.researcher_findings_format",
@@ -63,13 +63,13 @@
       "id": "rques.decompose_research_questions_fn",
       "category": "subquery_signal",
       "description": "decomposeResearchQuestions splits block task into measurable sub-queries",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rques.orchestrator_pre_research_decompose",
       "category": "subquery_signal",
       "description": "Orchestrator decomposes research questions before researcher stepWithPhase",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rques.research_engine_single_query",
@@ -153,13 +153,13 @@
       "id": "rques.nogo_empty_question_halt",
       "category": "nogo_path",
       "description": "Pipeline halts research when question decomposition yields zero actionable sub-queries",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rques.exported_orchestrator_question_validator",
       "category": "nogo_path",
       "description": "validateResearchQuestionDecomposition exported for orchestrator pre-research checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

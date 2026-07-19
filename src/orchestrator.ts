@@ -65,6 +65,10 @@ import {
   checkVisionerIntentAmbiguity,
 } from "./forge-p02-visioner-intent.js";
 import { buildVisionConstraintSummary } from "./forge-p02-visioner-constraint.js";
+import {
+  decomposeResearchQuestions,
+  validateResearchQuestionDecomposition,
+} from "./forge-p04-researcher-question-decomposition.js";
 
 /** Canonical ordered pipeline phases for behavior-map probes and downstream tooling. */
 export const FORGE_PIPELINE_PHASES = FORGE_PIPELINE_CORE_PHASES;
@@ -2284,18 +2288,44 @@ ${visionOutput}`,
         }
       } catch { /* web search is best-effort */ }
 
-      const researchResult = await this.engine.stepWithPhase(
-        visionChain.id,
-        `Research best practices, examples, and technical considerations for this block:\n\n${block}\n\nVISION DOCUMENT (pinned — respect all constraints):\n${visionOutput}${memoryContext}${crossChainCtx}${webSearchContext}`,
-        "researcher",
-        "research",
-        [visionResult.thought.id, decomposeResult.thought.id],
-      );
-      totalThoughts++;
-      this.emit({ type: "thought_complete", thought: researchResult.thought });
+      const questionDecomposition = decomposeResearchQuestions(block);
+      let researchQuestionsContext = "";
+      let findings = "";
+      let researchParentThoughtId = decomposeResult.thought.id;
 
-      // Research BLOCK'u non-fatal — bulgular yoksa bile devam edebilir
-      const findings = researchResult.parsed?.findings ?? researchResult.thought.output;
+      if (!questionDecomposition.acceptable || questionDecomposition.questionCount === 0) {
+        this.engine.streaming.warning(
+          `Research halted for block ${i + 1}: zero actionable sub-queries from question decomposition (missing_research_questions)`,
+        );
+        findings = "Research skipped — question decomposition yielded zero actionable sub-queries.";
+      } else {
+        researchQuestionsContext =
+          `\n\nDecomposed research questions (answer each in RESEARCH_QUESTIONS before FINDINGS):\n` +
+          questionDecomposition.questions.map((question, index) => `${index + 1}. ${question}`).join("\n");
+
+        const researchResult = await this.engine.stepWithPhase(
+          visionChain.id,
+          `Research best practices, examples, and technical considerations for this block:\n\n${block}${researchQuestionsContext}\n\nVISION DOCUMENT (pinned — respect all constraints):\n${visionOutput}${memoryContext}${crossChainCtx}${webSearchContext}`,
+          "researcher",
+          "research",
+          [visionResult.thought.id, decomposeResult.thought.id],
+        );
+        totalThoughts++;
+        this.emit({ type: "thought_complete", thought: researchResult.thought });
+        researchParentThoughtId = researchResult.thought.id;
+
+        const outputValidation = validateResearchQuestionDecomposition(
+          researchResult.thought.output ?? "",
+        );
+        if (!outputValidation.valid) {
+          this.engine.streaming.warning(
+            `[forge] validateResearchQuestionDecomposition: ${outputValidation.issues.join(", ")}`,
+          );
+        }
+
+        // Research BLOCK'u non-fatal — bulgular yoksa bile devam edebilir
+        findings = researchResult.parsed?.findings ?? researchResult.thought.output;
+      }
 
       this.emit({ type: "phase_end", phase: "research", detail: findings.slice(0, 80) });
 
@@ -2334,7 +2364,7 @@ VISION DOCUMENT (pinned — atoms must respect ALL constraints):
 ${visionOutput}`,
         "strategist",
         "atomize",
-        [researchResult.thought.id],
+        [researchParentThoughtId],
       );
       totalThoughts++;
       this.emit({ type: "thought_complete", thought: atomizeResult.thought });

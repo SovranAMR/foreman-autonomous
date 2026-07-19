@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 2
+completed_atoms: 3
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -17,7 +17,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P04-B01-A01 — Research question decomposition: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B01-A02 — Research question decomposition: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P04-B01-A03 — Research question decomposition: en küçük üretim dikey dilimini uygula
+- [x] P04-B01-A03 — Research question decomposition: en küçük üretim dikey dilimini uygula
 - [ ] P04-B01-A04 — Research question decomposition: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B01-A05 — Research question decomposition: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B01-A06 — Research question decomposition: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B01-A02
-last_commit: 301c07f
-tests: PASS — forge-p04-researcher-question-decomposition.test.ts (8/8); validateResearcherQuestionDecompositionContractCoverage 25 probes / 6 documented FAIL gaps
-evidence: FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1; summarizeResearcherQuestionDecompositionContractCoverage; fixture↔contract probe mapping aligned
-next: P04-B01-A03
+last_atom: P04-B01-A03
+last_commit: pending
+tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (16/16); 25/25 probes aligned; 0 FAIL gaps
+evidence: decomposeResearchQuestions; orchestrator pre-research decompose + validateResearchQuestionDecomposition; RESEARCH_QUESTIONS in prompts+parser; runResearcherQuestionDecompositionProductionSlice matrixValid
+next: P04-B01-A04
