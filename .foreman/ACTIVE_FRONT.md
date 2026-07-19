@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B05
-active_atom: P03-B05-A01
+active_atom: P03-B05-A02
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 239/1000
-phase_progress: 40/100
-block_progress: 0/10
+program_progress: 240/1000
+phase_progress: 41/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B05-A01 — Risk ve reversibility planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P03-B05-A02 — Risk ve reversibility planı: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P03-B04-A10 PASS; P03-B05-A01 measure risk/reversibility behavior and create failing baseline fixture.
-target: loadStrategistRiskReversibilityBaseline, validateStrategistRiskReversibilityBaseline.
-hypothesis: P03-B05-A01 establishes measurable baseline debt from sealed P03-B04 dependency DAG block gate.
-acceptance: baseline fixture loads; validation exposes documented FAIL gaps; links to P03-B04 handoff.
+objective: P03-B05-A01 PASS; P03-B05-A02 define typed contract with measurable acceptance criteria for risk/reversibility probes.
+target: getActiveStrategistRiskReversibilityContract, validateStrategistRiskReversibilityAgainstContract.
+hypothesis: P03-B05-A02 formalizes the 27-probe A01 matrix into a versioned contract aligned to sealed P03-B04 handoff.
+acceptance: contract declares all categories; fixture aligns; coverage validation passes.
 commands: npx tsx --test src/forge-p03-strategist-risk-reversibility*.test.ts
 blast_radius: src/forge-p03-strategist-risk-reversibility.ts
-rollback: P03-B05-A01 baseline değişikliklerini geri al.
+rollback: P03-B05-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: baseline blocked ise BLOCKED raporla.
+fallback: contract blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B04-A10
-last_commit: 1c7dbc7
-tests: PASS — forge-p03-strategist-dependency-dag.test.ts (43/43); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); forge-p03-strategist-dependency-dag-block-gate.test.ts (7/7); harness 1.0.0-a10
-evidence: sealStrategistDependencyDagBlockGate; getForgeP03B04ToB05Handoff
-next: P03-B05-A01
+last_atom: P03-B05-A01
+last_commit: f2a6b7c
+tests: PASS — forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); harness 1.0.0-a01; 27 probes / 6 FAIL gaps
+evidence: loadStrategistRiskReversibilityBaseline; validateStrategistRiskReversibilityBaseline; getForgeP03B04ToB05Handoff
+next: P03-B05-A02

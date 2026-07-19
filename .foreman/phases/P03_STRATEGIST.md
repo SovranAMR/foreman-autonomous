@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 4
-completed_atoms: 38
+completed_atoms: 39
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -67,7 +67,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P03-B05 — Risk ve reversibility planı
 
-- [ ] P03-B05-A01 — Risk ve reversibility planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P03-B05-A01 — Risk ve reversibility planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P03-B05-A02 — Risk ve reversibility planı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B05-A03 — Risk ve reversibility planı: en küçük üretim dikey dilimini uygula
 - [ ] P03-B05-A04 — Risk ve reversibility planı: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B04-A10
-last_commit: 1c7dbc7
-tests: PASS — forge-p03-strategist-dependency-dag.test.ts (43/43); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); forge-p03-strategist-dependency-dag-block-gate.test.ts (7/7); harness 1.0.0-a10
-evidence: sealStrategistDependencyDagBlockGate; getForgeP03B04ToB05Handoff
-next: P03-B05-A01
+last_atom: P03-B05-A01
+last_commit: f2a6b7c
+tests: PASS — forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); harness 1.0.0-a01; 27 probes / 6 documented FAIL gaps
+evidence: loadStrategistRiskReversibilityBaseline; validateStrategistRiskReversibilityBaseline; getForgeP03B04ToB05Handoff
+next: P03-B05-A02
