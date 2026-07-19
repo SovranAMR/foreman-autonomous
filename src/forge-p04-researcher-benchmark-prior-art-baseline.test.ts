@@ -474,7 +474,7 @@ describe("Forge Researcher Benchmark Prior-Art Evidence — P04-B04-A06", () => 
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {

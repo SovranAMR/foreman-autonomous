@@ -60,7 +60,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B04-A04 — Benchmark ve prior-art analizi: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B04-A05 — Benchmark ve prior-art analizi: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B04-A06 — Benchmark ve prior-art analizi: evidence, telemetry ve provenance kaydını ekle
-- [ ] P04-B04-A07 — Benchmark ve prior-art analizi: unit, property ve fuzz doğrulamasını ekle
+- [x] P04-B04-A07 — Benchmark ve prior-art analizi: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B04-A08 — Benchmark ve prior-art analizi: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B04-A09 — Benchmark ve prior-art analizi: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B04-A10 — Benchmark ve prior-art analizi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B04-A06
-last_commit: 9dca7ca
-tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); failure/recovery evidence slice 6 probes; runResearcherBenchmarkPriorArtFailureRecoverySliceWithRecord; validateResearcherBenchmarkPriorArtEvidenceRunRecord
-evidence: runResearcherBenchmarkPriorArtEvidenceSlice; validateResearcherBenchmarkPriorArtEvidenceRunRecord; buildResearcherBenchmarkPriorArtRunRecord with telemetry and provenance
-next: P04-B04-A07
+last_atom: P04-B04-A07
+last_commit: 4543dce
+tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); forge-p04-researcher-benchmark-prior-art.property-fuzz.test.ts (6/6); runResearcherBenchmarkPriorArtPropertyValidation; runResearcherBenchmarkPriorArtRunRecordFuzzValidation; runResearcherBenchmarkPriorArtPropertyFuzzSlice
+evidence: runResearcherBenchmarkPriorArtPropertyValidation; runResearcherBenchmarkPriorArtFuzzValidation; runResearcherBenchmarkPriorArtRunRecordFuzzValidation; runResearcherBenchmarkPriorArtPropertyFuzzSlice with zero accepted mutations
+next: P04-B04-A08
