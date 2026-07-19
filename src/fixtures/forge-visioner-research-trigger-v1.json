@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B05-A01",
+  "contractAtom": "P02-B05-A06",
+  "purpose": "Visioner research trigger baseline measured from sealed P02-B04 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P02-B04-A10",
+    "contractVersion": "1.0.0",
+    "visionerGroundingProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "vrtr.version_tagged",
+      "category": "trigger_versioning",
+      "description": "Visioner research trigger baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.atom_tagged",
+      "category": "trigger_versioning",
+      "description": "Visioner research trigger baseline declares P02-B05-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.harness_version_exported",
+      "category": "trigger_versioning",
+      "description": "FORGE_VISIONER_RESEARCH_TRIGGER_VERSION exported for research trigger harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.prompt_needs_research",
+      "category": "trigger_signal",
+      "description": "VISIONER_SYSTEM prompt declares NEEDS_RESEARCH output field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.parser_needs_research_extract",
+      "category": "trigger_signal",
+      "description": "parseVisionResponse extracts NEEDS_RESEARCH boolean from vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.engine_needs_research_parse",
+      "category": "trigger_signal",
+      "description": "Engine vision parse extracts NEEDS_RESEARCH true/false from LLM response",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.prompt_research_query",
+      "category": "query_signal",
+      "description": "VISIONER_SYSTEM prompt declares RESEARCH_QUERY output field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.parser_research_query_extract",
+      "category": "query_signal",
+      "description": "parseVisionResponse extracts RESEARCH_QUERY when NEEDS_RESEARCH is true",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.presence_research_query_detect",
+      "category": "query_signal",
+      "description": "assessVisionerResearchTriggerPresence detects RESEARCH_QUERY in vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.b04_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_B04_TO_B05_HANDOFF_V1 targets P02-B05-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.b04_sealed_grounding_probes",
+      "category": "baseline_link",
+      "description": "P02-B04→B05 handoff sealed probeCount matches active visioner grounding contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02-B04 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerResearchTriggerProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL research trigger gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.empty_vision_trigger_presence",
+      "category": "boundary",
+      "description": "assessVisionerResearchTriggerInputBoundary rejects empty vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.whitespace_vision_boundary",
+      "category": "boundary",
+      "description": "assessVisionerResearchTriggerInputBoundary rejects whitespace-only vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.long_vision_truncation_boundary",
+      "category": "boundary",
+      "description": "assessVisionerResearchTriggerInputBoundary truncates vision exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerResearchTriggerBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.malformed_vision_trigger_guard",
+      "category": "failure_path",
+      "description": "assessVisionerResearchTriggerPresence rejects null-byte vision output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.vision_checkpoint_research_trigger",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses checkpoint vision output while preserving research trigger wiring",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.structured_research_trigger_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerResearchTrigger restructures failed research trigger parse into actionable query",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vrtr.researcher_skip_memory",
+      "category": "nogo_path",
+      "description": "Researcher prompt skips re-researching items already in memory",
+      "expected": "PASS"
+    },
+    {
+      "id": "vrtr.visioner_research_budget_threshold",
+      "category": "nogo_path",
+      "description": "Orchestrator research phase budget and engine visioner confidence thresholds constrain research",
+      "expected": "PASS"
+    }
+  ]
+}
