@@ -86,7 +86,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B06-A04 — Contradiction ve freshness çözümü: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B06-A05 — Contradiction ve freshness çözümü: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B06-A06 — Contradiction ve freshness çözümü: evidence, telemetry ve provenance kaydını ekle
-- [ ] P04-B06-A07 — Contradiction ve freshness çözümü: unit, property ve fuzz doğrulamasını ekle
+- [x] P04-B06-A07 — Contradiction ve freshness çözümü: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B06-A08 — Contradiction ve freshness çözümü: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B06-A09 — Contradiction ve freshness çözümü: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B06-A10 — Contradiction ve freshness çözümü: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B06-A06
-last_commit: d0e039d
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (31/31); evidence slice 6/6 probes PASS; validateResearcherContradictionFreshnessEvidenceRunRecord + runResearcherContradictionFreshnessEvidenceSlice + buildResearcherContradictionFreshnessRunRecord
-evidence: failure/recovery slice preserved + evidence/telemetry/provenance run record + disposition/criterion aligned probe outcomes + sliceAtom P04-B06-A06
-next: P04-B06-A07
+last_atom: P04-B06-A07
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (37/37); property/fuzz slice 8/8 properties + 72/72 contract fuzz rejected + 5/5 run record fuzz rejected; evidence slice 6/6 preserved
+evidence: runResearcherContradictionFreshnessPropertyValidation + runResearcherContradictionFreshnessFuzzValidation + runResearcherContradictionFreshnessRunRecordFuzzValidation + runResearcherContradictionFreshnessPropertyFuzzSlice exported; harnessVersion 1.0.0-a07
+next: P04-B06-A08

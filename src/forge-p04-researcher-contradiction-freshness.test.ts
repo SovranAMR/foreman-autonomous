@@ -702,7 +702,7 @@ describe("Forge Researcher Contradiction Freshness Evidence — P04-B06-A06", ()
       record.provenance.harnessVersion,
       FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION,
     );
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {

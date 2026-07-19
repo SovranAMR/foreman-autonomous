@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B06
-active_atom: P04-B06-A07
+active_atom: P04-B06-A08
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 356/1000
-phase_progress: 56/100
-block_progress: 6/10
+program_progress: 357/1000
+phase_progress: 57/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B06-A07 — Contradiction ve freshness çözümü: unit, property ve fuzz doğrulamasını ekle.
+P04-B06-A08 — Contradiction ve freshness çözümü: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P04-B06-A06 PASS; evidence slice 6/6 probes; validateResearcherContradictionFreshnessEvidenceRunRecord + runResearcherContradictionFreshnessEvidenceSlice exported; 31/31 tests PASS.
-target: Forge contradiction freshness property/fuzz validation for evidence run records and contract invariants.
-hypothesis: Property and fuzz checks harden A06 evidence/telemetry/provenance without regressing failure/recovery slice.
-acceptance: Property suite exports; evidence slice remains green; regression suite green.
+objective: P04-B06-A07 PASS; property/fuzz slice exports; 8 structural properties; contract fuzz 72/72 rejected; run record fuzz 5/5 rejected; evidence slice 6/6 preserved.
+target: Forge contradiction freshness regression integration for probe alignment drift detection.
+hypothesis: Regression slice detects probe misalignment between prior and current run records without weakening A07 property/fuzz gates.
+acceptance: Regression exports; property/fuzz slice remains green; regression suite green.
 commands: npx tsx --test src/forge-p04-researcher-contradiction-freshness*.test.ts
 blast_radius: src/forge-p04-researcher-contradiction-freshness*.ts
-rollback: P04-B06-A07 property/fuzz değişikliklerini geri al.
+rollback: P04-B06-A08 regression değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B06-A06
-last_commit: d0e039d
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (31/31); evidence slice 6/6 probes PASS; validateResearcherContradictionFreshnessEvidenceRunRecord + runResearcherContradictionFreshnessEvidenceSlice + buildResearcherContradictionFreshnessRunRecord
-evidence: failure/recovery slice preserved + evidence/telemetry/provenance run record + disposition/criterion aligned probe outcomes + sliceAtom P04-B06-A06
-next: P04-B06-A07
+last_atom: P04-B06-A07
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (37/37); property/fuzz slice 8/8 properties + 72/72 contract fuzz rejected + 5/5 run record fuzz rejected; evidence slice 6/6 preserved
+evidence: runResearcherContradictionFreshnessPropertyValidation + runResearcherContradictionFreshnessFuzzValidation + runResearcherContradictionFreshnessRunRecordFuzzValidation + runResearcherContradictionFreshnessPropertyFuzzSlice exported; harnessVersion 1.0.0-a07
+next: P04-B06-A08
