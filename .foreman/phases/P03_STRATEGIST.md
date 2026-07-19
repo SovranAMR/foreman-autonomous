@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B06-A09
-last_commit: pending
+last_commit: f2f0ab4
 tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (40/40); guard adversarial 3/3; regression gate PASS
 evidence: validateForgeStrategistResourceBudgetGuard; runStrategistResourceBudgetAdversarialGuardChecks; runForgeStrategistResourceBudgetRegressionGate
 next: P03-B06-A10
