@@ -4,8 +4,11 @@
  * A01 slice: load, validate, run probes with documented FAIL gaps against sealed
  * P04-B07 risk trade-off block gate artifacts.
  * A05: failure_path, recovery_path and nogo_path slice gate for failure/recovery/NO-GO probes.
+ * A06: evidence, telemetry and provenance run record for failure/recovery/NO-GO slice probes.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1756,5 +1759,455 @@ export function runResearcherSpikeFalsificationFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence entry — disposition, criterion and aligned outcomes (P04-B08-A06). */
+export interface ResearcherSpikeFalsificationProbeEvidence {
+  probeId: string;
+  category: ResearcherSpikeFalsificationCategory;
+  disposition: ResearcherSpikeFalsificationProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for spike falsification runs (P04-B08-A06). */
+export interface ResearcherSpikeFalsificationProbeTelemetry {
+  probeId: string;
+  category: ResearcherSpikeFalsificationCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B08-A06). */
+export interface ResearcherSpikeFalsificationProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherSpikeFalsificationCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated spike falsification run record bundling evidence, telemetry and provenance. */
+export interface ResearcherSpikeFalsificationRunRecord {
+  provenance: ResearcherSpikeFalsificationProvenance;
+  evidence: ResearcherSpikeFalsificationProbeEvidence[];
+  telemetry: ResearcherSpikeFalsificationProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherSpikeFalsificationCategory, number>;
+    byDisposition: Record<ResearcherSpikeFalsificationProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherSpikeFalsificationRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherSpikeFalsificationRunValidationResult {
+  valid: boolean;
+  issues: ResearcherSpikeFalsificationRunValidationIssue[];
+}
+
+export function buildResearcherSpikeFalsificationProbeEvidence(
+  probeId: string,
+  category: ResearcherSpikeFalsificationCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherSpikeFalsificationProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherSpikeFalsificationProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherSpikeFalsificationProbeTelemetry(
+  probeId: string,
+  category: ResearcherSpikeFalsificationCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherSpikeFalsificationProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherSpikeFalsificationProvenance(
+  runId: string,
+  fixture: ResearcherSpikeFalsificationBaseline,
+  contract: ResearcherSpikeFalsificationContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherSpikeFalsificationCategory[];
+  },
+): ResearcherSpikeFalsificationProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_SPIKE_FALSIFICATION_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherSpikeFalsificationRunRecord(
+  provenance: ResearcherSpikeFalsificationProvenance,
+  evidence: ResearcherSpikeFalsificationProbeEvidence[],
+  telemetry: ResearcherSpikeFalsificationProbeTelemetry[],
+): ResearcherSpikeFalsificationRunRecord {
+  const byCategory = {} as Record<ResearcherSpikeFalsificationCategory, number>;
+  const byDisposition: Record<ResearcherSpikeFalsificationProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherSpikeFalsificationRunRecordAgainstProbeIds(
+  record: ResearcherSpikeFalsificationRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherSpikeFalsificationContract,
+): ResearcherSpikeFalsificationRunValidationResult {
+  const issues: ResearcherSpikeFalsificationRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherSpikeFalsificationRunRecord(
+  record: ResearcherSpikeFalsificationRunRecord,
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): ResearcherSpikeFalsificationRunValidationResult {
+  return validateResearcherSpikeFalsificationRunRecordAgainstProbeIds(
+    record,
+    listResearcherSpikeFalsificationContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherSpikeFalsificationEvidenceRunRecord(
+  record: ResearcherSpikeFalsificationRunRecord,
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): ResearcherSpikeFalsificationRunValidationResult {
+  const issues: ResearcherSpikeFalsificationRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B08-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B08-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherSpikeFalsificationRunRecordAgainstProbeIds(
+    record,
+    listResearcherSpikeFalsificationFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherSpikeFalsificationEvidenceSliceResult {
+  atom: "P04-B08-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherSpikeFalsificationProbeResult[];
+  evidenceResults: ResearcherSpikeFalsificationProbeResult[];
+  matrixValidation: ResearcherSpikeFalsificationProbeMatrixValidationResult;
+  record: ResearcherSpikeFalsificationRunRecord;
+  recordValidation: ResearcherSpikeFalsificationRunValidationResult;
+}
+
+function resolveResearcherSpikeFalsificationGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherSpikeFalsificationProbeWithTiming(
+  entry: ResearcherSpikeFalsificationFixtureEntry,
+  fixture: ResearcherSpikeFalsificationBaseline,
+  contractProbe: ResearcherSpikeFalsificationProbeContract | undefined,
+): {
+  result: ResearcherSpikeFalsificationProbeResult;
+  durationMs: number;
+  disposition: ResearcherSpikeFalsificationProbeDisposition;
+} {
+  const start = performance.now();
+  const expected = contractProbe?.expected ?? entry.expected;
+  const result = runSingleProbe(entry.id, entry.category, expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherSpikeFalsificationRecordFromEntries(
+  entries: ResearcherSpikeFalsificationFixtureEntry[],
+  fixture: ResearcherSpikeFalsificationBaseline,
+  contract: ResearcherSpikeFalsificationContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherSpikeFalsificationCategory[];
+  },
+): ResearcherSpikeFalsificationRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ResearcherSpikeFalsificationProbeEvidence[] = [];
+  const telemetry: ResearcherSpikeFalsificationProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherSpikeFalsificationProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherSpikeFalsificationProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherSpikeFalsificationProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherSpikeFalsificationProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherSpikeFalsificationGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherSpikeFalsificationRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all spike falsification probes and emit auditable evidence, telemetry and provenance (P04-B08-A06). */
+export function runResearcherSpikeFalsificationProbesWithRecord(
+  fixture: ResearcherSpikeFalsificationBaseline = loadResearcherSpikeFalsificationBaseline(),
+): ResearcherSpikeFalsificationRunRecord {
+  const contract = getActiveResearcherSpikeFalsificationContract();
+  return buildResearcherSpikeFalsificationRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B08-A06). */
+export function runResearcherSpikeFalsificationFailureRecoverySliceWithRecord(
+  fixture: ResearcherSpikeFalsificationBaseline = loadResearcherSpikeFalsificationBaseline(),
+): ResearcherSpikeFalsificationRunRecord {
+  const contract = getActiveResearcherSpikeFalsificationContract();
+  const failureRecoveryIds = new Set(
+    listResearcherSpikeFalsificationFailureRecoveryProbeIds(contract),
+  );
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherSpikeFalsificationRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B08-A06",
+    sliceCategories: RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherSpikeFalsificationEvidenceSlice(
+  fixture: ResearcherSpikeFalsificationBaseline = loadResearcherSpikeFalsificationBaseline(),
+): ResearcherSpikeFalsificationEvidenceSliceResult {
+  const contract = getActiveResearcherSpikeFalsificationContract();
+  const results = runResearcherSpikeFalsificationProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherSpikeFalsificationContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherSpikeFalsificationFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherSpikeFalsificationFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherSpikeFalsificationEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P04-B08-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }

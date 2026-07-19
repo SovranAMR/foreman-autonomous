@@ -25,6 +25,14 @@ import {
   recoverSpikeFalsificationEvidence,
   validateResearcherSpikeFalsificationBaseline,
   validateSpikeFalsificationExperiment,
+  buildResearcherSpikeFalsificationProbeEvidence,
+  buildResearcherSpikeFalsificationProbeTelemetry,
+  buildResearcherSpikeFalsificationProvenance,
+  buildResearcherSpikeFalsificationRunRecord,
+  runResearcherSpikeFalsificationEvidenceSlice,
+  runResearcherSpikeFalsificationFailureRecoverySliceWithRecord,
+  validateResearcherSpikeFalsificationEvidenceRunRecord,
+  FORGE_RESEARCHER_SPIKE_FALSIFICATION_VERSION,
 } from "./forge-p04-researcher-spike-falsification.js";
 import { parseResearchSpikeExperiment } from "./parser.js";
 
@@ -416,5 +424,146 @@ FINDINGS: partial parse`;
       "FINDINGS: benchmark supports async\nSPIKE_EXPERIMENTS:\n1. async pool → lower p99 latency\nFALSIFICATION: reject if sync baseline wins",
     );
     assert.equal(validation.valid, true, validation.issues.join("; "));
+  });
+});
+
+describe("Forge Researcher Spike Falsification Evidence — P04-B08-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadResearcherSpikeFalsificationBaseline();
+    const contract = getActiveResearcherSpikeFalsificationContract();
+    const probeIds = listResearcherSpikeFalsificationFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-19T00:00:00.000Z";
+    const completedAt = "2026-07-19T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildResearcherSpikeFalsificationProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildResearcherSpikeFalsificationProbeTelemetry(
+        probeId,
+        contractProbe.category,
+        index,
+        index * 0.5,
+      );
+    });
+
+    const provenance = buildResearcherSpikeFalsificationProvenance(
+      "run-rsf-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P04-B08-A06",
+        sliceCategories: RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildResearcherSpikeFalsificationRunRecord(provenance, evidence, telemetry);
+    const validation = validateResearcherSpikeFalsificationEvidenceRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 6);
+    assert.equal(record.summary.mismatches, 0);
+    assert.ok(record.summary.byDisposition.failure >= 2);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byCategory.nogo_path >= 2);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBlockGateAtom, fixture.sourceBlockGate.atom);
+  });
+
+  it("executes evidence slice with zero unexpected mismatches and valid run record", () => {
+    const contract = getActiveResearcherSpikeFalsificationContract();
+    const slice = runResearcherSpikeFalsificationEvidenceSlice();
+
+    assert.equal(slice.atom, "P04-B08-A06");
+    assert.equal(slice.evidenceProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.recordValid, true);
+    assert.equal(slice.evidenceResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(
+      slice.recordValidation.valid,
+      true,
+      slice.recordValidation.issues.map(i => i.detail).join("\n"),
+    );
+
+    for (const category of RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherSpikeFalsificationContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.evidenceResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing evidence result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const record = slice.record;
+    assert.equal(record.evidence.length, 6);
+    assert.equal(record.telemetry.length, 6);
+    assert.equal(record.provenance.totalProbes, 6);
+    assert.equal(record.provenance.sliceAtom, "P04-B08-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, FORGE_RESEARCHER_SPIKE_FALSIFICATION_VERSION);
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.ok(item.recordedAt.length > 10);
+    }
+
+    const spikeRepair = record.evidence.find(
+      e => e.probeId === "rsf.recovery_spike_experiment_repair",
+    );
+    assert.ok(spikeRepair);
+    assert.equal(spikeRepair!.aligned, true);
+    assert.equal(spikeRepair!.expected, "PASS");
+    assert.equal(spikeRepair!.actual, "PASS");
+    assert.equal(spikeRepair!.disposition, "recovery");
+  });
+
+  it("records evidence slice via failure/recovery with-record helper", () => {
+    const contract = getActiveResearcherSpikeFalsificationContract();
+    const record = runResearcherSpikeFalsificationFailureRecoverySliceWithRecord();
+    const validation = validateResearcherSpikeFalsificationEvidenceRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 6);
+    assert.equal(record.provenance.sliceAtom, "P04-B08-A06");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
   });
 });

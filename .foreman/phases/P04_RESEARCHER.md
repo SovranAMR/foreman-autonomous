@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 70
+completed_atoms: 71
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -111,7 +111,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B08-A03 — Spike ve falsification deneyi: en küçük üretim dikey dilimini uygula
 - [x] P04-B08-A04 — Spike ve falsification deneyi: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B08-A05 — Spike ve falsification deneyi: failure, recovery ve NO-GO yollarını uygula
-- [ ] P04-B08-A06 — Spike ve falsification deneyi: evidence, telemetry ve provenance kaydını ekle
+- [x] P04-B08-A06 — Spike ve falsification deneyi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B08-A07 — Spike ve falsification deneyi: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B08-A08 — Spike ve falsification deneyi: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B08-A09 — Spike ve falsification deneyi: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B08-A05
+last_atom: P04-B08-A06
 last_commit: pending
-tests: PASS — forge-p04-researcher-spike-falsification.test.ts (18/18); forge-p04-researcher-spike-falsification-baseline.test.ts (15/15); failure/recovery slice 6/6 probes, 0 unexpected mismatches
-evidence: validateResearcherSpikeFalsificationFailureRecoveryProbeMatrix + runResearcherSpikeFalsificationFailureRecoverySlice + recoverSpikeFalsificationEvidence guard paths
-next: P04-B08-A06
+tests: PASS — forge-p04-researcher-spike-falsification.test.ts (21/21); forge-p04-researcher-spike-falsification-baseline.test.ts (15/15); evidence slice 6/6 probes, 0 mismatches, valid run record
+evidence: runResearcherSpikeFalsificationEvidenceSlice + validateResearcherSpikeFalsificationEvidenceRunRecord + buildResearcherSpikeFalsificationRunRecord guard paths
+next: P04-B08-A07
