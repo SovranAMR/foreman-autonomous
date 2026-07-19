@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B02-A10
-last_commit: b0253ed
+last_commit: e84daac
 tests: PASS — forge-p04-researcher*.test.ts (113/113); block gate seals=10/10; handoff→P04-B03; orchestrator block gate verification PASS
 evidence: runResearcherInRepoEvidenceBlockGate; getForgeP04B02ToB03Handoff; verifyForgeResearcherInRepoEvidenceBlockGate; forge-p04-researcher-in-repo-evidence-block-gate.test.ts
 next: P04-B03-A01
