@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B02-A08
-last_commit: PENDING
+last_commit: 462d8a2
 tests: PASS — forge-p02-visioner-constraint*.test.ts (34/34); forge-p02-visioner-intent*.test.ts (43/43); forge-p02-*.test.ts (77/77); forge-pipeline-regression.integration.test.ts (126/126)
 evidence: runForgeVisionerConstraintRegressionGate (23/23 aligned); detectVisionerConstraintProbeRegression; propertyFuzz properties=8/8 contractFuzz rejected=24/24 runFuzz rejected=3/3; orchestrator verifyForgeVisionerConstraintRegression phase=visioner_constraint_regression
 next: P02-B02-A09
