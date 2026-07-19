@@ -18,7 +18,7 @@ import {
 } from "./forge-p04-researcher-question-decomposition.js";
 import { searchFiles, type FileSearchResult } from "./research-engine.js";
 
-export const FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION = "1.0.0-a03";
+export const FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P04_B01_SEALED_ATOM_COUNT = 10;
 
@@ -539,7 +539,7 @@ const RESEARCHER_IN_REPO_EVIDENCE_CATEGORY_CONTRACTS: Record<
     category: "boundary",
     acceptance: {
       invariant:
-        "Baseline references sealed P04-B01 block gate, documents FAIL gaps and validates search query boundaries.",
+        "Search query input boundary assessment handles empty, whitespace-only and oversized inputs; probe runner and documented gaps wired.",
       minProbeCount: 6,
       requireFullAlignment: true,
     },
@@ -1204,6 +1204,70 @@ export function runResearcherInRepoEvidenceProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherInRepoEvidenceBoundaryProbeMatrix(
+  results: ResearcherInRepoEvidenceProbeResult[],
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): ResearcherInRepoEvidenceProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherInRepoEvidenceContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryContract: ResearcherInRepoEvidenceContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherInRepoEvidenceProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherInRepoEvidenceBoundarySliceResult {
+  atom: "P04-B02-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherInRepoEvidenceProbeResult[];
+  boundaryResults: ResearcherInRepoEvidenceProbeResult[];
+  matrixValidation: ResearcherInRepoEvidenceProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (search query input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherInRepoEvidenceBoundarySlice(
+  fixture: ResearcherInRepoEvidenceBaseline = loadResearcherInRepoEvidenceBaseline(),
+): ResearcherInRepoEvidenceBoundarySliceResult {
+  const contract = getActiveResearcherInRepoEvidenceContract();
+  const results = runResearcherInRepoEvidenceProbes(fixture);
+  const boundaryProbes = listResearcherInRepoEvidenceContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherInRepoEvidenceBoundaryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B02-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

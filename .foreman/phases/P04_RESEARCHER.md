@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 1
-completed_atoms: 13
+completed_atoms: 14
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -31,7 +31,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B02-A01 — Repo içi kanıt toplama: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B02-A02 — Repo içi kanıt toplama: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B02-A03 — Repo içi kanıt toplama: en küçük üretim dikey dilimini uygula
-- [ ] P04-B02-A04 — Repo içi kanıt toplama: boundary ve edge-case davranışlarını tamamla
+- [x] P04-B02-A04 — Repo içi kanıt toplama: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B02-A05 — Repo içi kanıt toplama: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B02-A06 — Repo içi kanıt toplama: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B02-A07 — Repo içi kanıt toplama: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B02-A03
-last_commit: 2000188
-tests: PASS — forge-p04-researcher*.test.ts (75/75); contract 23 probes; expectedFail=0; harnessVersion=1.0.0-a03; riev.structured_repo_evidence_recovery=PASS
-evidence: recoverInRepoEvidence; runResearcherInRepoEvidenceProductionSlice; validateResearcherInRepoEvidenceProbeMatrix; matrixValidation.unexpectedMismatches=0
-next: P04-B02-A04
+last_atom: P04-B02-A04
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (77/77); boundary 6 probes; expectedFail=0; harnessVersion=1.0.0-a04; matrixValidation.unexpectedMismatches=0
+evidence: assessInRepoEvidenceInputBoundary; runResearcherInRepoEvidenceBoundarySlice; validateResearcherInRepoEvidenceBoundaryProbeMatrix; boundary slice PASS
+next: P04-B02-A05

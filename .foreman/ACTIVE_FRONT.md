@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B02
-active_atom: P04-B02-A04
+active_atom: P04-B02-A05
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 313/1000
-phase_progress: 13/100
-block_progress: 3/10
+program_progress: 314/1000
+phase_progress: 14/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B02-A04 — Repo içi kanıt toplama: boundary ve edge-case davranışlarını tamamla.
+P04-B02-A05 — Repo içi kanıt toplama: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P04-B02-A03 PASS; complete boundary and edge-case behavior for in-repo evidence collection.
-target: assessInRepoEvidenceInputBoundary edge cases, boundary probe matrix validation.
-hypothesis: Boundary slice gate isolates input edge cases with zero unexpected mismatches.
-acceptance: boundary probes PASS; boundary slice matrix valid with zero unexpected mismatches.
+objective: P04-B02-A04 PASS; implement failure, recovery and NO-GO paths for in-repo evidence collection.
+target: failure_path, recovery_path, nogo_path probe matrix validation.
+hypothesis: Failure/recovery slice gate isolates error paths with zero unexpected mismatches.
+acceptance: failure/recovery/NO-GO probes PASS; slice matrix valid with zero unexpected mismatches.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-*.ts
-rollback: P04-B02-A04 boundary slice değişikliklerini geri al.
+rollback: P04-B02-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B02-A03
-last_commit: 2000188
-tests: PASS — forge-p04-researcher*.test.ts (75/75); contract 23 probes; expectedFail=0; harnessVersion=1.0.0-a03
-evidence: recoverInRepoEvidence; runResearcherInRepoEvidenceProductionSlice; validateResearcherInRepoEvidenceProbeMatrix; riev.structured_repo_evidence_recovery=PASS
-next: P04-B02-A04
+last_atom: P04-B02-A04
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (77/77); boundary 6 probes; expectedFail=0; harnessVersion=1.0.0-a04
+evidence: assessInRepoEvidenceInputBoundary; runResearcherInRepoEvidenceBoundarySlice; validateResearcherInRepoEvidenceBoundaryProbeMatrix; boundary slice PASS
+next: P04-B02-A05

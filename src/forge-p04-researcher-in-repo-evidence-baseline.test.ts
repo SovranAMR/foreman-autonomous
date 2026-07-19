@@ -13,6 +13,9 @@ import {
   validateInRepoEvidenceCollection,
   recoverInRepoEvidence,
   getActiveResearcherInRepoEvidenceContract,
+  listResearcherInRepoEvidenceContractProbesByCategory,
+  runResearcherInRepoEvidenceBoundarySlice,
+  validateResearcherInRepoEvidenceBoundaryProbeMatrix,
   RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES,
   RESEARCHER_IN_REPO_EVIDENCE_QUERY_MAX_LENGTH,
 } from "./forge-p04-researcher-in-repo-evidence.js";
@@ -174,5 +177,57 @@ describe("Forge Researcher In-Repo Evidence Production Slice — P04-B02-A03", (
     assert.equal(recoveryProbe!.expected, "PASS");
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
+  });
+});
+
+describe("Forge Researcher In-Repo Evidence Boundary Slice — P04-B02-A04", () => {
+  it("defines boundary category with search query input edge-case probes", () => {
+    const boundary = listResearcherInRepoEvidenceContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "riev.empty_query_boundary",
+      "riev.known_gaps_documented",
+      "riev.long_query_truncation_boundary",
+      "riev.probe_runner_exported",
+      "riev.source_block_gate_ref",
+      "riev.whitespace_query_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveResearcherInRepoEvidenceContract();
+    const slice = runResearcherInRepoEvidenceBoundarySlice();
+
+    assert.equal(slice.atom, "P04-B02-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listResearcherInRepoEvidenceContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateResearcherInRepoEvidenceBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });
