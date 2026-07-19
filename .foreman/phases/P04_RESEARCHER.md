@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B08-A01
-last_commit: b549dd9
+last_commit: bde8c5d
 tests: PASS — forge-p04-researcher-spike-falsification-baseline.test.ts (10/10); probe matrix 23/23 with 2 documented FAIL gaps (rsf.parser_spike_experiment, rsf.exported_spike_falsification_validator)
 evidence: loadResearcherSpikeFalsificationBaseline + validateResearcherSpikeFalsificationBaseline + runResearcherSpikeFalsificationProbes + FORGE_P04_B07_TO_B08_HANDOFF_V1 sealed handoff alignment
 next: P04-B08-A02

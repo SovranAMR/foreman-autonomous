@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B08-A01
-last_commit: b549dd9
+last_commit: bde8c5d
 tests: PASS — forge-p04-researcher-spike-falsification-baseline.test.ts (10/10); probe matrix 23/23; documented FAIL gaps=2
 evidence: loadResearcherSpikeFalsificationBaseline + validateResearcherSpikeFalsificationBaseline + runResearcherSpikeFalsificationProbes
 next: P04-B08-A02
