@@ -1811,6 +1811,27 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher contradiction freshness regression gate and emit verification event (P04-B06-A08).
+   */
+  async verifyForgeResearcherContradictionFreshnessRegression(
+    priorRecord?: import("./forge-p04-researcher-contradiction-freshness.js").ResearcherContradictionFreshnessRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-contradiction-freshness.probe.js").ForgeResearcherContradictionFreshnessRegressionGateResult
+  > {
+    const { runForgeResearcherContradictionFreshnessRegressionGate } = await import(
+      "./forge-p04-researcher-contradiction-freshness.probe.js"
+    );
+    const result = runForgeResearcherContradictionFreshnessRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "researcher_contradiction_freshness_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge researcher citation provenance graph regression gate and emit verification event (P04-B05-A08).
    */
   async verifyForgeResearcherCitationProvenanceGraphRegression(

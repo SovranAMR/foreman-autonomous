@@ -2556,6 +2556,537 @@ export function runResearcherContradictionFreshnessPropertyFuzzSlice(
   };
 }
 
+// ─── Probe regression detection (P04-B06-A08) ────────────────────────────────
+
+export interface ResearcherContradictionFreshnessProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare contradiction freshness run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectResearcherContradictionFreshnessProbeRegression(
+  prior: ResearcherContradictionFreshnessRunRecord,
+  current: ResearcherContradictionFreshnessRunRecord,
+): ResearcherContradictionFreshnessProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+export interface ResearcherContradictionFreshnessForgeRegressionResult {
+  atom: "P04-B06-A08";
+  passed: boolean;
+  productionSlice: ResearcherContradictionFreshnessProductionSliceResult;
+  propertyFuzzSlice: ResearcherContradictionFreshnessPropertyFuzzSliceResult;
+  record: ResearcherContradictionFreshnessRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: ResearcherContradictionFreshnessProbeRegressionReport | null;
+  guard: ResearcherContradictionFreshnessGuardCheckResult;
+  detail: string;
+}
+
+/**
+ * Execute contradiction freshness probes, validate production slice + run record,
+ * property/fuzz gates, and optionally detect regression vs prior run (P04-B06-A08).
+ */
+export function runResearcherContradictionFreshnessForgeRegression(
+  priorRecord?: ResearcherContradictionFreshnessRunRecord,
+): ResearcherContradictionFreshnessForgeRegressionResult {
+  const fixture = loadResearcherContradictionFreshnessBaseline();
+  const contract = getActiveResearcherContradictionFreshnessContract();
+  const productionSlice = runResearcherContradictionFreshnessProductionSlice(fixture);
+  const propertyFuzzSlice = runResearcherContradictionFreshnessPropertyFuzzSlice(fixture);
+  const record = runResearcherContradictionFreshnessProbesWithRecord(fixture);
+  const validation = validateResearcherContradictionFreshnessRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateResearcherContradictionFreshnessRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectResearcherContradictionFreshnessProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeResearcherContradictionFreshnessGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk &&
+    recordValid &&
+    priorRecordValid &&
+    !alignmentRegression &&
+    propertyFuzzOk &&
+    guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(`priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    atom: "P04-B06-A08",
+    passed,
+    productionSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    guard,
+    detail: detailParts.join(" | "),
+  };
+}
+
+// ─── Guard controls (P04-B06-A09 foundation, used by A08 regression gate) ────
+
+export interface ForgeResearcherContradictionFreshnessGuardControls {
+  atom: string;
+  adversarial: {
+    rejectTamperedRecords: true;
+    rejectFalseAlignment: true;
+    rejectSummaryEvidenceMismatch: true;
+  };
+  performance: {
+    maxSuiteDurationMs: number;
+    maxProbeDurationMs: number;
+    maxWallClockMs: number;
+  };
+  cost: {
+    maxTotalCostUsd: number;
+    maxLlmCalls: number;
+  };
+  safety: {
+    maxDetailLength: number;
+    forbiddenPatterns: readonly RegExp[];
+  };
+}
+
+export interface ResearcherContradictionFreshnessGuardCheckIssue {
+  domain: "adversarial" | "performance" | "cost" | "safety";
+  code: string;
+  detail: string;
+}
+
+export interface ResearcherContradictionFreshnessGuardCheckResult {
+  passed: boolean;
+  issues: ResearcherContradictionFreshnessGuardCheckIssue[];
+  metrics: {
+    suiteDurationMs: number;
+    wallClockMs: number;
+    maxProbeDurationMs: number;
+    totalCostUsd: number;
+    llmCalls: number;
+    adversarialScenariosRejected: number;
+    adversarialScenariosTotal: number;
+  };
+}
+
+export interface ResearcherContradictionFreshnessAdversarialGuardScenario {
+  id: string;
+  description: string;
+  build: (record: ResearcherContradictionFreshnessRunRecord) => ResearcherContradictionFreshnessRunRecord;
+  expectRejected: true;
+}
+
+export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_GUARD_CONTROLS_V1: ForgeResearcherContradictionFreshnessGuardControls =
+  {
+    atom: "P04-B06-A09",
+    adversarial: {
+      rejectTamperedRecords: true,
+      rejectFalseAlignment: true,
+      rejectSummaryEvidenceMismatch: true,
+    },
+    performance: {
+      maxSuiteDurationMs: 30_000,
+      maxProbeDurationMs: 5_000,
+      maxWallClockMs: 45_000,
+    },
+    cost: {
+      maxTotalCostUsd: 0,
+      maxLlmCalls: 0,
+    },
+    safety: {
+      maxDetailLength: 4096,
+      forbiddenPatterns: [
+        /sk-[a-zA-Z0-9]{20,}/,
+        /api[_-]?key\s*[:=]\s*\S+/i,
+        /Bearer\s+[a-zA-Z0-9._-]{20,}/i,
+        /password\s*[:=]\s*\S+/i,
+        /-----BEGIN (RSA |EC )?PRIVATE KEY-----/,
+      ],
+    },
+  };
+
+export function getForgeResearcherContradictionFreshnessGuardControls(): ForgeResearcherContradictionFreshnessGuardControls {
+  return FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_GUARD_CONTROLS_V1;
+}
+
+function parseResearcherContradictionFreshnessIsoDurationMs(
+  startedAt: string,
+  completedAt: string,
+): number {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(completedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
+  return end - start;
+}
+
+export function summarizeResearcherContradictionFreshnessTelemetry(
+  telemetry: ResearcherContradictionFreshnessProbeTelemetry[],
+): {
+  suiteDurationMs: number;
+  maxProbeDurationMs: number;
+} {
+  let suiteDurationMs = 0;
+  let maxProbeDurationMs = 0;
+  for (const item of telemetry) {
+    suiteDurationMs += item.durationMs;
+    if (item.durationMs > maxProbeDurationMs) maxProbeDurationMs = item.durationMs;
+  }
+  return { suiteDurationMs, maxProbeDurationMs };
+}
+
+export function detectResearcherContradictionFreshnessEvidenceSummaryMismatch(
+  record: ResearcherContradictionFreshnessRunRecord,
+): string | null {
+  let alignedCount = 0;
+  for (const item of record.evidence) {
+    if (item.aligned) alignedCount++;
+  }
+  const mismatches = record.evidence.length - alignedCount;
+  if (record.summary.aligned !== alignedCount) {
+    return `summary.aligned=${record.summary.aligned} evidence=${alignedCount}`;
+  }
+  if (record.summary.mismatches !== mismatches) {
+    return `summary.mismatches=${record.summary.mismatches} evidence=${mismatches}`;
+  }
+  if (record.summary.total !== record.evidence.length) {
+    return `summary.total=${record.summary.total} evidence=${record.evidence.length}`;
+  }
+  return null;
+}
+
+export function detectResearcherContradictionFreshnessFalseAlignment(
+  record: ResearcherContradictionFreshnessRunRecord,
+): string[] {
+  const violations: string[] = [];
+  for (const item of record.evidence) {
+    const shouldAlign = item.actual === item.expected;
+    if (item.aligned !== shouldAlign) {
+      violations.push(
+        `${item.probeId}: aligned=${item.aligned} actual=${item.actual} expected=${item.expected}`,
+      );
+    }
+    if (item.aligned && item.actual !== item.expected) {
+      violations.push(`${item.probeId}: false PASS claim`);
+    }
+  }
+  return violations;
+}
+
+export function validateResearcherContradictionFreshnessSafety(
+  record: ResearcherContradictionFreshnessRunRecord,
+  controls: ForgeResearcherContradictionFreshnessGuardControls = getForgeResearcherContradictionFreshnessGuardControls(),
+): ResearcherContradictionFreshnessGuardCheckIssue[] {
+  const issues: ResearcherContradictionFreshnessGuardCheckIssue[] = [];
+  for (const item of record.evidence) {
+    if (item.detail.length > controls.safety.maxDetailLength) {
+      issues.push({
+        domain: "safety",
+        code: "detail_too_long",
+        detail: `${item.probeId} detail length=${item.detail.length}`,
+      });
+    }
+    for (const pattern of controls.safety.forbiddenPatterns) {
+      if (pattern.test(item.detail) || pattern.test(item.criterion)) {
+        issues.push({
+          domain: "safety",
+          code: "forbidden_pattern",
+          detail: `${item.probeId} matched ${pattern.source}`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+export function validateResearcherContradictionFreshnessPerformance(
+  record: ResearcherContradictionFreshnessRunRecord,
+  controls: ForgeResearcherContradictionFreshnessGuardControls = getForgeResearcherContradictionFreshnessGuardControls(),
+): ResearcherContradictionFreshnessGuardCheckIssue[] {
+  const issues: ResearcherContradictionFreshnessGuardCheckIssue[] = [];
+  const { suiteDurationMs, maxProbeDurationMs } = summarizeResearcherContradictionFreshnessTelemetry(
+    record.telemetry,
+  );
+  const wallClockMs = parseResearcherContradictionFreshnessIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  if (suiteDurationMs > controls.performance.maxSuiteDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "suite_duration_exceeded",
+      detail: `${suiteDurationMs}ms > ${controls.performance.maxSuiteDurationMs}ms`,
+    });
+  }
+  if (maxProbeDurationMs > controls.performance.maxProbeDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "probe_duration_exceeded",
+      detail: `${maxProbeDurationMs}ms > ${controls.performance.maxProbeDurationMs}ms`,
+    });
+  }
+  if (wallClockMs > controls.performance.maxWallClockMs) {
+    issues.push({
+      domain: "performance",
+      code: "wall_clock_exceeded",
+      detail: `${wallClockMs}ms > ${controls.performance.maxWallClockMs}ms`,
+    });
+  }
+  return issues;
+}
+
+export function validateResearcherContradictionFreshnessCost(
+  totalCostUsd: number,
+  llmCalls: number,
+  controls: ForgeResearcherContradictionFreshnessGuardControls = getForgeResearcherContradictionFreshnessGuardControls(),
+): ResearcherContradictionFreshnessGuardCheckIssue[] {
+  const issues: ResearcherContradictionFreshnessGuardCheckIssue[] = [];
+  if (totalCostUsd > controls.cost.maxTotalCostUsd) {
+    issues.push({
+      domain: "cost",
+      code: "cost_exceeded",
+      detail: `$${totalCostUsd.toFixed(4)} > $${controls.cost.maxTotalCostUsd}`,
+    });
+  }
+  if (llmCalls > controls.cost.maxLlmCalls) {
+    issues.push({
+      domain: "cost",
+      code: "llm_calls_exceeded",
+      detail: `${llmCalls} > ${controls.cost.maxLlmCalls}`,
+    });
+  }
+  return issues;
+}
+
+export function buildResearcherContradictionFreshnessAdversarialGuardScenarios(): ResearcherContradictionFreshnessAdversarialGuardScenario[] {
+  return [
+    {
+      id: "adversarial.false_alignment_claim",
+      description: "Evidence claims aligned while actual !== expected",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = true;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.summary_mismatch",
+      description: "Summary reports zero mismatches while evidence is tampered",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = false;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        cloned.summary = { ...cloned.summary, aligned: cloned.summary.total, mismatches: 0 };
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.dropped_probe",
+      description: "Run record omits required probe evidence",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        cloned.evidence = cloned.evidence.slice(1);
+        cloned.telemetry = cloned.telemetry.slice(1);
+        cloned.summary = {
+          ...cloned.summary,
+          total: cloned.evidence.length,
+          aligned: cloned.evidence.filter(item => item.aligned).length,
+          mismatches: cloned.evidence.filter(item => !item.aligned).length,
+        };
+        return cloned;
+      },
+    },
+  ];
+}
+
+export function runResearcherContradictionFreshnessAdversarialGuardChecks(
+  fixtureRecord: ResearcherContradictionFreshnessRunRecord,
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): { rejected: number; total: number; failures: string[] } {
+  const scenarios = buildResearcherContradictionFreshnessAdversarialGuardScenarios();
+  const failures: string[] = [];
+  let rejected = 0;
+
+  for (const scenario of scenarios) {
+    const tampered = scenario.build(fixtureRecord);
+    const validation = validateResearcherContradictionFreshnessRunRecord(tampered, contract);
+    const falseAlignment = detectResearcherContradictionFreshnessFalseAlignment(tampered);
+    const summaryMismatch = detectResearcherContradictionFreshnessEvidenceSummaryMismatch(tampered);
+    const rejectedByGuard =
+      !validation.valid || falseAlignment.length > 0 || summaryMismatch !== null;
+
+    if (rejectedByGuard) rejected++;
+    else failures.push(`${scenario.id}: tampered record was not rejected`);
+  }
+
+  return { rejected, total: scenarios.length, failures };
+}
+
+export function validateForgeResearcherContradictionFreshnessGuard(
+  record: ResearcherContradictionFreshnessRunRecord,
+  options: {
+    totalCostUsd?: number;
+    llmCalls?: number;
+    contract?: ResearcherContradictionFreshnessContract;
+    controls?: ForgeResearcherContradictionFreshnessGuardControls;
+  } = {},
+): ResearcherContradictionFreshnessGuardCheckResult {
+  const controls = options.controls ?? getForgeResearcherContradictionFreshnessGuardControls();
+  const contract = options.contract ?? getActiveResearcherContradictionFreshnessContract();
+  const totalCostUsd = options.totalCostUsd ?? 0;
+  const llmCalls = options.llmCalls ?? 0;
+  const issues: ResearcherContradictionFreshnessGuardCheckIssue[] = [];
+
+  issues.push(...validateResearcherContradictionFreshnessPerformance(record, controls));
+  issues.push(...validateResearcherContradictionFreshnessCost(totalCostUsd, llmCalls, controls));
+  issues.push(...validateResearcherContradictionFreshnessSafety(record, controls));
+
+  const falseAlignment = detectResearcherContradictionFreshnessFalseAlignment(record);
+  if (falseAlignment.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "false_alignment",
+      detail: falseAlignment.join("; "),
+    });
+  }
+  const summaryMismatch = detectResearcherContradictionFreshnessEvidenceSummaryMismatch(record);
+  if (summaryMismatch) {
+    issues.push({
+      domain: "adversarial",
+      code: "summary_evidence_mismatch",
+      detail: summaryMismatch,
+    });
+  }
+
+  const adversarial = runResearcherContradictionFreshnessAdversarialGuardChecks(record, contract);
+  if (adversarial.failures.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "scenario_not_rejected",
+      detail: adversarial.failures.join("; "),
+    });
+  }
+
+  const telemetrySummary = summarizeResearcherContradictionFreshnessTelemetry(record.telemetry);
+  const wallClockMs = parseResearcherContradictionFreshnessIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  return {
+    passed: issues.length === 0 && adversarial.rejected === adversarial.total,
+    issues,
+    metrics: {
+      suiteDurationMs: telemetrySummary.suiteDurationMs,
+      wallClockMs,
+      maxProbeDurationMs: telemetrySummary.maxProbeDurationMs,
+      totalCostUsd,
+      llmCalls,
+      adversarialScenariosRejected: adversarial.rejected,
+      adversarialScenariosTotal: adversarial.total,
+    },
+  };
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = __dirname;
 
