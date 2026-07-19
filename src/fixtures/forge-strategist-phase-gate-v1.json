@@ -1,0 +1,159 @@
+{
+  "version": "1.0.0",
+  "atom": "P03-B10-A01",
+  "contractAtom": "P03-B10-A02",
+  "purpose": "Strategist phase gate baseline measured from sealed P03-B09 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P03-B09-A10",
+    "contractVersion": "1.0.0",
+    "strategistProvenanceProbeCount": 28,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "spg.version_tagged",
+      "category": "phase_versioning",
+      "description": "Strategist phase gate baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.atom_tagged",
+      "category": "phase_versioning",
+      "description": "Strategist phase gate baseline declares P03-B10-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.harness_version_exported",
+      "category": "phase_versioning",
+      "description": "FORGE_STRATEGIST_PHASE_GATE_VERSION exported for phase gate harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.orchestrator_intent_block_gate",
+      "category": "block_gate_signal",
+      "description": "Orchestrator exposes verifyForgeStrategistIntentBlockGate for P03-B01 seal",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.orchestrator_provenance_block_gate",
+      "category": "block_gate_signal",
+      "description": "Orchestrator exposes verifyForgeStrategistProvenanceBlockGate for P03-B09 seal",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.orchestrator_nine_block_gates",
+      "category": "block_gate_signal",
+      "description": "Orchestrator exposes verifyForgeStrategist*BlockGate for all nine prior P03 strategist blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.block_inventory_exported",
+      "category": "phase_inventory",
+      "description": "P03_STRATEGIST_PHASE_BLOCK_INVENTORY exports canonical ten-block strategist inventory",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.block_count_constant",
+      "category": "phase_inventory",
+      "description": "P03_STRATEGIST_PHASE_BLOCK_COUNT equals ten sealed strategist blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.atom_count_constant",
+      "category": "phase_inventory",
+      "description": "P03_STRATEGIST_PHASE_ATOM_COUNT equals one hundred strategist atoms",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.b09_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P03_B09_TO_B10_HANDOFF_V1 targets P03-B10-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.b09_sealed_provenance_probes",
+      "category": "baseline_link",
+      "description": "P03-B09→B10 handoff sealed probeCount matches active strategist provenance contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P03-B09 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.probe_runner_exported",
+      "category": "boundary",
+      "description": "runStrategistPhaseGateProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL phase gate gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.empty_manifest_boundary",
+      "category": "boundary",
+      "description": "assessStrategistPhaseGateInputBoundary rejects empty phase gate manifest",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.whitespace_manifest_boundary",
+      "category": "boundary",
+      "description": "assessStrategistPhaseGateInputBoundary rejects whitespace-only phase gate manifest",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.long_manifest_truncation_boundary",
+      "category": "boundary",
+      "description": "assessStrategistPhaseGateInputBoundary truncates manifest exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateStrategistPhaseGateBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.incomplete_block_inventory_rejected",
+      "category": "failure_path",
+      "description": "validateP03PhaseHandoffContract rejects incomplete block gate evidence",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.replan_checkpoint_resume",
+      "category": "recovery_path",
+      "description": "Pipeline resume preserves replan checkpoint lineage after block failure recovery",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.structured_phase_gate_recovery",
+      "category": "recovery_path",
+      "description": "recoverStrategistPhaseGateEvidence restructures failed block seal manifest into phase gate evidence",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.orchestrator_phase_gate_runner",
+      "category": "recovery_path",
+      "description": "Orchestrator exposes verifyForgeP03StrategistPhaseGate for P03 phase acceptance",
+      "expected": "FAIL"
+    },
+    {
+      "id": "spg.strategist_replan_block",
+      "category": "nogo_path",
+      "description": "validateStrategistReplan can BLOCK pipeline on invalid replan plan",
+      "expected": "PASS"
+    },
+    {
+      "id": "spg.phase_gate_evidence_nogo",
+      "category": "nogo_path",
+      "description": "validateForgeP03StrategistPhaseGateEvidence rejects failed block gate seals",
+      "expected": "PASS"
+    }
+  ]
+}

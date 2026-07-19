@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 7
-completed_atoms: 89
+completed_atoms: 90
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -132,7 +132,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P03-B10 — Stratejist phase gate
 
-- [ ] P03-B10-A01 — Stratejist phase gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P03-B10-A01 — Stratejist phase gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P03-B10-A02 — Stratejist phase gate: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B10-A03 — Stratejist phase gate: en küçük üretim dikey dilimini uygula
 - [ ] P03-B10-A04 — Stratejist phase gate: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B09-A10
+last_atom: P03-B10-A01
 last_commit: pending
-tests: PASS — forge-p03-strategist-provenance.test.ts (45/45); forge-p03-strategist-provenance-baseline.test.ts (3/3); forge-p03-strategist-provenance-block-gate.test.ts (7/7)
-evidence: runStrategistProvenanceBlockGate; getForgeP03B09BlockGate; getForgeP03B09ToB10Handoff; validateStrategistProvenanceBlockHandoffContract; buildStrategistProvenanceBlockGateEvidence; verifyForgeStrategistProvenanceBlockGate
-next: P03-B10-A01
+tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3)
+evidence: loadStrategistPhaseGateBaseline; runStrategistPhaseGateProbes; validateStrategistPhaseGateBaseline; getForgeP03B09ToB10Handoff; assessStrategistPhaseGateInputBoundary; recoverStrategistPhaseGateEvidence; documented gap spg.orchestrator_phase_gate_runner
+next: P03-B10-A02
