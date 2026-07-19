@@ -155,7 +155,7 @@ describe("Forge Worker Tool Dispatch Property/Fuzz Slice — P05-B01-A07", () =>
     assert.equal(slice.runRecordFuzz.validBaseline, true);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
     assert.equal(slice.runRecordFuzz.mutationsRejected, 5);
-    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a07");
+    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a08");
   });
 
   it("maps property_checks + fuzz_mutations through validateWorkerToolDispatchPropertyProbeMatrix", () => {

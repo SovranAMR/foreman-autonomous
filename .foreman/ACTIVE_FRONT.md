@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B01
-active_atom: P05-B01-A08
+active_atom: P05-B01-A09
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 406/1000
-phase_progress: 5/100
-block_progress: 7/10
+program_progress: 407/1000
+phase_progress: 6/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B01-A08 — Typed tool interface ve dispatch: Forge entegrasyonu ile regression testini tamamla.
+P05-B01-A09 — Typed tool interface ve dispatch: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P05-B01-A07 property/fuzz slice sealed; wire Forge integration regression gate.
-target: Extend typed tool dispatch with Forge integration regression slice gate.
-hypothesis: integration probes map to runWorkerToolDispatchIntegrationSlice with zero unexpected mismatches.
-acceptance: Integration regression slice PASS with zero unexpected mismatches against contract matrix.
+objective: P05-B01-A08 integration slice sealed; wire guard controls for adversarial/performance/cost/safety gate.
+target: Extend typed tool dispatch with guard controls and adversarial guard checks.
+hypothesis: validateForgeWorkerToolDispatchGuard rejects tampered records and enforces budget/perf ceilings.
+acceptance: Guard check PASS with adversarial scenarios rejected and performance/cost/safety within ceilings.
 commands: npx tsx --test src/forge-p05-worker-tool-dispatch*.test.ts
 blast_radius: src/forge-p05-worker-tool-dispatch.ts
-rollback: P05-B01-A08 integration slice değişikliklerini geri al.
+rollback: P05-B01-A09 guard control değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Integration slice blocked ise BLOCKED raporla.
+fallback: Guard slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B01-A07
-last_commit: 7470fb5
-tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5), forge-p05-worker-tool-dispatch-evidence.test.ts (5/5), forge-p05-worker-tool-dispatch-property-fuzz.test.ts (6/6)
-evidence: validateWorkerToolDispatchPropertyProbeMatrix + runWorkerToolDispatchPropertyFuzzSlice; 8/8 structural properties pass, contract fuzz 24/24 rejected, run record fuzz 5/5 rejected, zero unexpected mismatches
-next: P05-B01-A08
+last_atom: P05-B01-A08
+last_commit: pending
+tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5), forge-p05-worker-tool-dispatch-evidence.test.ts (5/5), forge-p05-worker-tool-dispatch-property-fuzz.test.ts (6/6), forge-p05-worker-tool-dispatch-integration.test.ts (7/7)
+evidence: validateWorkerToolDispatchIntegrationProbeMatrix + runWorkerToolDispatchIntegrationSlice; 6/6 sub-slices aligned, 27/27 probes aligned, zero unexpected mismatches, probe regression detection wired
+next: P05-B01-A09

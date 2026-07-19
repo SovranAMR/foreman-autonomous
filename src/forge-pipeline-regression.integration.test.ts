@@ -168,6 +168,12 @@ import {
   runResearcherPhaseGateRegressionIntegration,
 } from "./forge-p04-researcher-phase-gate.probe.js";
 import { detectResearcherPhaseGateProbeRegression } from "./forge-p04-researcher-phase-gate.js";
+import {
+  runForgeWorkerToolDispatchRegressionGate,
+  runWorkerToolDispatchProbesWithRecord,
+  runWorkerToolDispatchRegressionIntegration,
+} from "./forge-p05-worker-tool-dispatch.probe.js";
+import { detectWorkerToolDispatchProbeRegression } from "./forge-p05-worker-tool-dispatch.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -2905,6 +2911,69 @@ describe("Forge Researcher Phase Gate Regression Integration — P04-B10-A08", (
   it("runForgeResearcherPhaseGateRegressionGate compares against prior record without false regression", () => {
     const prior = runResearcherPhaseGateProbesWithRecord();
     const result = runForgeResearcherPhaseGateRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+});
+
+describe("Forge Pipeline Regression — P05-B01-A08 worker tool dispatch", () => {
+  it("runForgeWorkerToolDispatchRegressionGate passes on canonical worker tool dispatch matrix", () => {
+    const result = runForgeWorkerToolDispatchRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 27);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.equal(result.matrixValid, true);
+    assert.equal(result.matrixValidation.unexpectedMismatches, 0);
+    assert.ok(result.detail.includes("27/27 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("runWorkerToolDispatchRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeWorkerToolDispatchRegressionGate();
+    const integration = runWorkerToolDispatchRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzzSlice.propertyChecksPassed, gate.propertyFuzzSlice.propertyChecksPassed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("27/27 probes aligned"));
+    assert.equal(integration.record.summary.total, 27);
+  });
+
+  it("detectWorkerToolDispatchProbeRegression flags newly misaligned probes", () => {
+    const prior = runWorkerToolDispatchProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectWorkerToolDispatchProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeWorkerToolDispatchRegressionGate compares against prior record without false regression", () => {
+    const prior = runWorkerToolDispatchProbesWithRecord();
+    const result = runForgeWorkerToolDispatchRegressionGate(prior);
 
     assert.equal(result.passed, true, result.detail);
     assert.ok(result.probeRegression);
