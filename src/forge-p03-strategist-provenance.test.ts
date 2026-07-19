@@ -22,11 +22,21 @@ import {
   runStrategistProvenanceFailureRecoverySlice,
   validateStrategistProvenanceFailureRecoveryProbeMatrix,
   listStrategistProvenanceFailureRecoveryProbeIds,
+  runStrategistProvenanceEvidenceSlice,
+  runStrategistProvenanceProbesWithRecord,
+  runStrategistProvenanceFailureRecoverySliceWithRecord,
+  validateStrategistProvenanceRunRecord,
+  validateStrategistProvenanceFailureRecoveryRunRecord,
+  buildStrategistProvenanceProbeEvidence,
+  buildStrategistProvenanceProbeTelemetry,
+  buildStrategistProvenanceProvenance,
+  buildStrategistProvenanceRunRecord,
   STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_PROVENANCE_CATEGORIES,
   STRATEGIST_PROVENANCE_DECOMPOSE_MAX_LENGTH,
   PLAN_DRIFT_THRESHOLD,
   FORGE_STRATEGIST_PROVENANCE_CONTRACT_V1,
+  FORGE_STRATEGIST_PROVENANCE_VERSION,
 } from "./forge-p03-strategist-provenance.js";
 
 function formatMismatchReport(
@@ -437,6 +447,160 @@ describe("Forge Strategist Plan Provenance Failure/Recovery Slice — P03-B09-A0
     assert.ok(planDriftValidator);
     assert.equal(planDriftValidator!.expected, "PASS");
     assert.equal(planDriftValidator!.actual, "PASS");
+  });
+});
+
+describe("Forge Strategist Plan Provenance Evidence — P03-B09-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadStrategistProvenanceBaseline();
+    const contract = getActiveStrategistProvenanceContract();
+    const probeIds = listStrategistProvenanceFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-19T00:00:00.000Z";
+    const completedAt = "2026-07-19T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildStrategistProvenanceProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildStrategistProvenanceProbeTelemetry(
+        probeId,
+        contractProbe.category,
+        index,
+        index * 0.5,
+      );
+    });
+
+    const provenance = buildStrategistProvenanceProvenance(
+      "run-sprov-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P03-B09-A06",
+        sliceCategories: STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildStrategistProvenanceRunRecord(provenance, evidence, telemetry);
+    const validation = validateStrategistProvenanceFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 7);
+    assert.equal(record.summary.mismatches, 0);
+    assert.ok(record.summary.byDisposition.failure >= 3);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byDisposition.nogo >= 2);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBlockGateAtom, fixture.sourceBlockGate.atom);
+  });
+
+  it("executes evidence slice with zero unexpected mismatches and valid run record", () => {
+    const contract = getActiveStrategistProvenanceContract();
+    const slice = runStrategistProvenanceEvidenceSlice();
+
+    assert.equal(slice.atom, "P03-B09-A06");
+    assert.equal(slice.evidenceProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.recordValid, true);
+    assert.equal(slice.evidenceResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 7);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(
+      slice.recordValidation.valid,
+      true,
+      slice.recordValidation.issues.map(i => i.detail).join("\n"),
+    );
+
+    for (const category of STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistProvenanceContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.evidenceResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing evidence result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const record = slice.record;
+    assert.equal(record.evidence.length, 7);
+    assert.equal(record.telemetry.length, 7);
+    assert.equal(record.provenance.totalProbes, 7);
+    assert.equal(record.provenance.sliceAtom, "P03-B09-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_PROVENANCE_VERSION);
+    assert.equal(record.provenance.harnessVersion, "1.0.0");
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.ok(item.recordedAt.length > 10);
+    }
+
+    const recoveryProbe = record.evidence.find(
+      e => e.probeId === "sprov.recovery_replan_lineage_checkpoint",
+    );
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.disposition, "recovery");
+  });
+
+  it("records evidence, telemetry and provenance for full provenance run", () => {
+    const contract = getActiveStrategistProvenanceContract();
+    const record = runStrategistProvenanceProbesWithRecord();
+    const validation = validateStrategistProvenanceRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 28);
+    assert.equal(record.telemetry.length, 28);
+    assert.equal(record.provenance.totalProbes, 28);
+    assert.equal(record.provenance.harnessVersion, "1.0.0");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.summary.aligned, 28);
+  });
+
+  it("records evidence slice via failure/recovery with-record helper", () => {
+    const contract = getActiveStrategistProvenanceContract();
+    const record = runStrategistProvenanceFailureRecoverySliceWithRecord();
+    const validation = validateStrategistProvenanceFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.aligned, 7);
   });
 });
 
