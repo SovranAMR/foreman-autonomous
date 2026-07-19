@@ -33,6 +33,13 @@ import {
   buildResearcherQuestionDecompositionProvenance,
   buildResearcherQuestionDecompositionRunRecord,
   FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION,
+  runResearcherQuestionDecompositionPropertyFuzzSlice,
+  runResearcherQuestionDecompositionPropertyChecks,
+  createResearcherQuestionDecompositionFuzzRng,
+  runResearcherQuestionDecompositionFuzzValidation,
+  runResearcherQuestionDecompositionRunRecordFuzzValidation,
+  FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1,
+  listResearcherQuestionDecompositionContractProbeIds,
 } from "./forge-p04-researcher-question-decomposition.js";
 
 function formatMismatchReport(
@@ -436,7 +443,7 @@ describe("Forge Researcher Question Decomposition Evidence — P04-B01-A06", () 
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -468,7 +475,7 @@ describe("Forge Researcher Question Decomposition Evidence — P04-B01-A06", () 
     assert.equal(record.evidence.length, 27);
     assert.equal(record.telemetry.length, 27);
     assert.equal(record.provenance.totalProbes, 27);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 27);
@@ -484,5 +491,91 @@ describe("Forge Researcher Question Decomposition Evidence — P04-B01-A06", () 
     assert.equal(record.provenance.sliceAtom, "P04-B01-A06");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
+  });
+});
+
+describe("Forge Researcher Question Decomposition Property/Fuzz — P04-B01-A07", () => {
+  it("passes all structural properties on canonical contract", () => {
+    const result = runResearcherQuestionDecompositionPropertyChecks(
+      FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1,
+    );
+    assert.equal(
+      result.allPassed,
+      true,
+      result.failed.map(f => `${f.propertyId}: ${f.detail}`).join("\n"),
+    );
+    assert.equal(result.passed, result.total);
+    assert.equal(result.total, 8);
+  });
+
+  it("createResearcherQuestionDecompositionFuzzRng is deterministic for reproducible fuzz seeds", () => {
+    const rngA = createResearcherQuestionDecompositionFuzzRng(1337);
+    const rngB = createResearcherQuestionDecompositionFuzzRng(1337);
+    const seqA = Array.from({ length: 5 }, () => rngA());
+    const seqB = Array.from({ length: 5 }, () => rngB());
+    assert.deepEqual(seqA, seqB);
+    assert.notDeepEqual(
+      seqA,
+      Array.from({ length: 5 }, () => createResearcherQuestionDecompositionFuzzRng(1338)()),
+    );
+  });
+
+  it("rejects all deterministic fixture mutations", () => {
+    const fixture = loadResearcherQuestionDecompositionBaseline();
+    const contract = getActiveResearcherQuestionDecompositionContract();
+
+    for (const seed of [42, 99, 20260719]) {
+      const fuzz = runResearcherQuestionDecompositionFuzzValidation(fixture, contract, seed, 24);
+      assert.equal(fuzz.iterations, 24);
+      assert.equal(fuzz.rejected, 24, `seed=${seed} accepted=${fuzz.accepted}`);
+      assert.equal(fuzz.allMutationsRejected, true);
+      for (const item of fuzz.cases) {
+        assert.equal(
+          item.valid,
+          false,
+          `${item.mutation.kind}@${item.mutation.probeId} should fail`,
+        );
+        assert.ok(item.issueKinds.length > 0);
+      }
+    }
+  });
+
+  it("accepts valid failure/recovery record and rejects corrupted mutations", () => {
+    const contract = getActiveResearcherQuestionDecompositionContract();
+    const record = runResearcherQuestionDecompositionFailureRecoverySliceWithRecord();
+
+    assert.equal(
+      validateResearcherQuestionDecompositionEvidenceRunRecord(record, contract).valid,
+      true,
+      validateResearcherQuestionDecompositionEvidenceRunRecord(record, contract)
+        .issues.map(i => i.detail)
+        .join("\n"),
+    );
+
+    const fuzz = runResearcherQuestionDecompositionRunRecordFuzzValidation(record, contract);
+    assert.equal(fuzz.validBaseline, true);
+    assert.equal(fuzz.mutationsAccepted, 0);
+    assert.equal(fuzz.mutationsRejected, 5);
+  });
+
+  it("executes property/fuzz slice with zero accepted mutations and valid baseline record", () => {
+    const contract = getActiveResearcherQuestionDecompositionContract();
+    const slice = runResearcherQuestionDecompositionPropertyFuzzSlice();
+    const record = runResearcherQuestionDecompositionFailureRecoverySliceWithRecord();
+
+    assert.equal(slice.atom, "P04-B01-A07");
+    assert.equal(slice.propertyChecksPassed, true);
+    assert.equal(slice.contractFuzzRejected, true);
+    assert.equal(slice.runRecordFuzzRejected, true);
+    assert.equal(slice.contractFuzz.accepted, 0);
+    assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
+
+    assert.equal(
+      validateResearcherQuestionDecompositionEvidenceRunRecord(record, contract).valid,
+      true,
+    );
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(listResearcherQuestionDecompositionContractProbeIds(contract).length, 27);
   });
 });

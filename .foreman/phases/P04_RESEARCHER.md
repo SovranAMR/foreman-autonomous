@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 6
+completed_atoms: 7
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -21,7 +21,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B01-A04 — Research question decomposition: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B01-A05 — Research question decomposition: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B01-A06 — Research question decomposition: evidence, telemetry ve provenance kaydını ekle
-- [ ] P04-B01-A07 — Research question decomposition: unit, property ve fuzz doğrulamasını ekle
+- [x] P04-B01-A07 — Research question decomposition: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B01-A08 — Research question decomposition: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B01-A09 — Research question decomposition: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B01-A10 — Research question decomposition: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B01-A06
-last_commit: 891225f
-tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (26/26); evidence slice 7/7 PASS; run record valid; 0 unexpected mismatches
-evidence: validateResearcherQuestionDecompositionEvidenceRunRecord; runResearcherQuestionDecompositionEvidenceSlice; runResearcherQuestionDecompositionFailureRecoverySliceWithRecord; rques.research_block_non_fatal disposition=recovery
-next: P04-B01-A07
+last_atom: P04-B01-A07
+last_commit: 30de9f8
+tests: PASS — forge-p04-researcher*.test.ts (37/37); property 8/8; fuzz mutations 72/72 rejected; run-record fuzz 5/5 rejected; 0 unexpected mismatches
+evidence: runResearcherQuestionDecompositionPropertyFuzzSlice; runResearcherQuestionDecompositionPropertyChecks; runResearcherQuestionDecompositionFuzzValidation; runResearcherQuestionDecompositionRunRecordFuzzValidation; harnessVersion=1.0.0-a07
+next: P04-B01-A08

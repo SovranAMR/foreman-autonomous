@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B01
-active_atom: P04-B01-A07
+active_atom: P04-B01-A08
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 306/1000
-phase_progress: 6/100
-block_progress: 6/10
+program_progress: 307/1000
+phase_progress: 7/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B01-A07 — Research question decomposition: unit, property ve fuzz doğrulamasını ekle.
+P04-B01-A08 — Research question decomposition: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P04-B01-A06 PASS; unit, property and fuzz validation for researcher question decomposition.
-target: Add structural property checks and fuzz inputs for question decomposition contract and probes.
-hypothesis: A06 evidence slice enables targeted property/fuzz slice without reopening failure/recovery probes.
-acceptance: property/fuzz probes PASS; slice record valid; zero unexpected mismatches.
+objective: P04-B01-A07 PASS; Forge integration regression gate for researcher question decomposition.
+target: Wire probe regression detection and orchestrator/pipeline regression gate for question decomposition matrix.
+hypothesis: A07 property/fuzz slice stabilizes contract; A08 can add regression gate without reopening probe matrix.
+acceptance: regression gate PASS; prior/current run comparison valid; zero unexpected mismatches.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-*.ts
-rollback: P04-B01-A07 property/fuzz slice değişikliklerini geri al.
+rollback: P04-B01-A08 regression slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B01-A06
-last_commit: 891225f
-tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (26/26); evidence slice 7/7 PASS; 0 unexpected mismatches
-evidence: validateResearcherQuestionDecompositionEvidenceRunRecord; runResearcherQuestionDecompositionEvidenceSlice; rques.research_block_non_fatal provenance
-next: P04-B01-A07
+last_atom: P04-B01-A07
+last_commit: 30de9f8
+tests: PASS — forge-p04-researcher*.test.ts (37/37); property 8/8; fuzz 72/72 rejected; run-record fuzz 5/5 rejected; 0 unexpected mismatches
+evidence: runResearcherQuestionDecompositionPropertyFuzzSlice; runResearcherQuestionDecompositionPropertyChecks; runResearcherQuestionDecompositionFuzzValidation; runResearcherQuestionDecompositionRunRecordFuzzValidation
+next: P04-B01-A08
