@@ -54,6 +54,8 @@ export function saveKimiKey(key: string): void {
 // ─── MODELS ──────────────────────────────────────────────────
 
 export const KIMI_MODELS = [
+    { id: "kimi-k3", label: "Kimi K3", model: "kimi-k3" },
+    { id: "kimi-k3-instant", label: "Kimi K3 (instant)", model: "kimi-k3" },
     { id: "kimi-k2.6", label: "Kimi K2.6 (thinking)", model: "kimi-k2.6" },
     { id: "kimi-k2.6-instant", label: "Kimi K2.6 (instant)", model: "kimi-k2.6" },
     { id: "kimi-k2.5", label: "Kimi K2.5", model: "kimi-k2.5" },
@@ -62,7 +64,7 @@ export const KIMI_MODELS = [
     { id: "moonshot-v1-128k", label: "Moonshot V1 128K", model: "moonshot-v1-128k" },
 ] as const;
 
-export const DEFAULT_KIMI_MODEL = "kimi-k2.6";
+export const DEFAULT_KIMI_MODEL = "kimi-k3";
 
 // ─── PARAMETER POLICY ────────────────────────────────────────
 
@@ -87,7 +89,21 @@ function buildSamplingParams(
     thinking?: { type: "enabled" | "disabled" };
 } {
     const isK25or26 = /^kimi-k2\.(5|6)$/.test(resolvedModel);
+    const isK3 = resolvedModel === "kimi-k3";
     const isK2ThinkingFamily = resolvedModel.startsWith("kimi-k2-thinking");
+
+    if (isK3) {
+        // K3 supports thinking with same fixed params as K2.6
+        const thinkingDisabled = modelId.endsWith("-instant");
+        return {
+            temperature: thinkingDisabled ? 0.6 : 1.0,
+            top_p: 0.95,
+            n: 1,
+            presence_penalty: 0,
+            frequency_penalty: 0,
+            thinking: { type: thinkingDisabled ? "disabled" : "enabled" },
+        };
+    }
 
     if (isK25or26) {
         // instant suffix on our alias disables thinking
