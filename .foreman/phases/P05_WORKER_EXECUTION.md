@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 16
+completed_atoms: 17
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -34,7 +34,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B02-A04 — Filesystem okuma ve grounding: boundary ve edge-case davranışlarını tamamla
 - [x] P05-B02-A05 — Filesystem okuma ve grounding: failure, recovery ve NO-GO yollarını uygula
 - [x] P05-B02-A06 — Filesystem okuma ve grounding: evidence, telemetry ve provenance kaydını ekle
-- [ ] P05-B02-A07 — Filesystem okuma ve grounding: unit, property ve fuzz doğrulamasını ekle
+- [x] P05-B02-A07 — Filesystem okuma ve grounding: unit, property ve fuzz doğrulamasını ekle
 - [ ] P05-B02-A08 — Filesystem okuma ve grounding: Forge entegrasyonu ile regression testini tamamla
 - [ ] P05-B02-A09 — Filesystem okuma ve grounding: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P05-B02-A10 — Filesystem okuma ve grounding: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B02-A06
+last_atom: P05-B02-A07
 last_commit: pending
-tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (38/38)
-evidence: runWorkerFilesystemGroundingEvidenceSlice; validateWorkerFilesystemGroundingEvidenceProbeMatrix; runWorkerFilesystemGroundingFailureRecoverySliceWithRecord; 7 evidence/telemetry/provenance probes, 0 unexpected mismatches
-next: P05-B02-A07
+tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (45/45)
+evidence: runWorkerFilesystemGroundingPropertyFuzzSlice; validateWorkerFilesystemGroundingPropertyProbeMatrix; 8 structural properties pass; contract fuzz 24/24 rejected; run-record fuzz 5/5 rejected; 0 accepted mutations
+next: P05-B02-A08

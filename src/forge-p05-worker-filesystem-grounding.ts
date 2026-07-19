@@ -23,7 +23,7 @@ import { TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
-export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a06";
+export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a07";
 
 export const EXPECTED_P05_B01_SEALED_ATOM_COUNT = 10;
 
@@ -2320,5 +2320,617 @@ export function runWorkerFilesystemGroundingEvidenceSlice(
     matrixValidation,
     record,
     recordValidation,
+  };
+}
+
+// ─── Property and fuzz validation (P05-B02-A07) ─────────────────────────────
+
+export interface WorkerFilesystemGroundingPropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface WorkerFilesystemGroundingPropertyResult {
+  passed: number;
+  failed: WorkerFilesystemGroundingPropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type WorkerFilesystemGroundingPropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: WorkerFilesystemGroundingContract) => string | null;
+};
+
+const WORKER_FILESYSTEM_GROUNDING_STRUCTURAL_PROPERTIES: readonly WorkerFilesystemGroundingPropertyCheck[] =
+  [
+    {
+      id: "categories_complete",
+      description: "All eight worker filesystem grounding categories are declared",
+      check: contract => {
+        for (const category of WORKER_FILESYSTEM_GROUNDING_CATEGORIES) {
+          if (!contract.categories[category]) return `missing category: ${category}`;
+        }
+        return null;
+      },
+    },
+    {
+      id: "probe_ids_unique",
+      description: "Probe ids are globally unique",
+      check: contract => {
+        const ids = listWorkerFilesystemGroundingContractProbeIds(contract);
+        if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+        return null;
+      },
+    },
+    {
+      id: "min_probe_count",
+      description: "Each category meets contract minProbeCount",
+      check: contract => {
+        for (const category of WORKER_FILESYSTEM_GROUNDING_CATEGORIES) {
+          const categoryContract = contract.categories[category];
+          if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+            return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+          }
+        }
+        return null;
+      },
+    },
+    {
+      id: "criterion_measurable",
+      description: "Every probe declares a measurable criterion",
+      check: contract => {
+        for (const probe of contract.probes) {
+          if (probe.criterion.trim().length <= 10) {
+            return `${probe.id} criterion too short`;
+          }
+        }
+        return null;
+      },
+    },
+    {
+      id: "coverage_consistent",
+      description:
+        "summarizeWorkerFilesystemGroundingContractCoverage totals match listWorkerFilesystemGroundingContractProbeIds",
+      check: contract => {
+        const summary = summarizeWorkerFilesystemGroundingContractCoverage(contract);
+        const ids = listWorkerFilesystemGroundingContractProbeIds(contract);
+        if (summary.totalProbes !== ids.length) {
+          return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+        }
+        const dispositionSum =
+          summary.byDisposition.observed +
+          summary.byDisposition.gap +
+          summary.byDisposition.failure +
+          summary.byDisposition.recovery +
+          summary.byDisposition.nogo;
+        if (dispositionSum !== summary.totalProbes) {
+          return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+        }
+        return null;
+      },
+    },
+    {
+      id: "probe_id_prefix",
+      description: "Probe ids are namespaced with wfg. prefix",
+      check: contract => {
+        for (const probe of contract.probes) {
+          if (!probe.id.startsWith("wfg.")) {
+            return `${probe.id} missing wfg. prefix`;
+          }
+        }
+        return null;
+      },
+    },
+    {
+      id: "run_record_summary_invariant",
+      description: "Run record summary aligned + mismatches equals total",
+      check: contract => {
+        const fixture = loadWorkerFilesystemGroundingBaseline();
+        const probeIds = listWorkerFilesystemGroundingContractProbeIds(contract);
+        const evidence = probeIds.map(id => {
+          const probe = contract.probes.find(p => p.id === id)!;
+          return buildWorkerFilesystemGroundingProbeEvidence(
+            id,
+            probe.category,
+            probe.expected,
+            probe.expected,
+            true,
+            probe.criterion,
+            "synthetic",
+            probe.disposition,
+          );
+        });
+        const telemetry = probeIds.map((id, index) => {
+          const probe = contract.probes.find(p => p.id === id)!;
+          return buildWorkerFilesystemGroundingProbeRunTelemetry(id, probe.category, index, index);
+        });
+        const record = buildWorkerFilesystemGroundingRunRecord(
+          buildWorkerFilesystemGroundingProvenance(
+            "property-check",
+            fixture,
+            contract,
+            "2026-01-01T00:00:00.000Z",
+            "2026-01-01T00:00:01.000Z",
+            probeIds.length,
+          ),
+          evidence,
+          telemetry,
+        );
+        if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+          return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+        }
+        return null;
+      },
+    },
+    {
+      id: "failure_recovery_run_record_gate",
+      description:
+        "Synthetic failure/recovery slice record passes validateWorkerFilesystemGroundingEvidenceRunRecord",
+      check: contract => {
+        const fixture = loadWorkerFilesystemGroundingBaseline();
+        const probeIds = listWorkerFilesystemGroundingFailureRecoveryProbeIds(contract);
+        const evidence = probeIds.map(id => {
+          const probe = contract.probes.find(p => p.id === id)!;
+          return buildWorkerFilesystemGroundingProbeEvidence(
+            id,
+            probe.category,
+            probe.expected,
+            probe.expected,
+            true,
+            probe.criterion,
+            "synthetic",
+            probe.disposition,
+          );
+        });
+        const telemetry = probeIds.map((id, index) => {
+          const probe = contract.probes.find(p => p.id === id)!;
+          return buildWorkerFilesystemGroundingProbeRunTelemetry(
+            id,
+            probe.category,
+            index,
+            index * 0.5,
+          );
+        });
+        const record = buildWorkerFilesystemGroundingRunRecord(
+          buildWorkerFilesystemGroundingProvenance(
+            "property-check-failure-recovery",
+            fixture,
+            contract,
+            "2026-01-01T00:00:00.000Z",
+            "2026-01-01T00:00:01.000Z",
+            probeIds.length,
+            {
+              sliceAtom: "P05-B02-A06",
+              sliceCategories: WORKER_FILESYSTEM_GROUNDING_FAILURE_RECOVERY_CATEGORIES,
+            },
+          ),
+          evidence,
+          telemetry,
+        );
+        const validation = validateWorkerFilesystemGroundingEvidenceRunRecord(record, contract);
+        if (!validation.valid) {
+          return validation.issues.map(i => i.detail).join("; ");
+        }
+        return null;
+      },
+    },
+  ] as const;
+
+export function runWorkerFilesystemGroundingPropertyValidation(
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+): WorkerFilesystemGroundingPropertyResult {
+  const failed: WorkerFilesystemGroundingPropertyViolation[] = [];
+  for (const property of WORKER_FILESYSTEM_GROUNDING_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = WORKER_FILESYSTEM_GROUNDING_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type WorkerFilesystemGroundingFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface WorkerFilesystemGroundingFuzzMutationCase {
+  seed: number;
+  kind: WorkerFilesystemGroundingFuzzMutationKind;
+  probeId?: string;
+  category?: WorkerFilesystemGroundingCategory;
+}
+
+export interface WorkerFilesystemGroundingFuzzValidationCaseResult {
+  mutation: WorkerFilesystemGroundingFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface WorkerFilesystemGroundingFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: WorkerFilesystemGroundingFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createWorkerFilesystemGroundingFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneWorkerFilesystemGroundingBaseline(
+  fixture: WorkerFilesystemGroundingBaseline,
+): WorkerFilesystemGroundingBaseline {
+  return {
+    ...fixture,
+    sourceBlockGate: { ...fixture.sourceBlockGate },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickWorkerFilesystemGroundingFuzzTarget(
+  fixture: WorkerFilesystemGroundingBaseline,
+  rng: () => number,
+): {
+  category: WorkerFilesystemGroundingCategory;
+  index: number;
+  entry: WorkerFilesystemGroundingFixtureEntry;
+} {
+  const category =
+    WORKER_FILESYSTEM_GROUNDING_CATEGORIES[
+      Math.floor(rng() * WORKER_FILESYSTEM_GROUNDING_CATEGORIES.length)
+    ]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyWorkerFilesystemGroundingFuzzMutation(
+  fixture: WorkerFilesystemGroundingBaseline,
+  mutation: WorkerFilesystemGroundingFuzzMutationCase,
+): WorkerFilesystemGroundingBaseline {
+  const mutated = cloneWorkerFilesystemGroundingBaseline(fixture);
+  const targetCategory = mutation.category ?? WORKER_FILESYSTEM_GROUNDING_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `wfg.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = WORKER_FILESYSTEM_GROUNDING_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateWorkerFilesystemGroundingFuzzMutationCases(
+  fixture: WorkerFilesystemGroundingBaseline,
+  seed: number,
+  iterations: number,
+): WorkerFilesystemGroundingFuzzMutationCase[] {
+  const rng = createWorkerFilesystemGroundingFuzzRng(seed);
+  const kinds: WorkerFilesystemGroundingFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: WorkerFilesystemGroundingFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickWorkerFilesystemGroundingFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P05-B02-A07). */
+export function runWorkerFilesystemGroundingFuzzValidation(
+  fixture: WorkerFilesystemGroundingBaseline,
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+  seed = 42,
+  iterations = 24,
+): WorkerFilesystemGroundingFuzzValidationResult {
+  const cases = generateWorkerFilesystemGroundingFuzzMutationCases(fixture, seed, iterations);
+  const results: WorkerFilesystemGroundingFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyWorkerFilesystemGroundingFuzzMutation(fixture, mutation);
+    const validation = validateWorkerFilesystemGroundingAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type WorkerFilesystemGroundingRunRecordFuzzKind =
+  | "drop_evidence"
+  | "drop_telemetry"
+  | "wrong_total"
+  | "wrong_slice_atom"
+  | "wrong_slice_categories";
+
+export interface WorkerFilesystemGroundingRunRecordFuzzCase {
+  kind: WorkerFilesystemGroundingRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyWorkerFilesystemGroundingRunRecordFuzzMutation(
+  record: WorkerFilesystemGroundingRunRecord,
+  mutation: WorkerFilesystemGroundingRunRecordFuzzCase,
+): WorkerFilesystemGroundingRunRecord {
+  const cloned: WorkerFilesystemGroundingRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+    case "wrong_slice_atom":
+      cloned.provenance = { ...cloned.provenance, sliceAtom: "P05-B02-A99" };
+      break;
+    case "wrong_slice_categories":
+      cloned.provenance = {
+        ...cloned.provenance,
+        sliceCategories: ["grounding_versioning"],
+      };
+      break;
+  }
+
+  cloned.summary = buildWorkerFilesystemGroundingRunRecord(
+    cloned.provenance,
+    cloned.evidence,
+    cloned.telemetry,
+  ).summary;
+  return cloned;
+}
+
+function resolveWorkerFilesystemGroundingRunRecordValidator(
+  record: WorkerFilesystemGroundingRunRecord,
+): (
+  record: WorkerFilesystemGroundingRunRecord,
+  contract: WorkerFilesystemGroundingContract,
+) => WorkerFilesystemGroundingRunValidationResult {
+  return record.provenance.sliceAtom === "P05-B02-A06"
+    ? validateWorkerFilesystemGroundingEvidenceRunRecord
+    : validateWorkerFilesystemGroundingRunRecord;
+}
+
+/** Fuzz harness: tampered run records must fail validation deterministically (P05-B02-A07). */
+export function runWorkerFilesystemGroundingRunRecordFuzzValidation(
+  record: WorkerFilesystemGroundingRunRecord,
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const validate = resolveWorkerFilesystemGroundingRunRecordValidator(record);
+  const baseline = validate(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: WorkerFilesystemGroundingRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  if (record.provenance.sliceAtom === "P05-B02-A06") {
+    mutations.push({ kind: "wrong_slice_atom" }, { kind: "wrong_slice_categories" });
+  }
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyWorkerFilesystemGroundingRunRecordFuzzMutation(record, mutation);
+    const validation = validate(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}
+
+export interface WorkerFilesystemGroundingPropertyFuzzSliceResult {
+  atom: "P05-B02-A07";
+  propertyChecksPassed: boolean;
+  contractFuzzRejected: boolean;
+  runRecordFuzzRejected: boolean;
+  propertyResult: WorkerFilesystemGroundingPropertyResult;
+  contractFuzz: WorkerFilesystemGroundingFuzzValidationResult;
+  runRecordFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface WorkerFilesystemGroundingPropertyProbeMatrixValidationResult {
+  valid: boolean;
+  issues: WorkerFilesystemGroundingProbeMatrixValidationIssue[];
+  propertyChecksAligned: number;
+  fuzzMutationsAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate property_checks + fuzz_mutations against the A07 contract matrix —
+ * all structural properties pass and zero fuzz mutations accepted.
+ */
+export function validateWorkerFilesystemGroundingPropertyProbeMatrix(
+  slice: WorkerFilesystemGroundingPropertyFuzzSliceResult,
+): WorkerFilesystemGroundingPropertyProbeMatrixValidationResult {
+  const issues: WorkerFilesystemGroundingProbeMatrixValidationIssue[] = [];
+  let propertyChecksAligned = 0;
+  let fuzzMutationsAligned = 0;
+  let unexpectedMismatches = 0;
+
+  if (slice.atom !== "P05-B02-A07") {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: `slice atom=${slice.atom} expected=P05-B02-A07`,
+    });
+    unexpectedMismatches++;
+  }
+
+  for (const property of WORKER_FILESYSTEM_GROUNDING_STRUCTURAL_PROPERTIES) {
+    const failed = slice.propertyResult.failed.find(f => f.propertyId === property.id);
+    if (failed) {
+      issues.push({
+        kind: "pass_mismatch",
+        probeId: property.id,
+        detail: `property ${property.id}: ${failed.detail}`,
+      });
+      unexpectedMismatches++;
+    } else {
+      propertyChecksAligned++;
+    }
+  }
+
+  if (!slice.contractFuzz.allMutationsRejected) {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: `contract fuzz accepted=${slice.contractFuzz.accepted} rejected=${slice.contractFuzz.rejected}`,
+    });
+    unexpectedMismatches++;
+  } else {
+    fuzzMutationsAligned += slice.contractFuzz.rejected;
+  }
+
+  if (slice.runRecordFuzz.mutationsAccepted > 0) {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: `run record fuzz accepted=${slice.runRecordFuzz.mutationsAccepted}`,
+    });
+    unexpectedMismatches++;
+  } else if (slice.runRecordFuzz.validBaseline) {
+    fuzzMutationsAligned += slice.runRecordFuzz.mutationsRejected;
+  } else {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: "run record fuzz baseline invalid",
+    });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    propertyChecksAligned,
+    fuzzMutationsAligned,
+    unexpectedMismatches,
+  };
+}
+
+/**
+ * A07 property/fuzz slice: structural property checks and contract fuzz gates
+ * with zero accepted mutations.
+ */
+export function runWorkerFilesystemGroundingPropertyFuzzSlice(
+  fixture: WorkerFilesystemGroundingBaseline = loadWorkerFilesystemGroundingBaseline(),
+): WorkerFilesystemGroundingPropertyFuzzSliceResult {
+  const contract = getActiveWorkerFilesystemGroundingContract();
+  const propertyResult = runWorkerFilesystemGroundingPropertyValidation(contract);
+  const contractFuzz = runWorkerFilesystemGroundingFuzzValidation(fixture, contract);
+  const record = runWorkerFilesystemGroundingFailureRecoverySliceWithRecord(fixture);
+  const runRecordFuzz = runWorkerFilesystemGroundingRunRecordFuzzValidation(record, contract);
+
+  return {
+    atom: "P05-B02-A07",
+    propertyChecksPassed: propertyResult.allPassed,
+    contractFuzzRejected: contractFuzz.allMutationsRejected,
+    runRecordFuzzRejected: runRecordFuzz.mutationsAccepted === 0,
+    propertyResult,
+    contractFuzz,
+    runRecordFuzz,
   };
 }
