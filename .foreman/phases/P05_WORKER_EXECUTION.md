@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B05-A02
-last_commit: PENDING
+last_commit: 6e98ab2
 tests: PASS — forge-p05-worker-git-worktree-contract.test.ts (8/8), forge-p05-worker-git-worktree-baseline.test.ts (8/8)
 evidence: getActiveWorkerGitWorktreeContract + validateWorkerGitWorktreeAgainstContract + summarizeWorkerGitWorktreeContractCoverage + listWorkerGitWorktreeProbesByDisposition; 27 probes, 5 gap dispositions (typed git union, worktree transaction engine, worker prompt contract, orchestrator pre-git validation, exported git validator)
 next: P05-B05-A03

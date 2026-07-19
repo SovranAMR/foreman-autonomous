@@ -44,7 +44,7 @@ fallback: Production blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B05-A02
-last_commit: PENDING
+last_commit: 6e98ab2
 tests: PASS — forge-p05-worker-git-worktree-contract.test.ts (8/8), forge-p05-worker-git-worktree-baseline.test.ts (8/8)
 evidence: getActiveWorkerGitWorktreeContract + validateWorkerGitWorktreeAgainstContract + summarizeWorkerGitWorktreeContractCoverage; 27 probes, 5 gap dispositions aligned to A01 baseline FAIL debt
 next: P05-B05-A03
