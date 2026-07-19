@@ -1592,6 +1592,498 @@ export function validateVisionerScoringFailureRecoveryRunRecord(
   };
 }
 
+// ─── Property and fuzz validation (P02-B08-A07) ───────────────────────────────
+
+export interface VisionerScoringPropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface VisionerScoringPropertyResult {
+  passed: number;
+  failed: VisionerScoringPropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type VisionerScoringPropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: VisionerScoringContract) => string | null;
+};
+
+const SCORING_PROPERTY_CHECK_FIXTURE: VisionerScoringBaseline = {
+  version: "0",
+  atom: "x",
+  purpose: "x",
+  sourceBlockGate: {
+    version: "0",
+    atom: "x",
+    contractVersion: "0",
+    visionerAlternativeProbeCount: 0,
+    sealedAtomCount: 0,
+  },
+  probes: [],
+};
+
+const VISIONER_SCORING_STRUCTURAL_PROPERTIES: readonly VisionerScoringPropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All eight visioner scoring categories are declared",
+    check: contract => {
+      for (const category of VISIONER_SCORING_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listVisionerScoringContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of VISIONER_SCORING_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description: "summarizeVisionerScoringContractCoverage totals match listVisionerScoringContractProbeIds",
+    check: contract => {
+      const summary = summarizeVisionerScoringContractCoverage(contract);
+      const ids = listVisionerScoringContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with vsco. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("vsco.")) {
+          return `${probe.id} missing vsco. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const probeIds = listVisionerScoringContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildVisionerScoringProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildVisionerScoringProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildVisionerScoringRunRecord(
+        buildVisionerScoringProvenance(
+          "property-check",
+          SCORING_PROPERTY_CHECK_FIXTURE,
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "failure_recovery_run_record_gate",
+    description: "Synthetic failure/recovery slice record passes validateVisionerScoringFailureRecoveryRunRecord",
+    check: contract => {
+      const probeIds = listVisionerScoringFailureRecoveryProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildVisionerScoringProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildVisionerScoringProbeTelemetry(id, probe.category, index, index * 0.5);
+      });
+      const record = buildVisionerScoringRunRecord(
+        buildVisionerScoringProvenance(
+          "property-check-failure-recovery",
+          SCORING_PROPERTY_CHECK_FIXTURE,
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+          {
+            sliceAtom: "P02-B08-A06",
+            sliceCategories: VISIONER_SCORING_FAILURE_RECOVERY_CATEGORIES,
+          },
+        ),
+        evidence,
+        telemetry,
+      );
+      const validation = validateVisionerScoringFailureRecoveryRunRecord(record, contract);
+      if (!validation.valid) {
+        return validation.issues.map(i => i.detail).join("; ");
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runVisionerScoringPropertyChecks(
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): VisionerScoringPropertyResult {
+  const failed: VisionerScoringPropertyViolation[] = [];
+  for (const property of VISIONER_SCORING_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = VISIONER_SCORING_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type VisionerScoringFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface VisionerScoringFuzzMutationCase {
+  seed: number;
+  kind: VisionerScoringFuzzMutationKind;
+  probeId?: string;
+  category?: VisionerScoringCategory;
+}
+
+export interface VisionerScoringFuzzValidationCaseResult {
+  mutation: VisionerScoringFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface VisionerScoringFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: VisionerScoringFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createVisionerScoringFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneVisionerScoringBaseline(fixture: VisionerScoringBaseline): VisionerScoringBaseline {
+  return {
+    ...fixture,
+    sourceBlockGate: { ...fixture.sourceBlockGate },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickVisionerScoringFuzzTarget(
+  fixture: VisionerScoringBaseline,
+  rng: () => number,
+): { category: VisionerScoringCategory; index: number; entry: VisionerScoringFixtureEntry } {
+  const category = VISIONER_SCORING_CATEGORIES[Math.floor(rng() * VISIONER_SCORING_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyVisionerScoringFuzzMutation(
+  fixture: VisionerScoringBaseline,
+  mutation: VisionerScoringFuzzMutationCase,
+): VisionerScoringBaseline {
+  const mutated = cloneVisionerScoringBaseline(fixture);
+  const targetCategory = mutation.category ?? VISIONER_SCORING_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `vsco.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = VISIONER_SCORING_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateVisionerScoringFuzzMutationCases(
+  fixture: VisionerScoringBaseline,
+  seed: number,
+  iterations: number,
+): VisionerScoringFuzzMutationCase[] {
+  const rng = createVisionerScoringFuzzRng(seed);
+  const kinds: VisionerScoringFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: VisionerScoringFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickVisionerScoringFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P02-B08-A07). */
+export function runVisionerScoringFuzzValidation(
+  fixture: VisionerScoringBaseline,
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+  seed = 42,
+  iterations = 24,
+): VisionerScoringFuzzValidationResult {
+  const cases = generateVisionerScoringFuzzMutationCases(fixture, seed, iterations);
+  const results: VisionerScoringFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyVisionerScoringFuzzMutation(fixture, mutation);
+    const validation = validateVisionerScoringAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type VisionerScoringRunRecordFuzzKind =
+  | "drop_evidence"
+  | "drop_telemetry"
+  | "wrong_total"
+  | "wrong_slice_atom"
+  | "wrong_slice_categories";
+
+export interface VisionerScoringRunRecordFuzzCase {
+  kind: VisionerScoringRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyVisionerScoringRunRecordFuzzMutation(
+  record: VisionerScoringRunRecord,
+  mutation: VisionerScoringRunRecordFuzzCase,
+): VisionerScoringRunRecord {
+  const cloned: VisionerScoringRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+    case "wrong_slice_atom":
+      cloned.provenance = { ...cloned.provenance, sliceAtom: "P02-B08-A99" };
+      break;
+    case "wrong_slice_categories":
+      cloned.provenance = {
+        ...cloned.provenance,
+        sliceCategories: ["scoring_versioning"],
+      };
+      break;
+  }
+
+  cloned.summary = buildVisionerScoringRunRecord(
+    cloned.provenance,
+    cloned.evidence,
+    cloned.telemetry,
+  ).summary;
+  return cloned;
+}
+
+function resolveVisionerScoringRunRecordValidator(
+  record: VisionerScoringRunRecord,
+): (
+  record: VisionerScoringRunRecord,
+  contract: VisionerScoringContract,
+) => VisionerScoringRunValidationResult {
+  return record.provenance.sliceAtom === "P02-B08-A06"
+    ? validateVisionerScoringFailureRecoveryRunRecord
+    : validateVisionerScoringRunRecord;
+}
+
+/** Fuzz harness: tampered run records must fail validation deterministically (P02-B08-A07). */
+export function runVisionerScoringRunRecordFuzzValidation(
+  record: VisionerScoringRunRecord,
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const validate = resolveVisionerScoringRunRecordValidator(record);
+  const baseline = validate(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: VisionerScoringRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  if (record.provenance.sliceAtom === "P02-B08-A06") {
+    mutations.push({ kind: "wrong_slice_atom" }, { kind: "wrong_slice_categories" });
+  }
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyVisionerScoringRunRecordFuzzMutation(record, mutation);
+    const validation = validate(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}
+
 /** Sample vision with explicit alternatives for scoring presence probes. */
 export const SAMPLE_VISION_FOR_SCORING = `REASONING: Two viable product directions for trade-off scoring
 OUTPUT:
