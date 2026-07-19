@@ -27,7 +27,10 @@ import {
   summarizeVisionerPhaseGateMatrix,
   validateVisionerPhaseGateProbeMatrix,
   validateVisionerPhaseGateBoundaryProbeMatrix,
+  validateVisionerPhaseGateFailureRecoveryProbeMatrix,
+  listVisionerPhaseGateFailureRecoveryProbeIds,
   listVisionerPhaseGateContractProbesByCategory,
+  VISIONER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
   listVisionerPhaseGateProbesByExpected,
   listVisionerPhaseGateKnownGaps,
   FORGE_VISIONER_PHASE_GATE_VERSION,
@@ -560,3 +563,40 @@ export function runVisionerPhaseGateBoundarySlice(
 }
 
 export const runForgeVisionerPhaseGateBoundarySlice = runVisionerPhaseGateBoundarySlice;
+
+export interface VisionerPhaseGateFailureRecoverySliceResult {
+  atom: "P02-B10-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerPhaseGateProbeResult[];
+  failureRecoveryResults: VisionerPhaseGateProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerPhaseGateFailureRecoveryProbeMatrix>;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runVisionerPhaseGateFailureRecoverySlice(
+  fixture: VisionerPhaseGateBaseline = loadVisionerPhaseGateBaseline(),
+): VisionerPhaseGateFailureRecoverySliceResult {
+  const contract = getActiveVisionerPhaseGateContract();
+  const results = runVisionerPhaseGateProbes(fixture);
+  const failureRecoveryProbes = VISIONER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listVisionerPhaseGateContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateVisionerPhaseGateFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B10-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
+    matrixValidation,
+  };
+}
+
+export const runForgeVisionerPhaseGateFailureRecoverySlice = runVisionerPhaseGateFailureRecoverySlice;

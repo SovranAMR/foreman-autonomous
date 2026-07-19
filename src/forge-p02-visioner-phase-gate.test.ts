@@ -5,6 +5,7 @@ import {
   runVisionerPhaseGateProbes,
   runVisionerPhaseGateProductionSlice,
   runVisionerPhaseGateBoundarySlice,
+  runVisionerPhaseGateFailureRecoverySlice,
 } from "./forge-p02-visioner-phase-gate.probe.js";
 import {
   getActiveVisionerPhaseGateContract,
@@ -17,6 +18,9 @@ import {
   validateVisionerPhaseGateAgainstContract,
   validateVisionerPhaseGateProbeMatrix,
   validateVisionerPhaseGateBoundaryProbeMatrix,
+  validateVisionerPhaseGateFailureRecoveryProbeMatrix,
+  listVisionerPhaseGateFailureRecoveryProbeIds,
+  VISIONER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
   recoverVisionerPhaseGateEvidence,
   assessVisionerPhaseGateInputBoundary,
   VISIONER_PHASE_GATE_MANIFEST_MAX_LENGTH,
@@ -275,5 +279,83 @@ describe("Forge Visioner Phase Gate Boundary Slice — P02-B10-A04", () => {
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
     assert.equal(slice.results.filter(r => !r.aligned).length, 0);
+  });
+});
+
+describe("Forge Visioner Phase Gate Failure/Recovery Slice — P02-B10-A05", () => {
+  it("defines seven failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveVisionerPhaseGateContract();
+    const failure = listVisionerPhaseGateContractProbesByCategory("failure_path", contract);
+    const recovery = listVisionerPhaseGateContractProbesByCategory("recovery_path", contract);
+    const nogo = listVisionerPhaseGateContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 3);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...VISIONER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveVisionerPhaseGateContract();
+    const slice = runVisionerPhaseGateFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P02-B10-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 7);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of VISIONER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listVisionerPhaseGateContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateVisionerPhaseGateFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with full alignment after A04 boundary slice", () => {
+    const slice = runVisionerPhaseGateFailureRecoverySlice();
+    const probeIds = listVisionerPhaseGateFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 7);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "vpg.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "vpg.structured_phase_gate_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const evidenceNogo = slice.failureRecoveryResults.find(
+      r => r.id === "vpg.phase_gate_evidence_nogo",
+    );
+    assert.ok(evidenceNogo);
+    assert.equal(evidenceNogo!.expected, "PASS");
+    assert.equal(evidenceNogo!.actual, "PASS");
   });
 });

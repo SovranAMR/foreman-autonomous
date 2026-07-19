@@ -136,7 +136,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B10-A02 — Vizyoner phase gate: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B10-A03 — Vizyoner phase gate: en küçük üretim dikey dilimini uygula
 - [x] P02-B10-A04 — Vizyoner phase gate: boundary ve edge-case davranışlarını tamamla
-- [ ] P02-B10-A05 — Vizyoner phase gate: failure, recovery ve NO-GO yollarını uygula
+- [x] P02-B10-A05 — Vizyoner phase gate: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B10-A06 — Vizyoner phase gate: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B10-A07 — Vizyoner phase gate: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B10-A08 — Vizyoner phase gate: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B10-A04
-last_commit: 662222f
-tests: PASS — forge-p02-visioner-phase-gate.test.ts (20/20); baseline regression (3/3)
-evidence: assessVisionerPhaseGateInputBoundary; runVisionerPhaseGateBoundarySlice; validateVisionerPhaseGateBoundaryProbeMatrix; 24/24 probes aligned; boundary 6/6; handoff=P02-B10-A04→A05
-next: P02-B10-A05
+last_atom: P02-B10-A05
+last_commit: pending
+tests: PASS — forge-p02-visioner-phase-gate.test.ts (23/23); baseline regression (3/3)
+evidence: validateVisionerPhaseGateFailureRecoveryProbeMatrix; runVisionerPhaseGateFailureRecoverySlice; 7/7 failure/recovery/NO-GO probes aligned; handoff=P02-B10-A05→A06
+next: P02-B10-A06
