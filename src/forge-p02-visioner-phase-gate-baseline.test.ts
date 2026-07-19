@@ -25,7 +25,7 @@ describe("Forge Visioner Phase Gate — P02-B10-A01", () => {
 
     assert.equal(fixture.version, "1.0.0");
     assert.equal(fixture.atom, "P02-B10-A01");
-    assert.equal(fixture.contractAtom, "P02-B10-A05");
+    assert.equal(fixture.contractAtom, "P02-B10-A02");
     assert.equal(fixture.sourceBlockGate.atom, "P02-B09-A10");
     assert.equal(fixture.sourceBlockGate.sealedAtomCount, 10);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));

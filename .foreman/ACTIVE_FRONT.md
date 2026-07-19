@@ -6,9 +6,9 @@ active_phase: P02
 active_block: P02-B10
 active_atom: P02-B10-A02
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 190/1000
-phase_progress: 89/100
-block_progress: 1/10
+program_progress: 191/1000
+phase_progress: 90/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B10-A01 — Vizyoner phase gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P02-B10-A02 — Vizyoner phase gate: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P02-B09-A10 PASS; establish visioner phase gate baseline from sealed P02-B09 block gate.
-target: forge-p02-visioner-phase-gate baseline fixture and probe harness.
-hypothesis: versioned baseline fixture captures visioner phase gate behavior with measurable probes.
-acceptance: baseline loads, contract alignment validates, probe matrix executes with evidence.
-commands: npx tsx --test src/forge-p02-visioner-phase-gate-baseline.test.ts
-blast_radius: src/forge-p02-visioner-phase-gate*, src/fixtures/forge-visioner-phase-gate-v1.json
-rollback: P02-B10-A01 baseline değişikliklerini geri al.
+objective: P02-B10-A01 PASS; define typed visioner phase gate contract with measurable acceptance probes.
+target: forge-p02-visioner-phase-gate contract helpers, coverage validation and contract test suite.
+hypothesis: typed contract declares 23 probes across eight categories with one documented orchestrator gap.
+acceptance: contract coverage validates; fixture aligns; probe criteria wired from contract source of truth.
+commands: npx tsx --test src/forge-p02-visioner-phase-gate.test.ts
+blast_radius: src/forge-p02-visioner-phase-gate.ts, src/forge-p02-visioner-phase-gate.test.ts, src/fixtures/forge-visioner-phase-gate-v1.json
+rollback: P02-B10-A02 contract helper and test değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: Baseline cannot align with sealed B09 handoff ise BLOCKED raporla.
+fallback: Contract cannot align with A01 baseline fixture ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B10-A01
-last_commit: 3251f28
-tests: PASS — forge-p02-visioner-phase-gate-baseline.test.ts (3/3)
-evidence: loadVisionerPhaseGateBaseline; runVisionerPhaseGateProbes; knownGap=vpg.orchestrator_phase_gate_runner; handoff=P02-B09→B10
-next: P02-B10-A02
+last_atom: P02-B10-A02
+last_commit: pending
+tests: PASS — forge-p02-visioner-phase-gate.test.ts (8/8); baseline regression (3/3)
+evidence: getActiveVisionerPhaseGateContract; validateVisionerPhaseGateContractCoverage; knownGap=vpg.orchestrator_phase_gate_runner; handoff=P02-B10-A02→A03
+next: P02-B10-A03
