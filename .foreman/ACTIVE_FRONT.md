@@ -44,7 +44,7 @@ fallback: A04 boundary slice invalid ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B09-A04
-last_commit: pending
+last_commit: 4004b19
 tests: PASS — forge-orchestrator-seam*.test.ts (13/13); boundary=3; passAligned=3; unexpectedMismatches=0
 evidence: runOrchestratorSeamBoundarySlice; validateOrchestratorSeamBoundaryProbeMatrix; B08 sourceEvidenceArtifact ref validated
 next: P01-B09-A05
