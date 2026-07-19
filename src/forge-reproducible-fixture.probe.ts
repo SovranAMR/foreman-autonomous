@@ -70,6 +70,10 @@ export {
   buildReproducibleFixtureRunRecord,
   validateReproducibleFixtureRunRecord,
   validateReproducibleFixtureFailureRecoveryRunRecord,
+  runReproducibleFixturePropertyChecks,
+  runReproducibleFixtureFuzzValidation,
+  runReproducibleFixtureRunRecordFuzzValidation,
+  createReproducibleFixtureFuzzRng,
 } from "./forge-reproducible-fixture.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

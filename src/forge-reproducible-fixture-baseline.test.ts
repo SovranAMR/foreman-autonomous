@@ -29,6 +29,11 @@ import {
   buildReproducibleFixtureProvenance,
   buildReproducibleFixtureRunRecord,
   validateReproducibleFixtureFailureRecoveryRunRecord,
+  validateReproducibleFixtureRunRecord,
+  runReproducibleFixturePropertyChecks,
+  runReproducibleFixtureFuzzValidation,
+  runReproducibleFixtureRunRecordFuzzValidation,
+  createReproducibleFixtureFuzzRng,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
   REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-reproducible-fixture.probe.js";
@@ -487,7 +492,7 @@ describe("Forge Reproducible Fixture Evidence — P01-B07-A06", () => {
     ]);
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
 
@@ -504,5 +509,86 @@ describe("Forge Reproducible Fixture Evidence — P01-B07-A06", () => {
       assert.equal(item.aligned, true);
       assert.ok(item.recordedAt.length > 10);
     }
+  });
+});
+
+describe("Forge Reproducible Fixture Property/Fuzz — P01-B07-A07", () => {
+  it("passes structural property checks on canonical contract", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    const result = runReproducibleFixturePropertyChecks(contract);
+    assert.equal(result.allPassed, true, result.failed.map(f => `${f.propertyId}: ${f.detail}`).join("\n"));
+    assert.equal(result.total, 8);
+  });
+
+  it("createReproducibleFixtureFuzzRng is deterministic for reproducible fuzz seeds", () => {
+    const rngA = createReproducibleFixtureFuzzRng(1337);
+    const rngB = createReproducibleFixtureFuzzRng(1337);
+    const seqA = Array.from({ length: 5 }, () => rngA());
+    const seqB = Array.from({ length: 5 }, () => rngB());
+    assert.deepEqual(seqA, seqB);
+    assert.notDeepEqual(seqA, Array.from({ length: 5 }, () => createReproducibleFixtureFuzzRng(1338)()));
+  });
+
+  it("rejects fuzz-mutated fixtures and corrupted failure/recovery run records", () => {
+    const fixture = loadReproducibleFixtureBaseline();
+    const contract = getActiveReproducibleFixtureContract();
+    const record = runReproducibleFixtureFailureRecoverySliceWithRecord();
+
+    const fuzz = runReproducibleFixtureFuzzValidation(fixture, contract, 42, 24);
+    assert.equal(fuzz.allMutationsRejected, true);
+    assert.equal(fuzz.rejected, 24);
+
+    const runFuzz = runReproducibleFixtureRunRecordFuzzValidation(record, contract);
+    assert.equal(runFuzz.validBaseline, true);
+    assert.equal(runFuzz.mutationsAccepted, 0);
+    assert.equal(runFuzz.mutationsRejected, 5);
+
+    const validation = validateReproducibleFixtureFailureRecoveryRunRecord(record, contract);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+  });
+
+  it("validates full contract run record and rejects tampered evidence/telemetry/provenance", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    const fixture = loadReproducibleFixtureBaseline();
+    const probeIds = listReproducibleFixtureContractProbeIds(contract);
+    const startedAt = "2026-07-18T23:00:00.000Z";
+    const completedAt = "2026-07-18T23:00:01.000Z";
+
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildReproducibleFixtureProbeEvidence(
+        id,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "synthetic",
+        probe.disposition,
+        startedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildReproducibleFixtureProbeTelemetry(id, probe.category, index, index * 0.05);
+    });
+
+    const provenance = buildReproducibleFixtureProvenance(
+      "property-fuzz-full-run",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+    );
+    const record = buildReproducibleFixtureRunRecord(provenance, evidence, telemetry);
+
+    assert.equal(validateReproducibleFixtureRunRecord(record, contract).valid, true);
+
+    const runFuzz = runReproducibleFixtureRunRecordFuzzValidation(record, contract);
+    assert.equal(runFuzz.validBaseline, true);
+    assert.equal(runFuzz.mutationsAccepted, 0);
+    assert.equal(runFuzz.mutationsRejected, 3);
   });
 });

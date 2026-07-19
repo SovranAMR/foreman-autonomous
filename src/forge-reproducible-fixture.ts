@@ -14,7 +14,7 @@ import {
   BENCHMARK_EVAL_CATEGORIES,
 } from "./forge-benchmark-eval-harness.js";
 
-export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a06";
+export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a07";
 
 export const REPRODUCIBLE_FIXTURE_CATEGORIES = [
   "fixture_versioning",
@@ -1254,5 +1254,496 @@ export function validateReproducibleFixtureFailureRecoveryRunRecord(
   return {
     valid: issues.length === 0 && probeValidation.valid,
     issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ReproducibleFixturePropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface ReproducibleFixturePropertyResult {
+  passed: number;
+  failed: ReproducibleFixturePropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type ReproducibleFixturePropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: ReproducibleFixtureContract) => string | null;
+};
+
+const REPRODUCIBLE_FIXTURE_STRUCTURAL_PROPERTIES: readonly ReproducibleFixturePropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All eight reproducible fixture categories are declared",
+    check: contract => {
+      for (const category of REPRODUCIBLE_FIXTURE_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listReproducibleFixtureContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of REPRODUCIBLE_FIXTURE_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description: "summarizeReproducibleFixtureContractCoverage totals match listReproducibleFixtureContractProbeIds",
+    check: contract => {
+      const summary = summarizeReproducibleFixtureContractCoverage(contract);
+      const ids = listReproducibleFixtureContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with fix. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("fix.")) {
+          return `${probe.id} missing fix. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const probeIds = listReproducibleFixtureContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildReproducibleFixtureProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildReproducibleFixtureProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildReproducibleFixtureRunRecord(
+        buildReproducibleFixtureProvenance(
+          "property-check",
+          {
+            version: "0",
+            atom: "x",
+            purpose: "x",
+            sourceBenchmarkEval: buildDefaultReproducibleSourceBenchmarkEval(),
+            probes: [],
+          },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "failure_recovery_run_record_gate",
+    description: "Synthetic failure/recovery slice record passes validateReproducibleFixtureFailureRecoveryRunRecord",
+    check: contract => {
+      const probeIds = listReproducibleFixtureFailureRecoveryProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildReproducibleFixtureProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildReproducibleFixtureProbeTelemetry(id, probe.category, index, index * 0.5);
+      });
+      const record = buildReproducibleFixtureRunRecord(
+        buildReproducibleFixtureProvenance(
+          "property-check-failure-recovery",
+          {
+            version: "0",
+            atom: "x",
+            purpose: "x",
+            sourceBenchmarkEval: buildDefaultReproducibleSourceBenchmarkEval(),
+            probes: [],
+          },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+          {
+            sliceAtom: "P01-B07-A06",
+            sliceCategories: REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
+          },
+        ),
+        evidence,
+        telemetry,
+      );
+      const validation = validateReproducibleFixtureFailureRecoveryRunRecord(record, contract);
+      if (!validation.valid) {
+        return validation.issues.map(i => i.detail).join("; ");
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runReproducibleFixturePropertyChecks(
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixturePropertyResult {
+  const failed: ReproducibleFixturePropertyViolation[] = [];
+  for (const property of REPRODUCIBLE_FIXTURE_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = REPRODUCIBLE_FIXTURE_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type ReproducibleFixtureFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface ReproducibleFixtureFuzzMutationCase {
+  seed: number;
+  kind: ReproducibleFixtureFuzzMutationKind;
+  probeId?: string;
+  category?: ReproducibleFixtureCategory;
+}
+
+export interface ReproducibleFixtureFuzzValidationCaseResult {
+  mutation: ReproducibleFixtureFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface ReproducibleFixtureFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: ReproducibleFixtureFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createReproducibleFixtureFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneReproducibleFixtureBaseline(
+  fixture: ReproducibleFixtureBaseline,
+): ReproducibleFixtureBaseline {
+  return {
+    ...fixture,
+    sourceBenchmarkEval: { ...fixture.sourceBenchmarkEval },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickReproducibleFixtureFuzzTarget(
+  fixture: ReproducibleFixtureBaseline,
+  rng: () => number,
+): { category: ReproducibleFixtureCategory; index: number; entry: ReproducibleFixtureEntry } {
+  const category =
+    REPRODUCIBLE_FIXTURE_CATEGORIES[Math.floor(rng() * REPRODUCIBLE_FIXTURE_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyReproducibleFixtureFuzzMutation(
+  fixture: ReproducibleFixtureBaseline,
+  mutation: ReproducibleFixtureFuzzMutationCase,
+): ReproducibleFixtureBaseline {
+  const mutated = cloneReproducibleFixtureBaseline(fixture);
+  const targetCategory = mutation.category ?? REPRODUCIBLE_FIXTURE_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `fix.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = REPRODUCIBLE_FIXTURE_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateReproducibleFixtureFuzzMutationCases(
+  fixture: ReproducibleFixtureBaseline,
+  seed: number,
+  iterations: number,
+): ReproducibleFixtureFuzzMutationCase[] {
+  const rng = createReproducibleFixtureFuzzRng(seed);
+  const kinds: ReproducibleFixtureFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: ReproducibleFixtureFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickReproducibleFixtureFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P01-B07-A07). */
+export function runReproducibleFixtureFuzzValidation(
+  fixture: ReproducibleFixtureBaseline,
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+  seed = 42,
+  iterations = 24,
+): ReproducibleFixtureFuzzValidationResult {
+  const cases = generateReproducibleFixtureFuzzMutationCases(fixture, seed, iterations);
+  const results: ReproducibleFixtureFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyReproducibleFixtureFuzzMutation(fixture, mutation);
+    const validation = validateReproducibleFixtureBaselineAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type ReproducibleFixtureRunRecordFuzzKind =
+  | "drop_evidence"
+  | "drop_telemetry"
+  | "wrong_total"
+  | "wrong_slice_atom"
+  | "wrong_slice_categories";
+
+export interface ReproducibleFixtureRunRecordFuzzCase {
+  kind: ReproducibleFixtureRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyReproducibleFixtureRunRecordFuzzMutation(
+  record: ReproducibleFixtureRunRecord,
+  mutation: ReproducibleFixtureRunRecordFuzzCase,
+): ReproducibleFixtureRunRecord {
+  const cloned: ReproducibleFixtureRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+    case "wrong_slice_atom":
+      cloned.provenance = { ...cloned.provenance, sliceAtom: "P01-B07-A99" };
+      break;
+    case "wrong_slice_categories":
+      cloned.provenance = {
+        ...cloned.provenance,
+        sliceCategories: ["fixture_versioning"],
+      };
+      break;
+  }
+
+  cloned.summary = buildReproducibleFixtureRunRecord(
+    cloned.provenance,
+    cloned.evidence,
+    cloned.telemetry,
+  ).summary;
+  return cloned;
+}
+
+function resolveReproducibleFixtureRunRecordValidator(
+  record: ReproducibleFixtureRunRecord,
+): (
+  record: ReproducibleFixtureRunRecord,
+  contract: ReproducibleFixtureContract,
+) => ReproducibleFixtureRunValidationResult {
+  return record.provenance.sliceAtom === "P01-B07-A06"
+    ? validateReproducibleFixtureFailureRecoveryRunRecord
+    : validateReproducibleFixtureRunRecord;
+}
+
+/** Fuzz harness: tampered run records must fail validation deterministically (P01-B07-A07). */
+export function runReproducibleFixtureRunRecordFuzzValidation(
+  record: ReproducibleFixtureRunRecord,
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const validate = resolveReproducibleFixtureRunRecordValidator(record);
+  const baseline = validate(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: ReproducibleFixtureRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  if (record.provenance.sliceAtom === "P01-B07-A06") {
+    mutations.push({ kind: "wrong_slice_atom" }, { kind: "wrong_slice_categories" });
+  }
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyReproducibleFixtureRunRecordFuzzMutation(record, mutation);
+    const validation = validate(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
   };
 }
