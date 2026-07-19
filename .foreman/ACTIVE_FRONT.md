@@ -44,7 +44,7 @@ fallback: recoverVisionerGrounding requires orchestrator seam change ise BLOCKED
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B04-A02
-last_commit: pending
+last_commit: 2d433de
 tests: PASS — forge-p02-visioner-grounding.test.ts (7/7); forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-*.test.ts (139/139)
 evidence: validateVisionerGroundingContractCoverage valid=true; 23 probes 8 categories; gap=vgrd.structured_grounding_recovery; contractAtom=P02-B04-A05
 next: P02-B04-A03
