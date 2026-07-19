@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B03-A04
-last_commit: pending
+last_commit: 319c4c4
 tests: PASS — forge-p05-worker-edit-engine-boundary.test.ts (7/7), production (5/5), baseline (8/8), contract (8/8) — 28 total
 evidence: assessEditPathBoundary + assessEditOccurrenceBoundary + normalizeEditRequestPath + runWorkerEditEngineBoundarySlice; 7/7 boundary probes aligned
 next: P05-B03-A05
