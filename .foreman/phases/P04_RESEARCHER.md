@@ -63,7 +63,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B04-A07 — Benchmark ve prior-art analizi: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B04-A08 — Benchmark ve prior-art analizi: Forge entegrasyonu ile regression testini tamamla
 - [x] P04-B04-A09 — Benchmark ve prior-art analizi: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P04-B04-A10 — Benchmark ve prior-art analizi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P04-B04-A10 — Benchmark ve prior-art analizi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B05 — Citation ve provenance graph
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B04-A09
-last_commit: 4367124
-tests: PASS — forge-p04-researcher-benchmark-prior-art.guard.test.ts (8/8); forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); forge-p04-researcher-benchmark-prior-art.property-fuzz.test.ts (6/6); forge-pipeline-regression.integration.test.ts P04-B04-A08 guard (5/5); validateForgeResearcherBenchmarkPriorArtGuard; verifyForgeResearcherBenchmarkPriorArtGuard
-evidence: adversarial/performance/cost/safety guard controls reject tampered benchmark prior-art records; orchestrator emits researcher_benchmark_prior_art_guard verification with adversarial=3/3
-next: P04-B04-A10
+last_atom: P04-B04-A10
+last_commit: 56000d9
+tests: PASS — forge-p04-researcher-benchmark-prior-art-block-gate.test.ts (7/7); forge-p04-researcher-benchmark-prior-art*.test.ts (48/48); runForgeResearcherBenchmarkPriorArtBlockGate; verifyForgeResearcherBenchmarkPriorArtBlockGate
+evidence: block gate seals 10/10 atoms; regression+guard PASS; handoff=PASS→P04-B05 entry=P04-B05-A01
+next: P04-B05-A01

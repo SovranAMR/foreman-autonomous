@@ -1765,6 +1765,25 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher benchmark prior-art block gate and emit verification event (P04-B04-A10).
+   */
+  async verifyForgeResearcherBenchmarkPriorArtBlockGate(): Promise<
+    import("./forge-p04-researcher-benchmark-prior-art.probe.js").ForgeResearcherBenchmarkPriorArtBlockGateResult
+  > {
+    const { runForgeResearcherBenchmarkPriorArtBlockGate } = await import(
+      "./forge-p04-researcher-benchmark-prior-art.probe.js"
+    );
+    const result = runForgeResearcherBenchmarkPriorArtBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "researcher_benchmark_prior_art_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

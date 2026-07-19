@@ -9,6 +9,7 @@
  * null-byte guard, non-fatal research BLOCK, prior-art recovery and validator export paths.
  * A06 slice: evidence, telemetry and provenance run record for failure/recovery/NO-GO probes.
  * A07 slice: unit, property and fuzz validation for benchmark prior-art contract and run records.
+ * A10 slice: block gate evidence seal and P04-B05 handoff contract.
  */
 
 import { readFileSync } from "node:fs";
@@ -17,7 +18,12 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import researcherBenchmarkPriorArtBaseline from "./fixtures/forge-researcher-benchmark-prior-art-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP04B03ToB04Handoff,
   getActiveResearcherWebPrimarySourceContract,
@@ -3330,5 +3336,246 @@ export function validateForgeResearcherBenchmarkPriorArtGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P04-B04-A10) ─────────────────────────────────────
+
+export interface ResearcherBenchmarkPriorArtBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface ResearcherBenchmarkPriorArtBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    benchmarkPriorArtCategories: readonly ResearcherBenchmarkPriorArtCategory[];
+    sourceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    benchmarkPriorArtRecordRequired: true;
+  };
+}
+
+export const FORGE_P04_B04_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P04-B04-A10",
+  blockId: "P04-B04",
+  title: "Benchmark ve prior-art analizi",
+  requiredAtomIds: [
+    "P04-B04-A01",
+    "P04-B04-A02",
+    "P04-B04-A03",
+    "P04-B04-A04",
+    "P04-B04-A05",
+    "P04-B04-A06",
+    "P04-B04-A07",
+    "P04-B04-A08",
+    "P04-B04-A09",
+    "P04-B04-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P04-B04-A01",
+      description:
+        "Benchmark prior-art baseline aligns with typed contract and P04-B03 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P04-B04-A02",
+      description: "Contract declares measurable probes for all benchmark prior-art categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P04-B04-A03",
+      description: "Benchmark prior-art probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P04-B04-A04",
+      description:
+        "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P04-B04-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P04-B04-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P04-B04-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P04-B04-A08",
+      description: "Regression gate passes on canonical benchmark prior-art matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P04-B04-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P04-B04-A10",
+      description: "Block gate evidence sealed with valid B05 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P04_B04_TO_B05_HANDOFF_V1: ResearcherBenchmarkPriorArtBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P04-B04-A10",
+  sourceBlock: {
+    blockId: "P04-B04",
+    title: "Benchmark ve prior-art analizi",
+    completedAtoms: FORGE_P04_B04_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P04-B05",
+    title: "Citation ve provenance graph",
+    entryAtom: "P04-B05-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_CONTRACT_V1.version,
+    harnessVersion: FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION,
+    probeCount: summarizeResearcherBenchmarkPriorArtContractCoverage(
+      FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_CONTRACT_V1,
+    ).totalProbes,
+    benchmarkPriorArtCategories: RESEARCHER_BENCHMARK_PRIOR_ART_CATEGORIES,
+    sourceBlockGateAtom: "P04-B03-A10",
+  },
+  prerequisites: [
+    "Benchmark prior-art contract v1 with measurable benchmark signal, prior-art and guard probes",
+    "Versioned benchmark prior-art baseline aligned to contract probe matrix and sealed P04-B03 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P04-B03 web primary-source block gate referenced by sourceBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P04-B05-A01 formalizes citation and provenance graph using sealed benchmark prior-art artifacts",
+    requiresBlockGatePass: true,
+    benchmarkPriorArtRecordRequired: true,
+  },
+};
+
+export function getForgeP04B04BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P04_B04_BLOCK_GATE_V1;
+}
+
+export function getForgeP04B04ToB05Handoff(): ResearcherBenchmarkPriorArtBlockHandoffContract {
+  return FORGE_P04_B04_TO_B05_HANDOFF_V1;
+}
+
+export function validateResearcherBenchmarkPriorArtBlockHandoffContract(
+  handoff: ResearcherBenchmarkPriorArtBlockHandoffContract,
+  evidence: Pick<
+    ResearcherBenchmarkPriorArtBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: ResearcherBenchmarkPriorArtContract = getActiveResearcherBenchmarkPriorArtContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeResearcherBenchmarkPriorArtContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.benchmarkPriorArtCategories.length !==
+    RESEARCHER_BENCHMARK_PRIOR_ART_CATEGORIES.length
+  ) {
+    issues.push("handoff benchmarkPriorArtCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceBlockGateAtom !== "P04-B03-A10") {
+    issues.push(`unexpected source block gate atom: ${handoff.sealedArtifacts.sourceBlockGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P04-B05-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildResearcherBenchmarkPriorArtBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P04_B04_BLOCK_GATE_V1.blockId,
+): ResearcherBenchmarkPriorArtBlockGateEvidence {
+  const handoff = getForgeP04B04ToB05Handoff();
+  const handoffValid = validateResearcherBenchmarkPriorArtBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P04-B04-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }

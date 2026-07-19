@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
-active_block: P04-B04
-active_atom: P04-B04-A10
+active_block: P04-B05
+active_atom: P04-B05-A01
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 339/1000
-phase_progress: 39/100
-block_progress: 9/10
+program_progress: 340/1000
+phase_progress: 40/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B04-A10 — Benchmark ve prior-art analizi: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P04-B05-A01 — Citation ve provenance graph: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P04-B04-A09 PASS; guard controls exercised against benchmark prior-art regression gate record.
-target: Forge benchmark prior-art block gate seal and P04-B05 handoff contract.
-hypothesis: Block gate evidence seals all ten atoms with valid regression and guard metrics.
-acceptance: runForgeResearcherBenchmarkPriorArtBlockGate passes; handoff contract validates P04-B05 entry.
-commands: npx tsx --test src/forge-p04-researcher-benchmark-prior-art*.test.ts
-blast_radius: src/forge-p04-researcher-benchmark-prior-art*.ts
-rollback: P04-B04-A10 block gate değişikliklerini geri al.
+objective: P04-B04-A10 PASS; block gate sealed with valid P04-B05 handoff contract.
+target: Forge citation provenance graph baseline fixture aligned to sealed P04-B04 block gate.
+hypothesis: Baseline fixture captures citation/provenance graph probe matrix with measurable FAIL gaps.
+acceptance: loadResearcherCitationProvenanceGraphBaseline validates; probe matrix runs with documented gaps.
+commands: npx tsx --test src/forge-p04-researcher-citation-provenance-graph*.test.ts
+blast_radius: src/forge-p04-researcher-citation-provenance-graph*.ts
+rollback: P04-B05-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B04-A09
-last_commit: 4367124
-tests: PASS — forge-p04-researcher-benchmark-prior-art.guard.test.ts (8/8); forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); forge-p04-researcher-benchmark-prior-art.property-fuzz.test.ts (6/6); forge-pipeline-regression.integration.test.ts P04-B04-A08 guard (5/5); validateForgeResearcherBenchmarkPriorArtGuard; verifyForgeResearcherBenchmarkPriorArtGuard
-evidence: adversarial/performance/cost/safety guard controls reject tampered benchmark prior-art records; orchestrator emits researcher_benchmark_prior_art_guard verification with adversarial=3/3
-next: P04-B04-A10
+last_atom: P04-B04-A10
+last_commit: 56000d9
+tests: PASS — forge-p04-researcher-benchmark-prior-art-block-gate.test.ts (7/7); forge-p04-researcher-benchmark-prior-art*.test.ts (48/48); runForgeResearcherBenchmarkPriorArtBlockGate; verifyForgeResearcherBenchmarkPriorArtBlockGate
+evidence: block gate seals 10/10 atoms; regression+guard PASS; handoff=PASS→P04-B05 entry=P04-B05-A01
+next: P04-B05-A01
