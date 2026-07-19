@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B07
-active_atom: P03-B07-A09
+active_atom: P03-B07-A10
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 267/1000
-phase_progress: 68/100
-block_progress: 8/10
+program_progress: 268/1000
+phase_progress: 69/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B07-A09 — Parallel execution wave planı: adversarial, performance, cost ve safety kontrolünü geçir.
+P03-B07-A10 — Parallel execution wave planı: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P03-B07-A08 PASS; P03-B07-A09 implement guard controls and adversarial/performance/cost/safety gate.
-target: validateForgeStrategistParallelWaveGuard, runStrategistParallelWaveAdversarialGuardChecks.
-hypothesis: P03-B07-A09 wires guard controls rejecting tampered records, false alignment and unsafe probe output.
-acceptance: guard passes on canonical run; adversarial scenarios rejected; performance/cost/safety within bounds.
+objective: P03-B07-A09 PASS; P03-B07-A10 seal block gate evidence and handoff to P03-B08.
+target: sealStrategistParallelWaveBlockGate, validateStrategistParallelWaveBlockHandoff.
+hypothesis: P03-B07-A10 wires block gate seal with regression+guard PASS and valid P03-B08 handoff contract.
+acceptance: block gate sealed; handoff valid; probe count and atom seals match B07 completion.
 commands: npx tsx --test src/forge-p03-strategist-parallel-wave*.test.ts
 blast_radius: src/forge-p03-strategist-parallel-wave.ts
-rollback: P03-B07-A09 guard slice değişikliklerini geri al.
+rollback: P03-B07-A10 block gate slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Guard blocked ise BLOCKED raporla.
+fallback: Block gate blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B07-A08
-last_commit: a32c2e4
-tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (36/36); regression gate PASS; probe regression detection 7/7
-evidence: runStrategistParallelWaveForgeRegression; detectStrategistParallelWaveProbeRegression; validateStrategistParallelWaveProbeRegression
-next: P03-B07-A09
+last_atom: P03-B07-A09
+last_commit: PENDING
+tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (43/43); guard adversarial 3/3; performance/cost/safety PASS
+evidence: validateForgeStrategistParallelWaveGuard; runStrategistParallelWaveAdversarialGuardChecks; runForgeStrategistParallelWaveRegressionGate
+next: P03-B07-A10

@@ -101,7 +101,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B07-A06 — Parallel execution wave planı: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B07-A07 — Parallel execution wave planı: unit, property ve fuzz doğrulamasını ekle
 - [x] P03-B07-A08 — Parallel execution wave planı: Forge entegrasyonu ile regression testini tamamla
-- [ ] P03-B07-A09 — Parallel execution wave planı: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P03-B07-A09 — Parallel execution wave planı: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B07-A10 — Parallel execution wave planı: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P03-B08 — Replan ve plan repair
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B07-A08
-last_commit: a32c2e4
-tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (36/36); regression gate PASS; probe regression detection 7/7
-evidence: runStrategistParallelWaveForgeRegression; detectStrategistParallelWaveProbeRegression; validateStrategistParallelWaveProbeRegression
-next: P03-B07-A09
+last_atom: P03-B07-A09
+last_commit: PENDING
+tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (43/43); guard adversarial 3/3; performance/cost/safety PASS
+evidence: validateForgeStrategistParallelWaveGuard; runStrategistParallelWaveAdversarialGuardChecks; runForgeStrategistParallelWaveRegressionGate
+next: P03-B07-A10

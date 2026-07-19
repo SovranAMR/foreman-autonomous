@@ -17,6 +17,16 @@ import {
   detectStrategistParallelWaveProbeRegression,
   runStrategistParallelWaveProbeRegression,
   validateStrategistParallelWaveProbeRegression,
+  buildStrategistParallelWaveAdversarialGuardScenarios,
+  detectStrategistParallelWaveFalseAlignment,
+  detectStrategistParallelWaveEvidenceSummaryMismatch,
+  runStrategistParallelWaveAdversarialGuardChecks,
+  validateForgeStrategistParallelWaveGuard,
+  validateStrategistParallelWavePerformance,
+  validateStrategistParallelWaveCost,
+  validateStrategistParallelWaveSafety,
+  getForgeStrategistParallelWaveGuardControls,
+  runForgeStrategistParallelWaveRegressionGate,
   applyStrategistParallelWaveRunRecordFuzzMutation,
   createStrategistParallelWaveFuzzRng,
   buildStrategistParallelWaveProbeEvidence,
@@ -736,5 +746,185 @@ describe("Forge Strategist Parallel Wave Regression — P03-B07-A08", () => {
 
     const report = detectStrategistParallelWaveProbeRegression(prior, tamperedCurrent);
     assert.equal(report.hasRegression, true);
+  });
+});
+
+describe("Forge Strategist Parallel Wave Guard — P03-B07-A09 adversarial", () => {
+  it("rejects tampered records via adversarial scenarios", () => {
+    const record = runStrategistParallelWaveProbesWithRecord();
+    const contract = getActiveStrategistParallelWaveContract();
+    const adversarial = runStrategistParallelWaveAdversarialGuardChecks(record, contract);
+
+    assert.equal(adversarial.total, 3);
+    assert.equal(adversarial.rejected, 3, adversarial.failures.join("; "));
+    assert.deepEqual(adversarial.failures, []);
+  });
+
+  it("detects false alignment and summary/evidence mismatch", () => {
+    const falsePassEvidence = buildStrategistParallelWaveProbeEvidence(
+      "swave.version_tagged",
+      "wave_versioning",
+      "PASS",
+      "FAIL",
+      true,
+      "test",
+      "false pass claim",
+      "observed",
+      "2026-07-19T08:00:00.000Z",
+    );
+    const fixture = loadStrategistParallelWaveBaseline();
+    const contract = getActiveStrategistParallelWaveContract();
+    const falsePassRecord = buildStrategistParallelWaveRunRecord(
+      buildStrategistParallelWaveProvenance(
+        "adv-false-pass",
+        fixture,
+        contract,
+        "2026-07-19T08:00:00.000Z",
+        "2026-07-19T08:00:01.000Z",
+        1,
+      ),
+      [falsePassEvidence],
+      [buildStrategistParallelWaveProbeTelemetry("swave.version_tagged", "wave_versioning", 0, 1)],
+    );
+    assert.ok(detectStrategistParallelWaveFalseAlignment(falsePassRecord).length > 0);
+
+    const summaryEvidence = buildStrategistParallelWaveProbeEvidence(
+      "swave.version_tagged",
+      "wave_versioning",
+      "PASS",
+      "FAIL",
+      false,
+      "test",
+      "summary tamper",
+      "observed",
+      "2026-07-19T08:00:00.000Z",
+    );
+    const summaryRecord = buildStrategistParallelWaveRunRecord(
+      buildStrategistParallelWaveProvenance(
+        "adv-summary",
+        fixture,
+        contract,
+        "2026-07-19T08:00:00.000Z",
+        "2026-07-19T08:00:01.000Z",
+        1,
+      ),
+      [summaryEvidence],
+      [buildStrategistParallelWaveProbeTelemetry("swave.version_tagged", "wave_versioning", 0, 1)],
+    );
+    const mismatchedSummary = {
+      ...summaryRecord,
+      summary: { ...summaryRecord.summary, mismatches: 0, aligned: 1 },
+    };
+    assert.ok(detectStrategistParallelWaveEvidenceSummaryMismatch(mismatchedSummary));
+  });
+
+  it("buildStrategistParallelWaveAdversarialGuardScenarios cover false PASS attack vectors", () => {
+    const scenarios = buildStrategistParallelWaveAdversarialGuardScenarios();
+    assert.equal(scenarios.length, 3);
+    assert.ok(scenarios.some(s => s.id.includes("false_alignment")));
+    assert.ok(scenarios.some(s => s.id.includes("summary_mismatch")));
+    assert.ok(scenarios.some(s => s.id.includes("dropped_probe")));
+  });
+});
+
+describe("Forge Strategist Parallel Wave Guard — P03-B07-A09 performance, cost, safety", () => {
+  it("passes performance and zero-cost guard on canonical parallel wave run", () => {
+    const record = runStrategistParallelWaveProbesWithRecord();
+    const contract = getActiveStrategistParallelWaveContract();
+    const guard = validateForgeStrategistParallelWaveGuard(record, {
+      totalCostUsd: 0,
+      llmCalls: 0,
+      contract,
+    });
+
+    assert.equal(guard.passed, true, guard.issues.map(i => i.detail).join("; "));
+    assert.ok(guard.metrics.suiteDurationMs >= 0);
+    assert.ok(
+      guard.metrics.maxProbeDurationMs <
+        getForgeStrategistParallelWaveGuardControls().performance.maxProbeDurationMs,
+    );
+    assert.equal(guard.metrics.totalCostUsd, 0);
+    assert.equal(guard.metrics.llmCalls, 0);
+    assert.equal(guard.metrics.adversarialScenariosRejected, 3);
+  });
+
+  it("flags cost and performance budget violations", () => {
+    const fixture = loadStrategistParallelWaveBaseline();
+    const contract = getActiveStrategistParallelWaveContract();
+    const probeIds = listStrategistParallelWaveContractProbeIds(contract);
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistParallelWaveProbeEvidence(
+        id,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "ok",
+        probe.disposition,
+      );
+    });
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistParallelWaveProbeTelemetry(id, probe.category, index, 10_000);
+    });
+    const record = buildStrategistParallelWaveRunRecord(
+      buildStrategistParallelWaveProvenance(
+        "perf-test",
+        fixture,
+        contract,
+        "2026-07-19T08:00:00.000Z",
+        "2026-07-19T08:00:01.000Z",
+        probeIds.length,
+      ),
+      evidence,
+      telemetry,
+    );
+
+    const perfIssues = validateStrategistParallelWavePerformance(record);
+    assert.ok(perfIssues.some(i => i.domain === "performance"));
+
+    const costIssues = validateStrategistParallelWaveCost(0.05, 2);
+    assert.ok(costIssues.some(i => i.domain === "cost"));
+  });
+
+  it("flags forbidden secret patterns in evidence detail", () => {
+    const fixture = loadStrategistParallelWaveBaseline();
+    const contract = getActiveStrategistParallelWaveContract();
+    const evidence = buildStrategistParallelWaveProbeEvidence(
+      "swave.version_tagged",
+      "wave_versioning",
+      "PASS",
+      "PASS",
+      true,
+      "ok",
+      "leaked sk-abcdefghijklmnopqrstuvwxyz1234567890",
+      "observed",
+    );
+    const record = buildStrategistParallelWaveRunRecord(
+      buildStrategistParallelWaveProvenance(
+        "safety-test",
+        fixture,
+        contract,
+        "2026-07-19T08:00:00.000Z",
+        "2026-07-19T08:00:01.000Z",
+        1,
+      ),
+      [evidence],
+      [buildStrategistParallelWaveProbeTelemetry("swave.version_tagged", "wave_versioning", 0, 1)],
+    );
+
+    const safetyIssues = validateStrategistParallelWaveSafety(record);
+    assert.ok(safetyIssues.some(i => i.code === "forbidden_pattern"));
+  });
+
+  it("runForgeStrategistParallelWaveRegressionGate passes guard on canonical run", () => {
+    const gate = runForgeStrategistParallelWaveRegressionGate();
+
+    assert.equal(gate.passed, true, gate.detail);
+    assert.equal(gate.guard.passed, true);
+    assert.ok(gate.detail.includes("guard:"));
+    assert.equal(gate.guard.metrics.adversarialScenariosRejected, 3);
   });
 });
