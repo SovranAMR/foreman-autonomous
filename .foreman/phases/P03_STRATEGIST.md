@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 72
+completed_atoms: 88
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
