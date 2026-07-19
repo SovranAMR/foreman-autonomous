@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 8
-completed_atoms: 88
+completed_atoms: 89
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -132,7 +132,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B10 — Entegre Forge baseline gate
 
-- [ ] P01-B10-A01 — Entegre Forge baseline gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B10-A01 — Entegre Forge baseline gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B10-A02 — Entegre Forge baseline gate: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B10-A03 — Entegre Forge baseline gate: en küçük üretim dikey dilimini uygula
 - [ ] P01-B10-A04 — Entegre Forge baseline gate: boundary ve edge-case davranışlarını tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B09-A10
-last_commit: bc93927
-tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (43/43); block gate 10/10 seals; handoff→P01-B10; verifyForgeOrchestratorSeamBlockGate wired
+last_atom: P01-B10-A01
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (3/3); 24 probes; 8 documented FAIL gaps; B09 handoff aligned
 evidence: |
-  P01-B09-A10: FORGE_P01_B09_BLOCK_GATE_V1, FORGE_P01_B09_TO_B10_HANDOFF_V1,
-  runForgeOrchestratorSeamBlockGate, verifyForgeOrchestratorSeamBlockGate in orchestrator.ts;
-  block gate tests in forge-orchestrator-seam-block-gate.test.ts.
-next: P01-B10-A01
+  P01-B10-A01: forge-integrated-baseline-v1.json, forge-integrated-baseline.ts,
+  forge-integrated-baseline.probe.ts; runIntegratedBaselineProbes, validateIntegratedBaseline,
+  SEALED_FORGE_BLOCK_INVENTORY (9 blocks B01–B09); sourceOrchestratorSeam from B09-A10 handoff.
+next: P01-B10-A02

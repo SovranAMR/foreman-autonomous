@@ -6,8 +6,8 @@ active_phase: P01
 active_block: P01-B10
 active_atom: P01-B10-A01
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 89/1000
-phase_progress: 88/100
+program_progress: 90/1000
+phase_progress: 89/100
 block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B10-A01 — Entegre Forge baseline gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P01-B10-A02 — Entegre Forge baseline gate: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: B09 block gate sealed; integrated Forge baseline gate baseline measurement on sealed B09 handoff.
-target: forge-integrated-baseline baseline fixture + probe matrix with documented gaps from B09 sealed handoff.
-hypothesis: B09 orchestrator seam block gate + sealed artifacts sufficient for B10 baseline fixture.
-acceptance: baseline loads; probes measure current integrated gate behavior; failing gaps documented.
+objective: B10-A01 baseline fixture sealed; typed integrated gate contract with measurable acceptance criteria.
+target: FORGE_INTEGRATED_BASELINE_CONTRACT_V1 + category contracts aligned to 24-probe A01 matrix.
+hypothesis: A01 fixture + B09 handoff sufficient to declare typed integrated gate contract.
+acceptance: contract covers all categories; probe ids align with fixture; criteria measurable.
 commands: npx tsx --test src/forge-integrated-baseline*.test.ts
-blast_radius: src/forge-integrated-baseline.ts, src/fixtures/
-rollback: B10-A01 baseline değişikliklerini geri al.
+blast_radius: src/forge-integrated-baseline.ts
+rollback: B10-A02 contract değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: B09 block gate invalid ise BLOCKED raporla.
+fallback: A01 baseline invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B09-A10
-last_commit: e139e43
-tests: PASS — forge-orchestrator-seam*.test.ts (43/43); block gate 10/10 seals; handoff→P01-B10; verifyForgeOrchestratorSeamBlockGate wired
-evidence: runForgeOrchestratorSeamBlockGate + verifyForgeOrchestratorSeamBlockGate in orchestrator.ts; forge-orchestrator-seam-block-gate.test.ts
-next: P01-B10-A01
+last_atom: P01-B10-A01
+last_commit: pending
+tests: PASS — forge-integrated-baseline*.test.ts (3/3); 24 probes; 8 documented FAIL gaps; B09 handoff aligned
+evidence: forge-integrated-baseline-v1.json, runIntegratedBaselineProbes, validateIntegratedBaseline, SEALED_FORGE_BLOCK_INVENTORY
+next: P01-B10-A02

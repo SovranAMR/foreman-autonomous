@@ -1,0 +1,552 @@
+/**
+ * FOREMAN — Integrated Forge Baseline Probe Harness (P01-B10-A01)
+ *
+ * Static probes for integrated baseline gate measurement.
+ */
+
+import { readFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import integratedBaselineFixture from "./fixtures/forge-integrated-baseline-v1.json" with { type: "json" };
+import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import {
+  getForgeP01B09ToB10Handoff,
+  getActiveOrchestratorSeamContract,
+  summarizeOrchestratorSeamContractCoverage,
+  ORCHESTRATOR_FORGE_GUARD_METHODS,
+} from "./forge-orchestrator-seam.js";
+import {
+  FORGE_INTEGRATED_BASELINE_VERSION,
+  INTEGRATED_BASELINE_CATEGORIES,
+  SEALED_FORGE_BLOCK_INVENTORY,
+  EXPECTED_SEALED_BLOCK_COUNT,
+  INTEGRATED_FORGE_REGRESSION_METHODS,
+  INTEGRATED_FORGE_BLOCK_GATE_METHODS,
+  validateIntegratedBaseline,
+  type IntegratedBaseline,
+  type IntegratedBaselineCategory,
+  type IntegratedBaselineProbeResult,
+} from "./forge-integrated-baseline.js";
+
+export type { IntegratedBaseline, IntegratedBaselineProbeResult } from "./forge-integrated-baseline.js";
+export {
+  FORGE_INTEGRATED_BASELINE_VERSION,
+  INTEGRATED_BASELINE_CATEGORIES,
+  SEALED_FORGE_BLOCK_INVENTORY,
+  EXPECTED_SEALED_BLOCK_COUNT,
+  INTEGRATED_FORGE_REGRESSION_METHODS,
+  INTEGRATED_FORGE_BLOCK_GATE_METHODS,
+  validateIntegratedBaseline,
+  summarizeIntegratedBaselineMatrix,
+  listIntegratedBaselineProbesByExpected,
+  listIntegratedBaselineKnownGaps,
+  buildDefaultIntegratedSourceOrchestratorSeam,
+} from "./forge-integrated-baseline.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SRC_ROOT = join(__dirname);
+const FIXTURES_ROOT = join(SRC_ROOT, "fixtures");
+
+function readSrc(relativePath: string): string {
+  return readFileSync(join(SRC_ROOT, relativePath), "utf8");
+}
+
+function outcome(ok: boolean): ForgeAcceptanceOutcome {
+  return ok ? "PASS" : "FAIL";
+}
+
+function probe(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+  ok: boolean,
+  detail: string,
+  criterion?: string,
+): IntegratedBaselineProbeResult {
+  const actual = outcome(ok);
+  return {
+    id,
+    category,
+    expected,
+    actual,
+    aligned: actual === expected,
+    detail,
+    criterion,
+  };
+}
+
+function orchestratorSource(): string {
+  return readSrc("orchestrator.ts");
+}
+
+function integratedBaselineSource(): string {
+  return readSrc("forge-integrated-baseline.ts") + readSrc("forge-integrated-baseline.probe.ts");
+}
+
+function hasProductionExport(functionName: string): boolean {
+  return new RegExp(`export function ${functionName}\\b`).test(integratedBaselineSource());
+}
+
+function countOrchestratorMethods(methodNames: readonly string[]): number {
+  const src = orchestratorSource();
+  return methodNames.filter(name => new RegExp(`\\basync ${name}\\(`).test(src)).length;
+}
+
+function probeGateVersioning(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+  fixture: IntegratedBaseline,
+): IntegratedBaselineProbeResult {
+  switch (id) {
+    case "ibase.version_tagged": {
+      const ok = fixture.version === "1.0.0";
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `version=${fixture.version}`,
+        "Integrated baseline declares semver version field",
+      );
+    }
+    case "ibase.atom_tagged": {
+      const ok = fixture.atom === "P01-B10-A01";
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `atom=${fixture.atom}`,
+        "Integrated baseline declares P01-B10-A01 atom id",
+      );
+    }
+    case "ibase.harness_version_exported": {
+      const ok = FORGE_INTEGRATED_BASELINE_VERSION.startsWith("1.0.0");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `harnessVersion=${FORGE_INTEGRATED_BASELINE_VERSION}`,
+        "FORGE_INTEGRATED_BASELINE_VERSION exported for integrated gate harness",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown gate_versioning probe");
+  }
+}
+
+function probeBlockInventory(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+): IntegratedBaselineProbeResult {
+  switch (id) {
+    case "ibase.nine_blocks_sealed": {
+      const found = countOrchestratorMethods(INTEGRATED_FORGE_BLOCK_GATE_METHODS);
+      const ok = found === EXPECTED_SEALED_BLOCK_COUNT;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `found=${found}/${EXPECTED_SEALED_BLOCK_COUNT}`,
+        "Orchestrator exposes nine verifyForge*BlockGate methods for sealed P01 blocks",
+      );
+    }
+    case "ibase.block_fixture_registry": {
+      const missing = SEALED_FORGE_BLOCK_INVENTORY.filter(
+        entry => !existsSync(join(FIXTURES_ROOT, entry.fixture)),
+      );
+      const ok = missing.length === 0;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        ok ? `fixtures=${EXPECTED_SEALED_BLOCK_COUNT}` : `missing=${missing.map(m => m.fixture).join(",")}`,
+        "All nine sealed block baseline fixtures exist under src/fixtures",
+      );
+    }
+    case "ibase.unified_block_catalog": {
+      const ok =
+        hasProductionExport("getSealedForgeBlockCatalog") ||
+        /\binterface SealedForgeBlockCatalog\b/.test(integratedBaselineSource());
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `catalog=${ok}`,
+        "Central SealedForgeBlockCatalog type exports canonical block inventory for integrated gate",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown block_inventory probe");
+  }
+}
+
+function probeRegressionIntegration(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+): IntegratedBaselineProbeResult {
+  const src = orchestratorSource();
+  switch (id) {
+    case "ibase.nine_regression_methods": {
+      const found = countOrchestratorMethods(INTEGRATED_FORGE_REGRESSION_METHODS);
+      const ok = found === INTEGRATED_FORGE_REGRESSION_METHODS.length;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `found=${found}/${INTEGRATED_FORGE_REGRESSION_METHODS.length}`,
+        "Orchestrator exposes nine verifyForge*Regression methods including orchestrator seam",
+      );
+    }
+    case "ibase.orchestrator_seam_regression_wired": {
+      const section = src.slice(src.indexOf("verifyForgeOrchestratorSeamRegression"));
+      const ok =
+        section.includes("forge-orchestrator-seam.probe.js") &&
+        section.includes("runForgeOrchestratorSeamRegressionGate");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `seamRegressionWired=${ok}`,
+        "verifyForgeOrchestratorSeamRegression lazy-loads orchestrator seam regression gate",
+      );
+    }
+    case "ibase.unified_regression_runner": {
+      const ok = /\basync verifyForgeIntegratedRegression\(/.test(src);
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `integratedRegression=${ok}`,
+        "Orchestrator exposes verifyForgeIntegratedRegression for cross-block integrated baseline gate",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown regression_integration probe");
+  }
+}
+
+function probeGuardIntegration(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+): IntegratedBaselineProbeResult {
+  const src = orchestratorSource();
+  switch (id) {
+    case "ibase.orchestrator_guard_methods": {
+      const found = countOrchestratorMethods(ORCHESTRATOR_FORGE_GUARD_METHODS);
+      const ok = found >= ORCHESTRATOR_FORGE_GUARD_METHODS.length - 1;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `found=${found}/${ORCHESTRATOR_FORGE_GUARD_METHODS.length}`,
+        "Orchestrator exposes verifyForge*Guard methods for sealed block guard gates",
+      );
+    }
+    case "ibase.integrated_guard_orchestrator": {
+      const ok = /\basync verifyForgeIntegratedGuard\(/.test(src);
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `integratedGuard=${ok}`,
+        "Orchestrator exposes verifyForgeIntegratedGuard for unified adversarial guard sweep",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown guard_integration probe");
+  }
+}
+
+function probeBlockGateIntegration(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+): IntegratedBaselineProbeResult {
+  const src = orchestratorSource();
+  switch (id) {
+    case "ibase.nine_block_gate_methods": {
+      const found = countOrchestratorMethods(INTEGRATED_FORGE_BLOCK_GATE_METHODS);
+      const ok = found === INTEGRATED_FORGE_BLOCK_GATE_METHODS.length;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `found=${found}/${INTEGRATED_FORGE_BLOCK_GATE_METHODS.length}`,
+        "Orchestrator block gate inventory includes orchestrator seam block gate",
+      );
+    }
+    case "ibase.integrated_block_gate_method": {
+      const ok = /\basync verifyForgeIntegratedBlockGate\(/.test(src);
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `integratedBlockGate=${ok}`,
+        "Orchestrator exposes verifyForgeIntegratedBlockGate sealing P01 phase integrated gate",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown block_gate_integration probe");
+  }
+}
+
+function probeOrchestratorSeamLink(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+): IntegratedBaselineProbeResult {
+  switch (id) {
+    case "ibase.b09_handoff_entry": {
+      const handoff = getForgeP01B09ToB10Handoff();
+      const ok = handoff.targetBlock.entryAtom === "P01-B10-A01";
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `entryAtom=${handoff.targetBlock.entryAtom}`,
+        "FORGE_P01_B09_TO_B10_HANDOFF_V1 targets P01-B10-A01 entry atom",
+      );
+    }
+    case "ibase.b09_sealed_probe_count": {
+      const handoff = getForgeP01B09ToB10Handoff();
+      const contract = getActiveOrchestratorSeamContract();
+      const coverage = summarizeOrchestratorSeamContractCoverage(contract);
+      const ok = handoff.sealedArtifacts.probeCount === coverage.totalProbes;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `handoff=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+        "Sealed B09 handoff probeCount matches active orchestrator seam contract",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown orchestrator_seam_link probe");
+  }
+}
+
+function probeBoundary(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+  fixture: IntegratedBaseline,
+): IntegratedBaselineProbeResult {
+  switch (id) {
+    case "ibase.source_orchestrator_seam_ref": {
+      const handoff = getForgeP01B09ToB10Handoff();
+      const ok =
+        fixture.sourceOrchestratorSeam.atom === "P01-B09-A10" &&
+        fixture.sourceOrchestratorSeam.version === handoff.sealedArtifacts.fixtureVersion;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `sourceAtom=${fixture.sourceOrchestratorSeam.atom}`,
+        "Baseline fixture references sealed sourceOrchestratorSeam artifacts from B09-A10",
+      );
+    }
+    case "ibase.probe_runner_exported": {
+      const ok = hasProductionExport("runIntegratedBaselineProbes");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `runner=${ok}`,
+        "runIntegratedBaselineProbes executes contract-wired integrated probe matrix",
+      );
+    }
+    case "ibase.known_gaps_documented": {
+      const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
+      const ok = failCount >= 1;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFailGaps=${failCount}`,
+        "Baseline fixture documents at least one measurable FAIL integrated gate gap",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown boundary probe");
+  }
+}
+
+function probeFailurePath(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+  fixture: IntegratedBaseline,
+): IntegratedBaselineProbeResult {
+  switch (id) {
+    case "ibase.invalid_version_rejected": {
+      const badFixture = { ...fixture, version: "9.9.9" };
+      const validation = validateIntegratedBaseline(badFixture);
+      const ok = !validation.valid;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `rejected=${!validation.valid}`,
+        "validateIntegratedBaseline rejects unexpected fixture version",
+      );
+    }
+    case "ibase.min_category_probes": {
+      const sparse = {
+        ...fixture,
+        probes: fixture.probes.filter(p => p.category !== "nogo_path"),
+      };
+      const validation = validateIntegratedBaseline(sparse);
+      const ok = !validation.valid && validation.issues.some(i => i.kind === "underflow");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `underflowDetected=${validation.issues.some(i => i.kind === "underflow")}`,
+        "validateIntegratedBaseline enforces per-category minimum probe counts",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown failure_path probe");
+  }
+}
+
+function probeRecoveryPath(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+): IntegratedBaselineProbeResult {
+  switch (id) {
+    case "ibase.recovery_integrated_state_reset": {
+      const ok =
+        hasProductionExport("resetIntegratedBaselineVerificationState") ||
+        /\bintegratedBaselineVerificationState\b/.test(integratedBaselineSource() + orchestratorSource());
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `stateReset=${ok}`,
+        "Integrated gate harness resets cross-block verification state on pipeline recovery transition",
+      );
+    }
+    case "ibase.recovery_missing_b09_handoff_fallback": {
+      const ok =
+        hasProductionExport("loadIntegratedBaselineWithHandoffFallback") ||
+        hasProductionExport("resolveIntegratedBaselineHandoff");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `handoffFallback=${ok}`,
+        "Recovery loader falls back when B09 handoff artifact is missing or invalid",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown recovery_path probe");
+  }
+}
+
+function probeNogoPath(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+): IntegratedBaselineProbeResult {
+  switch (id) {
+    case "ibase.nogo_block_inventory_drift": {
+      const ok =
+        hasProductionExport("detectIntegratedBlockInventoryDrift") ||
+        hasProductionExport("validateIntegratedBlockInventoryGate");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `inventoryDriftGate=${ok}`,
+        "NO-GO gate halts eval when sealed block inventory drifts from integrated baseline",
+      );
+    }
+    case "ibase.nogo_integrated_gate_mismatch": {
+      const ok =
+        hasProductionExport("detectIntegratedGateSignatureMismatch") ||
+        hasProductionExport("validateIntegratedGateInventory");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `signatureMismatchGate=${ok}`,
+        "NO-GO gate rejects run when integrated gate probe signatures mismatch sealed inventory",
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown nogo_path probe");
+  }
+}
+
+function runSingleProbe(
+  id: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+  fixture: IntegratedBaseline,
+): IntegratedBaselineProbeResult {
+  switch (category) {
+    case "gate_versioning":
+      return probeGateVersioning(id, category, expected, fixture);
+    case "block_inventory":
+      return probeBlockInventory(id, category, expected);
+    case "regression_integration":
+      return probeRegressionIntegration(id, category, expected);
+    case "guard_integration":
+      return probeGuardIntegration(id, category, expected);
+    case "block_gate_integration":
+      return probeBlockGateIntegration(id, category, expected);
+    case "orchestrator_seam_link":
+      return probeOrchestratorSeamLink(id, category, expected);
+    case "boundary":
+      return probeBoundary(id, category, expected, fixture);
+    case "failure_path":
+      return probeFailurePath(id, category, expected, fixture);
+    case "recovery_path":
+      return probeRecoveryPath(id, category, expected);
+    case "nogo_path":
+      return probeNogoPath(id, category, expected);
+    default:
+      return probe(id, category, expected, false, `unknown category: ${category}`);
+  }
+}
+
+export function loadIntegratedBaseline(): IntegratedBaseline {
+  return integratedBaselineFixture as IntegratedBaseline;
+}
+
+export function runIntegratedBaselineProbes(
+  fixture: IntegratedBaseline = loadIntegratedBaseline(),
+): IntegratedBaselineProbeResult[] {
+  return fixture.probes.map(entry =>
+    runSingleProbe(entry.id, entry.category, entry.expected, fixture),
+  );
+}

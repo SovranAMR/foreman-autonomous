@@ -1,0 +1,159 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B10-A01",
+  "contractAtom": "P01-B10-A05",
+  "purpose": "Integrated Forge baseline gate measured from sealed B09 orchestrator seam artifacts (includes documented FAIL gaps).",
+  "sourceOrchestratorSeam": {
+    "version": "1.0.0",
+    "atom": "P01-B09-A10",
+    "contractVersion": "1.0.0",
+    "probeCount": 23,
+    "orchestratorSeamCategories": 9
+  },
+  "probes": [
+    {
+      "id": "ibase.version_tagged",
+      "category": "gate_versioning",
+      "description": "Integrated baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.atom_tagged",
+      "category": "gate_versioning",
+      "description": "Integrated baseline declares P01-B10-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.harness_version_exported",
+      "category": "gate_versioning",
+      "description": "FORGE_INTEGRATED_BASELINE_VERSION exported for integrated gate harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.nine_blocks_sealed",
+      "category": "block_inventory",
+      "description": "Orchestrator exposes nine verifyForge*BlockGate methods for sealed P01 blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.block_fixture_registry",
+      "category": "block_inventory",
+      "description": "All nine sealed block baseline fixtures exist under src/fixtures",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.unified_block_catalog",
+      "category": "block_inventory",
+      "description": "Central SealedForgeBlockCatalog type exports canonical block inventory for integrated gate",
+      "expected": "FAIL"
+    },
+    {
+      "id": "ibase.nine_regression_methods",
+      "category": "regression_integration",
+      "description": "Orchestrator exposes nine verifyForge*Regression methods including orchestrator seam",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.orchestrator_seam_regression_wired",
+      "category": "regression_integration",
+      "description": "verifyForgeOrchestratorSeamRegression lazy-loads orchestrator seam regression gate",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.unified_regression_runner",
+      "category": "regression_integration",
+      "description": "Orchestrator exposes verifyForgeIntegratedRegression for cross-block integrated baseline gate",
+      "expected": "FAIL"
+    },
+    {
+      "id": "ibase.orchestrator_guard_methods",
+      "category": "guard_integration",
+      "description": "Orchestrator exposes verifyForge*Guard methods for sealed block guard gates",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.integrated_guard_orchestrator",
+      "category": "guard_integration",
+      "description": "Orchestrator exposes verifyForgeIntegratedGuard for unified adversarial guard sweep",
+      "expected": "FAIL"
+    },
+    {
+      "id": "ibase.nine_block_gate_methods",
+      "category": "block_gate_integration",
+      "description": "Orchestrator block gate inventory includes orchestrator seam block gate",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.integrated_block_gate_method",
+      "category": "block_gate_integration",
+      "description": "Orchestrator exposes verifyForgeIntegratedBlockGate sealing P01 phase integrated gate",
+      "expected": "FAIL"
+    },
+    {
+      "id": "ibase.b09_handoff_entry",
+      "category": "orchestrator_seam_link",
+      "description": "FORGE_P01_B09_TO_B10_HANDOFF_V1 targets P01-B10-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.b09_sealed_probe_count",
+      "category": "orchestrator_seam_link",
+      "description": "Sealed B09 handoff probeCount matches active orchestrator seam contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.source_orchestrator_seam_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed sourceOrchestratorSeam artifacts from B09-A10",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.probe_runner_exported",
+      "category": "boundary",
+      "description": "runIntegratedBaselineProbes executes contract-wired integrated probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL integrated gate gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateIntegratedBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.min_category_probes",
+      "category": "failure_path",
+      "description": "validateIntegratedBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "ibase.recovery_integrated_state_reset",
+      "category": "recovery_path",
+      "description": "Integrated gate harness resets cross-block verification state on pipeline recovery transition",
+      "expected": "FAIL"
+    },
+    {
+      "id": "ibase.recovery_missing_b09_handoff_fallback",
+      "category": "recovery_path",
+      "description": "Recovery loader falls back when B09 handoff artifact is missing or invalid",
+      "expected": "FAIL"
+    },
+    {
+      "id": "ibase.nogo_block_inventory_drift",
+      "category": "nogo_path",
+      "description": "NO-GO gate halts eval when sealed block inventory drifts from integrated baseline",
+      "expected": "FAIL"
+    },
+    {
+      "id": "ibase.nogo_integrated_gate_mismatch",
+      "category": "nogo_path",
+      "description": "NO-GO gate rejects run when integrated gate probe signatures mismatch sealed inventory",
+      "expected": "FAIL"
+    }
+  ]
+}
