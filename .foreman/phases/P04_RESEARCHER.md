@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B04-A06
-last_commit: pending
+last_commit: 9dca7ca
 tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); failure/recovery evidence slice 6 probes; runResearcherBenchmarkPriorArtFailureRecoverySliceWithRecord; validateResearcherBenchmarkPriorArtEvidenceRunRecord
 evidence: runResearcherBenchmarkPriorArtEvidenceSlice; validateResearcherBenchmarkPriorArtEvidenceRunRecord; buildResearcherBenchmarkPriorArtRunRecord with telemetry and provenance
 next: P04-B04-A07
