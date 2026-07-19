@@ -44,7 +44,7 @@ fallback: Block gate blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B01-A09
-last_commit: PENDING
+last_commit: ab8f45f
 tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5), forge-p05-worker-tool-dispatch-evidence.test.ts (5/5), forge-p05-worker-tool-dispatch-property-fuzz.test.ts (6/6), forge-p05-worker-tool-dispatch-integration.test.ts (7/7), forge-p05-worker-tool-dispatch.guard.test.ts (9/9)
 evidence: validateForgeWorkerToolDispatchGuard + runWorkerToolDispatchGuardSlice; adversarial 3/3 rejected, perf/cost/safety within ceilings, guard wired into integration slice
 next: P05-B01-A10
