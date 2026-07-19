@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B06-A07
-last_commit: pending
+last_commit: 5ff7dae
 tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (26/26); property 8/8; fuzz 72/72 mutations rejected; run record fuzz 5/5 rejected
 evidence: runStrategistResourceBudgetPropertyChecks; runStrategistResourceBudgetFuzzValidation; runStrategistResourceBudgetRunRecordFuzzValidation; runStrategistResourceBudgetPropertyFuzzSlice
 next: P03-B06-A08
