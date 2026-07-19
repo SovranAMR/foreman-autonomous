@@ -44,7 +44,14 @@ import {
   buildVisionerUncertaintyRunRecord,
   validateVisionerUncertaintyRunRecord,
   validateVisionerUncertaintyFailureRecoveryRunRecord,
+  detectVisionerUncertaintyProbeRegression,
+  runVisionerUncertaintyPropertyChecks,
+  runVisionerUncertaintyFuzzValidation,
+  runVisionerUncertaintyRunRecordFuzzValidation,
   type VisionerUncertaintyBaseline,
+  type VisionerUncertaintyProbeRegressionReport,
+  type VisionerUncertaintyPropertyResult,
+  type VisionerUncertaintyFuzzValidationResult,
   type VisionerUncertaintyCategory,
   type VisionerUncertaintyProbeDisposition,
   type VisionerUncertaintyProbeResult,
@@ -87,6 +94,10 @@ export {
   buildVisionerUncertaintyRunRecord,
   validateVisionerUncertaintyRunRecord,
   validateVisionerUncertaintyFailureRecoveryRunRecord,
+  detectVisionerUncertaintyProbeRegression,
+  runVisionerUncertaintyPropertyChecks,
+  runVisionerUncertaintyFuzzValidation,
+  runVisionerUncertaintyRunRecordFuzzValidation,
 } from "./forge-p02-visioner-uncertainty.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -749,3 +760,95 @@ export function runVisionerUncertaintyFailureRecoverySliceWithRecord(
     sliceCategories: VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES,
   });
 }
+
+export interface ForgeVisionerUncertaintyRegressionPropertyFuzzResult {
+  passed: boolean;
+  properties: VisionerUncertaintyPropertyResult;
+  contractFuzz: VisionerUncertaintyFuzzValidationResult;
+  runFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface ForgeVisionerUncertaintyRegressionResult {
+  passed: boolean;
+  productionSlice: VisionerUncertaintyProductionSliceResult;
+  record: VisionerUncertaintyRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: VisionerUncertaintyProbeRegressionReport | null;
+  propertyFuzz: ForgeVisionerUncertaintyRegressionPropertyFuzzResult;
+  detail: string;
+}
+
+/**
+ * Execute visioner uncertainty probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P02-B06-A08).
+ */
+export function runForgeVisionerUncertaintyRegressionGate(
+  priorRecord?: VisionerUncertaintyRunRecord,
+): ForgeVisionerUncertaintyRegressionResult {
+  const fixture = loadVisionerUncertaintyBaseline();
+  const contract = getActiveVisionerUncertaintyContract();
+  const productionSlice = runVisionerUncertaintyProductionSlice(fixture);
+  const record = runVisionerUncertaintyProbesWithRecord(fixture);
+  const validation = validateVisionerUncertaintyRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectVisionerUncertaintyProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const properties = runVisionerUncertaintyPropertyChecks(contract);
+  const contractFuzz = runVisionerUncertaintyFuzzValidation(fixture, contract);
+  const runFuzz = runVisionerUncertaintyRunRecordFuzzValidation(record, contract);
+  const propertyFuzzPassed =
+    properties.allPassed &&
+    contractFuzz.allMutationsRejected &&
+    runFuzz.mutationsAccepted === 0;
+  const propertyFuzz: ForgeVisionerUncertaintyRegressionPropertyFuzzResult = {
+    passed: propertyFuzzPassed,
+    properties,
+    contractFuzz,
+    runFuzz: {
+      validBaseline: runFuzz.validBaseline,
+      mutationsRejected: runFuzz.mutationsRejected,
+      mutationsAccepted: runFuzz.mutationsAccepted,
+    },
+  };
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const passed = productionSliceOk && recordValid && !alignmentRegression && propertyFuzzPassed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+  );
+
+  return {
+    passed,
+    productionSlice,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    propertyFuzz,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P02-B06-A08). */
+export const runVisionerUncertaintyRegressionIntegration = runForgeVisionerUncertaintyRegressionGate;

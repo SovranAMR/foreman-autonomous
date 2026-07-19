@@ -82,6 +82,12 @@ import {
   runForgeVisionerResearchTriggerBlockGate,
 } from "./forge-p02-visioner-research-trigger.probe.js";
 import { detectVisionerResearchTriggerProbeRegression } from "./forge-p02-visioner-research-trigger.js";
+import {
+  runForgeVisionerUncertaintyRegressionGate,
+  runVisionerUncertaintyProbesWithRecord,
+  runVisionerUncertaintyRegressionIntegration,
+} from "./forge-p02-visioner-uncertainty.probe.js";
+import { detectVisionerUncertaintyProbeRegression } from "./forge-p02-visioner-uncertainty.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -1462,5 +1468,64 @@ describe("Forge Visioner Research Trigger Block Gate Integration — P02-B05-A10
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("handoff=PASS→P02-B06"));
     }
+  });
+});
+
+describe("Forge Visioner Uncertainty Regression Integration — P02-B06-A08", () => {
+  it("runForgeVisionerUncertaintyRegressionGate passes on canonical visioner uncertainty matrix", () => {
+    const result = runForgeVisionerUncertaintyRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.propertyFuzz.passed, true);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("runVisionerUncertaintyRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeVisionerUncertaintyRegressionGate();
+    const integration = runVisionerUncertaintyRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("23/23 probes aligned"));
+    assert.equal(integration.record.summary.total, 23);
+  });
+
+  it("detectVisionerUncertaintyProbeRegression flags newly misaligned probes", () => {
+    const prior = runVisionerUncertaintyProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectVisionerUncertaintyProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeVisionerUncertaintyRegressionGate compares against prior record without false regression", () => {
+    const prior = runVisionerUncertaintyProbesWithRecord();
+    const result = runForgeVisionerUncertaintyRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
   });
 });
