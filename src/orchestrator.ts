@@ -1698,6 +1698,25 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher web primary-source block gate and emit verification event (P04-B03-A10).
+   */
+  async verifyForgeResearcherWebPrimarySourceBlockGate(): Promise<
+    import("./forge-p04-researcher-web-primary-source.probe.js").ForgeResearcherWebPrimarySourceBlockGateResult
+  > {
+    const { runForgeResearcherWebPrimarySourceBlockGate } = await import(
+      "./forge-p04-researcher-web-primary-source.probe.js"
+    );
+    const result = runForgeResearcherWebPrimarySourceBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "researcher_web_primary_source_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge researcher web primary-source guard checks and emit verification event (P04-B03-A09).
    */
   async verifyForgeResearcherWebPrimarySourceGuard(

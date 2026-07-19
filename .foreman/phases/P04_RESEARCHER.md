@@ -2,8 +2,8 @@
 
 phase_id: P04
 phase_status: IN_PROGRESS
-completed_blocks: 2
-completed_atoms: 28
+completed_blocks: 3
+completed_atoms: 30
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -50,7 +50,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B03-A07 — Web ve primary-source araştırma: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B03-A08 — Web ve primary-source araştırma: Forge entegrasyonu ile regression testini tamamla
 - [x] P04-B03-A09 — Web ve primary-source araştırma: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P04-B03-A10 — Web ve primary-source araştırma: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P04-B03-A10 — Web ve primary-source araştırma: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B04 — Benchmark ve prior-art analizi
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B03-A09
-last_commit: 920daaa
-tests: PASS — forge-p04-researcher-web-primary-source.guard.test.ts (8/8); adversarial=3/3; perf/cost/safety guard; orchestrator verifyForgeResearcherWebPrimarySourceGuard
-evidence: validateForgeResearcherWebPrimarySourceGuard; runResearcherWebPrimarySourceAdversarialGuardChecks; forge-p04-researcher-web-primary-source.guard.test.ts
-next: P04-B03-A10
+last_atom: P04-B03-A10
+last_commit: 59f39b1
+tests: PASS — forge-p04-researcher-web-primary-source-block-gate.test.ts (7/7); all web-primary-source suites 58/58; seals=10/10; handoff→P04-B04
+evidence: runResearcherWebPrimarySourceBlockGate; getForgeP04B03BlockGate; getForgeP04B03ToB04Handoff; verifyForgeResearcherWebPrimarySourceBlockGate
+next: P04-B04-A01

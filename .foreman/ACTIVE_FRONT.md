@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
-active_block: P04-B03
-active_atom: P04-B03-A10
+active_block: P04-B04
+active_atom: P04-B04-A01
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 329/1000
-phase_progress: 29/100
-block_progress: 9/10
+program_progress: 330/1000
+phase_progress: 30/100
+block_progress: 10/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B03-A10 — Web ve primary-source araştırma: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P04-B04-A01 — Benchmark ve prior-art analizi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P04-B03-A09 PASS; dedicated guard suite sealed; block gate + B04 handoff.
-target: runResearcherWebPrimarySourceBlockGate, getForgeP04B03BlockGate, getForgeP04B03ToB04Handoff.
-hypothesis: Block gate seals all ten B03 atoms and prepares benchmark/prior-art entry.
-acceptance: block gate test suite PASS; handoff contract valid; A01-A09 baseline remains valid.
-commands: npx tsx --test src/forge-p04-researcher-web-primary-source*block-gate*.test.ts
-blast_radius: src/forge-p04-researcher-web-primary-source*.ts
-rollback: P04-B03-A10 block gate değişikliklerini geri al.
+objective: P04-B03-A10 PASS; block gate sealed; B04 baseline entry.
+target: loadResearcherBenchmarkPriorArtBaseline, validateResearcherBenchmarkPriorArtBaseline.
+hypothesis: Benchmark/prior-art block starts from sealed web primary-source handoff artifacts.
+acceptance: failing baseline fixture; contract alignment gate; P04-B03 block gate handoff valid.
+commands: npx tsx --test src/forge-p04-researcher-benchmark-prior-art*baseline*.test.ts
+blast_radius: src/forge-p04-researcher-benchmark-prior-art*.ts
+rollback: P04-B04-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B03-A09
-last_commit: 920daaa
-tests: PASS — forge-p04-researcher-web-primary-source.guard.test.ts (8/8); adversarial=3/3; perf/cost/safety guard; orchestrator verifyForgeResearcherWebPrimarySourceGuard
-evidence: validateForgeResearcherWebPrimarySourceGuard; runResearcherWebPrimarySourceAdversarialGuardChecks; forge-p04-researcher-web-primary-source.guard.test.ts
-next: P04-B03-A10
+last_atom: P04-B03-A10
+last_commit: 59f39b1
+tests: PASS — forge-p04-researcher-web-primary-source-block-gate.test.ts (7/7); seals=10/10; handoff→P04-B04; orchestrator verifyForgeResearcherWebPrimarySourceBlockGate
+evidence: runResearcherWebPrimarySourceBlockGate; getForgeP04B03BlockGate; getForgeP04B03ToB04Handoff; forge-p04-researcher-web-primary-source-block-gate.test.ts
+next: P04-B04-A01
