@@ -5,6 +5,7 @@ import {
   runReproducibleFixtureProbes,
   runReproducibleFixtureProductionSlice,
   runReproducibleFixtureBoundarySlice,
+  runReproducibleFixtureFailureRecoverySlice,
   validateReproducibleFixtureBaseline,
   summarizeReproducibleFixtureMatrix,
   listReproducibleFixtureProbesByExpected,
@@ -19,8 +20,11 @@ import {
   validateReproducibleFixtureBaselineAgainstContract,
   validateReproducibleFixtureProbeMatrix,
   validateReproducibleFixtureBoundaryProbeMatrix,
+  validateReproducibleFixtureFailureRecoveryProbeMatrix,
+  listReproducibleFixtureFailureRecoveryProbeIds,
   canonicalFixtureHash,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
+  REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-reproducible-fixture.probe.js";
 
 function formatMismatchReport(
@@ -324,5 +328,84 @@ describe("Forge Reproducible Fixture Boundary Slice — P01-B07-A04", () => {
     assert.equal(knownGaps!.expected, "PASS");
     assert.equal(knownGaps!.actual, "PASS");
     assert.match(knownGaps!.detail, /documentedFail=6/);
+  });
+});
+
+describe("Forge Reproducible Fixture Failure/Recovery Slice — P01-B07-A05", () => {
+  it("defines failure/recovery/NO-GO categories with disposition probes", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    const failure = listReproducibleFixtureProbesByDisposition("failure");
+    const recovery = listReproducibleFixtureProbesByCategory("recovery_path", contract);
+    const nogo = listReproducibleFixtureProbesByCategory("nogo_path", contract);
+    const failurePath = listReproducibleFixtureProbesByCategory("failure_path", contract);
+
+    assert.ok(failure.some(p => p.id === "fix.invalid_version_rejected"));
+    assert.ok(failure.some(p => p.id === "fix.min_category_probes"));
+    assert.ok(recovery.some(p => p.id === "fix.recovery_missing_fixture_file"));
+    assert.ok(recovery.some(p => p.id === "fix.recovery_baseline_reset"));
+    assert.ok(nogo.some(p => p.id === "fix.nogo_fixture_drift_gate"));
+    assert.ok(nogo.some(p => p.id === "fix.nogo_hash_mismatch_gate"));
+    assert.equal(failurePath.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    const slice = runReproducibleFixtureFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P01-B07-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 2);
+    assert.equal(slice.matrixValidation.gapAligned, 4);
+
+    for (const category of REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listReproducibleFixtureProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateReproducibleFixtureFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented gaps while exercising failure/recovery/NO-GO paths", () => {
+    const slice = runReproducibleFixtureFailureRecoverySlice();
+    const probeIds = listReproducibleFixtureFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(r => r.id === "fix.invalid_version_rejected");
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const recoveryGap = slice.failureRecoveryResults.find(r => r.id === "fix.recovery_missing_fixture_file");
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+
+    const nogoGap = slice.failureRecoveryResults.find(r => r.id === "fix.nogo_fixture_drift_gate");
+    assert.ok(nogoGap);
+    assert.equal(nogoGap!.expected, "FAIL");
+    assert.equal(nogoGap!.actual, "FAIL");
   });
 });

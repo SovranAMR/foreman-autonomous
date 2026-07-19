@@ -22,6 +22,9 @@ import {
   canonicalFixtureHash,
   validateReproducibleFixtureProbeMatrix,
   validateReproducibleFixtureBoundaryProbeMatrix,
+  validateReproducibleFixtureFailureRecoveryProbeMatrix,
+  listReproducibleFixtureFailureRecoveryProbeIds,
+  REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
   summarizeReproducibleFixtureMatrix,
   validateReproducibleFixtureBaselineAgainstContract,
   type ReproducibleFixtureBaseline,
@@ -47,8 +50,11 @@ export {
   validateReproducibleFixtureBaselineAgainstContract,
   validateReproducibleFixtureProbeMatrix,
   validateReproducibleFixtureBoundaryProbeMatrix,
+  validateReproducibleFixtureFailureRecoveryProbeMatrix,
+  listReproducibleFixtureFailureRecoveryProbeIds,
   canonicalFixtureHash,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
+  REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
   SEALED_FORGE_FIXTURE_FILES,
 } from "./forge-reproducible-fixture.js";
 
@@ -601,6 +607,41 @@ export function runReproducibleFixtureBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface ReproducibleFixtureFailureRecoverySliceResult {
+  atom: "P01-B07-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: ReproducibleFixtureProbeResult[];
+  failureRecoveryResults: ReproducibleFixtureProbeResult[];
+  matrixValidation: ReproducibleFixtureProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runReproducibleFixtureFailureRecoverySlice(
+  fixture: ReproducibleFixtureBaseline = loadReproducibleFixtureBaseline(),
+): ReproducibleFixtureFailureRecoverySliceResult {
+  const contract = getActiveReproducibleFixtureContract();
+  const results = runReproducibleFixtureProbes(fixture);
+  const failureRecoveryProbes = REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listReproducibleFixtureProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateReproducibleFixtureFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B07-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

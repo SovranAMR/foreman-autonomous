@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 62
+completed_atoms: 63
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -97,7 +97,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B07-A02 — Reproducible fixture sistemi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B07-A03 — Reproducible fixture sistemi: en küçük üretim dikey dilimini uygula
 - [x] P01-B07-A04 — Reproducible fixture sistemi: boundary ve edge-case davranışlarını tamamla
-- [ ] P01-B07-A05 — Reproducible fixture sistemi: failure, recovery ve NO-GO yollarını uygula
+- [x] P01-B07-A05 — Reproducible fixture sistemi: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B07-A06 — Reproducible fixture sistemi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B07-A07 — Reproducible fixture sistemi: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B07-A08 — Reproducible fixture sistemi: Forge entegrasyonu ile regression testini tamamla
@@ -156,11 +156,13 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B07-A04
+last_atom: P01-B07-A05
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (14/14)
+tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (17/17)
 evidence: |
-  P01-B07-A04 boundary slice: runReproducibleFixtureBoundarySlice + validateReproducibleFixtureBoundaryProbeMatrix;
-  boundaryProbeCount=3 (fix.source_benchmark_eval_ref, fix.probe_runner_exported, fix.known_gaps_documented);
-  matrixValid=true, unexpectedMismatches=0, passAligned=3; sealed B06 handoff ref and documented FAIL gaps validated.
-next: P01-B07-A05
+  P01-B07-A05 failure/recovery slice: runReproducibleFixtureFailureRecoverySlice +
+  validateReproducibleFixtureFailureRecoveryProbeMatrix;
+  failureRecoveryProbeCount=6 (failure_path=2, recovery_path=2, nogo_path=2);
+  matrixValid=true, unexpectedMismatches=0, passAligned=2, gapAligned=4;
+  documented recovery/NO-GO gaps preserved as aligned FAIL probes.
+next: P01-B07-A06
