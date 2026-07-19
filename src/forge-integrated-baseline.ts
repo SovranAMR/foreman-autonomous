@@ -1082,3 +1082,309 @@ export function listIntegratedBaselineFailureRecoveryProbeIds(
     listIntegratedBaselineContractProbesByCategory(category, contract).map(p => p.id),
   );
 }
+
+// ─── Evidence, telemetry and provenance (P01-B10-A06) ───────────────────────
+
+export interface IntegratedBaselineProbeEvidence {
+  probeId: string;
+  category: IntegratedBaselineCategory;
+  disposition: IntegratedBaselineProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+export interface IntegratedBaselineProbeTelemetry {
+  probeId: string;
+  category: IntegratedBaselineCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P01-B10-A06). */
+export interface IntegratedBaselineProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceOrchestratorSeamVersion: string;
+  sourceOrchestratorSeamAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly IntegratedBaselineCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated integrated baseline run record bundling evidence, telemetry and provenance. */
+export interface IntegratedBaselineRunRecord {
+  provenance: IntegratedBaselineProvenance;
+  evidence: IntegratedBaselineProbeEvidence[];
+  telemetry: IntegratedBaselineProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<IntegratedBaselineCategory, number>;
+    byDisposition: Record<IntegratedBaselineProbeDisposition, number>;
+  };
+}
+
+export interface IntegratedBaselineRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface IntegratedBaselineRunValidationResult {
+  valid: boolean;
+  issues: IntegratedBaselineRunValidationIssue[];
+}
+
+export function buildIntegratedBaselineProbeEvidence(
+  probeId: string,
+  category: IntegratedBaselineCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: IntegratedBaselineProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): IntegratedBaselineProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildIntegratedBaselineProbeTelemetry(
+  probeId: string,
+  category: IntegratedBaselineCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): IntegratedBaselineProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildIntegratedBaselineProvenance(
+  runId: string,
+  fixture: IntegratedBaseline,
+  contract: IntegratedBaselineContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly IntegratedBaselineCategory[];
+  },
+): IntegratedBaselineProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_INTEGRATED_BASELINE_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceOrchestratorSeamVersion: fixture.sourceOrchestratorSeam.version,
+    sourceOrchestratorSeamAtom: fixture.sourceOrchestratorSeam.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildIntegratedBaselineRunRecord(
+  provenance: IntegratedBaselineProvenance,
+  evidence: IntegratedBaselineProbeEvidence[],
+  telemetry: IntegratedBaselineProbeTelemetry[],
+): IntegratedBaselineRunRecord {
+  const byCategory = {} as Record<IntegratedBaselineCategory, number>;
+  const byDisposition: Record<IntegratedBaselineProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of INTEGRATED_BASELINE_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateIntegratedBaselineRunRecordAgainstProbeIds(
+  record: IntegratedBaselineRunRecord,
+  expectedProbeIds: string[],
+  contract: IntegratedBaselineContract,
+): IntegratedBaselineRunValidationResult {
+  const issues: IntegratedBaselineRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+
+    const contractProbe = contract.probes.find(p => p.id === item.probeId);
+    if (contractProbe) {
+      if (item.disposition !== contractProbe.disposition) {
+        issues.push({
+          kind: "provenance_mismatch",
+          probeId: item.probeId,
+          detail: `${item.probeId} disposition=${item.disposition} expected=${contractProbe.disposition}`,
+        });
+      }
+      if (item.criterion !== contractProbe.criterion) {
+        issues.push({
+          kind: "provenance_mismatch",
+          probeId: item.probeId,
+          detail: `${item.probeId} criterion mismatch`,
+        });
+      }
+      if (!item.aligned) {
+        issues.push({
+          kind: "missing_evidence",
+          probeId: item.probeId,
+          detail: `${item.probeId} probe outcome not aligned`,
+        });
+      }
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateIntegratedBaselineRunRecord(
+  record: IntegratedBaselineRunRecord,
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): IntegratedBaselineRunValidationResult {
+  return validateIntegratedBaselineRunRecordAgainstProbeIds(
+    record,
+    listIntegratedBaselineContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateIntegratedBaselineFailureRecoveryRunRecord(
+  record: IntegratedBaselineRunRecord,
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): IntegratedBaselineRunValidationResult {
+  const issues: IntegratedBaselineRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P01-B10-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P01-B10-A06`,
+    });
+  }
+
+  const expectedCategories = [...INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateIntegratedBaselineRunRecordAgainstProbeIds(
+    record,
+    listIntegratedBaselineFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}

@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 8
-completed_atoms: 93
+completed_atoms: 94
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -137,7 +137,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B10-A03 — Entegre Forge baseline gate: en küçük üretim dikey dilimini uygula
 - [x] P01-B10-A04 — Entegre Forge baseline gate: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B10-A05 — Entegre Forge baseline gate: failure, recovery ve NO-GO yollarını uygula
-- [ ] P01-B10-A06 — Entegre Forge baseline gate: evidence, telemetry ve provenance kaydını ekle
+- [x] P01-B10-A06 — Entegre Forge baseline gate: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B10-A07 — Entegre Forge baseline gate: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B10-A08 — Entegre Forge baseline gate: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B10-A09 — Entegre Forge baseline gate: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B10-A05
+last_atom: P01-B10-A06
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (16/16); runIntegratedBaselineFailureRecoverySlice; validateIntegratedBaselineFailureRecoveryProbeMatrix; passAligned=2; gapAligned=4; unexpectedMismatches=0
+tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (18/18); runIntegratedBaselineFailureRecoverySliceWithRecord; validateIntegratedBaselineFailureRecoveryRunRecord; 6 probes with disposition, criterion and aligned outcomes
 evidence: |
-  P01-B10-A05: runIntegratedBaselineFailureRecoverySlice wires contract-wired failure_path,
-  recovery_path and nogo_path probes with validateIntegratedBaselineFailureRecoveryProbeMatrix
-  (6 failure/recovery probes, 2 PASS aligned, 4 gap aligned, zero unexpected mismatches).
-next: P01-B10-A06
+  P01-B10-A06: runIntegratedBaselineFailureRecoverySliceWithRecord emits auditable evidence,
+  telemetry and provenance for failure_path, recovery_path and nogo_path probes;
+  validateIntegratedBaselineFailureRecoveryRunRecord validates 6 probes with disposition,
+  criterion and aligned outcomes (sliceAtom=P01-B10-A06, zero mismatches).
+next: P01-B10-A07

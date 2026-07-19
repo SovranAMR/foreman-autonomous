@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B10
-active_atom: P01-B10-A06
+active_atom: P01-B10-A07
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 94/1000
-phase_progress: 93/100
+program_progress: 95/1000
+phase_progress: 94/100
 block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B10-A06 — Entegre Forge baseline gate: evidence, telemetry ve provenance kaydını ekle.
+P01-B10-A07 — Entegre Forge baseline gate: unit, property ve fuzz doğrulamasını ekle.
 
-objective: A05 failure/recovery slice sealed; evidence/telemetry/provenance run record for integrated gate probes.
-target: runIntegratedBaselineFailureRecoverySliceWithRecord + validateIntegratedBaselineFailureRecoveryRunRecord.
-hypothesis: A05 failure/recovery contract probes + run record validation sufficient for evidence slice.
-acceptance: failure/recovery run record validates 6 probes with disposition, criterion and aligned outcomes.
+objective: A06 evidence slice sealed; property/fuzz validation for integrated gate run records.
+target: runIntegratedBaselineRunRecordFuzzValidation + integrated baseline structural properties.
+hypothesis: A06 run record validation + contract probes sufficient for property/fuzz slice.
+acceptance: property checks pass; fuzz mutations reject tampered integrated baseline run records.
 commands: npx tsx --test src/forge-integrated-baseline*.test.ts
 blast_radius: src/forge-integrated-baseline.ts, src/forge-integrated-baseline.probe.ts
-rollback: B10-A06 evidence slice değişikliklerini geri al.
+rollback: B10-A07 property/fuzz slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A05 failure/recovery matrix invalid ise BLOCKED raporla.
+fallback: A06 run record invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B10-A05
+last_atom: P01-B10-A06
 last_commit: pending
-tests: PASS — forge-integrated-baseline*.test.ts (16/16); runIntegratedBaselineFailureRecoverySlice; validateIntegratedBaselineFailureRecoveryProbeMatrix; 6 failure/recovery probes; passAligned=2; gapAligned=4; unexpectedMismatches=0
-evidence: runIntegratedBaselineFailureRecoverySlice, validateIntegratedBaselineFailureRecoveryProbeMatrix, contract-wired A05 failure/recovery/NO-GO vertical slice gate
-next: P01-B10-A06
+tests: PASS — forge-integrated-baseline*.test.ts (18/18); runIntegratedBaselineFailureRecoverySliceWithRecord; validateIntegratedBaselineFailureRecoveryRunRecord; 6 failure/recovery probes with disposition, criterion and aligned outcomes
+evidence: runIntegratedBaselineFailureRecoverySliceWithRecord, validateIntegratedBaselineFailureRecoveryRunRecord, contract-wired A06 evidence/telemetry/provenance vertical slice gate
+next: P01-B10-A07

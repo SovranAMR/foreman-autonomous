@@ -7,6 +7,8 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
 import integratedBaselineFixture from "./fixtures/forge-integrated-baseline-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -32,9 +34,16 @@ import {
   INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES,
   listIntegratedBaselineFailureRecoveryProbeIds,
   summarizeIntegratedBaselineMatrix,
+  buildIntegratedBaselineProbeEvidence,
+  buildIntegratedBaselineProbeTelemetry,
+  buildIntegratedBaselineProvenance,
+  buildIntegratedBaselineRunRecord,
+  validateIntegratedBaselineFailureRecoveryRunRecord,
   type IntegratedBaseline,
   type IntegratedBaselineCategory,
   type IntegratedBaselineProbeResult,
+  type IntegratedBaselineProbeDisposition,
+  type IntegratedBaselineRunRecord,
 } from "./forge-integrated-baseline.js";
 
 export type { IntegratedBaseline, IntegratedBaselineProbeResult } from "./forge-integrated-baseline.js";
@@ -64,6 +73,11 @@ export {
   listIntegratedBaselineProbesByExpected,
   listIntegratedBaselineKnownGaps,
   buildDefaultIntegratedSourceOrchestratorSeam,
+  buildIntegratedBaselineProbeEvidence,
+  buildIntegratedBaselineProbeTelemetry,
+  buildIntegratedBaselineProvenance,
+  buildIntegratedBaselineRunRecord,
+  validateIntegratedBaselineFailureRecoveryRunRecord,
 } from "./forge-integrated-baseline.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -680,4 +694,108 @@ export function runIntegratedBaselineFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runIntegratedBaselineProbeWithTiming(
+  entry: IntegratedBaseline["probes"][number],
+  fixture: IntegratedBaseline,
+  contractProbe:
+    | { criterion: string; disposition: IntegratedBaselineProbeDisposition }
+    | undefined,
+): {
+  result: IntegratedBaselineProbeResult;
+  durationMs: number;
+  disposition: IntegratedBaselineProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildIntegratedBaselineRecordFromEntries(
+  entries: IntegratedBaseline["probes"],
+  fixture: IntegratedBaseline,
+  contract: ReturnType<typeof getActiveIntegratedBaselineContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly IntegratedBaselineCategory[];
+  },
+): IntegratedBaselineRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildIntegratedBaselineProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildIntegratedBaselineProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runIntegratedBaselineProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildIntegratedBaselineProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildIntegratedBaselineProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildIntegratedBaselineProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildIntegratedBaselineRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P01-B10-A06). */
+export function runIntegratedBaselineFailureRecoverySliceWithRecord(
+  fixture: IntegratedBaseline = loadIntegratedBaseline(),
+): IntegratedBaselineRunRecord {
+  const contract = getActiveIntegratedBaselineContract();
+  const failureRecoveryIds = new Set(listIntegratedBaselineFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildIntegratedBaselineRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P01-B10-A06",
+    sliceCategories: INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES,
+  });
 }
