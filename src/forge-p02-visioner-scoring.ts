@@ -1046,6 +1046,46 @@ export function validateVisionerScoringBoundaryProbeMatrix(
   return validateVisionerScoringProbeMatrix(boundaryResults, boundaryContract);
 }
 
+export const VISIONER_SCORING_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly VisionerScoringCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes and documented FAIL gaps must align; zero unexpected mismatches.
+ */
+export function validateVisionerScoringFailureRecoveryProbeMatrix(
+  results: VisionerScoringProbeResult[],
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): VisionerScoringProbeMatrixValidationResult {
+  const failureRecoveryProbes = VISIONER_SCORING_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listVisionerScoringContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: VisionerScoringContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateVisionerScoringProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listVisionerScoringFailureRecoveryProbeIds(
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): string[] {
+  return VISIONER_SCORING_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listVisionerScoringContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
 export function validateVisionerScoringAgainstContract(
   fixture: VisionerScoringBaseline,
   contract: VisionerScoringContract = getActiveVisionerScoringContract(),

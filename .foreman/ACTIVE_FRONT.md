@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B08
-active_atom: P02-B08-A05
+active_atom: P02-B08-A06
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 173/1000
-phase_progress: 73/100
-block_progress: 4/10
+program_progress: 174/1000
+phase_progress: 74/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B08-A05 — Vision scoring failure/recovery slice: failure, recovery ve NO-GO yollarını uygula.
+P02-B08-A06 — Vision scoring evidence slice: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P02-B08-A04 boundary slice PASS; wire failure_path, recovery_path and nogo_path probes.
-target: validateVisionerScoringFailureRecoveryProbeMatrix and related guards handle invalid versions, malformed vision, checkpoint recovery and tie-break NO-GO.
-hypothesis: A04 boundary helper enables failure/recovery probes without orchestrator refactor.
-acceptance: forge-p02-visioner-scoring failure/recovery tests; probe matrix remains fully aligned.
+objective: P02-B08-A05 failure/recovery slice PASS; wire evidence record for failure/recovery run.
+target: validateVisionerScoringFailureRecoveryRunRecord and related run record builders.
+hypothesis: A05 failure/recovery helper enables evidence record without orchestrator refactor.
+acceptance: forge-p02-visioner-scoring failure/recovery evidence tests; probe matrix remains fully aligned.
 commands: npx tsx --test src/forge-p02-visioner-scoring.test.ts
 blast_radius: src/forge-p02-visioner-scoring*
-rollback: P02-B08-A05 failure/recovery değişikliklerini geri al.
+rollback: P02-B08-A06 evidence değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: failure/recovery slice requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
+fallback: evidence slice requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B08-A04
-last_commit: b2994e4
-tests: PASS — forge-p02-visioner-scoring.test.ts (21/21), forge-p02-visioner-scoring-baseline.test.ts (3/3)
-evidence: validateVisionerScoringBoundaryProbeMatrix 6 passAligned + 0 gapAligned; assessVisionerScoringPresence boundary guard; runVisionerScoringBoundarySlice PASS
-next: P02-B08-A05
+last_atom: P02-B08-A05
+last_commit: pending
+tests: PASS — forge-p02-visioner-scoring.test.ts (24/24), forge-p02-visioner-scoring-baseline.test.ts (3/3)
+evidence: validateVisionerScoringFailureRecoveryProbeMatrix 6 passAligned + 0 gapAligned; runVisionerScoringFailureRecoverySlice PASS
+next: P02-B08-A06
