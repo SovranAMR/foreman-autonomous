@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
-active_block: P03-B03
-active_atom: P03-B03-A10
+active_block: P03-B04
+active_atom: P03-B04-A01
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 228/1000
-phase_progress: 29/100
-block_progress: 9/10
+program_progress: 229/1000
+phase_progress: 30/100
+block_progress: 10/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B03-A10 — Atomization ve atom boyutu: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P03-B04-A01 — Dependency DAG: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P03-B03-A09 PASS; P03-B03-A10 seal atomization block gate with handoff contract to P03-B04.
-target: ForgeStrategistAtomizationBlockGate, block gate evidence, validateStrategistAtomizationBlockHandoff.
-hypothesis: P03-B03-A10 seals B03 block with guard-integrated regression gate and B04 handoff contract.
-acceptance: block gate PASS; handoff contract valid; atom seals complete; guard integrated.
-commands: npx tsx --test src/forge-p03-strategist-atomization*.test.ts
-blast_radius: src/forge-p03-strategist-atomization.ts
-rollback: P03-B03-A10 block gate değişikliklerini geri al.
+objective: P03-B03-A10 PASS; P03-B04-A01 measure dependency DAG behavior and create failing baseline fixture.
+target: ForgeStrategistDependencyDagBaseline, dependency DAG fixture, validateStrategistDependencyDagBaseline.
+hypothesis: P03-B04-A01 establishes measurable dependency DAG baseline wired to sealed P03-B03 atomization block gate.
+acceptance: baseline fixture loads; probes measure current behavior; validation rejects invalid fixture; B03 handoff referenced.
+commands: npx tsx --test src/forge-p03-strategist-dependency-dag*.test.ts
+blast_radius: src/forge-p03-strategist-dependency-dag.ts
+rollback: P03-B04-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: block gate closure blocked ise BLOCKED raporla.
+fallback: baseline blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B03-A09
-last_commit: 503bd3b
-tests: PASS — forge-p03-strategist-atomization*.test.ts (41/41); guard adversarial 3/3 rejected; performance/cost/safety within bounds
-evidence: validateForgeStrategistAtomizationGuard; runStrategistAtomizationAdversarialGuardChecks; detectStrategistAtomizationFalseAlignment
-next: P03-B03-A10
+last_atom: P03-B03-A10
+last_commit: PENDING
+tests: PASS — forge-p03-strategist-atomization*.test.ts (48/48); block gate 7/7; handoff→P03-B04
+evidence: runStrategistAtomizationBlockGate; validateStrategistAtomizationBlockHandoffContract; verifyForgeStrategistAtomizationBlockGate
+next: P03-B04-A01

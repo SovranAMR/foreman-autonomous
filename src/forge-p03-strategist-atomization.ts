@@ -11,7 +11,12 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import strategistAtomizationBaseline from "./fixtures/forge-strategist-atomization-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP03B02ToB03Handoff,
   getActiveStrategistBlockContract,
@@ -20,7 +25,9 @@ import {
 } from "./forge-p03-strategist-block-contract.js";
 import { parseAtomizeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a09";
+export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a10";
+
+export const EXPECTED_P03_B03_SEALED_ATOM_COUNT = 10;
 
 /** Maximum normalized atomize length before truncation (P03-B03-A01 boundary debt). */
 export const STRATEGIST_ATOMIZE_MAX_LENGTH = 32000;
@@ -3279,5 +3286,236 @@ export function validateForgeStrategistAtomizationGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P03-B03-A10) ─────────────────────────────────────
+
+export interface StrategistAtomizationBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface StrategistAtomizationBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    atomizationCategories: readonly StrategistAtomizationCategory[];
+    sourceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    atomizationRecordRequired: true;
+  };
+}
+
+export const FORGE_P03_B03_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P03-B03-A10",
+  blockId: "P03-B03",
+  title: "Atomization ve atom boyutu",
+  requiredAtomIds: [
+    "P03-B03-A01",
+    "P03-B03-A02",
+    "P03-B03-A03",
+    "P03-B03-A04",
+    "P03-B03-A05",
+    "P03-B03-A06",
+    "P03-B03-A07",
+    "P03-B03-A08",
+    "P03-B03-A09",
+    "P03-B03-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P03-B03-A01",
+      description: "Atomization baseline aligns with typed contract and P03-B02 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P03-B03-A02",
+      description: "Contract declares measurable probes for all atomization categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P03-B03-A03",
+      description: "Atomization probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P03-B03-A04",
+      description: "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P03-B03-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P03-B03-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P03-B03-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P03-B03-A08",
+      description: "Regression gate passes on canonical atomization matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P03-B03-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P03-B03-A10",
+      description: "Block gate evidence sealed with valid B04 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P03_B03_TO_B04_HANDOFF_V1: StrategistAtomizationBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P03-B03-A10",
+  sourceBlock: {
+    blockId: "P03-B03",
+    title: "Atomization ve atom boyutu",
+    completedAtoms: FORGE_P03_B03_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P03-B04",
+    title: "Dependency DAG",
+    entryAtom: "P03-B04-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_STRATEGIST_ATOMIZATION_CONTRACT_V1.version,
+    harnessVersion: FORGE_STRATEGIST_ATOMIZATION_VERSION,
+    probeCount: summarizeStrategistAtomizationCoverage(FORGE_STRATEGIST_ATOMIZATION_CONTRACT_V1).totalProbes,
+    atomizationCategories: STRATEGIST_ATOMIZATION_CATEGORIES,
+    sourceBlockGateAtom: "P03-B02-A10",
+  },
+  prerequisites: [
+    "Atomization v1 with measurable versioning, structure, sizing and boundary probes",
+    "Versioned atomization baseline aligned to contract probe matrix and sealed P03-B02 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P03-B02 block production contract block gate referenced by sourceBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P03-B04-A01 formalizes dependency DAG using sealed atomization and atom sizing artifacts",
+    requiresBlockGatePass: true,
+    atomizationRecordRequired: true,
+  },
+};
+
+export function getForgeP03B03BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P03_B03_BLOCK_GATE_V1;
+}
+
+export function getForgeP03B03ToB04Handoff(): StrategistAtomizationBlockHandoffContract {
+  return FORGE_P03_B03_TO_B04_HANDOFF_V1;
+}
+
+export function validateStrategistAtomizationBlockHandoffContract(
+  handoff: StrategistAtomizationBlockHandoffContract,
+  evidence: Pick<StrategistAtomizationBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeStrategistAtomizationCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_STRATEGIST_ATOMIZATION_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_STRATEGIST_ATOMIZATION_VERSION}`,
+    );
+  }
+  if (handoff.sealedArtifacts.atomizationCategories.length !== STRATEGIST_ATOMIZATION_CATEGORIES.length) {
+    issues.push("handoff atomizationCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceBlockGateAtom !== "P03-B02-A10") {
+    issues.push(`unexpected source block gate atom: ${handoff.sealedArtifacts.sourceBlockGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P03-B04-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildStrategistAtomizationBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P03_B03_BLOCK_GATE_V1.blockId,
+): StrategistAtomizationBlockGateEvidence {
+  const handoff = getForgeP03B03ToB04Handoff();
+  const handoffValid = validateStrategistAtomizationBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P03-B03-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }
