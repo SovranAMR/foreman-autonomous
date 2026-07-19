@@ -44,7 +44,7 @@ fallback: Orchestrator regression cannot align after A07 slice ise BLOCKED rapor
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B10-A07
-last_commit: 8e40bc7
+last_commit: dc0253f
 tests: PASS — forge-p02-visioner-phase-gate.test.ts (26/26); property-fuzz (5/5); baseline (3/3)
 evidence: runVisionerPhaseGatePropertyChecks; runVisionerPhaseGateFuzzValidation; runVisionerPhaseGateRunRecordFuzzValidation; 8/8 structural properties; 72/72 fixture fuzz rejected; 8/8 run-record mutations rejected; handoff=P02-B10-A07→A08
 next: P02-B10-A08
