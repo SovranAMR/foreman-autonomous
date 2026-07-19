@@ -926,6 +926,25 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P03-B05 block gate and emit verification event with B06 handoff (P03-B05-A10).
+   */
+  async verifyForgeStrategistRiskReversibilityBlockGate(): Promise<
+    import("./forge-p03-strategist-risk-reversibility.probe.js").ForgeStrategistRiskReversibilityBlockGateResult
+  > {
+    const { runForgeStrategistRiskReversibilityBlockGate } = await import(
+      "./forge-p03-strategist-risk-reversibility.probe.js"
+    );
+    const result = runForgeStrategistRiskReversibilityBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "strategist_risk_reversibility_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B06 block gate and emit verification event with B07 handoff (P02-B06-A10).
    */
   async verifyForgeVisionerUncertaintyBlockGate(): Promise<import("./forge-p02-visioner-uncertainty.probe.js").ForgeVisionerUncertaintyBlockGateResult> {

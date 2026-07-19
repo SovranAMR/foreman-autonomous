@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
-active_block: P03-B05
-active_atom: P03-B05-A10
+active_block: P03-B06
+active_atom: P03-B06-A01
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 248/1000
-phase_progress: 49/100
-block_progress: 9/10
+program_progress: 249/1000
+phase_progress: 50/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B05-A10 — Risk ve reversibility planı: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P03-B06-A01 — Kaynak ve budget planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P03-B05-A09 PASS; P03-B05-A10 seal risk/reversibility block gate and prepare P03-B06 handoff contract.
-target: runStrategistRiskReversibilityBlockGate, getForgeP03B05BlockGate, buildStrategistRiskReversibilityBlockGateEvidence.
-hypothesis: P03-B05-A10 seals all 10 B05 atoms, validates regression+guard gates, and emits B06 entry handoff.
-acceptance: block gate suite passes; handoff contract valid; orchestrator verification hook wired.
-commands: npx tsx --test src/forge-p03-strategist-risk-reversibility*.test.ts
-blast_radius: src/forge-p03-strategist-risk-reversibility.ts
-rollback: P03-B05-A10 block gate değişikliklerini geri al.
+objective: P03-B05-A10 PASS; P03-B06-A01 measure resource/budget behavior and create failing baseline fixture from sealed B05 handoff.
+target: loadStrategistResourceBudgetBaseline, validateStrategistResourceBudgetBaseline, runStrategistResourceBudgetProbes.
+hypothesis: P03-B06-A01 establishes versioned baseline linked to P03-B05 block gate with documented measurable gaps.
+acceptance: baseline loads; probes execute; B05 handoff alignment validated; baseline test suite passes.
+commands: npx tsx --test src/forge-p03-strategist-resource-budget*.test.ts
+blast_radius: src/forge-p03-strategist-resource-budget.ts
+rollback: P03-B06-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Block gate blocked ise BLOCKED raporla.
+fallback: Baseline blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B05-A09
-last_commit: a876a74
-tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (40/40); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); guard slice 6/6
-evidence: validateForgeStrategistRiskReversibilityGuard; runStrategistRiskReversibilityAdversarialGuardChecks
-next: P03-B05-A10
+last_atom: P03-B05-A10
+last_commit: pending
+tests: PASS — forge-p03-strategist-risk-reversibility*.test.ts (50/50); block gate 7/7
+evidence: runStrategistRiskReversibilityBlockGate; FORGE_P03_B05_TO_B06_HANDOFF_V1
+next: P03-B06-A01

@@ -11,7 +11,12 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import strategistRiskReversibilityBaseline from "./fixtures/forge-strategist-risk-reversibility-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP03B04ToB05Handoff,
   getActiveStrategistDependencyDagContract,
@@ -3288,5 +3293,240 @@ export function validateForgeStrategistRiskReversibilityGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P03-B05-A10) ─────────────────────────────────────
+
+export interface StrategistRiskReversibilityBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface StrategistRiskReversibilityBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    riskReversibilityCategories: readonly StrategistRiskReversibilityCategory[];
+    sourceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    riskReversibilityRecordRequired: true;
+  };
+}
+
+export const FORGE_P03_B05_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P03-B05-A10",
+  blockId: "P03-B05",
+  title: "Risk ve reversibility planı",
+  requiredAtomIds: [
+    "P03-B05-A01",
+    "P03-B05-A02",
+    "P03-B05-A03",
+    "P03-B05-A04",
+    "P03-B05-A05",
+    "P03-B05-A06",
+    "P03-B05-A07",
+    "P03-B05-A08",
+    "P03-B05-A09",
+    "P03-B05-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P03-B05-A01",
+      description: "Risk reversibility baseline aligns with typed contract and P03-B04 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P03-B05-A02",
+      description: "Contract declares measurable probes for all risk reversibility categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P03-B05-A03",
+      description: "Risk reversibility probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P03-B05-A04",
+      description: "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P03-B05-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P03-B05-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P03-B05-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P03-B05-A08",
+      description: "Regression gate passes on canonical risk reversibility matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P03-B05-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P03-B05-A10",
+      description: "Block gate evidence sealed with valid B06 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P03_B05_TO_B06_HANDOFF_V1: StrategistRiskReversibilityBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P03-B05-A10",
+  sourceBlock: {
+    blockId: "P03-B05",
+    title: "Risk ve reversibility planı",
+    completedAtoms: FORGE_P03_B05_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P03-B06",
+    title: "Kaynak ve budget planı",
+    entryAtom: "P03-B06-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_STRATEGIST_RISK_REVERSIBILITY_CONTRACT_V1.version,
+    harnessVersion: FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION,
+    probeCount: summarizeStrategistRiskReversibilityCoverage(FORGE_STRATEGIST_RISK_REVERSIBILITY_CONTRACT_V1)
+      .totalProbes,
+    riskReversibilityCategories: STRATEGIST_RISK_REVERSIBILITY_CATEGORIES,
+    sourceBlockGateAtom: "P03-B04-A10",
+  },
+  prerequisites: [
+    "Risk reversibility v1 with measurable assessment, rollback planning and recovery probes",
+    "Versioned risk reversibility baseline aligned to contract probe matrix and sealed P03-B04 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P03-B04 dependency DAG block gate referenced by sourceBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P03-B06-A01 formalizes resource and budget planning using sealed risk reversibility artifacts",
+    requiresBlockGatePass: true,
+    riskReversibilityRecordRequired: true,
+  },
+};
+
+export function getForgeP03B05BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P03_B05_BLOCK_GATE_V1;
+}
+
+export function getForgeP03B05ToB06Handoff(): StrategistRiskReversibilityBlockHandoffContract {
+  return FORGE_P03_B05_TO_B06_HANDOFF_V1;
+}
+
+export function validateStrategistRiskReversibilityBlockHandoffContract(
+  handoff: StrategistRiskReversibilityBlockHandoffContract,
+  evidence: Pick<StrategistRiskReversibilityBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: StrategistRiskReversibilityContract = getActiveStrategistRiskReversibilityContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeStrategistRiskReversibilityCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.riskReversibilityCategories.length !==
+    STRATEGIST_RISK_REVERSIBILITY_CATEGORIES.length
+  ) {
+    issues.push("handoff riskReversibilityCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceBlockGateAtom !== "P03-B04-A10") {
+    issues.push(`unexpected source block gate atom: ${handoff.sealedArtifacts.sourceBlockGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P03-B06-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildStrategistRiskReversibilityBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P03_B05_BLOCK_GATE_V1.blockId,
+): StrategistRiskReversibilityBlockGateEvidence {
+  const handoff = getForgeP03B05ToB06Handoff();
+  const handoffValid = validateStrategistRiskReversibilityBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P03-B05-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }
