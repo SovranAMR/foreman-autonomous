@@ -886,3 +886,41 @@ export function runForgeResearcherPhaseGateRegressionGate(
 
 /** Alias for forge-pipeline-regression integration seam (P04-B10-A08). */
 export const runResearcherPhaseGateRegressionIntegration = runForgeResearcherPhaseGateRegressionGate;
+
+export interface ForgeResearcherPhaseGateGuardResult {
+  atom: "P04-B10-A09";
+  passed: boolean;
+  guard: ReturnType<typeof validateForgeResearcherPhaseGateGuard>;
+  detail: string;
+}
+
+/**
+ * Execute researcher phase gate guard controls (adversarial/perf/cost/safety) on run record (P04-B10-A09).
+ */
+export function runForgeResearcherPhaseGateGuardGate(
+  record?: ResearcherPhaseGateRunRecord,
+  options: { totalCostUsd?: number; llmCalls?: number } = {},
+): ForgeResearcherPhaseGateGuardResult {
+  const fixture = loadResearcherPhaseGateBaseline();
+  const contract = getActiveResearcherPhaseGateContract();
+  const runRecord = record ?? runResearcherPhaseGateProbesWithRecord(fixture);
+  const guard = validateForgeResearcherPhaseGateGuard(runRecord, {
+    totalCostUsd: options.totalCostUsd ?? 0,
+    llmCalls: options.llmCalls ?? 0,
+    contract,
+  });
+
+  const detail = guard.passed
+    ? `guard PASS: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`
+    : `guard FAIL: ${guard.issues.map(i => `${i.domain}/${i.code}`).join(", ")}`;
+
+  return {
+    atom: "P04-B10-A09",
+    passed: guard.passed,
+    guard,
+    detail,
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runResearcherPhaseGateGuardIntegration = runForgeResearcherPhaseGateGuardGate;
