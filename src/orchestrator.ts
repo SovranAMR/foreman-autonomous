@@ -652,6 +652,48 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner scoring guard gate (adversarial/perf/cost/safety) and emit verification event (P02-B08-A09).
+   */
+  async verifyForgeVisionerScoringGuard(
+    priorRecord?: import("./forge-p02-visioner-scoring.js").VisionerScoringRunRecord,
+  ): Promise<import("./forge-p02-visioner-scoring.probe.js").ForgeVisionerScoringRegressionResult> {
+    const { runForgeVisionerScoringRegressionGate } = await import(
+      "./forge-p02-visioner-scoring.probe.js"
+    );
+    const result = runForgeVisionerScoringRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "visioner_scoring_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
+   * Run Forge visioner scoring regression gate and emit verification event (P02-B08-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeVisionerScoringRegression(
+    priorRecord?: import("./forge-p02-visioner-scoring.js").VisionerScoringRunRecord,
+  ): Promise<import("./forge-p02-visioner-scoring.probe.js").ForgeVisionerScoringRegressionResult> {
+    const { runForgeVisionerScoringRegressionGate } = await import(
+      "./forge-p02-visioner-scoring.probe.js"
+    );
+    const result = runForgeVisionerScoringRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "visioner_scoring_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B06 block gate and emit verification event with B07 handoff (P02-B06-A10).
    */
   async verifyForgeVisionerUncertaintyBlockGate(): Promise<import("./forge-p02-visioner-uncertainty.probe.js").ForgeVisionerUncertaintyBlockGateResult> {

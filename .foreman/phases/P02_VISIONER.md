@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 76
+completed_atoms: 77
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -113,7 +113,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B08-A05 — Vizyon scoring ve trade-off: failure, recovery ve NO-GO yollarını uygula
 - [x] P02-B08-A06 — Vizyon scoring ve trade-off: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B08-A07 — Vizyon scoring ve trade-off: unit, property ve fuzz doğrulamasını ekle
-- [ ] P02-B08-A08 — Vizyon scoring ve trade-off: Forge entegrasyonu ile regression testini tamamla
+- [x] P02-B08-A08 — Vizyon scoring ve trade-off: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B08-A09 — Vizyon scoring ve trade-off: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B08-A10 — Vizyon scoring ve trade-off: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B08-A07
-last_commit: 457686e
-tests: PASS — forge-p02-visioner-scoring.test.ts (27/27), forge-p02-visioner-scoring-baseline.test.ts (3/3), forge-p02-visioner-scoring.property-fuzz.test.ts (5/5)
-evidence: runVisionerScoringPropertyChecks 8/8; fixture fuzz 72/72 rejected; run record fuzz failure-recovery 5/5 + full 3/3 rejected
-next: P02-B08-A08
+last_atom: P02-B08-A08
+last_commit: 8602240
+tests: PASS — forge-p02-visioner-scoring.test.ts (31/31), forge-p02-visioner-scoring.property-fuzz.test.ts (5/5), forge-pipeline-regression.integration.test.ts scoring slice (5/5)
+evidence: detectVisionerScoringProbeRegression; runForgeVisionerScoringRegressionGate 23/23 aligned; orchestrator verifyForgeVisionerScoringRegression
+next: P02-B08-A09
