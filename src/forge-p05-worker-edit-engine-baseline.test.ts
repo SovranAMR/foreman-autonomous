@@ -113,6 +113,6 @@ describe("Forge Worker Edit Engine — P05-B03-A01", () => {
   });
 
   it("exports harness version for edit engine baseline", () => {
-    assert.equal(FORGE_WORKER_EDIT_ENGINE_VERSION, "1.0.0-a03");
+    assert.equal(FORGE_WORKER_EDIT_ENGINE_VERSION, "1.0.0-a04");
   });
 });

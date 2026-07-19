@@ -20,12 +20,15 @@ import {
 import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 import { EditEngine } from "./edit-engine.js";
 
-export const FORGE_WORKER_EDIT_ENGINE_VERSION = "1.0.0-a03";
+export const FORGE_WORKER_EDIT_ENGINE_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P05_B02_SEALED_ATOM_COUNT = 10;
 
 /** Maximum normalized edit old_text length before truncation (P05-B03-A01 boundary). */
 export const WORKER_EDIT_ENGINE_OLD_TEXT_MAX_LENGTH = 65_536;
+
+/** Maximum normalized edit file path length before truncation (P05-B03-A04 boundary). */
+export const WORKER_EDIT_ENGINE_PATH_MAX_LENGTH = 4096;
 
 export const WORKER_EDIT_ENGINE_CATEGORIES = [
   "edit_versioning",
@@ -66,6 +69,27 @@ export interface EditInputBoundary {
   normalizedOldText: string;
   normalizedNewText: string;
   truncated: boolean;
+  detail: string;
+}
+
+export type EditPathInputDisposition =
+  | "valid"
+  | "empty"
+  | "whitespace_only"
+  | "contains_null_byte"
+  | "exceeds_max_length";
+
+export interface EditPathInputBoundary {
+  disposition: EditPathInputDisposition;
+  acceptable: boolean;
+  normalizedPath: string;
+  truncated: boolean;
+  detail: string;
+}
+
+export interface EditOccurrenceBoundary {
+  valid: boolean;
+  occurrence?: number | "all";
   detail: string;
 }
 
@@ -226,6 +250,101 @@ export function assessEditInputBoundary(
 }
 
 /**
+ * Assess edit file path input boundary conditions before worker dispatch (P05-B03-A04).
+ */
+export function assessEditPathBoundary(filePath: string): EditPathInputBoundary {
+  if (filePath.includes("\0")) {
+    return {
+      disposition: "contains_null_byte",
+      acceptable: false,
+      normalizedPath: "",
+      truncated: false,
+      detail: "null byte detected in edit file path input",
+    };
+  }
+
+  const trimmed = filePath.trim();
+  if (trimmed.length === 0) {
+    const disposition: EditPathInputDisposition =
+      filePath.length === 0 ? "empty" : "whitespace_only";
+    return {
+      disposition,
+      acceptable: false,
+      normalizedPath: "",
+      truncated: false,
+      detail: disposition === "empty" ? "empty edit file path input" : "whitespace-only edit file path input",
+    };
+  }
+
+  let normalizedPath = trimmed.replace(/\\/g, "/");
+  if (normalizedPath.startsWith("./")) {
+    normalizedPath = normalizedPath.slice(2);
+  }
+
+  let truncated = false;
+  if (normalizedPath.length > WORKER_EDIT_ENGINE_PATH_MAX_LENGTH) {
+    normalizedPath = normalizedPath.slice(0, WORKER_EDIT_ENGINE_PATH_MAX_LENGTH);
+    truncated = true;
+  }
+
+  return {
+    disposition: truncated ? "exceeds_max_length" : "valid",
+    acceptable: true,
+    normalizedPath,
+    truncated,
+    detail: truncated
+      ? `edit file path truncated to ${WORKER_EDIT_ENGINE_PATH_MAX_LENGTH} characters`
+      : "valid edit file path input",
+  };
+}
+
+/**
+ * Assess edit occurrence selector boundary before worker dispatch (P05-B03-A04).
+ */
+export function assessEditOccurrenceBoundary(value: unknown): EditOccurrenceBoundary {
+  if (value === undefined || value === null) {
+    return { valid: true, detail: "default occurrence (first match)" };
+  }
+  if (value === "all") {
+    return { valid: true, occurrence: "all", detail: "replace all occurrences" };
+  }
+  if (typeof value === "number" && Number.isInteger(value) && value >= 1) {
+    return { valid: true, occurrence: value, detail: `replace occurrence ${value}` };
+  }
+  return {
+    valid: false,
+    detail: "occurrence must be a positive integer or \"all\"",
+  };
+}
+
+/**
+ * Normalize edit file path through boundary assessment before recovery (P05-B03-A04).
+ */
+export function normalizeEditRequestPath(
+  rawPath: string,
+): EditRequestRecoveryResult {
+  const boundary = assessEditPathBoundary(rawPath);
+  if (!boundary.acceptable) {
+    return {
+      recovered: false,
+      path: rawPath,
+      oldText: "",
+      newText: "",
+      parseErrors: [boundary.disposition],
+      detail: boundary.detail,
+    };
+  }
+  return {
+    recovered: true,
+    path: boundary.normalizedPath,
+    oldText: "",
+    newText: "",
+    parseErrors: [],
+    detail: `recovered edit path=${boundary.normalizedPath}`,
+  };
+}
+
+/**
  * Recover malformed edit request args into dispatch-ready record (P05-B03-A01).
  */
 export function recoverEditRequest(
@@ -233,14 +352,15 @@ export function recoverEditRequest(
   oldText: unknown,
   newText: unknown = "",
 ): EditRequestRecoveryResult {
-  if (typeof path !== "string" || path.trim().length === 0) {
+  const pathBoundary = assessEditPathBoundary(typeof path === "string" ? path : "");
+  if (!pathBoundary.acceptable) {
     return {
       recovered: false,
       path: typeof path === "string" ? path : "",
       oldText: "",
       newText: "",
-      parseErrors: ["empty"],
-      detail: "cannot recover missing file path",
+      parseErrors: [pathBoundary.disposition],
+      detail: pathBoundary.detail,
     };
   }
 
@@ -274,7 +394,7 @@ export function recoverEditRequest(
   if (!boundary.acceptable) {
     return {
       recovered: false,
-      path,
+      path: pathBoundary.normalizedPath,
       oldText: resolvedOldText,
       newText: resolvedNewText,
       parseErrors: [...parseErrors, boundary.disposition],
@@ -282,18 +402,13 @@ export function recoverEditRequest(
     };
   }
 
-  let normalizedPath = path.trim().replace(/\\/g, "/");
-  if (normalizedPath.startsWith("./")) {
-    normalizedPath = normalizedPath.slice(2);
-  }
-
   return {
     recovered: true,
-    path: normalizedPath,
+    path: pathBoundary.normalizedPath,
     oldText: boundary.normalizedOldText,
     newText: boundary.normalizedNewText,
     parseErrors,
-    detail: `recovered edit path=${normalizedPath}`,
+    detail: `recovered edit path=${pathBoundary.normalizedPath}`,
   };
 }
 
@@ -317,19 +432,6 @@ export interface EditEngineTelemetry {
   errors: string[];
 }
 
-function parseEditOccurrence(value: unknown): number | "all" | undefined | null {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-  if (value === "all") {
-    return "all";
-  }
-  if (typeof value === "number" && Number.isInteger(value) && value >= 1) {
-    return value;
-  }
-  return null;
-}
-
 /**
  * Validate surgical edit tool call boundary before orchestrator dispatch (P05-B03-A03).
  */
@@ -344,8 +446,12 @@ export function validateSurgicalEdit(call: ToolCall): SurgicalEditValidationResu
     const endLine = call.args.end_line;
     const newContent = call.args.new_content;
 
-    if (typeof pathArg !== "string" || pathArg.trim().length === 0) {
+    if (typeof pathArg !== "string") {
       return { valid: false, errors: ["edit_range requires path argument"] };
+    }
+    const pathBoundary = assessEditPathBoundary(pathArg);
+    if (!pathBoundary.acceptable) {
+      return { valid: false, errors: [pathBoundary.detail] };
     }
     if (
       typeof startLine !== "number" ||
@@ -361,19 +467,14 @@ export function validateSurgicalEdit(call: ToolCall): SurgicalEditValidationResu
       return { valid: false, errors: ["edit_range line range invalid"] };
     }
 
-    let normalizedPath = pathArg.trim().replace(/\\/g, "/");
-    if (normalizedPath.startsWith("./")) {
-      normalizedPath = normalizedPath.slice(2);
-    }
-
-    return { valid: true, errors: [], path: normalizedPath };
+    return { valid: true, errors: [], path: pathBoundary.normalizedPath };
   }
 
   const pathArg = call.args.path;
   const oldArg = call.args.old_string;
   const newArg = call.args.new_string;
 
-  if (typeof pathArg !== "string" || pathArg.trim().length === 0) {
+  if (typeof pathArg !== "string") {
     return { valid: false, errors: ["edit_file requires path argument"] };
   }
   if (oldArg === undefined || newArg === undefined) {
@@ -385,9 +486,9 @@ export function validateSurgicalEdit(call: ToolCall): SurgicalEditValidationResu
     return { valid: false, errors: [recovery.detail], path: recovery.path };
   }
 
-  const occurrence = parseEditOccurrence(call.args.occurrence);
-  if (call.args.occurrence !== undefined && occurrence === null) {
-    return { valid: false, errors: ["invalid occurrence selector"], path: recovery.path };
+  const occurrenceBoundary = assessEditOccurrenceBoundary(call.args.occurrence);
+  if (!occurrenceBoundary.valid) {
+    return { valid: false, errors: [occurrenceBoundary.detail], path: recovery.path };
   }
 
   return {
@@ -396,7 +497,7 @@ export function validateSurgicalEdit(call: ToolCall): SurgicalEditValidationResu
     path: recovery.path,
     oldText: recovery.oldText,
     newText: recovery.newText,
-    occurrence: occurrence ?? undefined,
+    occurrence: occurrenceBoundary.occurrence,
   };
 }
 
@@ -1688,6 +1789,60 @@ export function runWorkerEditEngineProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface WorkerEditEngineBoundarySliceResult {
+  atom: "P05-B03-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: WorkerEditEngineProbeResult[];
+  boundaryResults: WorkerEditEngineProbeResult[];
+  matrixValidation: WorkerEditEngineProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateWorkerEditEngineBoundaryProbeMatrix(
+  results: WorkerEditEngineProbeResult[],
+  contract: WorkerEditEngineContract = getActiveWorkerEditEngineContract(),
+): WorkerEditEngineProbeMatrixValidationResult {
+  const boundaryProbes = listWorkerEditEngineContractProbesByCategory("boundary", contract);
+  const boundaryContract: WorkerEditEngineContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateWorkerEditEngineProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (edit input edge cases, occurrence dispatch,
+ * probe runner, documented gaps, source block gate refs) with zero unexpected mismatches.
+ */
+export function runWorkerEditEngineBoundarySlice(
+  fixture: WorkerEditEngineBaseline = loadWorkerEditEngineBaseline(),
+): WorkerEditEngineBoundarySliceResult {
+  const contract = getActiveWorkerEditEngineContract();
+  const results = runWorkerEditEngineProbes(fixture);
+  const boundaryProbes = listWorkerEditEngineContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateWorkerEditEngineBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B03-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

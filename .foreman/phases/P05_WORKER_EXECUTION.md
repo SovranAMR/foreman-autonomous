@@ -44,7 +44,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B03-A01 — Cerrahi edit engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P05-B03-A02 — Cerrahi edit engine: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P05-B03-A03 — Cerrahi edit engine: en küçük üretim dikey dilimini uygula
-- [ ] P05-B03-A04 — Cerrahi edit engine: boundary ve edge-case davranışlarını tamamla
+- [x] P05-B03-A04 — Cerrahi edit engine: boundary ve edge-case davranışlarını tamamla
 - [ ] P05-B03-A05 — Cerrahi edit engine: failure, recovery ve NO-GO yollarını uygula
 - [ ] P05-B03-A06 — Cerrahi edit engine: evidence, telemetry ve provenance kaydını ekle
 - [ ] P05-B03-A07 — Cerrahi edit engine: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B03-A03
-last_commit: 83e3a62
-tests: PASS — forge-p05-worker-edit-engine-production.test.ts (5/5), baseline (8/8), contract (8/8) — 21 total
-evidence: TypedEditCall + validateSurgicalEdit + buildEditEngineTelemetry + orchestrator pre-edit validation + occurrence dispatch; 6 A02 gap probes closed, 27/27 aligned
-next: P05-B03-A04
+last_atom: P05-B03-A04
+last_commit: pending
+tests: PASS — forge-p05-worker-edit-engine-boundary.test.ts (7/7), production (5/5), baseline (8/8), contract (8/8) — 28 total
+evidence: assessEditPathBoundary + assessEditOccurrenceBoundary + normalizeEditRequestPath + runWorkerEditEngineBoundarySlice; 7/7 boundary probes aligned
+next: P05-B03-A05
