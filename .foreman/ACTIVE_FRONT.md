@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B07-A07
-last_commit: 6c37af6
+last_commit: 1c1917b
 tests: PASS — forge-reproducible-fixture-baseline.test.ts (23/23)
 evidence: runReproducibleFixturePropertyChecks; runReproducibleFixtureFuzzValidation; runReproducibleFixtureRunRecordFuzzValidation; propertyTotal=8; fuzzRejected=24; runFuzzRejected=5; harnessVersion=1.0.0-a07; sliceAtom=P01-B07-A06
 next: P01-B07-A08
