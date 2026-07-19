@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 81
+completed_atoms: 82
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -138,7 +138,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B10-A04 — Araştırmacı phase gate: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B10-A05 — Araştırmacı phase gate: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B10-A06 — Araştırmacı phase gate: evidence, telemetry ve provenance kaydını ekle
-- [ ] P04-B10-A07 — Araştırmacı phase gate: unit, property ve fuzz doğrulamasını ekle
+- [x] P04-B10-A07 — Araştırmacı phase gate: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B10-A08 — Araştırmacı phase gate: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B10-A09 — Araştırmacı phase gate: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B10-A10 — Araştırmacı phase gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B10-A06
-last_commit: 9013982
-tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (16/16); evidence probes=7/7
-evidence: validateResearcherPhaseGateEvidenceRunRecord + runResearcherPhaseGateEvidenceSlice + runResearcherPhaseGateFailureRecoverySliceWithRecord
-next: P04-B10-A07
+last_atom: P04-B10-A07
+last_commit: 473cb12
+tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (16/16); forge-p04-researcher-phase-gate.property-fuzz.test.ts (6/6)
+evidence: runResearcherPhaseGatePropertyValidation + runResearcherPhaseGateFuzzValidation + runResearcherPhaseGateRunRecordFuzzValidation + runResearcherPhaseGatePropertyFuzzSlice
+next: P04-B10-A08
