@@ -83,7 +83,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B06-A01 — Contradiction ve freshness çözümü: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B06-A02 — Contradiction ve freshness çözümü: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B06-A03 — Contradiction ve freshness çözümü: en küçük üretim dikey dilimini uygula
-- [ ] P04-B06-A04 — Contradiction ve freshness çözümü: boundary ve edge-case davranışlarını tamamla
+- [x] P04-B06-A04 — Contradiction ve freshness çözümü: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B06-A05 — Contradiction ve freshness çözümü: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B06-A06 — Contradiction ve freshness çözümü: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B06-A07 — Contradiction ve freshness çözümü: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B06-A03
-last_commit: 6e9bb4b
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (19/19); resolveResearchContradictions + validateResearchFreshness; 23/23 probes PASS; orchestrator wired
-evidence: forge-p04-researcher-contradiction-freshness.ts production slice + runResearcherContradictionFreshnessProductionSlice + fixture nogo PASS flip
-next: P04-B06-A04
+last_atom: P04-B06-A04
+last_commit: 8c411d5
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (24/24); boundary slice 6/6 probes PASS; validateResearcherContradictionFreshnessBoundaryProbeMatrix + runResearcherContradictionFreshnessBoundarySlice
+evidence: boundary-category slice gate + exact max-length edge cases + resolveResearchContradictions/validateResearchFreshness invalid input rejection
+next: P04-B06-A05

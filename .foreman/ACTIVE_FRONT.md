@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B06
-active_atom: P04-B06-A04
+active_atom: P04-B06-A05
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 353/1000
-phase_progress: 53/100
-block_progress: 3/10
+program_progress: 354/1000
+phase_progress: 54/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B06-A04 — Contradiction ve freshness çözümü: boundary ve edge-case davranışlarını tamamla.
+P04-B06-A05 — Contradiction ve freshness çözümü: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P04-B06-A03 PASS; resolveResearchContradictions + validateResearchFreshness exported; 23/23 probes PASS; orchestrator wired.
-target: Forge contradiction freshness boundary slice for input edge cases and probe runner alignment.
-hypothesis: Boundary probes close remaining edge-case gaps while preserving A03 production wiring.
-acceptance: Boundary category probes PASS; contract matrix aligned; regression suite green.
+objective: P04-B06-A04 PASS; boundary slice 6/6 probes; validateResearcherContradictionFreshnessBoundaryProbeMatrix + runResearcherContradictionFreshnessBoundarySlice exported; 24/24 tests PASS.
+target: Forge contradiction freshness failure/recovery/NO-GO slice for failure_path, recovery_path and nogo_path probes.
+hypothesis: Failure/recovery slice closes remaining path gaps while preserving A04 boundary wiring.
+acceptance: Failure/recovery/NO-GO category probes PASS; contract matrix aligned; regression suite green.
 commands: npx tsx --test src/forge-p04-researcher-contradiction-freshness*.test.ts
 blast_radius: src/forge-p04-researcher-contradiction-freshness*.ts
-rollback: P04-B06-A04 boundary slice değişikliklerini geri al.
+rollback: P04-B06-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B06-A03
-last_commit: 6e9bb4b
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (19/19); 23/23 probes PASS; 0 nogo FAIL gaps
-evidence: resolveResearchContradictions + validateResearchFreshness + runResearcherContradictionFreshnessProductionSlice + orchestrator validateResearchFreshness wiring
-next: P04-B06-A04
+last_atom: P04-B06-A04
+last_commit: 8c411d5
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (24/24); boundary slice 6/6 probes PASS; 23/23 full matrix PASS
+evidence: validateResearcherContradictionFreshnessBoundaryProbeMatrix + runResearcherContradictionFreshnessBoundarySlice + exact max-length boundary edge cases
+next: P04-B06-A05

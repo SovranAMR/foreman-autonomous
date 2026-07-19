@@ -3,6 +3,7 @@
  *
  * A01 slice: load, validate, run probes with documented FAIL gaps against sealed
  * P04-B05 citation provenance graph block gate artifacts.
+ * A04: boundary-category slice gate for evidence input edge cases and probe matrix alignment.
  */
 
 import { readFileSync } from "node:fs";
@@ -18,7 +19,7 @@ import {
   FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_CONTRACT_V1,
 } from "./forge-p04-researcher-citation-provenance-graph.js";
 
-export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION = "1.0.0-a03";
+export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P04_B05_SEALED_ATOM_COUNT = 10;
 
@@ -1405,6 +1406,70 @@ export function runResearcherContradictionFreshnessProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherContradictionFreshnessBoundaryProbeMatrix(
+  results: ResearcherContradictionFreshnessProbeResult[],
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): ResearcherContradictionFreshnessProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherContradictionFreshnessContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryContract: ResearcherContradictionFreshnessContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherContradictionFreshnessProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherContradictionFreshnessBoundarySliceResult {
+  atom: "P04-B06-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherContradictionFreshnessProbeResult[];
+  boundaryResults: ResearcherContradictionFreshnessProbeResult[];
+  matrixValidation: ResearcherContradictionFreshnessProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (evidence input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherContradictionFreshnessBoundarySlice(
+  fixture: ResearcherContradictionFreshnessBaseline = loadResearcherContradictionFreshnessBaseline(),
+): ResearcherContradictionFreshnessBoundarySliceResult {
+  const contract = getActiveResearcherContradictionFreshnessContract();
+  const results = runResearcherContradictionFreshnessProbes(fixture);
+  const boundaryProbes = listResearcherContradictionFreshnessContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherContradictionFreshnessBoundaryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B06-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

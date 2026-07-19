@@ -21,6 +21,8 @@ import {
   validateResearcherContradictionFreshnessAgainstContract,
   validateResearcherContradictionFreshnessProbeMatrix,
   runResearcherContradictionFreshnessProductionSlice,
+  validateResearcherContradictionFreshnessBoundaryProbeMatrix,
+  runResearcherContradictionFreshnessBoundarySlice,
   resolveResearchContradictions,
   validateResearchFreshness,
   RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES,
@@ -339,5 +341,105 @@ describe("Forge Researcher Contradiction Freshness Production Slice — P04-B06-
     assert.ok(freshnessProbe);
     assert.equal(freshnessProbe!.expected, "PASS");
     assert.equal(freshnessProbe!.actual, "PASS");
+  });
+});
+
+describe("Forge Researcher Contradiction Freshness Boundary Slice — P04-B06-A04", () => {
+  it("defines six boundary probes with evidence input edge-case criteria", () => {
+    const boundary = listResearcherContradictionFreshnessContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "rcfr.empty_evidence_input_boundary",
+      "rcfr.known_gaps_documented",
+      "rcfr.long_evidence_input_truncation_boundary",
+      "rcfr.probe_runner_exported",
+      "rcfr.source_block_gate_ref",
+      "rcfr.whitespace_evidence_input_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on evidence edge probes", () => {
+    const contract = getActiveResearcherContradictionFreshnessContract();
+    const slice = runResearcherContradictionFreshnessBoundarySlice();
+
+    assert.equal(slice.atom, "P04-B06-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listResearcherContradictionFreshnessContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateResearcherContradictionFreshnessBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("assessContradictionFreshnessInputBoundary edge cases align with boundary probe matrix", () => {
+    const slice = runResearcherContradictionFreshnessBoundarySlice();
+    const evidenceProbes = [
+      "rcfr.empty_evidence_input_boundary",
+      "rcfr.whitespace_evidence_input_boundary",
+      "rcfr.long_evidence_input_truncation_boundary",
+    ] as const;
+
+    for (const probeId of evidenceProbes) {
+      const result = slice.boundaryResults.find(r => r.id === probeId);
+      assert.ok(result, `missing ${probeId}`);
+      assert.equal(result!.actual, "PASS");
+      assert.equal(result!.aligned, true);
+    }
+  });
+
+  it("resolveResearchContradictions and validateResearchFreshness reject invalid boundary inputs", () => {
+    const emptyResolution = resolveResearchContradictions("");
+    assert.equal(emptyResolution.resolved, false);
+    assert.equal(emptyResolution.edges.length, 0);
+
+    const nullByteResolution = resolveResearchContradictions("evidence\0input");
+    assert.equal(nullByteResolution.resolved, false);
+
+    const emptyFreshness = validateResearchFreshness("");
+    assert.equal(emptyFreshness.valid, false);
+    assert.ok(emptyFreshness.issues.length > 0);
+
+    const whitespaceFreshness = validateResearchFreshness("   \t\n  ");
+    assert.equal(whitespaceFreshness.valid, false);
+    assert.equal(whitespaceFreshness.freshnessHints.length, 0);
+  });
+
+  it("assessContradictionFreshnessInputBoundary accepts exact max-length evidence input", () => {
+    const exactMax = "x".repeat(RESEARCHER_CONTRADICTION_FRESHNESS_INPUT_MAX_LENGTH);
+    const boundary = assessContradictionFreshnessInputBoundary(exactMax);
+
+    assert.equal(boundary.acceptable, true);
+    assert.equal(boundary.truncated, false);
+    assert.equal(boundary.disposition, "valid");
+    assert.equal(boundary.normalizedInput.length, RESEARCHER_CONTRADICTION_FRESHNESS_INPUT_MAX_LENGTH);
+
+    const collection = validateContradictionFreshnessCollection(exactMax, [
+      { claim: "exact max length topic accepted", source: "https://example.com/spec" },
+    ]);
+    assert.equal(collection.valid, true, collection.issues.join("; "));
   });
 });
