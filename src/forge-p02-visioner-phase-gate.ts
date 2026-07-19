@@ -751,7 +751,7 @@ const VISIONER_PHASE_GATE_CATEGORY_CONTRACTS: Record<
     category: "boundary",
     acceptance: {
       invariant:
-        "Phase gate baseline references sealed B09 artifacts, probe runner, inventory runners and P03 handoff.",
+        "Phase gate manifest boundary assessment handles empty, whitespace-only and oversized inputs; probe runner and documented gaps wired.",
       minProbeCount: 6,
       requireFullAlignment: true,
     },
@@ -781,28 +781,28 @@ const VISIONER_PHASE_GATE_CATEGORY_CONTRACTS: Record<
         criterion: "Baseline fixture documents at least one measurable FAIL phase gate gap",
       },
       {
-        id: "vpg.block_inventory_runners",
+        id: "vpg.empty_manifest_boundary",
         category: "boundary",
-        description: "Each P02 visioner block inventory entry references an exported block gate runner",
+        description: "assessVisionerPhaseGateInputBoundary rejects empty phase gate manifest",
         expected: "PASS",
         disposition: "observed",
-        criterion: "Each P02 visioner block inventory entry references an exported block gate runner",
+        criterion: "assessVisionerPhaseGateInputBoundary rejects empty phase gate manifest",
       },
       {
-        id: "vpg.phase_gate_checks_defined",
+        id: "vpg.whitespace_manifest_boundary",
         category: "boundary",
-        description: "P02_VISIONER_PHASE_GATE_CHECKS declares measurable phase acceptance checks",
+        description: "assessVisionerPhaseGateInputBoundary rejects whitespace-only phase gate manifest",
         expected: "PASS",
         disposition: "observed",
-        criterion: "P02_VISIONER_PHASE_GATE_CHECKS declares measurable phase acceptance checks",
+        criterion: "assessVisionerPhaseGateInputBoundary rejects whitespace-only phase gate manifest",
       },
       {
-        id: "vpg.p03_handoff_contract_exported",
+        id: "vpg.long_manifest_truncation_boundary",
         category: "boundary",
-        description: "getForgeP02ToP03PhaseHandoff exports P02→P03 strategist phase entry contract",
+        description: "assessVisionerPhaseGateInputBoundary truncates manifest exceeding max length",
         expected: "PASS",
         disposition: "observed",
-        criterion: "getForgeP02ToP03PhaseHandoff exports P02→P03 strategist phase entry contract",
+        criterion: "assessVisionerPhaseGateInputBoundary truncates manifest exceeding max length",
       },
     ],
   },
@@ -1384,4 +1384,26 @@ export function validateVisionerPhaseGateProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateVisionerPhaseGateBoundaryProbeMatrix(
+  results: VisionerPhaseGateProbeResult[],
+  contract: VisionerPhaseGateContract = getActiveVisionerPhaseGateContract(),
+): VisionerPhaseGateProbeMatrixValidationResult {
+  const boundaryProbes = listVisionerPhaseGateContractProbesByCategory("boundary", contract);
+  const boundaryContract: VisionerPhaseGateContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateVisionerPhaseGateProbeMatrix(boundaryResults, boundaryContract);
 }

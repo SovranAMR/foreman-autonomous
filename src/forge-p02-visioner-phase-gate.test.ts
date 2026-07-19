@@ -4,6 +4,7 @@ import {
   loadVisionerPhaseGateBaseline,
   runVisionerPhaseGateProbes,
   runVisionerPhaseGateProductionSlice,
+  runVisionerPhaseGateBoundarySlice,
 } from "./forge-p02-visioner-phase-gate.probe.js";
 import {
   getActiveVisionerPhaseGateContract,
@@ -15,8 +16,10 @@ import {
   validateVisionerPhaseGateContractCoverage,
   validateVisionerPhaseGateAgainstContract,
   validateVisionerPhaseGateProbeMatrix,
+  validateVisionerPhaseGateBoundaryProbeMatrix,
   recoverVisionerPhaseGateEvidence,
   assessVisionerPhaseGateInputBoundary,
+  VISIONER_PHASE_GATE_MANIFEST_MAX_LENGTH,
   VISIONER_PHASE_GATE_CATEGORIES,
   FORGE_VISIONER_PHASE_GATE_VERSION,
   P02_VISIONER_PHASE_BLOCK_COUNT,
@@ -189,5 +192,88 @@ handoff: valid`;
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Visioner Phase Gate Boundary Slice — P02-B10-A04", () => {
+  it("assessVisionerPhaseGateInputBoundary handles empty, whitespace-only and oversized manifest", () => {
+    const empty = assessVisionerPhaseGateInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerPhaseGateInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerPhaseGateInputBoundary("manifest\0corrupt");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longManifest = "x".repeat(VISIONER_PHASE_GATE_MANIFEST_MAX_LENGTH + 200);
+    const truncated = assessVisionerPhaseGateInputBoundary(longManifest);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedManifest.length, VISIONER_PHASE_GATE_MANIFEST_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("recoverVisionerPhaseGateEvidence rejects whitespace-only malformed manifest input", () => {
+    const whitespaceRecovery = recoverVisionerPhaseGateEvidence("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_manifest"]);
+  });
+
+  it("defines boundary category with manifest input edge-case probes", () => {
+    const boundary = listVisionerPhaseGateContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "vpg.empty_manifest_boundary",
+      "vpg.known_gaps_documented",
+      "vpg.long_manifest_truncation_boundary",
+      "vpg.probe_runner_exported",
+      "vpg.source_block_gate_ref",
+      "vpg.whitespace_manifest_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerPhaseGateContract();
+    const slice = runVisionerPhaseGateBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B10-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerPhaseGateContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerPhaseGateBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves full probe alignment while boundary slice passes", () => {
+    const slice = runVisionerPhaseGateBoundarySlice();
+    const recoveryProbe = slice.results.find(r => r.id === "vpg.structured_phase_gate_recovery");
+
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(slice.results.filter(r => !r.aligned).length, 0);
   });
 });

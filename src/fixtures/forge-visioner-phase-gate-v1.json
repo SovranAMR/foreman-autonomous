@@ -96,21 +96,21 @@
       "expected": "PASS"
     },
     {
-      "id": "vpg.block_inventory_runners",
+      "id": "vpg.empty_manifest_boundary",
       "category": "boundary",
-      "description": "Each P02 visioner block inventory entry references an exported block gate runner",
+      "description": "assessVisionerPhaseGateInputBoundary rejects empty phase gate manifest",
       "expected": "PASS"
     },
     {
-      "id": "vpg.phase_gate_checks_defined",
+      "id": "vpg.whitespace_manifest_boundary",
       "category": "boundary",
-      "description": "P02_VISIONER_PHASE_GATE_CHECKS declares measurable phase acceptance checks",
+      "description": "assessVisionerPhaseGateInputBoundary rejects whitespace-only phase gate manifest",
       "expected": "PASS"
     },
     {
-      "id": "vpg.p03_handoff_contract_exported",
+      "id": "vpg.long_manifest_truncation_boundary",
       "category": "boundary",
-      "description": "getForgeP02ToP03PhaseHandoff exports P02→P03 strategist phase entry contract",
+      "description": "assessVisionerPhaseGateInputBoundary truncates manifest exceeding max length",
       "expected": "PASS"
     },
     {

@@ -21,13 +21,17 @@ import {
   validateForgeP02VisionerPhaseGateEvidence,
   buildP02VisionerPhaseGateEvidence,
   recoverVisionerPhaseGateEvidence,
+  assessVisionerPhaseGateInputBoundary,
   getForgeP02ToP03PhaseHandoff,
   getActiveVisionerPhaseGateContract,
   summarizeVisionerPhaseGateMatrix,
   validateVisionerPhaseGateProbeMatrix,
+  validateVisionerPhaseGateBoundaryProbeMatrix,
+  listVisionerPhaseGateContractProbesByCategory,
   listVisionerPhaseGateProbesByExpected,
   listVisionerPhaseGateKnownGaps,
   FORGE_VISIONER_PHASE_GATE_VERSION,
+  VISIONER_PHASE_GATE_MANIFEST_MAX_LENGTH,
   VISIONER_PHASE_GATE_CATEGORIES,
   P02_VISIONER_PHASE_BLOCK_INVENTORY,
   P02_VISIONER_PHASE_BLOCK_COUNT,
@@ -266,35 +270,50 @@ function probeBoundary(
         `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
       );
     }
-    case "vpg.block_inventory_runners": {
-      const src = productionPhaseGateSource() + readSrc("orchestrator.ts");
-      const missing = P02_VISIONER_PHASE_BLOCK_INVENTORY.filter(
-        block => block.blockId !== "P02-B10" && !src.includes(block.runner),
-      );
-      const ok = missing.length === 0;
-      return probe(
-        id,
-        category,
-        expected,
-        ok,
-        ok ? "allRunnersPresent=true" : `missing=${missing.map(b => b.runner).join(",")}`,
-      );
-    }
-    case "vpg.phase_gate_checks_defined": {
-      const ok = P02_VISIONER_PHASE_GATE_CHECKS.length >= 4;
-      return probe(id, category, expected, ok, `checks=${P02_VISIONER_PHASE_GATE_CHECKS.length}`);
-    }
-    case "vpg.p03_handoff_contract_exported": {
-      const handoff = getForgeP02ToP03PhaseHandoff();
+    case "vpg.empty_manifest_boundary": {
+      const result = assessVisionerPhaseGateInputBoundary("");
+      const recovery = recoverVisionerPhaseGateEvidence("");
       const ok =
-        hasProductionExport("getForgeP02ToP03PhaseHandoff") &&
-        handoff.targetPhase.entryAtom === "P03-B01-A01";
+        hasProductionExport("assessVisionerPhaseGateInputBoundary") &&
+        result.disposition === "empty" &&
+        result.acceptable === false &&
+        recovery.recovered === false;
       return probe(
         id,
         category,
         expected,
         ok,
-        `entry=${handoff.targetPhase.entryBlock}/${handoff.targetPhase.entryAtom}`,
+        `disposition=${result.disposition}, recovered=${recovery.recovered}`,
+      );
+    }
+    case "vpg.whitespace_manifest_boundary": {
+      const result = assessVisionerPhaseGateInputBoundary("   \t\n  ");
+      const ok =
+        hasProductionExport("assessVisionerPhaseGateInputBoundary") &&
+        result.disposition === "whitespace_only" &&
+        result.acceptable === false;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `disposition=${result.disposition}, acceptable=${result.acceptable}`,
+      );
+    }
+    case "vpg.long_manifest_truncation_boundary": {
+      const longManifest = "x".repeat(VISIONER_PHASE_GATE_MANIFEST_MAX_LENGTH + 500);
+      const result = assessVisionerPhaseGateInputBoundary(longManifest);
+      const ok =
+        hasProductionExport("assessVisionerPhaseGateInputBoundary") &&
+        result.truncated === true &&
+        result.normalizedManifest.length === VISIONER_PHASE_GATE_MANIFEST_MAX_LENGTH &&
+        result.acceptable === true;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `truncated=${result.truncated}, len=${result.normalizedManifest.length}`,
       );
     }
     default:
@@ -506,3 +525,38 @@ export function runVisionerPhaseGateProductionSlice(
 }
 
 export const runForgeVisionerPhaseGateProductionSlice = runVisionerPhaseGateProductionSlice;
+
+export interface VisionerPhaseGateBoundarySliceResult {
+  atom: "P02-B10-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerPhaseGateProbeResult[];
+  boundaryResults: VisionerPhaseGateProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerPhaseGateBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (manifest input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runVisionerPhaseGateBoundarySlice(
+  fixture: VisionerPhaseGateBaseline = loadVisionerPhaseGateBaseline(),
+): VisionerPhaseGateBoundarySliceResult {
+  const contract = getActiveVisionerPhaseGateContract();
+  const results = runVisionerPhaseGateProbes(fixture);
+  const boundaryProbes = listVisionerPhaseGateContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateVisionerPhaseGateBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B10-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}
+
+export const runForgeVisionerPhaseGateBoundarySlice = runVisionerPhaseGateBoundarySlice;
