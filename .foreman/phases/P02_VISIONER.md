@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B08-A05
-last_commit: pending
+last_commit: 9f0c4ef
 tests: PASS — forge-p02-visioner-scoring.test.ts (24/24), forge-p02-visioner-scoring-baseline.test.ts (3/3)
 evidence: validateVisionerScoringFailureRecoveryProbeMatrix 6 passAligned + 0 gapAligned; runVisionerScoringFailureRecoverySlice PASS
 next: P02-B08-A06
