@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B10
-active_atom: P03-B10-A05
+active_atom: P03-B10-A06
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 293/1000
-phase_progress: 93/100
-block_progress: 4/10
+program_progress: 294/1000
+phase_progress: 94/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B10-A05 — Stratejist phase gate: failure, recovery ve NO-GO yollarını uygula.
+P03-B10-A06 — Stratejist phase gate: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P03-B10-A04 PASS; P03-B10-A05 failure/recovery/NO-GO slice for strategist phase gate contract probes.
-target: runStrategistPhaseGateFailureRecoverySlice closes failure/recovery/NO-GO probe matrix with zero unexpected mismatches.
-hypothesis: P03-B10-A05 production slice validates failure_path, recovery_path, and nogo_path disposition coverage.
-acceptance: failure/recovery probe matrix valid; zero unexpected mismatches; documented FAIL gaps preserved.
+objective: P03-B10-A05 PASS; P03-B10-A06 evidence/telemetry/provenance slice for strategist phase gate contract probes.
+target: runStrategistPhaseGateFailureRecoverySliceWithRecord emits auditable evidence, telemetry and provenance with zero mismatches.
+hypothesis: P03-B10-A06 production slice validates run record bundling for failure/recovery probe subset.
+acceptance: evidence/telemetry/provenance record valid; zero mismatches; slice atom tagged P03-B10-A06.
 commands: npx tsx --test src/forge-p03-strategist-phase-gate*.test.ts
 blast_radius: src/forge-p03-strategist-phase-gate.ts, src/forge-p03-strategist-phase-gate.probe.ts
-rollback: P03-B10-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P03-B10-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B10-A04
-last_commit: 0122cfe
-tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (19/19)
-evidence: runStrategistPhaseGateBoundarySlice; validateStrategistPhaseGateBoundaryProbeMatrix; assessStrategistPhaseGateInputBoundary edge cases PASS
-next: P03-B10-A05
+last_atom: P03-B10-A05
+last_commit: pending
+tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (25/25)
+evidence: runStrategistPhaseGateFailureRecoverySlice; validateStrategistPhaseGateFailureRecoveryProbeMatrix; failure/recovery/NO-GO 7/7 PASS
+next: P03-B10-A06

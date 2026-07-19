@@ -1413,4 +1413,44 @@ export function validateStrategistPhaseGateBoundaryProbeMatrix(
   return validateStrategistPhaseGateProbeMatrix(boundaryResults, boundaryContract);
 }
 
+export const STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly StrategistPhaseGateCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes and documented FAIL gaps must align; zero unexpected mismatches.
+ */
+export function validateStrategistPhaseGateFailureRecoveryProbeMatrix(
+  results: StrategistPhaseGateProbeResult[],
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): StrategistPhaseGateProbeMatrixValidationResult {
+  const failureRecoveryProbes = STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistPhaseGateContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: StrategistPhaseGateContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateStrategistPhaseGateProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listStrategistPhaseGateFailureRecoveryProbeIds(
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): string[] {
+  return STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listStrategistPhaseGateContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
 export { FORGE_STRATEGIST_PROVENANCE_VERSION };

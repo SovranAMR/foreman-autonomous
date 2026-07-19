@@ -5,6 +5,7 @@ import {
   runStrategistPhaseGateProbes,
   runStrategistPhaseGateProductionSlice,
   runStrategistPhaseGateBoundarySlice,
+  runStrategistPhaseGateFailureRecoverySlice,
   validateStrategistPhaseGateBaseline,
 } from "./forge-p03-strategist-phase-gate.probe.js";
 import {
@@ -18,6 +19,9 @@ import {
   validateStrategistPhaseGateAgainstContract,
   validateStrategistPhaseGateProbeMatrix,
   validateStrategistPhaseGateBoundaryProbeMatrix,
+  validateStrategistPhaseGateFailureRecoveryProbeMatrix,
+  listStrategistPhaseGateFailureRecoveryProbeIds,
+  STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
   recoverStrategistPhaseGateEvidence,
   assessStrategistPhaseGateInputBoundary,
   STRATEGIST_PHASE_GATE_MANIFEST_MAX_LENGTH,
@@ -282,5 +286,83 @@ describe("Forge Strategist Phase Gate Boundary Slice — P03-B10-A04", () => {
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
     assert.equal(slice.results.filter(r => !r.aligned).length, 0);
+  });
+});
+
+describe("Forge Strategist Phase Gate Failure/Recovery Slice — P03-B10-A05", () => {
+  it("defines seven failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveStrategistPhaseGateContract();
+    const failure = listStrategistPhaseGateContractProbesByCategory("failure_path", contract);
+    const recovery = listStrategistPhaseGateContractProbesByCategory("recovery_path", contract);
+    const nogo = listStrategistPhaseGateContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 3);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistPhaseGateContract();
+    const slice = runStrategistPhaseGateFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B10-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 7);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistPhaseGateContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistPhaseGateFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with full alignment after A04 boundary slice", () => {
+    const slice = runStrategistPhaseGateFailureRecoverySlice();
+    const probeIds = listStrategistPhaseGateFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 7);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "spg.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "spg.structured_phase_gate_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const evidenceNogo = slice.failureRecoveryResults.find(
+      r => r.id === "spg.phase_gate_evidence_nogo",
+    );
+    assert.ok(evidenceNogo);
+    assert.equal(evidenceNogo!.expected, "PASS");
+    assert.equal(evidenceNogo!.actual, "PASS");
   });
 });

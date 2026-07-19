@@ -18,6 +18,9 @@ import {
   validateStrategistPhaseGateAgainstContract,
   validateStrategistPhaseGateProbeMatrix,
   validateStrategistPhaseGateBoundaryProbeMatrix,
+  validateStrategistPhaseGateFailureRecoveryProbeMatrix,
+  listStrategistPhaseGateContractProbesByCategory,
+  STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
   validateP03PhaseHandoffContract,
   validateForgeP03StrategistPhaseGateEvidence,
   buildP03StrategistPhaseGateEvidence,
@@ -553,3 +556,41 @@ export function runStrategistPhaseGateBoundarySlice(
 }
 
 export const runForgeStrategistPhaseGateBoundarySlice = runStrategistPhaseGateBoundarySlice;
+
+export interface StrategistPhaseGateFailureRecoverySliceResult {
+  atom: "P03-B10-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistPhaseGateProbeResult[];
+  failureRecoveryResults: StrategistPhaseGateProbeResult[];
+  matrixValidation: ReturnType<typeof validateStrategistPhaseGateFailureRecoveryProbeMatrix>;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runStrategistPhaseGateFailureRecoverySlice(
+  fixture: StrategistPhaseGateBaseline = loadStrategistPhaseGateBaseline(),
+): StrategistPhaseGateFailureRecoverySliceResult {
+  const contract = getActiveStrategistPhaseGateContract();
+  const results = runStrategistPhaseGateProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistPhaseGateContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistPhaseGateFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B10-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
+    matrixValidation,
+  };
+}
+
+export const runForgeStrategistPhaseGateFailureRecoverySlice =
+  runStrategistPhaseGateFailureRecoverySlice;
