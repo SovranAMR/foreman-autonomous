@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B02-A05
-last_commit: pending
+last_commit: a2b840d
 tests: PASS — forge-p03-strategist-block-contract.test.ts (14/14); forge-p03-strategist-block-contract-baseline.test.ts (3/3); failure/recovery 6 probes; 0 unexpected mismatches
 evidence: runStrategistBlockContractFailureRecoverySlice; validateStrategistBlockContractFailureRecoveryProbeMatrix; listStrategistBlockContractFailureRecoveryProbeIds
 next: P03-B02-A06
