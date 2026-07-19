@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P03-B01-A01",
+  "contractAtom": "P03-B01-A05",
+  "purpose": "Strategist intent and task understanding baseline measured from sealed P02 phase gate artifacts (includes documented FAIL gaps).",
+  "sourcePhaseGate": {
+    "version": "1.0.0",
+    "atom": "P02-PHASE-GATE",
+    "contractVersion": "1.0.0",
+    "visionerPhaseGateProbeCount": 24,
+    "sealedBlockCount": 10
+  },
+  "probes": [
+    {
+      "id": "sint.version_tagged",
+      "category": "intent_versioning",
+      "description": "Strategist intent baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.atom_tagged",
+      "category": "intent_versioning",
+      "description": "Strategist intent baseline declares P03-B01-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.harness_version_exported",
+      "category": "intent_versioning",
+      "description": "FORGE_STRATEGIST_INTENT_VERSION exported for strategist intent harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.vision_document_wired",
+      "category": "task_signal",
+      "description": "Orchestrator passes vision document into strategist decompose step input",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.strategist_layer_invoke",
+      "category": "task_signal",
+      "description": "Decompose phase invokes engine.stepWithPhase with strategist layer",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.structured_decompose_parse",
+      "category": "task_signal",
+      "description": "Typed parseDecomposeResponse exports structured blocks from decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.prompt_block_tiers",
+      "category": "decomposition_depth",
+      "description": "STRATEGIST_SYSTEM prompt declares simple, medium and complex block count tiers",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.programmatic_block_cap",
+      "category": "decomposition_depth",
+      "description": "parseDecomposeResponse enforces max 8 blocks programmatically",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.orchestrator_block_cap",
+      "category": "decomposition_depth",
+      "description": "Orchestrator caps strategist block output at 8 regardless of model output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.p02_phase_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_TO_P03_PHASE_HANDOFF_V1 targets P03-B01-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.p02_sealed_phase_gate_probes",
+      "category": "baseline_link",
+      "description": "P02→P03 handoff sealed block inventory matches P02 phase gate block count",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.source_phase_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02 phase gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.probe_runner_exported",
+      "category": "boundary",
+      "description": "runStrategistIntentProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL intent gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.empty_vision_boundary",
+      "category": "boundary",
+      "description": "assessStrategistVisionInputBoundary rejects empty vision input",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.whitespace_vision_boundary",
+      "category": "boundary",
+      "description": "assessStrategistVisionInputBoundary rejects whitespace-only vision input",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.long_vision_truncation_boundary",
+      "category": "boundary",
+      "description": "assessStrategistVisionInputBoundary truncates vision exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.empty_decompose_guard",
+      "category": "failure_path",
+      "description": "Orchestrator rejects decompose output with zero extractable blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateStrategistIntentBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.decompose_checkpoint_resume",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses prior checkpoint decompose blocks without re-invoking LLM",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.structured_decompose_recovery",
+      "category": "recovery_path",
+      "description": "recoverStrategistDecompose restructures failed decompose parse into actionable block plan",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sint.strategist_contradiction_block",
+      "category": "nogo_path",
+      "description": "Strategist prompt can BLOCK visioner on internal contradictions",
+      "expected": "PASS"
+    },
+    {
+      "id": "sint.over_decompose_nogo",
+      "category": "nogo_path",
+      "description": "parseDecomposeResponse trims strategist output exceeding 8 blocks",
+      "expected": "PASS"
+    }
+  ]
+}

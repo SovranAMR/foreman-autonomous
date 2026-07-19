@@ -2,13 +2,13 @@
 
 program: FOREMAN-FORGE-1000
 front_status: READY
-active_phase: P02
-active_block: P02-B10
-active_atom: P02-B10-A10
-phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 199/1000
-phase_progress: 98/100
-block_progress: 10/10
+active_phase: P03
+active_block: P03-B01
+active_atom: P03-B01-A02
+phase_file: .foreman/phases/P03_STRATEGIST.md
+program_progress: 200/1000
+phase_progress: 1/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B01-A01 — Stratejist intent ve görev anlamlandırma: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P03-B01-A02 — Hedef decomposition: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P02-B10-A10 PASS; P03 strategist phase entry from sealed P02 visioner phase gate block gate handoff.
-target: loadStrategistIntentBaseline, validateStrategistIntentBaseline.
-hypothesis: P03-B01-A01 measures strategist intent behavior from sealed P02 phase gate artifacts.
-acceptance: baseline fixture created; failing probes documented; P02 handoff contract referenced.
+objective: P03-B01-A01 PASS; P03-B01-A02 typed strategist intent contract acceptance.
+target: getActiveStrategistIntentContract, validateStrategistIntentAgainstContract.
+hypothesis: P03-B01-A02 formalizes strategist intent probes from sealed P03-B01-A01 baseline.
+acceptance: contract coverage validated; fixture aligned; baseline regression green.
 commands: npx tsx --test src/forge-p03-strategist-intent-baseline.test.ts
-blast_radius: src/forge-p03-strategist-intent.ts, src/fixtures/forge-strategist-intent-v1.json
-rollback: P03-B01-A01 baseline slice değişikliklerini geri al.
+blast_radius: src/forge-p03-strategist-intent.ts
+rollback: P03-B01-A02 contract slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: P02 handoff contract misaligned ise BLOCKED raporla.
+fallback: P03-B01-A01 baseline misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B10-A10
-last_commit: 0af93c4
-tests: PASS — forge-p02-visioner-phase-gate-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts P02-B10-A10 (2/2); 114/114 targeted
-evidence: runForgeVisionerPhaseGateBlockGate; verifyForgeP02VisionerPhaseGateBlockGate; seals=10/10; inventory=9; handoff=P03-B01-A01
-next: P03-B01-A01
+last_atom: P03-B01-A01
+last_commit: 68f6b8d
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (3/3); 23 probes; 1 documented FAIL gap
+evidence: loadStrategistIntentBaseline; validateStrategistIntentBaseline; runStrategistIntentProbes; handoff=P02-PHASE-GATE→P03-B01-A01
+next: P03-B01-A02
