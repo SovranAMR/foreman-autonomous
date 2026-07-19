@@ -44,7 +44,7 @@ fallback: Integration slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B03-A07
-last_commit: pending
+last_commit: fce4ae7
 tests: PASS — forge-p05-worker-edit-engine-property-fuzz.test.ts (7/7), evidence (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 45 total
 evidence: runWorkerEditEnginePropertyFuzzSlice + validateWorkerEditEnginePropertyProbeMatrix; 8/8 structural properties pass, 24/24 fixture fuzz rejected, 5/5 run record mutations rejected
 next: P05-B03-A08
