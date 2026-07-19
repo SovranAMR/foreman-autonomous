@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B04-A03
-last_commit: pending
+last_commit: abdac08
 tests: PASS — forge-p03-strategist-dependency-dag.test.ts (12/12); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 23 probes; 6 gap dispositions; 2 recovery probes flipped PASS
 evidence: recoverStrategistDependencyDag; inferBlockDependenciesFromOrder; runStrategistDependencyDagProductionSlice; validateStrategistDependencyDagProbeMatrix
 next: P03-B04-A04
