@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B03
-active_atom: P05-B03-A08
+active_atom: P05-B03-A09
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 426/1000
-phase_progress: 22/100
-block_progress: 7/10
+program_progress: 427/1000
+phase_progress: 23/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B03-A08 — Cerrahi edit engine: Forge entegrasyonu ile regression testini tamamla.
+P05-B03-A09 — Cerrahi edit engine: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P05-B03-A07 property/fuzz slice sealed; wire Forge integration regression test.
-target: Close integration slice with prior/current run record comparison and guard checks.
-hypothesis: Edit engine integration slice detects probe regressions and passes full matrix.
-acceptance: Integration probe matrix aligned; targeted tests green.
+objective: P05-B03-A08 integration slice sealed; wire guard controls for adversarial/perf/cost/safety.
+target: Close guard slice with tamper rejection, performance ceilings and safety pattern checks.
+hypothesis: Edit engine guard slice rejects tampered records and passes canonical matrix under ceilings.
+acceptance: Guard probe matrix aligned; targeted tests green.
 commands: npx tsx --test src/forge-p05-worker-edit-engine*.test.ts
 blast_radius: src/forge-p05-worker-edit-engine.ts
-rollback: P05-B03-A08 integration slice değişikliklerini geri al.
+rollback: P05-B03-A09 guard slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Integration slice blocked ise BLOCKED raporla.
+fallback: Guard slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B03-A07
-last_commit: fce4ae7
-tests: PASS — forge-p05-worker-edit-engine-property-fuzz.test.ts (7/7), evidence (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 45 total
-evidence: runWorkerEditEnginePropertyFuzzSlice + validateWorkerEditEnginePropertyProbeMatrix; 8/8 structural properties pass, 24/24 fixture fuzz rejected, 5/5 run record mutations rejected
-next: P05-B03-A08
+last_atom: P05-B03-A08
+last_commit: pending
+tests: PASS — forge-p05-worker-edit-engine-integration.test.ts (7/7), property-fuzz (7/7), evidence (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 52 total
+evidence: runWorkerEditEngineIntegrationSlice + validateWorkerEditEngineIntegrationProbeMatrix; 6/6 sub-slices aligned, prior/current run record comparison, guard checks pass
+next: P05-B03-A09

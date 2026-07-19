@@ -23,7 +23,7 @@ import {
 import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 import { EditEngine } from "./edit-engine.js";
 
-export const FORGE_WORKER_EDIT_ENGINE_VERSION = "1.0.0-a07";
+export const FORGE_WORKER_EDIT_ENGINE_VERSION = "1.0.0-a08";
 
 export const EXPECTED_P05_B02_SEALED_ATOM_COUNT = 10;
 
@@ -2989,6 +2989,720 @@ export function runWorkerEditEnginePropertyFuzzSlice(
     propertyResult,
     contractFuzz,
     runRecordFuzz,
+  };
+}
+
+// ─── Forge integration regression (P05-B03-A08) ─────────────────────────────
+
+export interface WorkerEditEngineProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare worker edit engine run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectWorkerEditEngineProbeRegression(
+  prior: WorkerEditEngineRunRecord,
+  current: WorkerEditEngineRunRecord,
+): WorkerEditEngineProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+export interface WorkerEditEngineIntegrationSliceResult {
+  atom: "P05-B03-A08";
+  passed: boolean;
+  productionSlice: WorkerEditEngineProductionSliceResult;
+  boundarySlice: WorkerEditEngineBoundarySliceResult;
+  failureRecoverySlice: WorkerEditEngineFailureRecoverySliceResult;
+  evidenceSlice: WorkerEditEngineEvidenceSliceResult;
+  propertyFuzzSlice: WorkerEditEnginePropertyFuzzSliceResult;
+  record: WorkerEditEngineRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: WorkerEditEngineProbeRegressionReport | null;
+  guard: WorkerEditEngineGuardCheckResult;
+  matrixValid: boolean;
+  matrixValidation: WorkerEditEngineIntegrationProbeMatrixValidationResult;
+  detail: string;
+}
+
+export interface WorkerEditEngineIntegrationProbeMatrixValidationResult {
+  valid: boolean;
+  issues: WorkerEditEngineProbeMatrixValidationIssue[];
+  slicesAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate integration slice sub-gates — all prior A03–A07 slices with zero unexpected mismatches.
+ */
+export function validateWorkerEditEngineIntegrationProbeMatrix(
+  slice: WorkerEditEngineIntegrationSliceResult,
+): WorkerEditEngineIntegrationProbeMatrixValidationResult {
+  const issues: WorkerEditEngineProbeMatrixValidationIssue[] = [];
+  let slicesAligned = 0;
+  let unexpectedMismatches = 0;
+
+  if (slice.atom !== "P05-B03-A08") {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: `slice atom=${slice.atom} expected=P05-B03-A08`,
+    });
+    unexpectedMismatches++;
+  }
+
+  const sliceChecks: Array<{ name: string; ok: boolean; detail: string }> = [
+    {
+      name: "production",
+      ok:
+        slice.productionSlice.matrixValid &&
+        slice.productionSlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `production unexpected=${slice.productionSlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "boundary",
+      ok:
+        slice.boundarySlice.matrixValid &&
+        slice.boundarySlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `boundary unexpected=${slice.boundarySlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "failure_recovery",
+      ok:
+        slice.failureRecoverySlice.matrixValid &&
+        slice.failureRecoverySlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `failureRecovery unexpected=${slice.failureRecoverySlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "evidence",
+      ok:
+        slice.evidenceSlice.matrixValid &&
+        slice.evidenceSlice.recordValid &&
+        slice.evidenceSlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `evidence unexpected=${slice.evidenceSlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "property_fuzz",
+      ok:
+        slice.propertyFuzzSlice.propertyChecksPassed &&
+        slice.propertyFuzzSlice.contractFuzzRejected &&
+        slice.propertyFuzzSlice.runRecordFuzzRejected,
+      detail: `propertyFuzz properties=${slice.propertyFuzzSlice.propertyResult.passed}/${slice.propertyFuzzSlice.propertyResult.total}`,
+    },
+    {
+      name: "record",
+      ok: slice.recordValid && slice.record.summary.mismatches === 0,
+      detail: `record mismatches=${slice.record.summary.mismatches}`,
+    },
+  ];
+
+  for (const check of sliceChecks) {
+    if (check.ok) {
+      slicesAligned++;
+    } else {
+      issues.push({ kind: "pass_mismatch", detail: `${check.name}: ${check.detail}` });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (slice.probeRegression?.hasRegression) {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: `probe regression: ${slice.probeRegression.summary}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  if (!slice.priorRecordValid && slice.probeRegression !== null) {
+    issues.push({ kind: "pass_mismatch", detail: "prior record validation failed" });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    slicesAligned,
+    unexpectedMismatches,
+  };
+}
+
+/**
+ * A08 integration slice: wire production, boundary, failure/recovery, evidence and property/fuzz
+ * gates with full run record and optional prior-run regression detection — zero unexpected mismatches.
+ */
+export function runWorkerEditEngineIntegrationSlice(
+  priorRecord?: WorkerEditEngineRunRecord,
+): WorkerEditEngineIntegrationSliceResult {
+  const fixture = loadWorkerEditEngineBaseline();
+  const contract = getActiveWorkerEditEngineContract();
+  const productionSlice = runWorkerEditEngineProductionSlice(fixture);
+  const boundarySlice = runWorkerEditEngineBoundarySlice(fixture);
+  const failureRecoverySlice = runWorkerEditEngineFailureRecoverySlice(fixture);
+  const evidenceSlice = runWorkerEditEngineEvidenceSlice(fixture);
+  const propertyFuzzSlice = runWorkerEditEnginePropertyFuzzSlice(fixture);
+  const record = runWorkerEditEngineProbesWithRecord(fixture);
+  const validation = validateWorkerEditEngineRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateWorkerEditEngineRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectWorkerEditEngineProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeWorkerEditEngineGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const boundarySliceOk =
+    boundarySlice.matrixValid && boundarySlice.matrixValidation.unexpectedMismatches === 0;
+  const failureRecoverySliceOk =
+    failureRecoverySlice.matrixValid &&
+    failureRecoverySlice.matrixValidation.unexpectedMismatches === 0;
+  const evidenceSliceOk =
+    evidenceSlice.matrixValid &&
+    evidenceSlice.recordValid &&
+    evidenceSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk &&
+    boundarySliceOk &&
+    failureRecoverySliceOk &&
+    evidenceSliceOk &&
+    propertyFuzzOk &&
+    recordValid &&
+    priorRecordValid &&
+    !alignmentRegression &&
+    guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  detailParts.push(`boundarySlice: unexpected=${boundarySlice.matrixValidation.unexpectedMismatches}`);
+  detailParts.push(
+    `failureRecoverySlice: unexpected=${failureRecoverySlice.matrixValidation.unexpectedMismatches}`,
+  );
+  detailParts.push(`evidenceSlice: unexpected=${evidenceSlice.matrixValidation.unexpectedMismatches}`);
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(`priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  const partial: WorkerEditEngineIntegrationSliceResult = {
+    atom: "P05-B03-A08",
+    passed,
+    productionSlice,
+    boundarySlice,
+    failureRecoverySlice,
+    evidenceSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    guard,
+    matrixValid: false,
+    matrixValidation: {
+      valid: false,
+      issues: [],
+      slicesAligned: 0,
+      unexpectedMismatches: 0,
+    },
+    detail: detailParts.join(" | "),
+  };
+
+  const matrixValidation = validateWorkerEditEngineIntegrationProbeMatrix(partial);
+  return {
+    ...partial,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    matrixValidation,
+    passed: passed && matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    detail:
+      passed && matrixValidation.valid
+        ? detailParts.join(" | ")
+        : `${detailParts.join(" | ")} | integrationMatrix: unexpected=${matrixValidation.unexpectedMismatches}`,
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P05-B03-A08). */
+export const runWorkerEditEngineRegressionIntegration = runWorkerEditEngineIntegrationSlice;
+
+// ─── Guard controls (P05-B03-A09) ─────────────────────────────────────────────
+
+export interface ForgeWorkerEditEngineGuardControls {
+  atom: string;
+  adversarial: {
+    rejectTamperedRecords: true;
+    rejectFalseAlignment: true;
+    rejectSummaryEvidenceMismatch: true;
+  };
+  performance: {
+    maxSuiteDurationMs: number;
+    maxProbeDurationMs: number;
+    maxWallClockMs: number;
+  };
+  cost: {
+    maxTotalCostUsd: number;
+    maxLlmCalls: number;
+  };
+  safety: {
+    maxDetailLength: number;
+    forbiddenPatterns: readonly RegExp[];
+  };
+}
+
+export interface WorkerEditEngineGuardCheckIssue {
+  domain: "adversarial" | "performance" | "cost" | "safety";
+  code: string;
+  detail: string;
+}
+
+export interface WorkerEditEngineGuardCheckResult {
+  passed: boolean;
+  issues: WorkerEditEngineGuardCheckIssue[];
+  metrics: {
+    suiteDurationMs: number;
+    wallClockMs: number;
+    maxProbeDurationMs: number;
+    totalCostUsd: number;
+    llmCalls: number;
+    adversarialScenariosRejected: number;
+    adversarialScenariosTotal: number;
+  };
+}
+
+export interface WorkerEditEngineAdversarialGuardScenario {
+  id: string;
+  description: string;
+  build: (record: WorkerEditEngineRunRecord) => WorkerEditEngineRunRecord;
+  expectRejected: true;
+}
+
+export interface WorkerEditEngineGuardSliceResult {
+  atom: "P05-B03-A09";
+  passed: boolean;
+  record: WorkerEditEngineRunRecord;
+  guard: WorkerEditEngineGuardCheckResult;
+  detail: string;
+}
+
+export const FORGE_WORKER_EDIT_ENGINE_GUARD_CONTROLS_V1: ForgeWorkerEditEngineGuardControls = {
+  atom: "P05-B03-A09",
+  adversarial: {
+    rejectTamperedRecords: true,
+    rejectFalseAlignment: true,
+    rejectSummaryEvidenceMismatch: true,
+  },
+  performance: {
+    maxSuiteDurationMs: 60_000,
+    maxProbeDurationMs: 10_000,
+    maxWallClockMs: 90_000,
+  },
+  cost: {
+    maxTotalCostUsd: 0,
+    maxLlmCalls: 0,
+  },
+  safety: {
+    maxDetailLength: 4096,
+    forbiddenPatterns: [
+      /sk-[a-zA-Z0-9]{20,}/,
+      /api[_-]?key\s*[:=]\s*\S+/i,
+      /Bearer\s+[a-zA-Z0-9._-]{20,}/i,
+      /password\s*[:=]\s*\S+/i,
+      /-----BEGIN (RSA |EC )?PRIVATE KEY-----/,
+    ],
+  },
+};
+
+export function getForgeWorkerEditEngineGuardControls(): ForgeWorkerEditEngineGuardControls {
+  return FORGE_WORKER_EDIT_ENGINE_GUARD_CONTROLS_V1;
+}
+
+function parseWorkerEditEngineIsoDurationMs(startedAt: string, completedAt: string): number {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(completedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
+  return end - start;
+}
+
+export function summarizeWorkerEditEngineTelemetry(
+  telemetry: WorkerEditEngineProbeRunTelemetry[],
+): {
+  suiteDurationMs: number;
+  maxProbeDurationMs: number;
+} {
+  let suiteDurationMs = 0;
+  let maxProbeDurationMs = 0;
+  for (const item of telemetry) {
+    suiteDurationMs += item.durationMs;
+    if (item.durationMs > maxProbeDurationMs) maxProbeDurationMs = item.durationMs;
+  }
+  return { suiteDurationMs, maxProbeDurationMs };
+}
+
+export function detectWorkerEditEngineEvidenceSummaryMismatch(
+  record: WorkerEditEngineRunRecord,
+): string | null {
+  let alignedCount = 0;
+  for (const item of record.evidence) {
+    if (item.aligned) alignedCount++;
+  }
+  const mismatches = record.evidence.length - alignedCount;
+  if (record.summary.aligned !== alignedCount) {
+    return `summary.aligned=${record.summary.aligned} evidence=${alignedCount}`;
+  }
+  if (record.summary.mismatches !== mismatches) {
+    return `summary.mismatches=${record.summary.mismatches} evidence=${mismatches}`;
+  }
+  if (record.summary.total !== record.evidence.length) {
+    return `summary.total=${record.summary.total} evidence=${record.evidence.length}`;
+  }
+  return null;
+}
+
+export function detectWorkerEditEngineFalseAlignment(
+  record: WorkerEditEngineRunRecord,
+): string[] {
+  const violations: string[] = [];
+  for (const item of record.evidence) {
+    const shouldAlign = item.actual === item.expected;
+    if (item.aligned !== shouldAlign) {
+      violations.push(
+        `${item.probeId}: aligned=${item.aligned} actual=${item.actual} expected=${item.expected}`,
+      );
+    }
+    if (item.aligned && item.actual !== item.expected) {
+      violations.push(`${item.probeId}: false PASS claim`);
+    }
+  }
+  return violations;
+}
+
+export function validateWorkerEditEngineSafety(
+  record: WorkerEditEngineRunRecord,
+  controls: ForgeWorkerEditEngineGuardControls = getForgeWorkerEditEngineGuardControls(),
+): WorkerEditEngineGuardCheckIssue[] {
+  const issues: WorkerEditEngineGuardCheckIssue[] = [];
+  for (const item of record.evidence) {
+    if (item.detail.length > controls.safety.maxDetailLength) {
+      issues.push({
+        domain: "safety",
+        code: "detail_too_long",
+        detail: `${item.probeId} detail length=${item.detail.length}`,
+      });
+    }
+    for (const pattern of controls.safety.forbiddenPatterns) {
+      if (pattern.test(item.detail) || pattern.test(item.criterion)) {
+        issues.push({
+          domain: "safety",
+          code: "forbidden_pattern",
+          detail: `${item.probeId} matched ${pattern.source}`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+export function validateWorkerEditEnginePerformance(
+  record: WorkerEditEngineRunRecord,
+  controls: ForgeWorkerEditEngineGuardControls = getForgeWorkerEditEngineGuardControls(),
+): WorkerEditEngineGuardCheckIssue[] {
+  const issues: WorkerEditEngineGuardCheckIssue[] = [];
+  const { suiteDurationMs, maxProbeDurationMs } = summarizeWorkerEditEngineTelemetry(record.telemetry);
+  const wallClockMs = parseWorkerEditEngineIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  if (suiteDurationMs > controls.performance.maxSuiteDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "suite_duration_exceeded",
+      detail: `${suiteDurationMs}ms > ${controls.performance.maxSuiteDurationMs}ms`,
+    });
+  }
+  if (maxProbeDurationMs > controls.performance.maxProbeDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "probe_duration_exceeded",
+      detail: `${maxProbeDurationMs}ms > ${controls.performance.maxProbeDurationMs}ms`,
+    });
+  }
+  if (wallClockMs > controls.performance.maxWallClockMs) {
+    issues.push({
+      domain: "performance",
+      code: "wall_clock_exceeded",
+      detail: `${wallClockMs}ms > ${controls.performance.maxWallClockMs}ms`,
+    });
+  }
+  return issues;
+}
+
+export function validateWorkerEditEngineCost(
+  totalCostUsd: number,
+  llmCalls: number,
+  controls: ForgeWorkerEditEngineGuardControls = getForgeWorkerEditEngineGuardControls(),
+): WorkerEditEngineGuardCheckIssue[] {
+  const issues: WorkerEditEngineGuardCheckIssue[] = [];
+  if (totalCostUsd > controls.cost.maxTotalCostUsd) {
+    issues.push({
+      domain: "cost",
+      code: "cost_exceeded",
+      detail: `$${totalCostUsd.toFixed(4)} > $${controls.cost.maxTotalCostUsd}`,
+    });
+  }
+  if (llmCalls > controls.cost.maxLlmCalls) {
+    issues.push({
+      domain: "cost",
+      code: "llm_calls_exceeded",
+      detail: `${llmCalls} > ${controls.cost.maxLlmCalls}`,
+    });
+  }
+  return issues;
+}
+
+export function buildWorkerEditEngineAdversarialGuardScenarios(): WorkerEditEngineAdversarialGuardScenario[] {
+  return [
+    {
+      id: "adversarial.false_alignment_claim",
+      description: "Evidence claims aligned while actual !== expected",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = true;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.summary_mismatch",
+      description: "Summary reports zero mismatches while evidence is tampered",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = false;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        cloned.summary = { ...cloned.summary, aligned: cloned.summary.total, mismatches: 0 };
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.dropped_probe",
+      description: "Run record omits required probe evidence",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        cloned.evidence = cloned.evidence.slice(1);
+        cloned.telemetry = cloned.telemetry.slice(1);
+        cloned.summary = buildWorkerEditEngineRunRecord(
+          cloned.provenance,
+          cloned.evidence,
+          cloned.telemetry,
+        ).summary;
+        return cloned;
+      },
+    },
+  ];
+}
+
+export function runWorkerEditEngineAdversarialGuardChecks(
+  fixtureRecord: WorkerEditEngineRunRecord,
+  contract: WorkerEditEngineContract = getActiveWorkerEditEngineContract(),
+): { rejected: number; total: number; failures: string[] } {
+  const scenarios = buildWorkerEditEngineAdversarialGuardScenarios();
+  const failures: string[] = [];
+  let rejected = 0;
+
+  for (const scenario of scenarios) {
+    const tampered = scenario.build(fixtureRecord);
+    const validation = validateWorkerEditEngineRunRecord(tampered, contract);
+    const falseAlignment = detectWorkerEditEngineFalseAlignment(tampered);
+    const summaryMismatch = detectWorkerEditEngineEvidenceSummaryMismatch(tampered);
+    const rejectedByGuard =
+      !validation.valid || falseAlignment.length > 0 || summaryMismatch !== null;
+
+    if (rejectedByGuard) rejected++;
+    else failures.push(`${scenario.id}: tampered record was not rejected`);
+  }
+
+  return { rejected, total: scenarios.length, failures };
+}
+
+export function validateForgeWorkerEditEngineGuard(
+  record: WorkerEditEngineRunRecord,
+  options: {
+    totalCostUsd?: number;
+    llmCalls?: number;
+    contract?: WorkerEditEngineContract;
+    controls?: ForgeWorkerEditEngineGuardControls;
+  } = {},
+): WorkerEditEngineGuardCheckResult {
+  const controls = options.controls ?? getForgeWorkerEditEngineGuardControls();
+  const contract = options.contract ?? getActiveWorkerEditEngineContract();
+  const totalCostUsd = options.totalCostUsd ?? 0;
+  const llmCalls = options.llmCalls ?? 0;
+  const issues: WorkerEditEngineGuardCheckIssue[] = [];
+
+  issues.push(...validateWorkerEditEnginePerformance(record, controls));
+  issues.push(...validateWorkerEditEngineCost(totalCostUsd, llmCalls, controls));
+  issues.push(...validateWorkerEditEngineSafety(record, controls));
+
+  const falseAlignment = detectWorkerEditEngineFalseAlignment(record);
+  if (falseAlignment.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "false_alignment",
+      detail: falseAlignment.join("; "),
+    });
+  }
+  const summaryMismatch = detectWorkerEditEngineEvidenceSummaryMismatch(record);
+  if (summaryMismatch) {
+    issues.push({
+      domain: "adversarial",
+      code: "summary_evidence_mismatch",
+      detail: summaryMismatch,
+    });
+  }
+
+  const adversarial = runWorkerEditEngineAdversarialGuardChecks(record, contract);
+  if (adversarial.failures.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "scenario_not_rejected",
+      detail: adversarial.failures.join("; "),
+    });
+  }
+
+  const telemetrySummary = summarizeWorkerEditEngineTelemetry(record.telemetry);
+  const wallClockMs = parseWorkerEditEngineIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  return {
+    passed: issues.length === 0 && adversarial.rejected === adversarial.total,
+    issues,
+    metrics: {
+      suiteDurationMs: telemetrySummary.suiteDurationMs,
+      wallClockMs,
+      maxProbeDurationMs: telemetrySummary.maxProbeDurationMs,
+      totalCostUsd,
+      llmCalls,
+      adversarialScenariosRejected: adversarial.rejected,
+      adversarialScenariosTotal: adversarial.total,
+    },
+  };
+}
+
+/**
+ * A09 guard slice: adversarial tamper rejection plus performance, cost and safety ceilings.
+ */
+export function runWorkerEditEngineGuardSlice(): WorkerEditEngineGuardSliceResult {
+  const record = runWorkerEditEngineProbesWithRecord();
+  const contract = getActiveWorkerEditEngineContract();
+  const guard = validateForgeWorkerEditEngineGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+  const passed = guard.passed && record.summary.mismatches === 0;
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard FAIL: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard PASS: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+  return {
+    atom: "P05-B03-A09",
+    passed,
+    record,
+    guard,
+    detail: detailParts.join(" | "),
   };
 }
 

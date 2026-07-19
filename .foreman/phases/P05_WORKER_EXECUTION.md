@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 25
+completed_atoms: 26
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -48,7 +48,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B03-A05 — Cerrahi edit engine: failure, recovery ve NO-GO yollarını uygula
 - [x] P05-B03-A06 — Cerrahi edit engine: evidence, telemetry ve provenance kaydını ekle
 - [x] P05-B03-A07 — Cerrahi edit engine: unit, property ve fuzz doğrulamasını ekle
-- [ ] P05-B03-A08 — Cerrahi edit engine: Forge entegrasyonu ile regression testini tamamla
+- [x] P05-B03-A08 — Cerrahi edit engine: Forge entegrasyonu ile regression testini tamamla
 - [ ] P05-B03-A09 — Cerrahi edit engine: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P05-B03-A10 — Cerrahi edit engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
