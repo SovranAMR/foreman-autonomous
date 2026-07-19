@@ -33,26 +33,19 @@ describe("Forge Strategist Phase Gate — P03-B10-A01", () => {
     assert.equal(fixture.probes.length, 24);
   });
 
-  it("measures strategist phase gate probes with documented FAIL gaps from P03-B09 sealed handoff", () => {
+  it("measures strategist phase gate probes with full alignment after A03 production slice", () => {
     const results = runStrategistPhaseGateProbes();
     const summary = summarizeStrategistPhaseGateMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 24);
-    assert.equal(summary.knownGaps.length, 1);
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listStrategistPhaseGateProbesByExpected(
       "FAIL",
       loadStrategistPhaseGateBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.equal(documentedFail[0]?.id, "spg.orchestrator_phase_gate_runner");
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of STRATEGIST_PHASE_GATE_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -67,8 +60,8 @@ describe("Forge Strategist Phase Gate — P03-B10-A01", () => {
     );
   });
 
-  it("documents strategist phase gate gaps as measurable baseline debt", () => {
+  it("documents zero remaining strategist phase gate gaps after A03 orchestrator wiring", () => {
     const gaps = listStrategistPhaseGateKnownGaps(runStrategistPhaseGateProbes());
-    assert.deepEqual(gaps.map(g => g.id).sort(), ["spg.orchestrator_phase_gate_runner"]);
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });

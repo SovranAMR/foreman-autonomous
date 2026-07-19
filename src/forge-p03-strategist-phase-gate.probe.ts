@@ -16,6 +16,7 @@ import {
 import {
   validateStrategistPhaseGateBaseline,
   validateStrategistPhaseGateAgainstContract,
+  validateStrategistPhaseGateProbeMatrix,
   validateP03PhaseHandoffContract,
   validateForgeP03StrategistPhaseGateEvidence,
   buildP03StrategistPhaseGateEvidence,
@@ -257,7 +258,7 @@ function probeBoundary(
       const contract = getActiveStrategistPhaseGateContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -479,3 +480,40 @@ export function runStrategistPhaseGateProbes(
 }
 
 export const runForgeStrategistPhaseGateProbes = runStrategistPhaseGateProbes;
+
+export interface StrategistPhaseGateProductionSliceResult {
+  atom: "P03-B10-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: StrategistPhaseGateProbeResult[];
+  summary: ReturnType<typeof summarizeStrategistPhaseGateMatrix>;
+  matrixValidation: ReturnType<typeof validateStrategistPhaseGateProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: contract-wired probe execution and matrix alignment
+ * gate with zero unexpected mismatches after orchestrator phase gate runner wiring.
+ */
+export function runStrategistPhaseGateProductionSlice(
+  fixture: StrategistPhaseGateBaseline = loadStrategistPhaseGateBaseline(),
+): StrategistPhaseGateProductionSliceResult {
+  const contract = getActiveStrategistPhaseGateContract();
+  const fixtureValidation = validateStrategistPhaseGateBaseline(fixture);
+  const contractValidation = validateStrategistPhaseGateAgainstContract(fixture, contract);
+  const results = runStrategistPhaseGateProbes(fixture);
+  const summary = summarizeStrategistPhaseGateMatrix(results);
+  const matrixValidation = validateStrategistPhaseGateProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B10-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
+}
+
+export const runForgeStrategistPhaseGateProductionSlice = runStrategistPhaseGateProductionSlice;

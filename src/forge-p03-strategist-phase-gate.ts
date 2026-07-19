@@ -865,8 +865,8 @@ const STRATEGIST_PHASE_GATE_CATEGORY_CONTRACTS: Record<
         id: "spg.orchestrator_phase_gate_runner",
         category: "recovery_path",
         description: "Orchestrator exposes verifyForgeP03StrategistPhaseGate for P03 phase acceptance",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion: "Orchestrator exposes verifyForgeP03StrategistPhaseGate for P03 phase acceptance",
       },
     ],
@@ -1282,6 +1282,113 @@ export function listStrategistPhaseGateKnownGaps(
   results: StrategistPhaseGateProbeResult[],
 ): StrategistPhaseGateProbeResult[] {
   return summarizeStrategistPhaseGateMatrix(results).knownGaps;
+}
+
+export interface StrategistPhaseGateProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistPhaseGateProbeMatrixValidationResult {
+  valid: boolean;
+  issues: StrategistPhaseGateProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ * PASS probes must align; documented FAIL gaps must remain aligned (actual === FAIL).
+ */
+export function validateStrategistPhaseGateProbeMatrix(
+  results: StrategistPhaseGateProbeResult[],
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): StrategistPhaseGateProbeMatrixValidationResult {
+  const issues: StrategistPhaseGateProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(r => [r.id, r]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(p => p.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
 }
 
 export { FORGE_STRATEGIST_PROVENANCE_VERSION };

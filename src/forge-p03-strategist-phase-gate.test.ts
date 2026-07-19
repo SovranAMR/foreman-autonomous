@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   loadStrategistPhaseGateBaseline,
   runStrategistPhaseGateProbes,
+  runStrategistPhaseGateProductionSlice,
   validateStrategistPhaseGateBaseline,
 } from "./forge-p03-strategist-phase-gate.probe.js";
 import {
@@ -14,9 +15,13 @@ import {
   summarizeStrategistPhaseGateCoverage,
   validateStrategistPhaseGateCoverage,
   validateStrategistPhaseGateAgainstContract,
+  validateStrategistPhaseGateProbeMatrix,
+  recoverStrategistPhaseGateEvidence,
+  assessStrategistPhaseGateInputBoundary,
   STRATEGIST_PHASE_GATE_CATEGORIES,
   FORGE_STRATEGIST_PHASE_GATE_CONTRACT_V1,
   FORGE_STRATEGIST_PHASE_GATE_VERSION,
+  P03_STRATEGIST_PHASE_BLOCK_COUNT,
 } from "./forge-p03-strategist-phase-gate.js";
 
 describe("Forge Strategist Phase Gate Contract — P03-B10-A02", () => {
@@ -46,19 +51,19 @@ describe("Forge Strategist Phase Gate Contract — P03-B10-A02", () => {
     }
   });
 
-  it("maps 24 probes with one documented FAIL gap from A01 baseline", () => {
+  it("maps 24 probes with full PASS alignment after A03 production slice", () => {
     const contract = getActiveStrategistPhaseGateContract();
     const summary = summarizeStrategistPhaseGateCoverage(contract);
     const coverage = validateStrategistPhaseGateCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 24);
-    assert.equal(summary.expectedPass, 23);
-    assert.equal(summary.expectedFail, 1);
+    assert.equal(summary.expectedPass, 24);
+    assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 1);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 2);
+    assert.equal(summary.byDisposition.recovery, 3);
     assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.phase_versioning.probeCount, 3);
     assert.equal(summary.byCategory.block_gate_signal.probeCount, 3);
@@ -70,10 +75,9 @@ describe("Forge Strategist Phase Gate Contract — P03-B10-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists one gap probe for orchestrator phase gate runner", () => {
+  it("documents zero remaining strategist phase gate gap probes after A03", () => {
     const gaps = listStrategistPhaseGateProbesByDisposition("gap");
-    assert.deepEqual(gaps.map(p => p.id).sort(), ["spg.orchestrator_phase_gate_runner"]);
-    assert.equal(gaps[0]?.expected, "FAIL");
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -135,5 +139,70 @@ describe("Forge Strategist Phase Gate Contract — P03-B10-A02", () => {
   it("exports FORGE_STRATEGIST_PHASE_GATE_VERSION aligned with contract semver", () => {
     const contract = getActiveStrategistPhaseGateContract();
     assert.equal(FORGE_STRATEGIST_PHASE_GATE_VERSION, contract.version);
+  });
+});
+
+describe("Forge Strategist Phase Gate Production Slice — P03-B10-A03", () => {
+  it("recoverStrategistPhaseGateEvidence restructures malformed block seal manifest", () => {
+    const malformed = `block gates incomplete
+P03-B01: PASS atoms=10
+P03-B02: pass atoms=10
+provenance regression: pass
+handoff: valid`;
+    const recovery = recoverStrategistPhaseGateEvidence(malformed, {
+      provenanceRegressionPassed: true,
+      handoffValid: true,
+    });
+
+    assert.equal(recovery.recovered, true);
+    assert.ok(recovery.evidence);
+    assert.equal(recovery.blockSeals.length, P03_STRATEGIST_PHASE_BLOCK_COUNT);
+    assert.equal(recovery.provenanceRegressionPassed, true);
+    assert.equal(recovery.handoffValid, true);
+    assert.ok(recovery.blockSeals.every(seal => seal.passed));
+  });
+
+  it("recoverStrategistPhaseGateEvidence rejects null-byte manifest safely", () => {
+    const recovery = recoverStrategistPhaseGateEvidence("manifest\0corrupt");
+    assert.equal(recovery.recovered, false);
+    assert.deepEqual(recovery.parseErrors, ["null_byte_in_manifest"]);
+  });
+
+  it("assessStrategistPhaseGateInputBoundary handles empty and whitespace-only manifest", () => {
+    const empty = assessStrategistPhaseGateInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistPhaseGateInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveStrategistPhaseGateContract();
+    const slice = runStrategistPhaseGateProductionSlice();
+
+    assert.equal(slice.atom, "P03-B10-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 24);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 24);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const matrixValidation = validateStrategistPhaseGateProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });

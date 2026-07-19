@@ -1039,6 +1039,25 @@ export class Orchestrator {
   }
 
   /**
+   * Run P03 strategist phase gate production slice and emit verification event (P03-B10-A03).
+   */
+  async verifyForgeP03StrategistPhaseGate(): Promise<
+    import("./forge-p03-strategist-phase-gate.probe.js").StrategistPhaseGateProductionSliceResult
+  > {
+    const { runStrategistPhaseGateProductionSlice } = await import(
+      "./forge-p03-strategist-phase-gate.probe.js"
+    );
+    const result = runStrategistPhaseGateProductionSlice();
+    this.emit({
+      type: "verification",
+      phase: "strategist_phase_gate",
+      passed: result.matrixValid,
+      detail: `productionSlice=${result.matrixValid} aligned=${result.summary.aligned}/${result.summary.total}`,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B06 block gate and emit verification event with B07 handoff (P02-B06-A10).
    */
   async verifyForgeVisionerUncertaintyBlockGate(): Promise<import("./forge-p02-visioner-uncertainty.probe.js").ForgeVisionerUncertaintyBlockGateResult> {

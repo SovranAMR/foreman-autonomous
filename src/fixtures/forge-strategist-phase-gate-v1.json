@@ -141,7 +141,7 @@
       "id": "spg.orchestrator_phase_gate_runner",
       "category": "recovery_path",
       "description": "Orchestrator exposes verifyForgeP03StrategistPhaseGate for P03 phase acceptance",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "spg.strategist_replan_block",
