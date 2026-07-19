@@ -907,6 +907,25 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P03-B04 block gate and emit verification event with B05 handoff (P03-B04-A10).
+   */
+  async verifyForgeStrategistDependencyDagBlockGate(): Promise<
+    import("./forge-p03-strategist-dependency-dag.probe.js").ForgeStrategistDependencyDagBlockGateResult
+  > {
+    const { runForgeStrategistDependencyDagBlockGate } = await import(
+      "./forge-p03-strategist-dependency-dag.probe.js"
+    );
+    const result = runForgeStrategistDependencyDagBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "strategist_dependency_dag_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B06 block gate and emit verification event with B07 handoff (P02-B06-A10).
    */
   async verifyForgeVisionerUncertaintyBlockGate(): Promise<import("./forge-p02-visioner-uncertainty.probe.js").ForgeVisionerUncertaintyBlockGateResult> {

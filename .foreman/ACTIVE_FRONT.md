@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
-active_block: P03-B04
-active_atom: P03-B04-A10
+active_block: P03-B05
+active_atom: P03-B05-A01
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 238/1000
-phase_progress: 39/100
-block_progress: 8/10
+program_progress: 239/1000
+phase_progress: 40/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B04-A10 — Dependency DAG: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P03-B05-A01 — Risk ve reversibility planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P03-B04-A09 PASS; P03-B04-A10 seal dependency DAG block gate and produce handoff to P03-B05.
-target: sealStrategistDependencyDagBlockGate, getForgeP03B04ToB05Handoff.
-hypothesis: P03-B04-A10 closes P03-B04 block with sealed gate evidence and valid handoff contract.
-acceptance: block gate sealed; all 10 atoms PASS; handoff contract valid for P03-B05 entry.
-commands: npx tsx --test src/forge-p03-strategist-dependency-dag*.test.ts
-blast_radius: src/forge-p03-strategist-dependency-dag.ts
-rollback: P03-B04-A10 block gate değişikliklerini geri al.
+objective: P03-B04-A10 PASS; P03-B05-A01 measure risk/reversibility behavior and create failing baseline fixture.
+target: loadStrategistRiskReversibilityBaseline, validateStrategistRiskReversibilityBaseline.
+hypothesis: P03-B05-A01 establishes measurable baseline debt from sealed P03-B04 dependency DAG block gate.
+acceptance: baseline fixture loads; validation exposes documented FAIL gaps; links to P03-B04 handoff.
+commands: npx tsx --test src/forge-p03-strategist-risk-reversibility*.test.ts
+blast_radius: src/forge-p03-strategist-risk-reversibility.ts
+rollback: P03-B05-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: block gate blocked ise BLOCKED raporla.
+fallback: baseline blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B04-A09
-last_commit: 482f5cb
-tests: PASS — forge-p03-strategist-dependency-dag.test.ts; forge-p03-strategist-dependency-dag-baseline.test.ts; harness 1.0.0-a09; guard slice adversarial/performance/cost/safety within bounds
-evidence: validateForgeStrategistDependencyDagGuard; runStrategistDependencyDagAdversarialGuardChecks
-next: P03-B04-A10
+last_atom: P03-B04-A10
+last_commit: pending
+tests: PASS — forge-p03-strategist-dependency-dag.test.ts (43/43); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); forge-p03-strategist-dependency-dag-block-gate.test.ts (7/7); harness 1.0.0-a10
+evidence: sealStrategistDependencyDagBlockGate; getForgeP03B04ToB05Handoff
+next: P03-B05-A01
