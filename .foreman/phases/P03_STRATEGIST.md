@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B09-A06
-last_commit: pending
+last_commit: c06f9e1
 tests: PASS — forge-p03-strategist-provenance.test.ts (25/25); forge-p03-strategist-provenance-baseline.test.ts (3/3); runStrategistProvenanceEvidenceSlice (7/7 evidence probes aligned, record valid)
 evidence: runStrategistProvenanceEvidenceSlice; validateStrategistProvenanceFailureRecoveryRunRecord; runStrategistProvenanceFailureRecoverySliceWithRecord
 next: P03-B09-A07

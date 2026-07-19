@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B09-A06
-last_commit: pending
+last_commit: c06f9e1
 tests: PASS — forge-p03-strategist-provenance.test.ts (25/25); forge-p03-strategist-provenance-baseline.test.ts (3/3)
 evidence: runStrategistProvenanceEvidenceSlice; validateStrategistProvenanceFailureRecoveryRunRecord; runStrategistProvenanceFailureRecoverySliceWithRecord (7 probes)
 next: P03-B09-A07
