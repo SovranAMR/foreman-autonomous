@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B07-A01 — Alternative vision baseline: measure current behavior and create failing baseline fixture.
+P02-B07-A02 — Alternative vision typed contract: define measurable acceptance criteria.
 
-objective: P02-B06 block gate sealed; B07 baseline next.
-target: Measure alternative vision generation behavior and create forge-visioner-alternative-v1 baseline fixture linked to P02-B06 block gate handoff.
-hypothesis: uncertainty block gate handoff provides sealed probe matrix anchor for alternative vision baseline.
-acceptance: baseline.test.ts PASS; fixture aligned to B06 handoff contract.
-commands: npx tsx --test src/forge-p02-visioner-alternative-baseline.test.ts
-blast_radius: src/forge-p02-visioner-alternative*, src/fixtures/forge-visioner-alternative-v1.json
-rollback: P02-B07-A01 baseline slice değişikliklerini geri al.
+objective: P02-B07-A01 baseline sealed; typed contract next.
+target: Define forge-visioner-alternative contract with measurable probes aligned to P02-B07-A01 baseline fixture.
+hypothesis: documented FAIL gap valt.structured_alternative_recovery anchors A02 contract recovery probes.
+acceptance: forge-p02-visioner-alternative.test.ts contract coverage PASS.
+commands: npx tsx --test src/forge-p02-visioner-alternative.test.ts
+blast_radius: src/forge-p02-visioner-alternative*
+rollback: P02-B07-A02 contract slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: baseline requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
+fallback: contract requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B06-A10
-last_commit: b7cc435
-tests: PASS — forge-p02-visioner-uncertainty-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts
-evidence: runVisionerUncertaintyBlockGate seals 10/10 atom seals; handoff=PASS→P02-B07; orchestrator verifyForgeVisionerUncertaintyBlockGate emits visioner_uncertainty_block_gate verification
-next: P02-B07-A01
+last_atom: P02-B07-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-alternative-baseline.test.ts (3/3)
+evidence: forge-visioner-alternative-v1 baseline with 23 probes; B06 handoff aligned; valt.structured_alternative_recovery documented FAIL gap
+next: P02-B07-A02

@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 57
+completed_atoms: 58
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -93,7 +93,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P02-B07 — Alternatif vizyon üretimi
 
-- [ ] P02-B07-A01 — Alternatif vizyon üretimi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P02-B07-A01 — Alternatif vizyon üretimi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P02-B07-A02 — Alternatif vizyon üretimi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B07-A03 — Alternatif vizyon üretimi: en küçük üretim dikey dilimini uygula
 - [ ] P02-B07-A04 — Alternatif vizyon üretimi: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B06-A10
-last_commit: b7cc435
-tests: PASS — forge-p02-visioner-uncertainty-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts
-evidence: runVisionerUncertaintyBlockGate seals 10/10 atom seals with regression/guard PASS; FORGE_P02_B06_TO_B07_HANDOFF_V1 valid; orchestrator verifyForgeVisionerUncertaintyBlockGate emits visioner_uncertainty_block_gate verification
-next: P02-B07-A01
+last_atom: P02-B07-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-alternative-baseline.test.ts (3/3); forge-p02-visioner-uncertainty-block-gate.test.ts; forge-pipeline-regression.integration.test.ts
+evidence: forge-visioner-alternative-v1 baseline with 23 probes linked to P02-B06 handoff; assessVisionerAlternativePresence exported; valt.structured_alternative_recovery documented FAIL gap
+next: P02-B07-A02

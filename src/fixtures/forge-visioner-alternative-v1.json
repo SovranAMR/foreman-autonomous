@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B07-A01",
+  "contractAtom": "P02-B07-A06",
+  "purpose": "Alternative vision generation baseline measured from sealed P02-B06 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P02-B06-A10",
+    "contractVersion": "1.0.0",
+    "visionerUncertaintyProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "valt.version_tagged",
+      "category": "alternative_versioning",
+      "description": "Visioner alternative baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.atom_tagged",
+      "category": "alternative_versioning",
+      "description": "Visioner alternative baseline declares P02-B07-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.harness_version_exported",
+      "category": "alternative_versioning",
+      "description": "FORGE_VISIONER_ALTERNATIVE_VERSION exported for alternative harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.uncertainty_confidence_wired",
+      "category": "alternative_signal",
+      "description": "assessVisionerUncertaintyPresence detects confidence prerequisite for alternative branching",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.orchestrator_low_confidence_block",
+      "category": "alternative_signal",
+      "description": "Orchestrator checkBlock emits block_detected when visioner confidence level is block",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.b06_handoff_prerequisite",
+      "category": "alternative_signal",
+      "description": "FORGE_P02_B06_TO_B07_HANDOFF requires sealed visioner uncertainty record before alternative entry",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.single_vision_output_store",
+      "category": "divergence_signal",
+      "description": "Orchestrator stores a single primary visionOutput string before decomposition",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.assess_alternative_presence",
+      "category": "divergence_signal",
+      "description": "assessVisionerAlternativePresence exports typed alternative detection from vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.parse_primary_vision_only",
+      "category": "divergence_signal",
+      "description": "parseVisionResponse extracts primary vision fields without alternative array",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.b06_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_B06_TO_B07_HANDOFF_V1 targets P02-B07-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.b06_sealed_uncertainty_probes",
+      "category": "baseline_link",
+      "description": "P02-B06→B07 handoff sealed probeCount matches active visioner uncertainty contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02-B06 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerAlternativeProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL alternative gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.empty_vision_alternative_presence",
+      "category": "boundary",
+      "description": "assessVisionerAlternativeInputBoundary rejects empty vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.whitespace_vision_boundary",
+      "category": "boundary",
+      "description": "assessVisionerAlternativeInputBoundary rejects whitespace-only vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.long_vision_truncation_boundary",
+      "category": "boundary",
+      "description": "assessVisionerAlternativeInputBoundary truncates vision exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerAlternativeBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.malformed_vision_presence_guard",
+      "category": "failure_path",
+      "description": "assessVisionerAlternativePresence rejects null-byte vision output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.vision_checkpoint_primary",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses checkpoint primary vision output without alternative fan-out",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.structured_alternative_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerAlternatives restructures failed alternative parse into selectable vision variants",
+      "expected": "FAIL"
+    },
+    {
+      "id": "valt.visioner_confidence_block_gate",
+      "category": "nogo_path",
+      "description": "Orchestrator checkBlock blocks vision phase when evaluateConfidence returns block",
+      "expected": "PASS"
+    },
+    {
+      "id": "valt.uncertainty_clarification_nogo",
+      "category": "nogo_path",
+      "description": "assessVisionerUncertaintyPresence flags clarification need before alternative generation spend",
+      "expected": "PASS"
+    }
+  ]
+}
