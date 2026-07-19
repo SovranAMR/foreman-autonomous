@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B04-A04
-last_commit: pending
+last_commit: f2007f2
 tests: PASS — forge-p02-visioner-grounding.test.ts (15/15); forge-p02-visioner-grounding-baseline.test.ts (3/3)
 evidence: validateVisionerGroundingBoundaryProbeMatrix export; runVisionerGroundingBoundarySlice; 6/6 boundary probes aligned; zero unexpected mismatches
 next: P02-B04-A05
