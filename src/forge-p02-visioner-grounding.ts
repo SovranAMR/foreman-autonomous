@@ -231,6 +231,23 @@ export interface VisionerGroundingContract {
   probes: readonly VisionerGroundingProbeContract[];
 }
 
+export interface VisionerGroundingContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: VisionerGroundingCategory;
+  detail: string;
+}
+
+export interface VisionerGroundingContractCoverageResult {
+  valid: boolean;
+  issues: VisionerGroundingContractCoverageIssue[];
+}
+
 export const VISIONER_GROUNDING_A01_MIN_PROBES: Readonly<
   Record<VisionerGroundingCategory, number>
 > = {
@@ -542,6 +559,33 @@ export function getActiveVisionerGroundingContract(): VisionerGroundingContract 
   return FORGE_VISIONER_GROUNDING_CONTRACT_V1;
 }
 
+export function getVisionerGroundingCategoryContract(
+  category: VisionerGroundingCategory,
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): VisionerGroundingCategoryContract {
+  return contract.categories[category];
+}
+
+export function listVisionerGroundingContractProbeIds(
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listVisionerGroundingProbesByDisposition(
+  disposition: VisionerGroundingProbeDisposition,
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): VisionerGroundingProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listVisionerGroundingContractProbesByCategory(
+  category: VisionerGroundingCategory,
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): VisionerGroundingProbeContract[] {
+  return contract.categories[category].probes;
+}
+
 export function summarizeVisionerGroundingContractCoverage(
   contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
 ): {
@@ -581,6 +625,87 @@ export function summarizeVisionerGroundingContractCoverage(
   }
 
   return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateVisionerGroundingContractCoverage(
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): VisionerGroundingContractCoverageResult {
+  const issues: VisionerGroundingContractCoverageIssue[] = [];
+
+  for (const category of VISIONER_GROUNDING_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < VISIONER_GROUNDING_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} below A01 baseline ${VISIONER_GROUNDING_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} has ${categoryContract.probes.length} probes; contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listVisionerGroundingContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeVisionerGroundingContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("vgrd.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing vgrd. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export function validateVisionerGroundingAgainstContract(
@@ -643,6 +768,18 @@ export function validateVisionerGroundingAgainstContract(
         detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
       });
     }
+  }
+
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
+  if (expectedFailCount > 0 && failGaps.length === 0) {
+    issues.push({ kind: "missing_category", detail: "fixture must document known FAIL gaps matching contract" });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
+    });
   }
 
   return { valid: issues.length === 0, issues };

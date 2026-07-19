@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 29
+completed_atoms: 30
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -55,7 +55,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P02-B04 — Repo ve kullanıcı bağlamı grounding
 
 - [x] P02-B04-A01 — Repo ve kullanıcı bağlamı grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P02-B04-A02 — Repo ve kullanıcı bağlamı grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P02-B04-A02 — Repo ve kullanıcı bağlamı grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B04-A03 — Repo ve kullanıcı bağlamı grounding: en küçük üretim dikey dilimini uygula
 - [ ] P02-B04-A04 — Repo ve kullanıcı bağlamı grounding: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B04-A05 — Repo ve kullanıcı bağlamı grounding: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B04-A01
-last_commit: c1b1ed7
-tests: PASS — forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-*.test.ts (132/132)
-evidence: runVisionerGroundingProbes aligned=22/23 knownGap=vgrd.structured_grounding_recovery handoff→P02-B03-A10; harnessVersion=1.0.0-a01
-next: P02-B04-A02
+last_atom: P02-B04-A02
+last_commit: pending
+tests: PASS — forge-p02-visioner-grounding.test.ts (7/7); forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-*.test.ts (139/139)
+evidence: validateVisionerGroundingContractCoverage valid=true; 23 probes 8 categories; gap=vgrd.structured_grounding_recovery; contractAtom=P02-B04-A05; fixture↔contract zero mismatches
+next: P02-B04-A03

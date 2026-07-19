@@ -47,6 +47,11 @@ export {
   VISIONER_GROUNDING_CONTEXT_MAX_LENGTH,
   EXPECTED_P02_B03_SEALED_ATOM_COUNT,
   summarizeVisionerGroundingContractCoverage,
+  validateVisionerGroundingContractCoverage,
+  getVisionerGroundingCategoryContract,
+  listVisionerGroundingContractProbeIds,
+  listVisionerGroundingContractProbesByCategory,
+  listVisionerGroundingProbesByDisposition,
 } from "./forge-p02-visioner-grounding.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
