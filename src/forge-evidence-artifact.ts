@@ -1398,3 +1398,493 @@ export function validateEvidenceArtifactFailureRecoveryRunRecord(
     issues: [...issues, ...probeValidation.issues],
   };
 }
+
+// ─── Property and fuzz validation (P01-B08-A07) ─────────────────────────────
+
+export interface EvidenceArtifactPropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface EvidenceArtifactPropertyResult {
+  passed: number;
+  failed: EvidenceArtifactPropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type EvidenceArtifactPropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: EvidenceArtifactContract) => string | null;
+};
+
+const EVIDENCE_ARTIFACT_STRUCTURAL_PROPERTIES: readonly EvidenceArtifactPropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All eleven evidence artifact categories are declared",
+    check: contract => {
+      for (const category of EVIDENCE_ARTIFACT_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listEvidenceArtifactContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of EVIDENCE_ARTIFACT_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description: "summarizeEvidenceArtifactContractCoverage totals match listEvidenceArtifactContractProbeIds",
+    check: contract => {
+      const summary = summarizeEvidenceArtifactContractCoverage(contract);
+      const ids = listEvidenceArtifactContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with eva. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("eva.")) {
+          return `${probe.id} missing eva. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const probeIds = listEvidenceArtifactContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildEvidenceArtifactProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildEvidenceArtifactProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildEvidenceArtifactRunRecord(
+        buildEvidenceArtifactProvenance(
+          "property-check",
+          {
+            version: "0",
+            atom: "x",
+            purpose: "x",
+            sourceReproducibleFixture: buildDefaultEvidenceArtifactSourceReproducibleFixture(),
+            probes: [],
+          },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "failure_recovery_run_record_gate",
+    description: "Synthetic failure/recovery slice record passes validateEvidenceArtifactFailureRecoveryRunRecord",
+    check: contract => {
+      const probeIds = listEvidenceArtifactFailureRecoveryProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildEvidenceArtifactProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildEvidenceArtifactProbeTelemetry(id, probe.category, index, index * 0.5);
+      });
+      const record = buildEvidenceArtifactRunRecord(
+        buildEvidenceArtifactProvenance(
+          "property-check-failure-recovery",
+          {
+            version: "0",
+            atom: "x",
+            purpose: "x",
+            sourceReproducibleFixture: buildDefaultEvidenceArtifactSourceReproducibleFixture(),
+            probes: [],
+          },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+          {
+            sliceAtom: "P01-B08-A06",
+            sliceCategories: EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES,
+          },
+        ),
+        evidence,
+        telemetry,
+      );
+      const validation = validateEvidenceArtifactFailureRecoveryRunRecord(record, contract);
+      if (!validation.valid) {
+        return validation.issues.map(i => i.detail).join("; ");
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runEvidenceArtifactPropertyChecks(
+  contract: EvidenceArtifactContract = getActiveEvidenceArtifactContract(),
+): EvidenceArtifactPropertyResult {
+  const failed: EvidenceArtifactPropertyViolation[] = [];
+  for (const property of EVIDENCE_ARTIFACT_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = EVIDENCE_ARTIFACT_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type EvidenceArtifactFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface EvidenceArtifactFuzzMutationCase {
+  seed: number;
+  kind: EvidenceArtifactFuzzMutationKind;
+  probeId?: string;
+  category?: EvidenceArtifactCategory;
+}
+
+export interface EvidenceArtifactFuzzValidationCaseResult {
+  mutation: EvidenceArtifactFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface EvidenceArtifactFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: EvidenceArtifactFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createEvidenceArtifactFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneEvidenceArtifactBaseline(fixture: EvidenceArtifactBaseline): EvidenceArtifactBaseline {
+  return {
+    ...fixture,
+    sourceReproducibleFixture: { ...fixture.sourceReproducibleFixture },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickEvidenceArtifactFuzzTarget(
+  fixture: EvidenceArtifactBaseline,
+  rng: () => number,
+): { category: EvidenceArtifactCategory; index: number; entry: EvidenceArtifactFixtureEntry } {
+  const category = EVIDENCE_ARTIFACT_CATEGORIES[Math.floor(rng() * EVIDENCE_ARTIFACT_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyEvidenceArtifactFuzzMutation(
+  fixture: EvidenceArtifactBaseline,
+  mutation: EvidenceArtifactFuzzMutationCase,
+): EvidenceArtifactBaseline {
+  const mutated = cloneEvidenceArtifactBaseline(fixture);
+  const targetCategory = mutation.category ?? EVIDENCE_ARTIFACT_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `eva.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = EVIDENCE_ARTIFACT_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateEvidenceArtifactFuzzMutationCases(
+  fixture: EvidenceArtifactBaseline,
+  seed: number,
+  iterations: number,
+): EvidenceArtifactFuzzMutationCase[] {
+  const rng = createEvidenceArtifactFuzzRng(seed);
+  const kinds: EvidenceArtifactFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: EvidenceArtifactFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickEvidenceArtifactFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P01-B08-A07). */
+export function runEvidenceArtifactFuzzValidation(
+  fixture: EvidenceArtifactBaseline,
+  contract: EvidenceArtifactContract = getActiveEvidenceArtifactContract(),
+  seed = 42,
+  iterations = 24,
+): EvidenceArtifactFuzzValidationResult {
+  const cases = generateEvidenceArtifactFuzzMutationCases(fixture, seed, iterations);
+  const results: EvidenceArtifactFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyEvidenceArtifactFuzzMutation(fixture, mutation);
+    const validation = validateEvidenceArtifactBaselineAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type EvidenceArtifactRunRecordFuzzKind =
+  | "drop_evidence"
+  | "drop_telemetry"
+  | "wrong_total"
+  | "wrong_slice_atom"
+  | "wrong_slice_categories";
+
+export interface EvidenceArtifactRunRecordFuzzCase {
+  kind: EvidenceArtifactRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyEvidenceArtifactRunRecordFuzzMutation(
+  record: EvidenceArtifactRunRecord,
+  mutation: EvidenceArtifactRunRecordFuzzCase,
+): EvidenceArtifactRunRecord {
+  const cloned: EvidenceArtifactRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+    case "wrong_slice_atom":
+      cloned.provenance = { ...cloned.provenance, sliceAtom: "P01-B08-A99" };
+      break;
+    case "wrong_slice_categories":
+      cloned.provenance = {
+        ...cloned.provenance,
+        sliceCategories: ["schema_versioning"],
+      };
+      break;
+  }
+
+  cloned.summary = buildEvidenceArtifactRunRecord(
+    cloned.provenance,
+    cloned.evidence,
+    cloned.telemetry,
+  ).summary;
+  return cloned;
+}
+
+function resolveEvidenceArtifactRunRecordValidator(
+  record: EvidenceArtifactRunRecord,
+): (
+  record: EvidenceArtifactRunRecord,
+  contract: EvidenceArtifactContract,
+) => EvidenceArtifactRunValidationResult {
+  return record.provenance.sliceAtom === "P01-B08-A06"
+    ? validateEvidenceArtifactFailureRecoveryRunRecord
+    : validateEvidenceArtifactRunRecord;
+}
+
+/** Fuzz harness: tampered run records must fail validation deterministically (P01-B08-A07). */
+export function runEvidenceArtifactRunRecordFuzzValidation(
+  record: EvidenceArtifactRunRecord,
+  contract: EvidenceArtifactContract = getActiveEvidenceArtifactContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const validate = resolveEvidenceArtifactRunRecordValidator(record);
+  const baseline = validate(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: EvidenceArtifactRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  if (record.provenance.sliceAtom === "P01-B08-A06") {
+    mutations.push({ kind: "wrong_slice_atom" }, { kind: "wrong_slice_categories" });
+  }
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyEvidenceArtifactRunRecordFuzzMutation(record, mutation);
+    const validation = validate(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}

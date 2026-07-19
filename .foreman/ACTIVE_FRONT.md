@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B08
-active_atom: P01-B08-A07
+active_atom: P01-B08-A08
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 75/1000
-phase_progress: 74/100
-block_progress: 6/10
+program_progress: 76/1000
+phase_progress: 75/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B08-A07 — Evidence ve artifact şeması: unit, property ve fuzz doğrulamasını ekle.
+P01-B08-A08 — Evidence ve artifact şeması: Forge entegrasyonu ile regression testini tamamla.
 
-objective: A06 evidence/telemetry/provenance slice PASS; unit, property ve fuzz doğrulamasını ekle.
-target: validateEvidenceArtifactFailureRecoveryRunRecord; property/fuzz gates for evidence artifact run records.
-hypothesis: A06 run record builder + validation yeterli fuzz/property giriş kanıtı sağlar.
-acceptance: failure/recovery run record property checks pass; fuzz rejects corrupted records; zero pass mismatches.
-commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A07 suite)
+objective: A07 property/fuzz PASS; Forge entegrasyonu ile regression testini tamamla.
+target: runForgeEvidenceArtifactRegressionGate; probe regression integration with property/fuzz gates.
+hypothesis: A07 property/fuzz + A06 run record builder yeterli regression giriş kanıtı sağlar.
+acceptance: regression gate passes; probe alignment stable; property/fuzz wired in gate; zero pass mismatches.
+commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A08 suite)
 blast_radius: forge-evidence-artifact*.ts
-rollback: A07 property/fuzz slice değişikliklerini geri al.
+rollback: A08 regression slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: property/fuzz uygulanamazsa BLOCKED raporla.
+fallback: regression uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B08-A06
+last_atom: P01-B08-A07
 last_commit: pending
-tests: PASS — forge-evidence-artifact*.test.ts (18/18); runEvidenceArtifactFailureRecoverySliceWithRecord 6 probes aligned
-evidence: validateEvidenceArtifactFailureRecoveryRunRecord; buildEvidenceArtifactRunRecord contract-wired evidence/telemetry/provenance
-next: P01-B08-A07
+tests: PASS — forge-evidence-artifact*.test.ts (23/23); property/fuzz gates 8 properties + 72 fixture mutations + 5 run-record mutations rejected
+evidence: runEvidenceArtifactPropertyChecks; runEvidenceArtifactFuzzValidation; runEvidenceArtifactRunRecordFuzzValidation; validateEvidenceArtifactFailureRecoveryRunRecord
+next: P01-B08-A08
