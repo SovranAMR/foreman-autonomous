@@ -5,6 +5,7 @@ import {
   runVisionerGroundingProbes,
   runVisionerGroundingProductionSlice,
   runVisionerGroundingBoundarySlice,
+  runVisionerGroundingFailureRecoverySlice,
 } from "./forge-p02-visioner-grounding.probe.js";
 import {
   getActiveVisionerGroundingContract,
@@ -12,11 +13,14 @@ import {
   listVisionerGroundingContractProbeIds,
   listVisionerGroundingContractProbesByCategory,
   listVisionerGroundingProbesByDisposition,
+  listVisionerGroundingFailureRecoveryProbeIds,
   summarizeVisionerGroundingContractCoverage,
   validateVisionerGroundingAgainstContract,
   validateVisionerGroundingContractCoverage,
   validateVisionerGroundingProbeMatrix,
   validateVisionerGroundingBoundaryProbeMatrix,
+  validateVisionerGroundingFailureRecoveryProbeMatrix,
+  VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES,
   recoverVisionerGrounding,
   assessVisionerGroundingInputBoundary,
   assessVisionerGroundingPresence,
@@ -277,5 +281,83 @@ describe("Forge Visioner Grounding Boundary Slice — P02-B04-A04", () => {
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
     assert.equal(slice.results.filter(r => !r.aligned).length, 0);
+  });
+});
+
+describe("Forge Visioner Grounding Failure/Recovery Slice — P02-B04-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveVisionerGroundingContract();
+    const failure = listVisionerGroundingContractProbesByCategory("failure_path", contract);
+    const recovery = listVisionerGroundingContractProbesByCategory("recovery_path", contract);
+    const nogo = listVisionerGroundingContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveVisionerGroundingContract();
+    const slice = runVisionerGroundingFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P02-B04-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listVisionerGroundingContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateVisionerGroundingFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with full alignment after A03 recovery slice", () => {
+    const slice = runVisionerGroundingFailureRecoverySlice();
+    const probeIds = listVisionerGroundingFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "vgrd.malformed_context_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "vgrd.structured_grounding_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const ambiguityNogo = slice.failureRecoveryResults.find(
+      r => r.id === "vgrd.intent_ambiguity_nogo",
+    );
+    assert.ok(ambiguityNogo);
+    assert.equal(ambiguityNogo!.expected, "PASS");
+    assert.equal(ambiguityNogo!.actual, "PASS");
   });
 });

@@ -12,7 +12,7 @@ import {
   summarizeVisionerSynthesisContractCoverage,
 } from "./forge-p02-visioner-synthesis.js";
 
-export const FORGE_VISIONER_GROUNDING_VERSION = "1.0.0-a04";
+export const FORGE_VISIONER_GROUNDING_VERSION = "1.0.0-a05";
 
 /** Maximum normalized context length before truncation (P02-B04-A01 boundary). */
 export const VISIONER_GROUNDING_CONTEXT_MAX_LENGTH = 32000;
@@ -386,6 +386,46 @@ export function validateVisionerGroundingBoundaryProbeMatrix(
   const boundaryIds = new Set(boundaryProbes.map(p => p.id));
   const boundaryResults = results.filter(r => boundaryIds.has(r.id));
   return validateVisionerGroundingProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export const VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly VisionerGroundingCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes and documented FAIL gaps must align; zero unexpected mismatches.
+ */
+export function validateVisionerGroundingFailureRecoveryProbeMatrix(
+  results: VisionerGroundingProbeResult[],
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): VisionerGroundingProbeMatrixValidationResult {
+  const failureRecoveryProbes = VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listVisionerGroundingContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: VisionerGroundingContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateVisionerGroundingProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listVisionerGroundingFailureRecoveryProbeIds(
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): string[] {
+  return VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listVisionerGroundingContractProbesByCategory(category, contract).map(p => p.id),
+  );
 }
 
 export interface VisionerGroundingFixtureEntry {

@@ -58,7 +58,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B04-A02 — Repo ve kullanıcı bağlamı grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B04-A03 — Repo ve kullanıcı bağlamı grounding: en küçük üretim dikey dilimini uygula
 - [x] P02-B04-A04 — Repo ve kullanıcı bağlamı grounding: boundary ve edge-case davranışlarını tamamla
-- [ ] P02-B04-A05 — Repo ve kullanıcı bağlamı grounding: failure, recovery ve NO-GO yollarını uygula
+- [x] P02-B04-A05 — Repo ve kullanıcı bağlamı grounding: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B04-A06 — Repo ve kullanıcı bağlamı grounding: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B04-A07 — Repo ve kullanıcı bağlamı grounding: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B04-A08 — Repo ve kullanıcı bağlamı grounding: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B04-A04
-last_commit: f2007f2
-tests: PASS — forge-p02-visioner-grounding.test.ts (15/15); forge-p02-visioner-grounding-baseline.test.ts (3/3)
-evidence: validateVisionerGroundingBoundaryProbeMatrix export; runVisionerGroundingBoundarySlice; 6/6 boundary probes aligned; zero unexpected mismatches
-next: P02-B04-A05
+last_atom: P02-B04-A05
+last_commit: f0b107e
+tests: PASS — forge-p02-visioner-grounding.test.ts (18/18); forge-p02-visioner-grounding-baseline.test.ts (3/3)
+evidence: validateVisionerGroundingFailureRecoveryProbeMatrix export; runVisionerGroundingFailureRecoverySlice; 6/6 failure/recovery/NO-GO probes aligned; zero unexpected mismatches
+next: P02-B04-A06
