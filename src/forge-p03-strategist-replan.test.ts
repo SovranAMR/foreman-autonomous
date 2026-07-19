@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import {
   loadStrategistReplanBaseline,
   runStrategistReplanProbes,
+  runStrategistReplanProductionSlice,
+  validateStrategistReplan,
+  validateStrategistReplanProbeMatrix,
   getActiveStrategistReplanContract,
   getStrategistReplanCategoryContract,
   listStrategistReplanContractProbeIds,
@@ -15,6 +18,14 @@ import {
   STRATEGIST_REPLAN_CATEGORIES,
   FORGE_STRATEGIST_REPLAN_CONTRACT_V1,
 } from "./forge-p03-strategist-replan.js";
+
+function formatMismatchReport(
+  mismatches: { id: string; expected: string; actual: string; detail: string }[],
+): string {
+  return mismatches
+    .map(m => `  ${m.id}: expected=${m.expected} actual=${m.actual} (${m.detail})`)
+    .join("\n");
+}
 
 describe("Forge Strategist Replan Contract — P03-B08-A02", () => {
   it("defines typed acceptance for all nine replan categories", () => {
@@ -42,20 +53,20 @@ describe("Forge Strategist Replan Contract — P03-B08-A02", () => {
     }
   });
 
-  it("maps 28 probes with six documented FAIL gaps aligned to A01 baseline", () => {
+  it("maps 28 probes with zero remaining FAIL gaps after A03 production slice", () => {
     const contract = getActiveStrategistReplanContract();
     const summary = summarizeStrategistReplanCoverage(contract);
     const coverage = validateStrategistReplanCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 28);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 6);
-    assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 5);
+    assert.equal(summary.expectedPass, 28);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 20);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 3);
     assert.equal(summary.byDisposition.recovery, 3);
-    assert.equal(summary.byDisposition.nogo, 0);
+    assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.replan_versioning.probeCount, 3);
     assert.equal(summary.byCategory.block_replan_path.probeCount, 4);
     assert.equal(summary.byCategory.atom_replan_path.probeCount, 2);
@@ -67,15 +78,9 @@ describe("Forge Strategist Replan Contract — P03-B08-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists five remaining gap probes matching documented replan debt", () => {
+  it("lists no remaining gap probes after A03 replan production slice", () => {
     const gaps = listStrategistReplanProbesByDisposition("gap");
-    assert.deepEqual(gaps.map(p => p.id).sort(), [
-      "sreplan.exported_replan_validator",
-      "sreplan.nogo_invalid_replan",
-      "sreplan.orchestrator_strategist_replan_gate",
-      "sreplan.parser_replan_fields",
-      "sreplan.prompt_replan_plan",
-    ]);
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
 
     const nogoGaps = listStrategistReplanProbesByDisposition("nogo").filter(
       p => p.expected === "FAIL",
@@ -136,5 +141,77 @@ describe("Forge Strategist Replan Contract — P03-B08-A02", () => {
       assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
       assert.equal(result.criterion, contractProbe.criterion);
     }
+  });
+});
+
+describe("Forge Strategist Replan Production Slice — P03-B08-A03", () => {
+  it("validateStrategistReplan accepts valid replan plan and rejects invalid block refs", () => {
+    const valid = `REASONING: Replan plan
+OUTPUT:
+Block 1: Setup baseline types
+Block 2: Wire replan seam
+DEPENDENCIES: 2→1
+REPLAN PLAN: re-decompose block 2 on failure
+CONFIDENCE: 0.9`;
+    const validResult = validateStrategistReplan(valid);
+    assert.equal(validResult.valid, true);
+    assert.equal(validResult.hasReplanPlan, true);
+    assert.equal(validResult.blockCount, 2);
+    assert.deepEqual(validResult.invalidBlockRefs, []);
+
+    const invalid = `REASONING: Bad replan refs
+OUTPUT:
+Block 1: Setup baseline types
+DEPENDENCIES: none
+REPLAN PLAN: replan block 9 after failure
+CONFIDENCE: 0.8`;
+    const invalidResult = validateStrategistReplan(invalid);
+    assert.equal(invalidResult.valid, false);
+    assert.deepEqual(invalidResult.invalidBlockRefs, [9]);
+    assert.ok(invalidResult.issues.some(i => i.includes("invalid_replan_block_refs")));
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveStrategistReplanContract();
+    const slice = runStrategistReplanProductionSlice();
+
+    assert.equal(slice.atom, "P03-B08-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 28);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 28);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const flippedGaps = slice.results.filter(
+      r =>
+        (r.id === "sreplan.prompt_replan_plan" ||
+          r.id === "sreplan.parser_replan_fields" ||
+          r.id === "sreplan.orchestrator_strategist_replan_gate" ||
+          r.id === "sreplan.exported_replan_validator" ||
+          r.id === "sreplan.nogo_invalid_replan" ||
+          r.id === "sreplan.recovery_replan_checkpoint") &&
+        r.expected === "PASS" &&
+        r.actual === "PASS",
+    );
+    assert.equal(flippedGaps.length, 6, "A03 closes all six replan contract gaps");
+
+    const matrixValidation = validateStrategistReplanProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });

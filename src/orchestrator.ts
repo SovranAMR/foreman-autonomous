@@ -53,6 +53,7 @@ import { extractReasoning, extractAllReasoningBlocks, analyzeReasoningContent } 
 import { getModelCapabilities } from "./model-capabilities.js";
 import { ArtifactEngine } from "./artifact-engine.js";
 import { FORGE_PIPELINE_CORE_PHASES } from "./forge-pipeline-behavior-map.js";
+import { validateStrategistReplan } from "./forge-p03-strategist-replan.js";
 import {
   parseVisionerTaskIntent,
   classifyVisionerTaskDepth,
@@ -109,6 +110,19 @@ export class Orchestrator {
 
   // Track per-phase token usage
   private phaseTokens: Map<string, number> = new Map();
+
+  /** Replan checkpoint lineage after block failure recovery (P03-B08-A03). */
+  private replanCheckpoint: {
+    blockIndex: number;
+    lineageDepth: number;
+    preservedBlockCount: number;
+  } | null = null;
+  private replanLineage: Array<{
+    blockIndex: number;
+    failedAtoms: number;
+    totalAtoms: number;
+    at: number;
+  }> = [];
 
   // ─── PIPELINE METRICS ─────────────────────────────────────
   private pipelineStartTime = 0;
@@ -1868,6 +1882,26 @@ ${visionOutput}`,
       return this.buildResult(false, totalThoughts, visionChain.id, "decompose");
     }
 
+    // ─── STRATEGIST REPLAN GATE — validate replan plan before execution (P03-B08-A03) ───
+    const replanValidation = validateStrategistReplan(decomposeResult.thought.output ?? "");
+    if (!replanValidation.valid) {
+      if (replanValidation.invalidBlockRefs.length > 0) {
+        const detail =
+          `invalid replan plan: block refs [${replanValidation.invalidBlockRefs.join(", ")}] ` +
+          `exceed ${replanValidation.blockCount} blocks — replan plan rejected`;
+        this.engine.streaming.error(detail);
+        this.emit({
+          type: "block_detected",
+          thought: decomposeResult.thought,
+          reason: detail,
+        });
+        return this.buildResult(false, totalThoughts, visionChain.id, "decompose");
+      }
+      console.warn(
+        `[forge] validateStrategistReplan: ${replanValidation.issues.join(", ") || "decompose replan check failed"}`,
+      );
+    }
+
     this.emit({ type: "phase_end", phase: "decompose", detail: `${blocks.length} blocks` });
     this.engine.streaming.phaseEnd("decompose", `${blocks.length} blocks`);
 
@@ -3295,6 +3329,19 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
 
         // ─── AUTO RE-DECOMPOSE: Strategist re-atomizes with failure context ───
         if (!isModelError) {
+          // Preserve replan lineage for block failure recovery (P03-B08-A03)
+          this.replanLineage.push({
+            blockIndex: i,
+            failedAtoms: blockFailedAtoms,
+            totalAtoms: atoms.length,
+            at: Date.now(),
+          });
+          this.replanCheckpoint = {
+            blockIndex: i,
+            lineageDepth: this.replanLineage.length,
+            preservedBlockCount: blocks.length,
+          };
+
           this.engine.streaming.phaseStart("re_decompose", `Re-atomizing block ${i + 1} with failure context`);
           try {
             // F-7: Use actual failure records instead of sequential assumption
@@ -4323,6 +4370,16 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
     } catch { /* scheduler events are best-effort */ }
 
     return { success, totalThoughts, totalTokens, visionChainId, blockedAt };
+  }
+
+  /**
+   * Resume block execution from replan checkpoint after recovery re-decompose (P03-B08-A03).
+   */
+  private resumeFromReplan(blockIndex: number): boolean {
+    if (!this.replanCheckpoint || this.replanCheckpoint.blockIndex !== blockIndex) {
+      return false;
+    }
+    return this.replanLineage.some(entry => entry.blockIndex === blockIndex);
   }
 
   /**

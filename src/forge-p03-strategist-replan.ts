@@ -112,6 +112,95 @@ export function assessStrategistReplanInputBoundary(
   };
 }
 
+export interface StrategistReplanValidationOutcome {
+  valid: boolean;
+  hasReplanPlan: boolean;
+  blockCount: number;
+  invalidBlockRefs: number[];
+  issues: string[];
+}
+
+/**
+ * Extract 1-based block indices referenced in a strategist replan plan section.
+ */
+export function parseReplanBlockRefs(
+  replanPlan: string | undefined,
+  blockCount: number,
+): number[] {
+  if (!replanPlan || replanPlan.trim().length === 0 || blockCount <= 0) {
+    return [];
+  }
+
+  const refs = new Set<number>();
+  const matches = replanPlan.match(/\b(?:block\s*)?(\d+)\b/gi) ?? [];
+  for (const match of matches) {
+    const numMatch = match.match(/(\d+)/);
+    if (!numMatch) continue;
+    const blockNum = parseInt(numMatch[1], 10);
+    if (Number.isFinite(blockNum)) {
+      refs.add(blockNum);
+    }
+  }
+
+  const invalid: number[] = [];
+  for (const ref of refs) {
+    if (ref < 1 || ref > blockCount) {
+      invalid.push(ref);
+    }
+  }
+  return [...new Set(invalid)].sort((a, b) => a - b);
+}
+
+/**
+ * Validate strategist decompose output and replan plan block references (P03-B08-A03).
+ */
+export function validateStrategistReplan(
+  decomposeOutput: string,
+): StrategistReplanValidationOutcome {
+  const boundary = assessStrategistReplanInputBoundary(decomposeOutput);
+  if (!boundary.acceptable) {
+    return {
+      valid: false,
+      hasReplanPlan: false,
+      blockCount: 0,
+      invalidBlockRefs: [],
+      issues: [boundary.detail],
+    };
+  }
+
+  const parsed = parseDecomposeResponse(boundary.normalizedDecompose);
+  if (!parsed.ok) {
+    return {
+      valid: false,
+      hasReplanPlan: false,
+      blockCount: 0,
+      invalidBlockRefs: [],
+      issues: parsed.error.missing,
+    };
+  }
+
+  const blockCount = parsed.data.blocks.length;
+  const replanPlan = parsed.data.replanPlan;
+  const hasReplanPlan = replanPlan !== undefined && replanPlan.trim().length > 0;
+  const invalidBlockRefs = parseReplanBlockRefs(replanPlan, blockCount);
+  const issues: string[] = [];
+
+  if (blockCount === 0) {
+    issues.push("missing_blocks");
+  }
+  if (invalidBlockRefs.length > 0) {
+    issues.push(`invalid_replan_block_refs:${invalidBlockRefs.join(",")}`);
+  }
+
+  return {
+    valid: issues.length === 0,
+    hasReplanPlan,
+    blockCount,
+    invalidBlockRefs,
+    issues,
+  };
+}
+
 export interface StrategistReplanFixtureEntry {
   id: string;
   category: StrategistReplanCategory;
@@ -427,12 +516,6 @@ export function validateStrategistReplanAgainstContract(
 
   const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (expectedFailCount > 0 && failGaps.length === 0) {
-    issues.push({
-      kind: "missing_category",
-      detail: "fixture must document known FAIL gaps matching contract",
-    });
-  }
   if (failGaps.length !== expectedFailCount) {
     issues.push({
       kind: "missing_probe",
@@ -674,11 +757,14 @@ export function validateStrategistReplanBaseline(
     });
   }
 
+  const expectedFailCount = getActiveStrategistReplanContract().probes.filter(
+    p => p.expected === "FAIL",
+  ).length;
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length === 0) {
+  if (failGaps.length !== expectedFailCount) {
     issues.push({
-      kind: "missing_category",
-      detail: "fixture must document at least one measurable FAIL replan gap",
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract=${expectedFailCount}`,
     });
   }
 
@@ -793,6 +879,7 @@ Block 1: Setup replan baseline types
 Block 2: Wire replan planner seam
 Block 3: Add replan baseline tests
 DEPENDENCIES: 2→1, 3→1,2
+REPLAN PLAN: on block failure re-decompose blocks 2-3 with smaller atoms
 CONFIDENCE: 0.85`;
 
 function probeReplanVersioning(
@@ -996,7 +1083,7 @@ function probeBoundary(
       const contract = getActiveStrategistReplanContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -1147,6 +1234,123 @@ function probeNogoPath(
     default:
       return probe(id, category, expected, false, "unknown nogo_path probe");
   }
+}
+
+export interface StrategistReplanProbeMatrixValidationIssue {
+  kind: "missing_result" | "criterion_mismatch" | "pass_mismatch" | "gap_misaligned";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistReplanProbeMatrixValidationResult {
+  valid: boolean;
+  issues: StrategistReplanProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateStrategistReplanProbeMatrix(
+  results: StrategistReplanProbeResult[],
+  contract: StrategistReplanContract = getActiveStrategistReplanContract(),
+): StrategistReplanProbeMatrixValidationResult {
+  const issues: StrategistReplanProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface StrategistReplanProductionSliceResult {
+  atom: "P03-B08-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: StrategistReplanProbeResult[];
+  summary: StrategistReplanProbeSummary;
+  matrixValidation: StrategistReplanProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: validateStrategistReplan wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runStrategistReplanProductionSlice(
+  fixture: StrategistReplanBaseline = loadStrategistReplanBaseline(),
+): StrategistReplanProductionSliceResult {
+  const contract = getActiveStrategistReplanContract();
+  const fixtureValidation = validateStrategistReplanBaseline(fixture);
+  const contractValidation = validateStrategistReplanAgainstContract(fixture, contract);
+  const results = runStrategistReplanProbes(fixture);
+  const summary = summarizeStrategistReplanMatrix(results);
+  const matrixValidation = validateStrategistReplanProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B08-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 function runSingleProbe(

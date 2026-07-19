@@ -51,7 +51,7 @@
       "id": "sreplan.prompt_replan_plan",
       "category": "block_replan_path",
       "description": "STRATEGIST decompose format declares REPLAN PLAN section",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sreplan.orchestrator_block_failure_replan",
@@ -63,7 +63,7 @@
       "id": "sreplan.parser_replan_fields",
       "category": "atom_replan_path",
       "description": "parseDecomposeResponse exports replanPlan fields from decompose output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sreplan.tools_work_replan",
@@ -81,7 +81,7 @@
       "id": "sreplan.orchestrator_strategist_replan_gate",
       "category": "plan_repair_seam",
       "description": "Orchestrator validates strategist replan plan before block execution",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sreplan.b07_block_handoff_entry",
@@ -165,19 +165,19 @@
       "id": "sreplan.recovery_replan_checkpoint",
       "category": "recovery_path",
       "description": "Rollback checkpoint preserves replan lineage after block failure recovery",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sreplan.nogo_invalid_replan",
       "category": "nogo_path",
       "description": "NO-GO gate rejects run when replan plan references invalid block indices",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sreplan.exported_replan_validator",
       "category": "nogo_path",
       "description": "validateStrategistReplan exported for orchestrator pre-execution replan checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

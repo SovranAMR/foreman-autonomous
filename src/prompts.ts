@@ -156,6 +156,7 @@ Block 2: [clear description with acceptance criteria]
 DEPENDENCIES: 2→1, 3→1 (or "none" if all blocks are independent)
 RESOURCE PLAN: [phase-level resource allocation — which blocks are token-heavy vs lightweight]
 TOKEN BUDGET: [estimated tokens per block or total session cap for this decomposition]
+REPLAN PLAN: [optional block-level repair strategy — which blocks to re-decompose on failure]
 CONFIDENCE: [0.0-1.0]
 
 ## Output Format — ATOMIZE (parser-enforced)

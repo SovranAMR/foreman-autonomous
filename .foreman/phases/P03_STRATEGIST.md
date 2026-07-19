@@ -108,7 +108,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P03-B08-A01 — Replan ve plan repair: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P03-B08-A02 — Replan ve plan repair: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P03-B08-A03 — Replan ve plan repair: en küçük üretim dikey dilimini uygula
+- [x] P03-B08-A03 — Replan ve plan repair: en küçük üretim dikey dilimini uygula
 - [ ] P03-B08-A04 — Replan ve plan repair: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B08-A05 — Replan ve plan repair: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B08-A06 — Replan ve plan repair: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B08-A02
-last_commit: 41c5aa5
-tests: PASS — forge-p03-strategist-replan.test.ts (9/9); validateStrategistReplanCoverage; 28 probes; 5 gap + 6 FAIL aligned
-evidence: getActiveStrategistReplanContract; validateStrategistReplanCoverage; listStrategistReplanProbesByDisposition
-next: P03-B08-A03
+last_atom: P03-B08-A03
+last_commit: 056b22a
+tests: PASS — forge-p03-strategist-replan*.test.ts (14/14); validateStrategistReplan; runStrategistReplanProductionSlice; 28/28 probes PASS; 6 replan gaps closed
+evidence: validateStrategistReplan; parseReplanBlockRefs; orchestrator replan gate; replanCheckpoint/replanLineage; REPLAN PLAN in prompts+parser
+next: P03-B08-A04

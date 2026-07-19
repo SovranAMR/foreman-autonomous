@@ -39,22 +39,13 @@ describe("Forge Strategist Replan — P03-B08-A01", () => {
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 28);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listStrategistReplanProbesByExpected(
       "FAIL",
       loadStrategistReplanBaseline(),
     );
-    assert.equal(documentedFail.length, 6);
-    assert.ok(documentedFail.some(p => p.id === "sreplan.prompt_replan_plan"));
-    assert.ok(documentedFail.some(p => p.id === "sreplan.orchestrator_strategist_replan_gate"));
-    assert.ok(documentedFail.some(p => p.id === "sreplan.exported_replan_validator"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of STRATEGIST_REPLAN_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -71,19 +62,6 @@ describe("Forge Strategist Replan — P03-B08-A01", () => {
 
   it("documents replan gaps as measurable baseline debt", () => {
     const gaps = listStrategistReplanKnownGaps(runStrategistReplanProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "sreplan.exported_replan_validator",
-      "sreplan.nogo_invalid_replan",
-      "sreplan.orchestrator_strategist_replan_gate",
-      "sreplan.parser_replan_fields",
-      "sreplan.prompt_replan_plan",
-      "sreplan.recovery_replan_checkpoint",
-    ]);
-    assert.ok(
-      gaps.every(g => STRATEGIST_REPLAN_CATEGORIES.includes(g.category)),
-      "documented gaps are replan probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });
