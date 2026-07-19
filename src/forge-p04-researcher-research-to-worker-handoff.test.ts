@@ -19,11 +19,19 @@ import {
   validateResearcherResearchToWorkerHandoffBoundaryProbeMatrix,
   validateResearcherResearchToWorkerHandoffFailureRecoveryProbeMatrix,
   listResearcherResearchToWorkerHandoffFailureRecoveryProbeIds,
+  runResearcherResearchToWorkerHandoffEvidenceSlice,
+  runResearcherResearchToWorkerHandoffFailureRecoverySliceWithRecord,
+  buildResearcherResearchToWorkerHandoffProbeEvidence,
+  buildResearcherResearchToWorkerHandoffProbeTelemetry,
+  buildResearcherResearchToWorkerHandoffProvenance,
+  buildResearcherResearchToWorkerHandoffRunRecord,
+  validateResearcherResearchToWorkerHandoffEvidenceRunRecord,
   validateResearchToWorkerHandoff,
   recoverResearchToWorkerHandoff,
   RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES,
   RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES,
   FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CONTRACT_V1,
+  FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION,
 } from "./forge-p04-researcher-research-to-worker-handoff.js";
 import { parseResearchToWorkerHandoff } from "./parser.js";
 
@@ -414,5 +422,144 @@ describe("Forge Researcher Research-to-Worker Handoff Failure/Recovery Slice —
     assert.equal(repaired.recovered, true);
     assert.ok(repaired.bundle.findings.length > 0);
     assert.ok(repaired.bundle.sources.length > 0);
+  });
+});
+
+describe("Forge Researcher Research-to-Worker Handoff Evidence — P04-B09-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadResearcherResearchToWorkerHandoffBaseline();
+    const contract = getActiveResearcherResearchToWorkerHandoffContract();
+    const probeIds = listResearcherResearchToWorkerHandoffFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-19T00:00:00.000Z";
+    const completedAt = "2026-07-19T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildResearcherResearchToWorkerHandoffProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildResearcherResearchToWorkerHandoffProbeTelemetry(
+        probeId,
+        contractProbe.category,
+        index,
+        index * 0.5,
+      );
+    });
+
+    const provenance = buildResearcherResearchToWorkerHandoffProvenance(
+      "run-rtwh-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P04-B09-A06",
+        sliceCategories: RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildResearcherResearchToWorkerHandoffRunRecord(provenance, evidence, telemetry);
+    const validation = validateResearcherResearchToWorkerHandoffEvidenceRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 6);
+    assert.equal(record.summary.mismatches, 0);
+    assert.ok(record.summary.byDisposition.failure >= 2);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byCategory.nogo_path >= 2);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBlockGateAtom, fixture.sourceBlockGate.atom);
+  });
+
+  it("executes evidence slice with zero unexpected mismatches and valid run record", () => {
+    const contract = getActiveResearcherResearchToWorkerHandoffContract();
+    const slice = runResearcherResearchToWorkerHandoffEvidenceSlice();
+
+    assert.equal(slice.atom, "P04-B09-A06");
+    assert.equal(slice.evidenceProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.recordValid, true);
+    assert.equal(slice.evidenceResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(
+      slice.recordValidation.valid,
+      true,
+      slice.recordValidation.issues.map(i => i.detail).join("\n"),
+    );
+
+    for (const category of RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherResearchToWorkerHandoffContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.evidenceResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing evidence result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const record = slice.record;
+    assert.equal(record.evidence.length, 6);
+    assert.equal(record.telemetry.length, 6);
+    assert.equal(record.provenance.totalProbes, 6);
+    assert.equal(record.provenance.sliceAtom, "P04-B09-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION);
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.ok(item.recordedAt.length > 10);
+    }
+
+    const bundleRepair = record.evidence.find(e => e.probeId === "rtwh.recovery_handoff_bundle_repair");
+    assert.ok(bundleRepair);
+    assert.equal(bundleRepair!.aligned, true);
+    assert.equal(bundleRepair!.expected, "PASS");
+    assert.equal(bundleRepair!.actual, "PASS");
+    assert.equal(bundleRepair!.disposition, "recovery");
+  });
+
+  it("records evidence slice via failure/recovery with-record helper", () => {
+    const contract = getActiveResearcherResearchToWorkerHandoffContract();
+    const record = runResearcherResearchToWorkerHandoffFailureRecoverySliceWithRecord();
+    const validation = validateResearcherResearchToWorkerHandoffEvidenceRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 6);
+    assert.equal(record.provenance.sliceAtom, "P04-B09-A06");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
   });
 });

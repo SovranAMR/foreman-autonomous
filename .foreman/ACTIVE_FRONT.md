@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B09
-active_atom: P04-B09-A06
+active_atom: P04-B09-A07
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 385/1000
-phase_progress: 84/100
-block_progress: 5/10
+program_progress: 386/1000
+phase_progress: 85/100
+block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B09-A06 — Research-to-worker handoff: evidence, telemetry ve provenance kaydını ekle.
+P04-B09-A07 — Research-to-worker handoff: unit, property ve fuzz doğrulamasını ekle.
 
-objective: P04-B09-A05 PASS; failure-recovery slice closes guard-path gaps with zero unexpected mismatches.
-target: Complete evidence/telemetry/provenance record for handoff failure-recovery gate paths.
-hypothesis: A05 failure-recovery slice enables A06 evidence gate with contract-wired telemetry.
-acceptance: Evidence record captures failure/recovery/NO-GO probe outcomes; zero unexpected mismatches in slice.
+objective: P04-B09-A06 PASS; evidence slice closes guard-path gaps with auditable run record.
+target: Add unit, property and fuzz validation for research-to-worker handoff contract and evidence slice.
+hypothesis: A06 evidence/telemetry/provenance record enables A07 property-fuzz gate with contract-wired probes.
+acceptance: Property checks hold on contract; fuzz rejects tampered evidence/telemetry/provenance; slice zero mismatches.
 commands: npx tsx --test src/forge-p04-researcher-research-to-worker-handoff*.test.ts
 blast_radius: src/forge-p04-researcher-research-to-worker-handoff*.ts
-rollback: P04-B09-A06 evidence slice değişikliklerini geri al.
+rollback: P04-B09-A07 property-fuzz slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Evidence slice blocked ise BLOCKED raporla.
+fallback: Property-fuzz slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B09-A05
-last_commit: a6ed711
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (33/33); failure-recovery slice 6/6 aligned; unexpectedMismatches=0
-evidence: validateResearcherResearchToWorkerHandoffFailureRecoveryProbeMatrix + runResearcherResearchToWorkerHandoffFailureRecoverySlice + failure/recovery/NO-GO guard-path probes
-next: P04-B09-A06
+last_atom: P04-B09-A06
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (36/36); evidence slice 6/6 aligned; unexpectedMismatches=0; recordValid=true
+evidence: validateResearcherResearchToWorkerHandoffEvidenceRunRecord + runResearcherResearchToWorkerHandoffEvidenceSlice + failure/recovery/NO-GO probe evidence/telemetry/provenance
+next: P04-B09-A07

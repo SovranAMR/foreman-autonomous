@@ -3,8 +3,11 @@
  *
  * A01 slice: load, validate, run probes with documented FAIL gaps against sealed
  * P04-B08 spike falsification block gate artifacts.
+ * A06: evidence, telemetry and provenance run record for failure/recovery/NO-GO slice probes.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1821,5 +1824,459 @@ export function runResearcherResearchToWorkerHandoffFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence entry — disposition, criterion and aligned outcomes (P04-B09-A06). */
+export interface ResearcherResearchToWorkerHandoffProbeEvidence {
+  probeId: string;
+  category: ResearcherResearchToWorkerHandoffCategory;
+  disposition: ResearcherResearchToWorkerHandoffProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for research-to-worker handoff runs (P04-B09-A06). */
+export interface ResearcherResearchToWorkerHandoffProbeTelemetry {
+  probeId: string;
+  category: ResearcherResearchToWorkerHandoffCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B09-A06). */
+export interface ResearcherResearchToWorkerHandoffProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherResearchToWorkerHandoffCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated research-to-worker handoff run record bundling evidence, telemetry and provenance. */
+export interface ResearcherResearchToWorkerHandoffRunRecord {
+  provenance: ResearcherResearchToWorkerHandoffProvenance;
+  evidence: ResearcherResearchToWorkerHandoffProbeEvidence[];
+  telemetry: ResearcherResearchToWorkerHandoffProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherResearchToWorkerHandoffCategory, number>;
+    byDisposition: Record<ResearcherResearchToWorkerHandoffProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherResearchToWorkerHandoffRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherResearchToWorkerHandoffRunValidationResult {
+  valid: boolean;
+  issues: ResearcherResearchToWorkerHandoffRunValidationIssue[];
+}
+
+export function buildResearcherResearchToWorkerHandoffProbeEvidence(
+  probeId: string,
+  category: ResearcherResearchToWorkerHandoffCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherResearchToWorkerHandoffProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherResearchToWorkerHandoffProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherResearchToWorkerHandoffProbeTelemetry(
+  probeId: string,
+  category: ResearcherResearchToWorkerHandoffCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherResearchToWorkerHandoffProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherResearchToWorkerHandoffProvenance(
+  runId: string,
+  fixture: ResearcherResearchToWorkerHandoffBaseline,
+  contract: ResearcherResearchToWorkerHandoffContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherResearchToWorkerHandoffCategory[];
+  },
+): ResearcherResearchToWorkerHandoffProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherResearchToWorkerHandoffRunRecord(
+  provenance: ResearcherResearchToWorkerHandoffProvenance,
+  evidence: ResearcherResearchToWorkerHandoffProbeEvidence[],
+  telemetry: ResearcherResearchToWorkerHandoffProbeTelemetry[],
+): ResearcherResearchToWorkerHandoffRunRecord {
+  const byCategory = {} as Record<ResearcherResearchToWorkerHandoffCategory, number>;
+  const byDisposition: Record<ResearcherResearchToWorkerHandoffProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherResearchToWorkerHandoffRunRecordAgainstProbeIds(
+  record: ResearcherResearchToWorkerHandoffRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherResearchToWorkerHandoffContract,
+): ResearcherResearchToWorkerHandoffRunValidationResult {
+  const issues: ResearcherResearchToWorkerHandoffRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherResearchToWorkerHandoffRunRecord(
+  record: ResearcherResearchToWorkerHandoffRunRecord,
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffRunValidationResult {
+  return validateResearcherResearchToWorkerHandoffRunRecordAgainstProbeIds(
+    record,
+    listResearcherResearchToWorkerHandoffContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherResearchToWorkerHandoffEvidenceRunRecord(
+  record: ResearcherResearchToWorkerHandoffRunRecord,
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffRunValidationResult {
+  const issues: ResearcherResearchToWorkerHandoffRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B09-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B09-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherResearchToWorkerHandoffRunRecordAgainstProbeIds(
+    record,
+    listResearcherResearchToWorkerHandoffFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherResearchToWorkerHandoffEvidenceSliceResult {
+  atom: "P04-B09-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherResearchToWorkerHandoffProbeResult[];
+  evidenceResults: ResearcherResearchToWorkerHandoffProbeResult[];
+  matrixValidation: ResearcherResearchToWorkerHandoffProbeMatrixValidationResult;
+  record: ResearcherResearchToWorkerHandoffRunRecord;
+  recordValidation: ResearcherResearchToWorkerHandoffRunValidationResult;
+}
+
+function resolveResearcherResearchToWorkerHandoffGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherResearchToWorkerHandoffProbeWithTiming(
+  entry: ResearcherResearchToWorkerHandoffFixtureEntry,
+  fixture: ResearcherResearchToWorkerHandoffBaseline,
+  contractProbe: ResearcherResearchToWorkerHandoffProbeContract | undefined,
+): {
+  result: ResearcherResearchToWorkerHandoffProbeResult;
+  durationMs: number;
+  disposition: ResearcherResearchToWorkerHandoffProbeDisposition;
+} {
+  const start = performance.now();
+  const expected = contractProbe?.expected ?? entry.expected;
+  const result = runSingleProbe(entry.id, entry.category, expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherResearchToWorkerHandoffRecordFromEntries(
+  entries: ResearcherResearchToWorkerHandoffFixtureEntry[],
+  fixture: ResearcherResearchToWorkerHandoffBaseline,
+  contract: ResearcherResearchToWorkerHandoffContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherResearchToWorkerHandoffCategory[];
+  },
+): ResearcherResearchToWorkerHandoffRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ResearcherResearchToWorkerHandoffProbeEvidence[] = [];
+  const telemetry: ResearcherResearchToWorkerHandoffProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherResearchToWorkerHandoffProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherResearchToWorkerHandoffProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherResearchToWorkerHandoffProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherResearchToWorkerHandoffProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherResearchToWorkerHandoffGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherResearchToWorkerHandoffRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all research-to-worker handoff probes and emit auditable evidence, telemetry and provenance (P04-B09-A06). */
+export function runResearcherResearchToWorkerHandoffProbesWithRecord(
+  fixture: ResearcherResearchToWorkerHandoffBaseline = loadResearcherResearchToWorkerHandoffBaseline(),
+): ResearcherResearchToWorkerHandoffRunRecord {
+  const contract = getActiveResearcherResearchToWorkerHandoffContract();
+  return buildResearcherResearchToWorkerHandoffRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B09-A06). */
+export function runResearcherResearchToWorkerHandoffFailureRecoverySliceWithRecord(
+  fixture: ResearcherResearchToWorkerHandoffBaseline = loadResearcherResearchToWorkerHandoffBaseline(),
+): ResearcherResearchToWorkerHandoffRunRecord {
+  const contract = getActiveResearcherResearchToWorkerHandoffContract();
+  const failureRecoveryIds = new Set(
+    listResearcherResearchToWorkerHandoffFailureRecoveryProbeIds(contract),
+  );
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherResearchToWorkerHandoffRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B09-A06",
+    sliceCategories: RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherResearchToWorkerHandoffEvidenceSlice(
+  fixture: ResearcherResearchToWorkerHandoffBaseline = loadResearcherResearchToWorkerHandoffBaseline(),
+): ResearcherResearchToWorkerHandoffEvidenceSliceResult {
+  const contract = getActiveResearcherResearchToWorkerHandoffContract();
+  const results = runResearcherResearchToWorkerHandoffProbes(fixture);
+  const failureRecoveryProbes =
+    RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+      listResearcherResearchToWorkerHandoffContractProbesByCategory(category, contract),
+    );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherResearchToWorkerHandoffFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherResearchToWorkerHandoffFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherResearchToWorkerHandoffEvidenceRunRecord(
+    record,
+    contract,
+  );
+
+  return {
+    atom: "P04-B09-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }

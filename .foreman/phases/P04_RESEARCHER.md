@@ -124,7 +124,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B09-A03 — Research-to-worker handoff: en küçük üretim dikey dilimini uygula
 - [x] P04-B09-A04 — Research-to-worker handoff: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B09-A05 — Research-to-worker handoff: failure, recovery ve NO-GO yollarını uygula
-- [ ] P04-B09-A06 — Research-to-worker handoff: evidence, telemetry ve provenance kaydını ekle
+- [x] P04-B09-A06 — Research-to-worker handoff: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B09-A07 — Research-to-worker handoff: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B09-A08 — Research-to-worker handoff: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B09-A09 — Research-to-worker handoff: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B09-A05
-last_commit: a6ed711
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (33/33); failure-recovery slice 6/6 aligned; unexpectedMismatches=0
-evidence: validateResearcherResearchToWorkerHandoffFailureRecoveryProbeMatrix + runResearcherResearchToWorkerHandoffFailureRecoverySlice + failure/recovery/NO-GO guard-path probes
-next: P04-B09-A06
+last_atom: P04-B09-A06
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (36/36); evidence slice 6/6 aligned; unexpectedMismatches=0; recordValid=true
+evidence: validateResearcherResearchToWorkerHandoffEvidenceRunRecord + runResearcherResearchToWorkerHandoffEvidenceSlice + failure/recovery/NO-GO probe evidence/telemetry/provenance
+next: P04-B09-A07
