@@ -16,8 +16,14 @@ import {
   FORGE_RESEARCHER_SPIKE_FALSIFICATION_CONTRACT_V1,
   runResearcherSpikeFalsificationProductionSlice,
   runResearcherSpikeFalsificationBoundarySlice,
+  runResearcherSpikeFalsificationFailureRecoverySlice,
   validateResearcherSpikeFalsificationProbeMatrix,
   validateResearcherSpikeFalsificationBoundaryProbeMatrix,
+  validateResearcherSpikeFalsificationFailureRecoveryProbeMatrix,
+  listResearcherSpikeFalsificationFailureRecoveryProbeIds,
+  RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES,
+  recoverSpikeFalsificationEvidence,
+  validateResearcherSpikeFalsificationBaseline,
   validateSpikeFalsificationExperiment,
 } from "./forge-p04-researcher-spike-falsification.js";
 import { parseResearchSpikeExperiment } from "./parser.js";
@@ -275,5 +281,140 @@ describe("Forge Researcher Spike Falsification Boundary Slice — P04-B08-A04", 
     const nullByteValidation = validateSpikeFalsificationExperiment("experiment\0parse");
     assert.equal(nullByteValidation.valid, false);
     assert.equal(nullByteValidation.spikePresent, false);
+  });
+});
+
+describe("Forge Researcher Spike Falsification Failure/Recovery Slice — P04-B08-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three path categories", () => {
+    const contract = getActiveResearcherSpikeFalsificationContract();
+    const failure = listResearcherSpikeFalsificationContractProbesByCategory(
+      "failure_path",
+      contract,
+    );
+    const recovery = listResearcherSpikeFalsificationContractProbesByCategory(
+      "recovery_path",
+      contract,
+    );
+    const nogo = listResearcherSpikeFalsificationContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches on guard-path probes", () => {
+    const contract = getActiveResearcherSpikeFalsificationContract();
+    const slice = runResearcherSpikeFalsificationFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B08-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherSpikeFalsificationContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherSpikeFalsificationFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with spike falsification recovery and orchestrator wiring", () => {
+    const slice = runResearcherSpikeFalsificationFailureRecoverySlice();
+    const probeIds = listResearcherSpikeFalsificationFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "rsf.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const malformedInput = slice.failureRecoveryResults.find(
+      r => r.id === "rsf.malformed_experiment_guard",
+    );
+    assert.ok(malformedInput);
+    assert.equal(malformedInput!.expected, "PASS");
+    assert.equal(malformedInput!.actual, "PASS");
+
+    const spikeRepair = slice.failureRecoveryResults.find(
+      r => r.id === "rsf.recovery_spike_experiment_repair",
+    );
+    assert.ok(spikeRepair);
+    assert.equal(spikeRepair!.expected, "PASS");
+    assert.equal(spikeRepair!.actual, "PASS");
+
+    const falsificationFallback = slice.failureRecoveryResults.find(
+      r => r.id === "rsf.recovery_falsification_criteria_fallback",
+    );
+    assert.ok(falsificationFallback);
+    assert.equal(falsificationFallback!.expected, "PASS");
+    assert.equal(falsificationFallback!.actual, "PASS");
+
+    const parserGate = slice.failureRecoveryResults.find(r => r.id === "rsf.parser_spike_experiment");
+    assert.ok(parserGate);
+    assert.equal(parserGate!.expected, "PASS");
+    assert.equal(parserGate!.actual, "PASS");
+
+    const validatorExport = slice.failureRecoveryResults.find(
+      r => r.id === "rsf.exported_spike_falsification_validator",
+    );
+    assert.ok(validatorExport);
+    assert.equal(validatorExport!.expected, "PASS");
+    assert.equal(validatorExport!.actual, "PASS");
+  });
+
+  it("recoverSpikeFalsificationEvidence and validateSpikeFalsificationExperiment handle failure inputs safely", () => {
+    const unrecoverable = recoverSpikeFalsificationEvidence("");
+    assert.equal(unrecoverable.recovered, false);
+    assert.ok(unrecoverable.parseErrors.includes("empty"));
+
+    const nullByteRecovery = recoverSpikeFalsificationEvidence("experiment\0parse");
+    assert.equal(nullByteRecovery.recovered, false);
+    assert.equal(nullByteRecovery.parseErrors[0], "contains_null_byte");
+
+    const invalidFixture = validateResearcherSpikeFalsificationBaseline({
+      ...loadResearcherSpikeFalsificationBaseline(),
+      version: "9.9.9",
+    });
+    assert.equal(invalidFixture.valid, false);
+
+    const malformed = `SPIKE: bounded async worker pool under burst load
+timebox: 45 minutes
+FINDINGS: partial parse`;
+    const recovery = recoverSpikeFalsificationEvidence(malformed);
+    assert.equal(recovery.recovered, true);
+    assert.ok(recovery.experimentPlan.spikes.length >= 1);
+    assert.equal(recovery.experimentPlan.spikes[0].timeboxMinutes, 45);
+
+    const validation = validateSpikeFalsificationExperiment(
+      "FINDINGS: benchmark supports async\nSPIKE_EXPERIMENTS:\n1. async pool → lower p99 latency\nFALSIFICATION: reject if sync baseline wins",
+    );
+    assert.equal(validation.valid, true, validation.issues.join("; "));
   });
 });

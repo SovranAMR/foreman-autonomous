@@ -3,6 +3,7 @@
  *
  * A01 slice: load, validate, run probes with documented FAIL gaps against sealed
  * P04-B07 risk trade-off block gate artifacts.
+ * A05: failure_path, recovery_path and nogo_path slice gate for failure/recovery/NO-GO probes.
  */
 
 import { readFileSync } from "node:fs";
@@ -1670,6 +1671,90 @@ export function runResearcherSpikeFalsificationBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly ResearcherSpikeFalsificationCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes must align; zero unexpected mismatches.
+ */
+export function validateResearcherSpikeFalsificationFailureRecoveryProbeMatrix(
+  results: ResearcherSpikeFalsificationProbeResult[],
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): ResearcherSpikeFalsificationProbeMatrixValidationResult {
+  const failureRecoveryProbes = RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherSpikeFalsificationContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: ResearcherSpikeFalsificationContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateResearcherSpikeFalsificationProbeMatrix(
+    failureRecoveryResults,
+    failureRecoveryContract,
+  );
+}
+
+export function listResearcherSpikeFalsificationFailureRecoveryProbeIds(
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): string[] {
+  return RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listResearcherSpikeFalsificationContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface ResearcherSpikeFalsificationFailureRecoverySliceResult {
+  atom: "P04-B08-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherSpikeFalsificationProbeResult[];
+  failureRecoveryResults: ResearcherSpikeFalsificationProbeResult[];
+  matrixValidation: ResearcherSpikeFalsificationProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes (invalid fixture rejection, null-byte guard, recoverSpikeFalsificationEvidence,
+ * falsification criteria fallback, parseResearchSpikeExperiment and
+ * validateSpikeFalsificationExperiment orchestrator NO-GO wiring) with zero unexpected mismatches.
+ */
+export function runResearcherSpikeFalsificationFailureRecoverySlice(
+  fixture: ResearcherSpikeFalsificationBaseline = loadResearcherSpikeFalsificationBaseline(),
+): ResearcherSpikeFalsificationFailureRecoverySliceResult {
+  const contract = getActiveResearcherSpikeFalsificationContract();
+  const results = runResearcherSpikeFalsificationProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_SPIKE_FALSIFICATION_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherSpikeFalsificationContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherSpikeFalsificationFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B08-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }
