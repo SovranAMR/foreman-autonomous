@@ -6,7 +6,12 @@
  */
 
 import researcherPhaseGateBaseline from "./fixtures/forge-researcher-phase-gate-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import { P04_RESEARCHER_PHASE_ID as P04_FROM_P03 } from "./forge-p03-strategist-phase-gate.js";
 import {
   getForgeP04B09ToB10Handoff,
@@ -2799,6 +2804,291 @@ export function validateForgeResearcherPhaseGateGuard(
       adversarialScenariosTotal: adversarial.total,
     },
   };
+}
+
+// ─── Block gate and handoff (P04-B10-A10) ───────────────────────────────────
+
+export interface ResearcherPhaseGateBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  sealedBlockCount: number;
+  gitCommit?: string;
+}
+
+export interface ResearcherPhaseGateBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    researcherPhaseGateCategories: readonly ResearcherPhaseGateCategory[];
+    sealedBlockInventoryCount: number;
+    sourceResearchToWorkerHandoffBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    researcherPhaseGateRecordRequired: true;
+  };
+}
+
+export const FORGE_P04_B10_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P04-B10-A10",
+  blockId: "P04-B10",
+  title: "Araştırmacı phase gate",
+  requiredAtomIds: [
+    "P04-B10-A01",
+    "P04-B10-A02",
+    "P04-B10-A03",
+    "P04-B10-A04",
+    "P04-B10-A05",
+    "P04-B10-A06",
+    "P04-B10-A07",
+    "P04-B10-A08",
+    "P04-B10-A09",
+    "P04-B10-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P04-B10-A01",
+      description:
+        "Researcher phase gate baseline aligns with typed contract and P04-B09 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P04-B10-A02",
+      description: "Contract declares measurable probes for all researcher phase gate categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P04-B10-A03",
+      description: "Researcher phase gate probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P04-B10-A04",
+      description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P04-B10-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P04-B10-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P04-B10-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P04-B10-A08",
+      description: "Regression gate passes on canonical researcher phase gate matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P04-B10-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P04-B10-A10",
+      description: "Block gate evidence sealed with valid P05 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P04_B10_TO_P05_HANDOFF_V1: ResearcherPhaseGateBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P04-B10-A10",
+  sourceBlock: {
+    blockId: "P04-B10",
+    title: "Araştırmacı phase gate",
+    completedAtoms: FORGE_P04_B10_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P05-B01",
+    title: "Typed tool interface ve dispatch",
+    entryAtom: "P05-B01-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_RESEARCHER_PHASE_GATE_CONTRACT_V1.version,
+    harnessVersion: FORGE_RESEARCHER_PHASE_GATE_VERSION,
+    probeCount: summarizeResearcherPhaseGateContractCoverage(FORGE_RESEARCHER_PHASE_GATE_CONTRACT_V1)
+      .totalProbes,
+    researcherPhaseGateCategories: RESEARCHER_PHASE_GATE_CATEGORIES,
+    sealedBlockInventoryCount: P04_RESEARCHER_PHASE_BLOCK_COUNT,
+    sourceResearchToWorkerHandoffBlockGateAtom: "P04-B09-A10",
+  },
+  prerequisites: [
+    "Researcher phase gate contract v1 with measurable block gate signal, phase inventory and guard probes",
+    "Versioned researcher phase gate baseline aligned to contract probe matrix and sealed P04-B09 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Nine sealed P04 researcher block gates referenced by phase block inventory",
+  ],
+  entryCriteria: {
+    description:
+      "P05-B01-A01 formalizes worker tool dispatch baseline using sealed P04 researcher phase gate artifacts",
+    requiresBlockGatePass: true,
+    researcherPhaseGateRecordRequired: true,
+  },
+};
+
+export function getForgeP04B10BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P04_B10_BLOCK_GATE_V1;
+}
+
+export function getForgeP04B10ToP05Handoff(): ResearcherPhaseGateBlockHandoffContract {
+  return FORGE_P04_B10_TO_P05_HANDOFF_V1;
+}
+
+export function validateResearcherPhaseGateBlockHandoffContract(
+  handoff: ResearcherPhaseGateBlockHandoffContract,
+  evidence: Pick<
+    ResearcherPhaseGateBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed" | "sealedBlockCount"
+  >,
+  contract: ResearcherPhaseGateContract = getActiveResearcherPhaseGateContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeResearcherPhaseGateContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.researcherPhaseGateCategories.length !==
+    RESEARCHER_PHASE_GATE_CATEGORIES.length
+  ) {
+    issues.push("handoff researcherPhaseGateCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sealedBlockInventoryCount !== P04_RESEARCHER_PHASE_BLOCK_COUNT) {
+    issues.push(
+      `handoff sealedBlockInventoryCount=${handoff.sealedArtifacts.sealedBlockInventoryCount} expected=${P04_RESEARCHER_PHASE_BLOCK_COUNT}`,
+    );
+  }
+  if (handoff.sealedArtifacts.sourceResearchToWorkerHandoffBlockGateAtom !== "P04-B09-A10") {
+    issues.push(
+      `unexpected source block gate atom: ${handoff.sealedArtifacts.sourceResearchToWorkerHandoffBlockGateAtom}`,
+    );
+  }
+  if (handoff.targetBlock.entryAtom !== "P05-B01-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+  if (evidence.sealedBlockCount !== EXPECTED_P04_RESEARCHER_PRIOR_BLOCK_GATE_COUNT) {
+    issues.push(
+      `evidence sealedBlockCount=${evidence.sealedBlockCount} expected=${EXPECTED_P04_RESEARCHER_PRIOR_BLOCK_GATE_COUNT}`,
+    );
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildResearcherPhaseGateBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P04_B10_BLOCK_GATE_V1.blockId,
+): ResearcherPhaseGateBlockGateEvidence {
+  const handoffValid = validateResearcherPhaseGateBlockHandoffContract(
+    getForgeP04B10ToP05Handoff(),
+    {
+      probeCount,
+      regressionPassed,
+      guardPassed,
+      sealedBlockCount: EXPECTED_P04_RESEARCHER_PRIOR_BLOCK_GATE_COUNT,
+    },
+  ).valid;
+
+  return {
+    blockId,
+    atom: "P04-B10-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    sealedBlockCount: EXPECTED_P04_RESEARCHER_PRIOR_BLOCK_GATE_COUNT,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}
+
+/** Validate sealed researcher phase gate block evidence against P05 handoff contract. */
+export function validateForgeP04ResearcherPhaseGateBlockGate(
+  evidence: ResearcherPhaseGateBlockGateEvidence,
+  handoff: ResearcherPhaseGateBlockHandoffContract = getForgeP04B10ToP05Handoff(),
+  contract: ResearcherPhaseGateContract = getActiveResearcherPhaseGateContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+
+  if (evidence.blockId !== handoff.sourceBlock.blockId) {
+    issues.push(`evidence blockId=${evidence.blockId} handoff=${handoff.sourceBlock.blockId}`);
+  }
+  if (evidence.atom !== handoff.atom) {
+    issues.push(`evidence atom=${evidence.atom} handoff=${handoff.atom}`);
+  }
+  if (evidence.atomSeals.length !== handoff.sourceBlock.completedAtoms.length) {
+    issues.push(
+      `atom seal count=${evidence.atomSeals.length} expected=${handoff.sourceBlock.completedAtoms.length}`,
+    );
+  }
+  if (!evidence.atomSeals.every(seal => seal.passed)) {
+    issues.push("one or more atom seals failed");
+  }
+  if (!evidence.handoffValid) {
+    issues.push("evidence handoffValid=false");
+  }
+
+  const handoffValidation = validateResearcherPhaseGateBlockHandoffContract(handoff, evidence, contract);
+  issues.push(...handoffValidation.issues);
+
+  return { valid: issues.length === 0, issues };
 }
 
 export { FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION };

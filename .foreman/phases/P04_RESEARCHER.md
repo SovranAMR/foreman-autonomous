@@ -1,9 +1,9 @@
 # P04 — Araştırmacı — Kanıt, Kaynak ve Deney
 
 phase_id: P04
-phase_status: IN_PROGRESS
-completed_blocks: 6
-completed_atoms: 83
+phase_status: COMPLETE
+completed_blocks: 10
+completed_atoms: 100
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -141,7 +141,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B10-A07 — Araştırmacı phase gate: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B10-A08 — Araştırmacı phase gate: Forge entegrasyonu ile regression testini tamamla
 - [x] P04-B10-A09 — Araştırmacı phase gate: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P04-B10-A10 — Araştırmacı phase gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P04-B10-A10 — Araştırmacı phase gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## Phase acceptance
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B10-A09
+last_atom: P04-B10-A10
 last_commit: pending
-tests: PASS — forge-p04-researcher-phase-gate.guard.test.ts (9/9); forge-p04-researcher-phase-gate*.test.ts (54/54)
-evidence: runForgeResearcherPhaseGateGuardGate + validateForgeResearcherPhaseGateGuard + verifyForgeResearcherPhaseGateGuard + runResearcherPhaseGateAdversarialGuardChecks
-next: P04-B10-A10
+tests: PASS — forge-p04-researcher-phase-gate-block-gate.test.ts (6/6); forge-p04-researcher-phase-gate*.test.ts (60/60)
+evidence: runResearcherPhaseGateBlockGate + validateForgeP04ResearcherPhaseGateBlockGate + verifyForgeResearcherPhaseGateBlockGate + FORGE_P04_B10_TO_P05_HANDOFF_V1
+next: P05-B01-A01
