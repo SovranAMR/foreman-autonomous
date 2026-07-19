@@ -12,7 +12,7 @@ import {
   summarizeVisionerGroundingContractCoverage,
 } from "./forge-p02-visioner-grounding.js";
 
-export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a01";
+export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a02";
 
 /** Maximum normalized vision length before truncation (P02-B05-A01 boundary). */
 export const VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH = 32000;
