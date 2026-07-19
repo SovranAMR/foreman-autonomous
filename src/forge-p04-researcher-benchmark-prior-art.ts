@@ -5,6 +5,8 @@
  * P04-B03 web primary-source block gate artifacts.
  * A03 slice: recoverBenchmarkPriorArtEvidence production vertical slice.
  * A04 slice: boundary-category probe matrix validation for topic input edge cases.
+ * A05 slice: failure/recovery/NO-GO category probe matrix validation for invalid fixture,
+ * null-byte guard, non-fatal research BLOCK, prior-art recovery and validator export paths.
  */
 
 import { readFileSync } from "node:fs";
@@ -19,7 +21,7 @@ import {
   FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_CONTRACT_V1,
 } from "./forge-p04-researcher-web-primary-source.js";
 
-export const FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION = "1.0.0-a04";
+export const FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION = "1.0.0-a05";
 
 export const EXPECTED_P04_B03_SEALED_ATOM_COUNT = 10;
 
@@ -1372,6 +1374,90 @@ export function runResearcherBenchmarkPriorArtBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly ResearcherBenchmarkPriorArtCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes must align; zero unexpected mismatches.
+ */
+export function validateResearcherBenchmarkPriorArtFailureRecoveryProbeMatrix(
+  results: ResearcherBenchmarkPriorArtProbeResult[],
+  contract: ResearcherBenchmarkPriorArtContract = getActiveResearcherBenchmarkPriorArtContract(),
+): ResearcherBenchmarkPriorArtProbeMatrixValidationResult {
+  const failureRecoveryProbes = RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherBenchmarkPriorArtContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: ResearcherBenchmarkPriorArtContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateResearcherBenchmarkPriorArtProbeMatrix(
+    failureRecoveryResults,
+    failureRecoveryContract,
+  );
+}
+
+export function listResearcherBenchmarkPriorArtFailureRecoveryProbeIds(
+  contract: ResearcherBenchmarkPriorArtContract = getActiveResearcherBenchmarkPriorArtContract(),
+): string[] {
+  return RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listResearcherBenchmarkPriorArtContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface ResearcherBenchmarkPriorArtFailureRecoverySliceResult {
+  atom: "P04-B04-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherBenchmarkPriorArtProbeResult[];
+  failureRecoveryResults: ResearcherBenchmarkPriorArtProbeResult[];
+  matrixValidation: ResearcherBenchmarkPriorArtProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes (invalid fixture rejection, null-byte guard, non-fatal research BLOCK,
+ * recoverBenchmarkPriorArtEvidence, researcher BLOCK, validateBenchmarkPriorArtCollection)
+ * with zero unexpected mismatches.
+ */
+export function runResearcherBenchmarkPriorArtFailureRecoverySlice(
+  fixture: ResearcherBenchmarkPriorArtBaseline = loadResearcherBenchmarkPriorArtBaseline(),
+): ResearcherBenchmarkPriorArtFailureRecoverySliceResult {
+  const contract = getActiveResearcherBenchmarkPriorArtContract();
+  const results = runResearcherBenchmarkPriorArtProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherBenchmarkPriorArtContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherBenchmarkPriorArtFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B04-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

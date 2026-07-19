@@ -5,9 +5,13 @@ import {
   runResearcherBenchmarkPriorArtProbes,
   runResearcherBenchmarkPriorArtProductionSlice,
   runResearcherBenchmarkPriorArtBoundarySlice,
+  runResearcherBenchmarkPriorArtFailureRecoverySlice,
   validateResearcherBenchmarkPriorArtBaseline,
   validateResearcherBenchmarkPriorArtProbeMatrix,
   validateResearcherBenchmarkPriorArtBoundaryProbeMatrix,
+  validateResearcherBenchmarkPriorArtFailureRecoveryProbeMatrix,
+  listResearcherBenchmarkPriorArtFailureRecoveryProbeIds,
+  RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES,
   summarizeResearcherBenchmarkPriorArtMatrix,
   listResearcherBenchmarkPriorArtProbesByExpected,
   listResearcherBenchmarkPriorArtKnownGaps,
@@ -248,5 +252,113 @@ describe("Forge Researcher Benchmark Prior-Art Boundary Slice — P04-B04-A04", 
       assert.equal(result!.actual, "PASS");
       assert.equal(result!.aligned, true);
     }
+  });
+});
+
+describe("Forge Researcher Benchmark Prior-Art Failure Recovery Slice — P04-B04-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveResearcherBenchmarkPriorArtContract();
+    const failure = listResearcherBenchmarkPriorArtContractProbesByCategory(
+      "failure_path",
+      contract,
+    );
+    const recovery = listResearcherBenchmarkPriorArtContractProbesByCategory(
+      "recovery_path",
+      contract,
+    );
+    const nogo = listResearcherBenchmarkPriorArtContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveResearcherBenchmarkPriorArtContract();
+    const slice = runResearcherBenchmarkPriorArtFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B04-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherBenchmarkPriorArtContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherBenchmarkPriorArtFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with validator export and prior-art recovery", () => {
+    const slice = runResearcherBenchmarkPriorArtFailureRecoverySlice();
+    const probeIds = listResearcherBenchmarkPriorArtFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "rbpa.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const malformedTopic = slice.failureRecoveryResults.find(
+      r => r.id === "rbpa.malformed_topic_guard",
+    );
+    assert.ok(malformedTopic);
+    assert.equal(malformedTopic!.expected, "PASS");
+    assert.equal(malformedTopic!.actual, "PASS");
+
+    const researchBlockNonFatal = slice.failureRecoveryResults.find(
+      r => r.id === "rbpa.research_block_non_fatal",
+    );
+    assert.ok(researchBlockNonFatal);
+    assert.equal(researchBlockNonFatal!.expected, "PASS");
+    assert.equal(researchBlockNonFatal!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "rbpa.structured_benchmark_prior_art_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const researcherCriticalBlock = slice.failureRecoveryResults.find(
+      r => r.id === "rbpa.researcher_critical_block",
+    );
+    assert.ok(researcherCriticalBlock);
+    assert.equal(researcherCriticalBlock!.expected, "PASS");
+    assert.equal(researcherCriticalBlock!.actual, "PASS");
+
+    const exportedValidator = slice.failureRecoveryResults.find(
+      r => r.id === "rbpa.exported_benchmark_prior_art_validator",
+    );
+    assert.ok(exportedValidator);
+    assert.equal(exportedValidator!.expected, "PASS");
+    assert.equal(exportedValidator!.actual, "PASS");
   });
 });

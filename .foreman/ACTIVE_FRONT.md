@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B04
-active_atom: P04-B04-A05
+active_atom: P04-B04-A06
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 334/1000
-phase_progress: 34/100
-block_progress: 4/10
+program_progress: 335/1000
+phase_progress: 35/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B04-A05 — Benchmark ve prior-art analizi: failure, recovery ve NO-GO yollarını uygula.
+P04-B04-A06 — Benchmark ve prior-art analizi: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P04-B04-A04 PASS; boundary slice gate closed with zero unexpected mismatches.
-target: failure_path + recovery_path + nogo_path probe matrix validation slice.
-hypothesis: Failure/recovery slice closes assessBenchmarkPriorArtInputBoundary NO-GO paths with zero mismatches.
-acceptance: runResearcherBenchmarkPriorArtFailureRecoverySlice exported; failure/recovery probes align; matrix valid.
+objective: P04-B04-A05 PASS; failure/recovery slice gate closed with zero unexpected mismatches.
+target: failure_path + recovery_path + nogo_path evidence run record with telemetry and provenance.
+hypothesis: Evidence slice records aligned probe outcomes for failure/recovery/NO-GO paths with validated run record.
+acceptance: runResearcherBenchmarkPriorArtFailureRecoverySliceWithRecord exported; validateResearcherBenchmarkPriorArtEvidenceRunRecord passes.
 commands: npx tsx --test src/forge-p04-researcher-benchmark-prior-art*.test.ts
 blast_radius: src/forge-p04-researcher-benchmark-prior-art*.ts
-rollback: P04-B04-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P04-B04-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B04-A04
-last_commit: 82e497f
-tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (13/13); boundary 6 probes; zero unexpected mismatches; runResearcherBenchmarkPriorArtBoundarySlice
-evidence: runResearcherBenchmarkPriorArtBoundarySlice; validateResearcherBenchmarkPriorArtBoundaryProbeMatrix; assessBenchmarkPriorArtInputBoundary topic edge cases PASS
-next: P04-B04-A05
+last_atom: P04-B04-A05
+last_commit: pending
+tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (16/16); failure/recovery 6 probes; zero unexpected mismatches; runResearcherBenchmarkPriorArtFailureRecoverySlice
+evidence: runResearcherBenchmarkPriorArtFailureRecoverySlice; validateResearcherBenchmarkPriorArtFailureRecoveryProbeMatrix; assessBenchmarkPriorArtInputBoundary NO-GO paths PASS
+next: P04-B04-A06

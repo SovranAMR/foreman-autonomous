@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 3
-completed_atoms: 32
+completed_atoms: 33
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -58,7 +58,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B04-A02 — Benchmark ve prior-art analizi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B04-A03 — Benchmark ve prior-art analizi: en küçük üretim dikey dilimini uygula
 - [x] P04-B04-A04 — Benchmark ve prior-art analizi: boundary ve edge-case davranışlarını tamamla
-- [ ] P04-B04-A05 — Benchmark ve prior-art analizi: failure, recovery ve NO-GO yollarını uygula
+- [x] P04-B04-A05 — Benchmark ve prior-art analizi: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B04-A06 — Benchmark ve prior-art analizi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B04-A07 — Benchmark ve prior-art analizi: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B04-A08 — Benchmark ve prior-art analizi: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B04-A04
-last_commit: 82e497f
-tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (13/13); boundary 6 probes; zero unexpected mismatches; runResearcherBenchmarkPriorArtBoundarySlice
-evidence: runResearcherBenchmarkPriorArtBoundarySlice; validateResearcherBenchmarkPriorArtBoundaryProbeMatrix; assessBenchmarkPriorArtInputBoundary topic edge cases PASS
-next: P04-B04-A05
+last_atom: P04-B04-A05
+last_commit: pending
+tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (16/16); failure/recovery 6 probes; zero unexpected mismatches; runResearcherBenchmarkPriorArtFailureRecoverySlice
+evidence: runResearcherBenchmarkPriorArtFailureRecoverySlice; validateResearcherBenchmarkPriorArtFailureRecoveryProbeMatrix; assessBenchmarkPriorArtInputBoundary NO-GO paths PASS
+next: P04-B04-A06
