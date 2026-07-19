@@ -139,7 +139,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B10-A05 — Vizyoner phase gate: failure, recovery ve NO-GO yollarını uygula
 - [x] P02-B10-A06 — Vizyoner phase gate: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B10-A07 — Vizyoner phase gate: unit, property ve fuzz doğrulamasını ekle
-- [ ] P02-B10-A08 — Vizyoner phase gate: Forge entegrasyonu ile regression testini tamamla
+- [x] P02-B10-A08 — Vizyoner phase gate: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B10-A09 — Vizyoner phase gate: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B10-A10 — Vizyoner phase gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B10-A07
-last_commit: dc0253f
-tests: PASS — forge-p02-visioner-phase-gate.test.ts (26/26); property-fuzz (5/5); baseline (3/3)
-evidence: runVisionerPhaseGatePropertyChecks; runVisionerPhaseGateFuzzValidation; runVisionerPhaseGateRunRecordFuzzValidation; 8/8 structural properties; 72/72 fixture fuzz rejected; 8/8 run-record mutations rejected; handoff=P02-B10-A07→A08
-next: P02-B10-A08
+last_atom: P02-B10-A08
+last_commit: 172fcdb
+tests: PASS — forge-p02-visioner-phase-gate.test.ts (26/26); forge-pipeline-regression.integration.test.ts P02-B10-A08 (5/5); 126/126 total
+evidence: runForgeVisionerPhaseGateRegressionGate; detectVisionerPhaseGateProbeRegression; verifyForgeP02VisionerPhaseGateRegression; 24/24 probes aligned; prior/current comparison no false regression; handoff=P02-B10-A08→A09
+next: P02-B10-A09

@@ -41,6 +41,10 @@ import {
   buildVisionerPhaseGateProvenance,
   buildVisionerPhaseGateRunRecord,
   validateVisionerPhaseGateRunRecord,
+  detectVisionerPhaseGateProbeRegression,
+  runVisionerPhaseGatePropertyChecks,
+  runVisionerPhaseGateFuzzValidation,
+  runVisionerPhaseGateRunRecordFuzzValidation,
   FORGE_VISIONER_PHASE_GATE_VERSION,
   VISIONER_PHASE_GATE_MANIFEST_MAX_LENGTH,
   VISIONER_PHASE_GATE_CATEGORIES,
@@ -726,3 +730,95 @@ export function runVisionerPhaseGateFailureRecoverySliceWithRecord(
 export const runForgeVisionerPhaseGateProbesWithRecord = runVisionerPhaseGateProbesWithRecord;
 export const runForgeVisionerPhaseGateFailureRecoverySliceWithRecord =
   runVisionerPhaseGateFailureRecoverySliceWithRecord;
+
+export interface ForgeVisionerPhaseGateRegressionPropertyFuzzResult {
+  passed: boolean;
+  properties: ReturnType<typeof runVisionerPhaseGatePropertyChecks>;
+  contractFuzz: ReturnType<typeof runVisionerPhaseGateFuzzValidation>;
+  runFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface ForgeVisionerPhaseGateRegressionResult {
+  passed: boolean;
+  productionSlice: VisionerPhaseGateProductionSliceResult;
+  record: VisionerPhaseGateRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: ReturnType<typeof detectVisionerPhaseGateProbeRegression> | null;
+  propertyFuzz: ForgeVisionerPhaseGateRegressionPropertyFuzzResult;
+  detail: string;
+}
+
+/**
+ * Execute visioner phase gate probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P02-B10-A08).
+ */
+export function runForgeVisionerPhaseGateRegressionGate(
+  priorRecord?: VisionerPhaseGateRunRecord,
+): ForgeVisionerPhaseGateRegressionResult {
+  const fixture = loadVisionerPhaseGateBaseline();
+  const contract = getActiveVisionerPhaseGateContract();
+  const productionSlice = runVisionerPhaseGateProductionSlice(fixture);
+  const record = runVisionerPhaseGateProbesWithRecord(fixture);
+  const validation = validateVisionerPhaseGateRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectVisionerPhaseGateProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const properties = runVisionerPhaseGatePropertyChecks(contract);
+  const contractFuzz = runVisionerPhaseGateFuzzValidation(fixture, contract);
+  const runFuzz = runVisionerPhaseGateRunRecordFuzzValidation(record, contract);
+  const propertyFuzzPassed =
+    properties.allPassed &&
+    contractFuzz.allMutationsRejected &&
+    runFuzz.mutationsAccepted === 0;
+  const propertyFuzz: ForgeVisionerPhaseGateRegressionPropertyFuzzResult = {
+    passed: propertyFuzzPassed,
+    properties,
+    contractFuzz,
+    runFuzz: {
+      validBaseline: runFuzz.validBaseline,
+      mutationsRejected: runFuzz.mutationsRejected,
+      mutationsAccepted: runFuzz.mutationsAccepted,
+    },
+  };
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const passed = productionSliceOk && recordValid && !alignmentRegression && propertyFuzzPassed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+  );
+
+  return {
+    passed,
+    productionSlice,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    propertyFuzz,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P02-B10-A08). */
+export const runVisionerPhaseGateRegressionIntegration = runForgeVisionerPhaseGateRegressionGate;

@@ -107,6 +107,12 @@ import {
   runForgeVisionerApprovalBlockGate,
 } from "./forge-p02-visioner-approval.probe.js";
 import { detectVisionerApprovalProbeRegression } from "./forge-p02-visioner-approval.js";
+import {
+  runForgeVisionerPhaseGateRegressionGate,
+  runVisionerPhaseGateProbesWithRecord,
+  runVisionerPhaseGateRegressionIntegration,
+} from "./forge-p02-visioner-phase-gate.probe.js";
+import { detectVisionerPhaseGateProbeRegression } from "./forge-p02-visioner-phase-gate.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -1910,6 +1916,95 @@ describe("Forge Visioner Approval Block Gate Integration — P02-B09-A10", () =>
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("handoff=PASS→P02-B10"));
       assert.ok(verification.detail.includes("seals=10/10"));
+    }
+  });
+});
+
+describe("Forge Visioner Phase Gate Regression Integration — P02-B10-A08", () => {
+  it("runForgeVisionerPhaseGateRegressionGate passes on canonical visioner phase gate matrix", () => {
+    const result = runForgeVisionerPhaseGateRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 24);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.propertyFuzz.passed, true);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.ok(result.detail.includes("24/24 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("runVisionerPhaseGateRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeVisionerPhaseGateRegressionGate();
+    const integration = runVisionerPhaseGateRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("24/24 probes aligned"));
+    assert.equal(integration.record.summary.total, 24);
+  });
+
+  it("detectVisionerPhaseGateProbeRegression flags newly misaligned probes", () => {
+    const prior = runVisionerPhaseGateProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectVisionerPhaseGateProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeVisionerPhaseGateRegressionGate compares against prior record without false regression", () => {
+    const prior = runVisionerPhaseGateProbesWithRecord();
+    const result = runForgeVisionerPhaseGateRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("orchestrator verifyForgeP02VisionerPhaseGateRegression emits visioner_phase_gate_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-phase-gate-regression-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-phase-gate" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeP02VisionerPhaseGateRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_phase_gate_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("24/24 probes aligned"));
     }
   });
 });
