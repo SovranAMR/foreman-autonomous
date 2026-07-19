@@ -6,9 +6,9 @@ active_phase: P01
 active_block: P01-B09
 active_atom: P01-B09-A07
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 85/1000
-phase_progress: 84/100
-block_progress: 6/10
+program_progress: 86/1000
+phase_progress: 85/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B09-A07 — Orchestrator seam ve modülerleşme: unit, property ve fuzz doğrulamasını ekle.
+P01-B09-A08 — Orchestrator seam ve modülerleşme: Forge entegrasyonu ile regression testini tamamla.
 
-objective: A06 evidence run record sealed; unit/property/fuzz validation for orchestrator seam failure/recovery probes.
-target: forge-orchestrator-seam*.ts property/fuzz gates; runOrchestratorSeamFailureRecoverySliceWithRecord validation.
-hypothesis: A06 run record + evidence artifact A07 pattern yeterli unit/property/fuzz coverage sağlar.
-acceptance: property/fuzz gates pass; failure/recovery run record mutations rejected.
-commands: npx tsx --test src/forge-orchestrator-seam*.test.ts (A07 suite when present)
-blast_radius: forge-orchestrator-seam*.ts
-rollback: A07 property/fuzz değişikliklerini geri al.
+objective: A07 property/fuzz gates sealed; forge-orchestrator-seam regression integration with sealed B08 handoff.
+target: forge-orchestrator-seam regression integration test; runOrchestratorSeamProductionSlice wired to forge pipeline.
+hypothesis: A07 property/fuzz coverage + A06 run record sufficient for regression integration gate.
+acceptance: regression integration test pass; zero unexpected probe mismatches on production slice.
+commands: npx tsx --test src/forge-orchestrator-seam*.test.ts src/forge-pipeline-regression.integration.test.ts
+blast_radius: forge-orchestrator-seam*.ts, forge-pipeline-regression.integration.test.ts
+rollback: A08 regression integration değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A06 run record invalid ise BLOCKED raporla.
+fallback: A07 property/fuzz invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B09-A06
-last_commit: c62618b
-tests: PASS — forge-orchestrator-seam*.test.ts (18/18); failureRecoveryRunRecord=6; disposition/criterion/aligned outcomes recorded
-evidence: runOrchestratorSeamFailureRecoverySliceWithRecord; validateOrchestratorSeamFailureRecoveryRunRecord; buildOrchestratorSeamRunRecord
-next: P01-B09-A07
+last_atom: P01-B09-A07
+last_commit: pending
+tests: PASS — forge-orchestrator-seam*.test.ts (23/23); propertyChecks=8; fixtureFuzz=72/72 rejected; runRecordFuzz=8/8 rejected
+evidence: runOrchestratorSeamPropertyChecks; runOrchestratorSeamFuzzValidation; runOrchestratorSeamRunRecordFuzzValidation in forge-orchestrator-seam.ts
+next: P01-B09-A08
