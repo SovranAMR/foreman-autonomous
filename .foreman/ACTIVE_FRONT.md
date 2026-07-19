@@ -4,7 +4,7 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B05
-active_atom: P03-B05-A05
+active_atom: P03-B05-A07
 phase_file: .foreman/phases/P03_STRATEGIST.md
 program_progress: 245/1000
 phase_progress: 46/100
