@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B09-A01",
+  "contractAtom": "P01-B09-A05",
+  "purpose": "Orchestrator seam and modularization baseline measured from sealed B08 evidence artifact schema (includes documented FAIL gaps).",
+  "sourceEvidenceArtifact": {
+    "version": "1.0.0",
+    "atom": "P01-B08-A10",
+    "contractVersion": "1.0.0",
+    "probeCount": 25,
+    "evidenceArtifactCategories": 11
+  },
+  "probes": [
+    {
+      "id": "oseam.version_tagged",
+      "category": "seam_versioning",
+      "description": "Orchestrator seam baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.atom_tagged",
+      "category": "seam_versioning",
+      "description": "Orchestrator seam baseline declares P01-B09-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.harness_version_exported",
+      "category": "seam_versioning",
+      "description": "FORGE_ORCHESTRATOR_SEAM_VERSION exported for orchestrator seam harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.regression_methods_inventory",
+      "category": "method_inventory",
+      "description": "Orchestrator exposes eight verifyForge*Regression methods for sealed blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.guard_methods_inventory",
+      "category": "method_inventory",
+      "description": "Orchestrator exposes eight verifyForge*Guard methods including evidence artifact guard",
+      "expected": "FAIL"
+    },
+    {
+      "id": "oseam.block_gate_methods_inventory",
+      "category": "method_inventory",
+      "description": "Orchestrator exposes eight verifyForge*BlockGate methods for sealed blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.dynamic_import_wiring",
+      "category": "lazy_import_seam",
+      "description": "verifyForge methods lazy-load forge harness modules via dynamic import",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.verification_event_emit",
+      "category": "lazy_import_seam",
+      "description": "verifyForge methods emit orchestrator verification events on completion",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.unified_lazy_import_registry",
+      "category": "lazy_import_seam",
+      "description": "Central forge module import registry routes lazy imports for all verifyForge seams",
+      "expected": "FAIL"
+    },
+    {
+      "id": "oseam.readonly_subsystem_fields",
+      "category": "composition_seam",
+      "description": "Orchestrator exposes readonly resume, observer and artifactEngine composition fields",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.pipeline_phases_export",
+      "category": "composition_seam",
+      "description": "Orchestrator exports FORGE_PIPELINE_PHASES canonical phase registry",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.extracted_seam_interface",
+      "category": "composition_seam",
+      "description": "Dedicated IOrchestratorForgeSeam interface segregates forge verification from pipeline run",
+      "expected": "FAIL"
+    },
+    {
+      "id": "oseam.b08_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P01_B08_TO_B09_HANDOFF_V1 targets P01-B09-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.b08_sealed_probe_count",
+      "category": "baseline_link",
+      "description": "Sealed B08 handoff probeCount matches active evidence artifact contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.source_evidence_artifact_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed sourceEvidenceArtifact artifacts from B08-A10",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.probe_runner_exported",
+      "category": "boundary",
+      "description": "runOrchestratorSeamProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL orchestrator seam gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateOrchestratorSeamBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.min_category_probes",
+      "category": "failure_path",
+      "description": "validateOrchestratorSeamBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "oseam.recovery_seam_state_reset",
+      "category": "recovery_path",
+      "description": "Orchestrator seam harness resets verification state on pipeline recovery transition",
+      "expected": "FAIL"
+    },
+    {
+      "id": "oseam.recovery_missing_handoff_fallback",
+      "category": "recovery_path",
+      "description": "Recovery loader falls back when B08 handoff artifact is missing or invalid",
+      "expected": "FAIL"
+    },
+    {
+      "id": "oseam.nogo_seam_inventory_drift",
+      "category": "nogo_path",
+      "description": "NO-GO gate halts eval when orchestrator forge method inventory drifts from baseline",
+      "expected": "FAIL"
+    },
+    {
+      "id": "oseam.nogo_verification_method_mismatch",
+      "category": "nogo_path",
+      "description": "NO-GO gate rejects run when verifyForge method signatures mismatch sealed inventory",
+      "expected": "FAIL"
+    }
+  ]
+}

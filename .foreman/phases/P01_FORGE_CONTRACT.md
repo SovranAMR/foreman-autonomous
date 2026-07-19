@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 76
+completed_atoms: 77
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -119,7 +119,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B09 — Orchestrator seam ve modülerleşme
 
-- [ ] P01-B09-A01 — Orchestrator seam ve modülerleşme: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B09-A01 — Orchestrator seam ve modülerleşme: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B09-A02 — Orchestrator seam ve modülerleşme: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B09-A03 — Orchestrator seam ve modülerleşme: en küçük üretim dikey dilimini uygula
 - [ ] P01-B09-A04 — Orchestrator seam ve modülerleşme: boundary ve edge-case davranışlarını tamamla
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B08-A10
+last_atom: P01-B09-A01
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (40/40); A09 guard adversarial=3/3 perf/cost/safety validated; A10 block gate seals=10/10 handoff→P01-B09
+tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (3/3); 23 probes (16 PASS / 7 documented FAIL gaps); B08 handoff refs valid
 evidence: |
-  P01-B08-A09: validateForgeEvidenceArtifactGuard, runEvidenceArtifactAdversarialGuardChecks (3/3 tamper reject),
-  validateEvidenceArtifactPerformance/Cost/Safety; regression gate guard wiring PASS.
-  P01-B08-A10: FORGE_P01_B08_BLOCK_GATE_V1, FORGE_P01_B08_TO_B09_HANDOFF_V1, runEvidenceArtifactBlockGate,
-  orchestrator verifyForgeEvidenceArtifactBlockGate emits evidence_artifact_block_gate verification.
-next: P01-B09-A01
+  P01-B09-A01: forge-orchestrator-seam.ts, forge-orchestrator-seam.probe.ts, fixtures/forge-orchestrator-seam-v1.json;
+  runOrchestratorSeamProbes measures orchestrator verifyForge method inventory, lazy-import seams, composition gaps;
+  validateOrchestratorSeamBaseline aligned to FORGE_P01_B08_TO_B09_HANDOFF_V1 (probeCount=25, entryAtom=P01-B09-A01).
+next: P01-B09-A02
