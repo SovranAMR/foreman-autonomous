@@ -25,7 +25,9 @@ import {
   recoverVisionerTradeoff,
   validateVisionerScoringBaseline,
   validateVisionerScoringAgainstContract,
+  validateVisionerScoringBoundaryProbeMatrix,
   validateVisionerScoringProbeMatrix,
+  listVisionerScoringContractProbesByCategory,
   summarizeVisionerScoringMatrix,
   listVisionerScoringProbesByExpected,
   listVisionerScoringKnownGaps,
@@ -539,6 +541,39 @@ export function runVisionerScoringProductionSlice(
     matrixValid: matrixValidation.valid,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface VisionerScoringBoundarySliceResult {
+  atom: "P02-B08-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerScoringProbeResult[];
+  boundaryResults: VisionerScoringProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerScoringBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (scoring input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runVisionerScoringBoundarySlice(
+  fixture: VisionerScoringBaseline = loadVisionerScoringBaseline(),
+): VisionerScoringBoundarySliceResult {
+  const contract = getActiveVisionerScoringContract();
+  const results = runVisionerScoringProbes(fixture);
+  const boundaryProbes = listVisionerScoringContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateVisionerScoringBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B08-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

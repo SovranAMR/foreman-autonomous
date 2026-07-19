@@ -84,7 +84,18 @@ export function assessVisionerScoringInputBoundary(
  * Detect scoreable alternative presence from vision output (P02-B08-A01).
  */
 export function assessVisionerScoringPresence(visionOutput: string): VisionerScoringPresence {
-  const presence = assessVisionerAlternativePresence(visionOutput);
+  const boundary = assessVisionerScoringInputBoundary(visionOutput);
+  if (!boundary.acceptable) {
+    return {
+      hasAlternatives: false,
+      alternativeCount: 0,
+      alternatives: [],
+      detail: boundary.detail,
+      scoreable: false,
+    };
+  }
+
+  const presence = assessVisionerAlternativePresence(boundary.normalizedVision);
   return {
     hasAlternatives: presence.hasAlternatives,
     alternativeCount: presence.alternativeCount,
@@ -1011,6 +1022,28 @@ export function validateVisionerScoringProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateVisionerScoringBoundaryProbeMatrix(
+  results: VisionerScoringProbeResult[],
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): VisionerScoringProbeMatrixValidationResult {
+  const boundaryProbes = listVisionerScoringContractProbesByCategory("boundary", contract);
+  const boundaryContract: VisionerScoringContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateVisionerScoringProbeMatrix(boundaryResults, boundaryContract);
 }
 
 export function validateVisionerScoringAgainstContract(

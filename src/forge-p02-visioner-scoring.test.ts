@@ -4,6 +4,7 @@ import {
   loadVisionerScoringBaseline,
   runVisionerScoringProbes,
   runVisionerScoringProductionSlice,
+  runVisionerScoringBoundarySlice,
 } from "./forge-p02-visioner-scoring.probe.js";
 import {
   getActiveVisionerScoringContract,
@@ -14,9 +15,13 @@ import {
   summarizeVisionerScoringContractCoverage,
   validateVisionerScoringContractCoverage,
   validateVisionerScoringAgainstContract,
+  validateVisionerScoringBoundaryProbeMatrix,
   validateVisionerScoringProbeMatrix,
   recoverVisionerTradeoff,
+  assessVisionerScoringInputBoundary,
+  assessVisionerScoringPresence,
   VISIONER_SCORING_CATEGORIES,
+  VISIONER_SCORING_VISION_MAX_LENGTH,
   FORGE_VISIONER_SCORING_VERSION,
 } from "./forge-p02-visioner-scoring.js";
 
@@ -196,5 +201,102 @@ CONFIDENCE: 0.78`;
       assert.ok(result, `missing probe result: ${contractProbe.id}`);
       assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
     }
+  });
+});
+
+describe("Forge Visioner Scoring Boundary Slice — P02-B08-A04", () => {
+  it("assessVisionerScoringInputBoundary handles empty, whitespace-only and oversized vision output", () => {
+    const empty = assessVisionerScoringInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerScoringInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerScoringInputBoundary("vision\x00output");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longVision = "x".repeat(VISIONER_SCORING_VISION_MAX_LENGTH + 200);
+    const truncated = assessVisionerScoringInputBoundary(longVision);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedVision.length, VISIONER_SCORING_VISION_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("assessVisionerScoringPresence returns non-scoreable for unacceptable boundary inputs", () => {
+    const empty = assessVisionerScoringPresence("");
+    assert.equal(empty.scoreable, false);
+    assert.equal(empty.hasAlternatives, false);
+
+    const whitespace = assessVisionerScoringPresence("   ");
+    assert.equal(whitespace.scoreable, false);
+    assert.equal(whitespace.hasAlternatives, false);
+
+    const nullByte = assessVisionerScoringPresence("bad\0vision");
+    assert.equal(nullByte.scoreable, false);
+    assert.equal(nullByte.hasAlternatives, false);
+  });
+
+  it("recoverVisionerTradeoff rejects whitespace-only malformed trade-off input", () => {
+    const whitespaceRecovery = recoverVisionerTradeoff("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_vision"]);
+  });
+
+  it("defines boundary category with scoring input edge-case probes", () => {
+    const boundary = listVisionerScoringContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "vsco.empty_vision_scoring_boundary",
+      "vsco.known_gaps_documented",
+      "vsco.long_vision_truncation_boundary",
+      "vsco.probe_runner_exported",
+      "vsco.source_block_gate_ref",
+      "vsco.whitespace_vision_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerScoringContract();
+    const slice = runVisionerScoringBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B08-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerScoringContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerScoringBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves full probe alignment while boundary slice passes", () => {
+    const slice = runVisionerScoringBoundarySlice();
+    const recoveryProbe = slice.results.find(r => r.id === "vsco.structured_tradeoff_recovery");
+
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(slice.results.filter(r => !r.aligned).length, 0);
   });
 });

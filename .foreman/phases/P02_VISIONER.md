@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 72
+completed_atoms: 73
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -109,7 +109,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B08-A01 — Vizyon scoring ve trade-off: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P02-B08-A02 — Vizyon scoring ve trade-off: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B08-A03 — Vizyon scoring ve trade-off: en küçük üretim dikey dilimini uygula
-- [ ] P02-B08-A04 — Vizyon scoring ve trade-off: boundary ve edge-case davranışlarını tamamla
+- [x] P02-B08-A04 — Vizyon scoring ve trade-off: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B08-A05 — Vizyon scoring ve trade-off: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B08-A06 — Vizyon scoring ve trade-off: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B08-A07 — Vizyon scoring ve trade-off: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B08-A03
-last_commit: b1f6f1a
-tests: PASS — forge-p02-visioner-scoring.test.ts (12/12), forge-p02-visioner-scoring-baseline.test.ts (3/3)
-evidence: recoverVisionerTradeoff production slice; validateVisionerScoringProbeMatrix 23 passAligned + 0 gapAligned; vsco.structured_tradeoff_recovery PASS
-next: P02-B08-A04
+last_atom: P02-B08-A04
+last_commit: pending
+tests: PASS — forge-p02-visioner-scoring.test.ts (21/21), forge-p02-visioner-scoring-baseline.test.ts (3/3)
+evidence: validateVisionerScoringBoundaryProbeMatrix 6 passAligned + 0 gapAligned; assessVisionerScoringPresence boundary guard; runVisionerScoringBoundarySlice PASS
+next: P02-B08-A05
