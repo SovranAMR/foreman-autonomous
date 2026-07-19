@@ -44,7 +44,7 @@ fallback: Boundary slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B10-A03
-last_commit: fa685db
+last_commit: 70d3657
 tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (7/7); gap probes=0/0
 evidence: verifyForgeP04ResearcherPhaseGate + getForgeP04ToP05PhaseHandoff + runResearcherPhaseGateProductionSlice + validateResearcherPhaseGateProbeMatrix
 next: P04-B10-A04
