@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B01
-active_atom: P02-B01-A07
+active_atom: P02-B01-A08
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 106/1000
-phase_progress: 6/100
-block_progress: 6/10
+program_progress: 107/1000
+phase_progress: 7/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B01-A07 — Intent ve görev anlamlandırma: unit, property ve fuzz doğrulamasını ekle.
+P02-B01-A08 — Intent ve görev anlamlandırma: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P02-B01-A06 evidence/telemetry/provenance slice sealed; unit/property/fuzz slice A07 next.
-target: visioner intent run record fuzz validation and property-based probe invariants.
-hypothesis: run record fuzz gate closes A07 without scope creep beyond documented gaps.
-acceptance: failure/recovery run record fuzz validates; regression suite passes.
-commands: npx tsx --test src/forge-p02-*.test.ts
-blast_radius: src/forge-p02-visioner-intent*.ts
-rollback: P02-B01-A07 fuzz/property değişikliklerini geri al.
+objective: P02-B01-A07 property/fuzz slice sealed; Forge regression integration slice A08 next.
+target: visioner intent probe regression gate wired into forge-pipeline-regression integration suite.
+hypothesis: regression integration closes A08 without scope creep beyond documented gaps.
+acceptance: forge-pipeline-regression integration passes visioner intent slice; regression suite passes.
+commands: npx tsx --test src/forge-p02-*.test.ts; npx tsx --test src/forge-pipeline-regression.integration.test.ts
+blast_radius: src/forge-pipeline-regression.integration.test.ts, src/forge-p02-visioner-intent*.ts
+rollback: P02-B01-A08 regression integration değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: fuzz cannot validate without scope creep ise BLOCKED raporla.
+fallback: regression cannot validate without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B01-A06
-last_commit: 578a012
-tests: PASS — forge-p02-visioner-intent.test.ts (24/24); failure/recovery run record 6/6; full run record 23/23; harnessVersion=1.0.0-b06
-evidence: buildVisionerIntentRunRecord, validateVisionerIntentFailureRecoveryRunRecord, runVisionerIntentFailureRecoverySliceWithRecord, runVisionerIntentProbesWithRecord; structured_intent_recovery gap preserved in evidence
-next: P02-B01-A07
+last_atom: P02-B01-A07
+last_commit: ff93be8
+tests: PASS — forge-p02-visioner-intent.test.ts (24/24); forge-p02-visioner-intent.property-fuzz.test.ts (5/5); property 8/8; fixture fuzz all rejected; run record fuzz all rejected; harnessVersion=1.0.0-b07
+evidence: runVisionerIntentPropertyChecks, runVisionerIntentFuzzValidation, runVisionerIntentRunRecordFuzzValidation; structured_intent_recovery gap preserved in evidence
+next: P02-B01-A08
