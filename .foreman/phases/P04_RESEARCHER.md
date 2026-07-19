@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 1
-completed_atoms: 18
+completed_atoms: 19
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -36,7 +36,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B02-A06 — Repo içi kanıt toplama: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B02-A07 — Repo içi kanıt toplama: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B02-A08 — Repo içi kanıt toplama: Forge entegrasyonu ile regression testini tamamla
-- [ ] P04-B02-A09 — Repo içi kanıt toplama: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P04-B02-A09 — Repo içi kanıt toplama: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B02-A10 — Repo içi kanıt toplama: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B03 — Web ve primary-source araştırma
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B02-A08
-last_commit: 1a27ce5
-tests: PASS — forge-p04-researcher*.test.ts (98/98); regression gate 23/23 aligned; adversarial=3/3; propertyFuzz rejected=24/24; runFuzz rejected=5; orchestrator verification PASS
-evidence: runForgeResearcherInRepoEvidenceRegressionGate; detectResearcherInRepoEvidenceProbeRegression; validateForgeResearcherInRepoEvidenceGuard; verifyForgeResearcherInRepoEvidenceRegression; forge-pipeline-regression integration PASS
-next: P04-B02-A09
+last_atom: P04-B02-A09
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (106/106); guard adversarial=3/3; perf/cost/safety PASS; orchestrator guard verification PASS
+evidence: validateForgeResearcherInRepoEvidenceGuard; runResearcherInRepoEvidenceAdversarialGuardChecks; verifyForgeResearcherInRepoEvidenceGuard; forge-p04-researcher-in-repo-evidence.guard.test.ts
+next: P04-B02-A10

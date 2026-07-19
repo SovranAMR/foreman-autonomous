@@ -1634,6 +1634,30 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher in-repo evidence guard checks and emit verification event (P04-B02-A09).
+   */
+  async verifyForgeResearcherInRepoEvidenceGuard(
+    priorRecord?: import("./forge-p04-researcher-in-repo-evidence.js").ResearcherInRepoEvidenceRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-in-repo-evidence.probe.js").ForgeResearcherInRepoEvidenceRegressionGateResult
+  > {
+    const { runForgeResearcherInRepoEvidenceRegressionGate } = await import(
+      "./forge-p04-researcher-in-repo-evidence.probe.js"
+    );
+    const result = runForgeResearcherInRepoEvidenceRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "researcher_in_repo_evidence_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */
