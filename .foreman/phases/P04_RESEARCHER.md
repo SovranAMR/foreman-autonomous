@@ -99,7 +99,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B07-A04 — Risk ve trade-off araştırması: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B07-A05 — Risk ve trade-off araştırması: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B07-A06 — Risk ve trade-off araştırması: evidence, telemetry ve provenance kaydını ekle
-- [ ] P04-B07-A07 — Risk ve trade-off araştırması: unit, property ve fuzz doğrulamasını ekle
+- [x] P04-B07-A07 — Risk ve trade-off araştırması: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B07-A08 — Risk ve trade-off araştırması: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B07-A09 — Risk ve trade-off araştırması: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B07-A10 — Risk ve trade-off araştırması: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B07-A06
-last_commit: 354e398
-tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (32/32); evidence slice 6/6 aligned; telemetry and provenance validated; zero unexpected mismatches
-evidence: validateResearcherRiskTradeoffEvidenceRunRecord + runResearcherRiskTradeoffEvidenceSlice; buildResearcherRiskTradeoffRunRecord; runResearcherRiskTradeoffFailureRecoverySliceWithRecord; harnessVersion 1.0.0-a06
-next: P04-B07-A07
+last_atom: P04-B07-A07
+last_commit: pending
+tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (37/37); property/fuzz 8/8 structural; contract fuzz 72/72 rejected; run-record fuzz 5/5 rejected; zero accepted mutations
+evidence: runResearcherRiskTradeoffPropertyValidation + runResearcherRiskTradeoffFuzzValidation + runResearcherRiskTradeoffRunRecordFuzzValidation + runResearcherRiskTradeoffPropertyFuzzSlice; harnessVersion 1.0.0-a07
+next: P04-B07-A08
