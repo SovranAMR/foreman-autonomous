@@ -6,9 +6,9 @@ active_phase: P02
 active_block: P02-B04
 active_atom: P02-B04-A04
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 132/1000
-phase_progress: 32/100
-block_progress: 3/10
+program_progress: 133/1000
+phase_progress: 33/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B04-A04 — Repo ve kullanıcı bağlamı grounding: boundary ve edge-case davranışlarını tamamla.
+P02-B04-A05 — Repo ve kullanıcı bağlamı grounding: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P02-B04-A03 production slice sealed; boundary slice next.
-target: Complete boundary category edge-case behavior for visioner grounding input assessment.
-hypothesis: A03 recoverVisionerGrounding provides stable recovery baseline for A04 boundary probes.
-acceptance: boundary probes PASS, zero unexpected mismatches, documented edge cases wired.
+objective: P02-B04-A04 boundary slice sealed; failure/recovery slice next.
+target: Wire failure_path, recovery_path and nogo_path probe matrix validation with zero unexpected mismatches.
+hypothesis: A04 boundary baseline provides stable edge-case gate for A05 failure/recovery probes.
+acceptance: failure/recovery/NO-GO probes PASS, documented gaps preserved, matrix validation wired.
 commands: npx tsx --test src/forge-p02-visioner-grounding*.test.ts
 blast_radius: src/forge-p02-visioner-grounding.ts
-rollback: P02-B04-A04 boundary slice değişikliklerini geri al.
+rollback: P02-B04-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: boundary slice requires orchestrator seam change ise BLOCKED raporla.
+fallback: failure slice requires orchestrator seam change ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B04-A03
-last_commit: f5e2584
-tests: PASS — forge-p02-visioner-grounding.test.ts (10/10); forge-p02-visioner-grounding-baseline.test.ts (3/3)
-evidence: recoverVisionerGrounding export; vgrd.structured_grounding_recovery PASS; 23/23 probes aligned; zero gaps
-next: P02-B04-A04
+last_atom: P02-B04-A04
+last_commit: pending
+tests: PASS — forge-p02-visioner-grounding.test.ts (15/15); forge-p02-visioner-grounding-baseline.test.ts (3/3)
+evidence: validateVisionerGroundingBoundaryProbeMatrix export; runVisionerGroundingBoundarySlice; 6/6 boundary probes aligned; zero unexpected mismatches
+next: P02-B04-A05

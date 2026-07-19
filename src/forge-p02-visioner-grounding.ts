@@ -12,7 +12,7 @@ import {
   summarizeVisionerSynthesisContractCoverage,
 } from "./forge-p02-visioner-synthesis.js";
 
-export const FORGE_VISIONER_GROUNDING_VERSION = "1.0.0-a03";
+export const FORGE_VISIONER_GROUNDING_VERSION = "1.0.0-a04";
 
 /** Maximum normalized context length before truncation (P02-B04-A01 boundary). */
 export const VISIONER_GROUNDING_CONTEXT_MAX_LENGTH = 32000;
@@ -364,6 +364,28 @@ export function validateVisionerGroundingProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateVisionerGroundingBoundaryProbeMatrix(
+  results: VisionerGroundingProbeResult[],
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): VisionerGroundingProbeMatrixValidationResult {
+  const boundaryProbes = listVisionerGroundingContractProbesByCategory("boundary", contract);
+  const boundaryContract: VisionerGroundingContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateVisionerGroundingProbeMatrix(boundaryResults, boundaryContract);
 }
 
 export interface VisionerGroundingFixtureEntry {

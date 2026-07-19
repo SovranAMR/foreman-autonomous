@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 31
+completed_atoms: 32
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -57,7 +57,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B04-A01 — Repo ve kullanıcı bağlamı grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P02-B04-A02 — Repo ve kullanıcı bağlamı grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B04-A03 — Repo ve kullanıcı bağlamı grounding: en küçük üretim dikey dilimini uygula
-- [ ] P02-B04-A04 — Repo ve kullanıcı bağlamı grounding: boundary ve edge-case davranışlarını tamamla
+- [x] P02-B04-A04 — Repo ve kullanıcı bağlamı grounding: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B04-A05 — Repo ve kullanıcı bağlamı grounding: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B04-A06 — Repo ve kullanıcı bağlamı grounding: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B04-A07 — Repo ve kullanıcı bağlamı grounding: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B04-A03
-last_commit: f5e2584
-tests: PASS — forge-p02-visioner-grounding.test.ts (10/10); forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-*.test.ts
-evidence: recoverVisionerGrounding export; vgrd.structured_grounding_recovery PASS; 23/23 probes aligned; zero gaps
-next: P02-B04-A04
+last_atom: P02-B04-A04
+last_commit: pending
+tests: PASS — forge-p02-visioner-grounding.test.ts (15/15); forge-p02-visioner-grounding-baseline.test.ts (3/3)
+evidence: validateVisionerGroundingBoundaryProbeMatrix export; runVisionerGroundingBoundarySlice; 6/6 boundary probes aligned; zero unexpected mismatches
+next: P02-B04-A05

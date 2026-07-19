@@ -4,6 +4,7 @@ import {
   loadVisionerGroundingBaseline,
   runVisionerGroundingProbes,
   runVisionerGroundingProductionSlice,
+  runVisionerGroundingBoundarySlice,
 } from "./forge-p02-visioner-grounding.probe.js";
 import {
   getActiveVisionerGroundingContract,
@@ -15,8 +16,12 @@ import {
   validateVisionerGroundingAgainstContract,
   validateVisionerGroundingContractCoverage,
   validateVisionerGroundingProbeMatrix,
+  validateVisionerGroundingBoundaryProbeMatrix,
   recoverVisionerGrounding,
+  assessVisionerGroundingInputBoundary,
+  assessVisionerGroundingPresence,
   VISIONER_GROUNDING_CATEGORIES,
+  VISIONER_GROUNDING_CONTEXT_MAX_LENGTH,
 } from "./forge-p02-visioner-grounding.js";
 
 function formatMismatchReport(
@@ -187,5 +192,90 @@ describe("Forge Visioner Grounding Production Slice — P02-B04-A03", () => {
     assert.equal(recoveryProbe!.expected, "PASS");
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
+  });
+});
+
+describe("Forge Visioner Grounding Boundary Slice — P02-B04-A04", () => {
+  it("assessVisionerGroundingInputBoundary handles empty, whitespace-only and oversized context input", () => {
+    const empty = assessVisionerGroundingInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerGroundingInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerGroundingInputBoundary("context\x00input");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longContext = "x".repeat(VISIONER_GROUNDING_CONTEXT_MAX_LENGTH + 200);
+    const truncated = assessVisionerGroundingInputBoundary(longContext);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedContext.length, VISIONER_GROUNDING_CONTEXT_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("assessVisionerGroundingPresence returns no signals for unacceptable boundary inputs", () => {
+    const presence = assessVisionerGroundingPresence("   ");
+    assert.equal(presence.hasProjectAnchor, false);
+    assert.equal(presence.hasProjectContext, false);
+    assert.equal(presence.hasIdentityContext, false);
+    assert.equal(presence.hasSessionContext, false);
+  });
+
+  it("defines boundary category with context input edge-case probes", () => {
+    const boundary = listVisionerGroundingContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "vgrd.empty_context_boundary",
+      "vgrd.known_gaps_documented",
+      "vgrd.long_context_truncation_boundary",
+      "vgrd.probe_runner_exported",
+      "vgrd.source_block_gate_ref",
+      "vgrd.whitespace_context_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerGroundingContract();
+    const slice = runVisionerGroundingBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B04-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerGroundingContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerGroundingBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves full probe alignment while boundary slice passes", () => {
+    const slice = runVisionerGroundingBoundarySlice();
+    const recoveryProbe = slice.results.find(r => r.id === "vgrd.structured_grounding_recovery");
+
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(slice.results.filter(r => !r.aligned).length, 0);
   });
 });

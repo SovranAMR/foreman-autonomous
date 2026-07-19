@@ -21,10 +21,12 @@ import {
   validateVisionerGroundingBaseline,
   validateVisionerGroundingAgainstContract,
   validateVisionerGroundingProbeMatrix,
+  validateVisionerGroundingBoundaryProbeMatrix,
   summarizeVisionerGroundingMatrix,
   listVisionerGroundingProbesByExpected,
   listVisionerGroundingKnownGaps,
   getActiveVisionerGroundingContract,
+  listVisionerGroundingContractProbesByCategory,
   FORGE_VISIONER_GROUNDING_VERSION,
   VISIONER_GROUNDING_CATEGORIES,
   VISIONER_GROUNDING_CONTEXT_MAX_LENGTH,
@@ -39,6 +41,7 @@ export {
   validateVisionerGroundingBaseline,
   validateVisionerGroundingAgainstContract,
   validateVisionerGroundingProbeMatrix,
+  validateVisionerGroundingBoundaryProbeMatrix,
   recoverVisionerGrounding,
   summarizeVisionerGroundingMatrix,
   listVisionerGroundingProbesByExpected,
@@ -499,6 +502,39 @@ export function runVisionerGroundingProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface VisionerGroundingBoundarySliceResult {
+  atom: "P02-B04-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerGroundingProbeResult[];
+  boundaryResults: VisionerGroundingProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerGroundingBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (context input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runVisionerGroundingBoundarySlice(
+  fixture: VisionerGroundingBaseline = loadVisionerGroundingBaseline(),
+): VisionerGroundingBoundarySliceResult {
+  const contract = getActiveVisionerGroundingContract();
+  const results = runVisionerGroundingProbes(fixture);
+  const boundaryProbes = listVisionerGroundingContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateVisionerGroundingBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B04-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }
