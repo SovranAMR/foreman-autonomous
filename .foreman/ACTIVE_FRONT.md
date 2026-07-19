@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B03-A02
-last_commit: pending
+last_commit: 8e969f5
 tests: PASS — forge-p04-researcher*.test.ts (128/128); contract v1 probes=23; expectedFail=1; gap=rwps.structured_web_primary_source_recovery
 evidence: getActiveResearcherWebPrimarySourceContract; validateResearcherWebPrimarySourceContractCoverage; validateResearcherWebPrimarySourceAgainstContract; forge-p04-researcher-web-primary-source.test.ts
 next: P04-B03-A03
