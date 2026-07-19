@@ -18,8 +18,10 @@ import {
 import {
   assessVisionerAlternativeInputBoundary,
   assessVisionerAlternativePresence,
+  recoverVisionerAlternatives,
   validateVisionerAlternativeBaseline,
   validateVisionerAlternativeAgainstContract,
+  validateVisionerAlternativeProbeMatrix,
   summarizeVisionerAlternativeMatrix,
   listVisionerAlternativeProbesByExpected,
   listVisionerAlternativeKnownGaps,
@@ -283,8 +285,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "valt.known_gaps_documented": {
+      const contract = getActiveVisionerAlternativeContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      return probe(id, category, expected, failCount >= 1, `documentedFail=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "valt.empty_vision_alternative_presence": {
       const result = assessVisionerAlternativeInputBoundary("");
@@ -379,8 +390,26 @@ function probeRecoveryPath(
       return probe(id, category, expected, ok, `checkpointPrimary=${ok}`);
     }
     case "valt.structured_alternative_recovery": {
-      const ok = hasProductionExport("recoverVisionerAlternatives");
-      return probe(id, category, expected, ok, `recoverVisionerAlternatives=${ok}`);
+      const malformed = `REASONING: Two viable product directions for dental clinic
+OUTPUT: **GOAL**: Dental clinic platform
+alternative a: Premium concierge booking experience
+alternative b: Self-serve patient portal
+CONFIDENCE: 0.78`;
+      const recovery = recoverVisionerAlternatives(malformed);
+      const ok =
+        hasProductionExport("recoverVisionerAlternatives") &&
+        recovery.recovered === true &&
+        recovery.presence.hasAlternatives &&
+        recovery.presence.alternativeCount >= 2 &&
+        recovery.alternatives.some(alt => alt.includes("concierge booking")) &&
+        recovery.alternatives.some(alt => alt.includes("patient portal"));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recovered=${recovery.recovered}, ${recovery.detail}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown recovery_path probe");
@@ -465,6 +494,41 @@ export function runVisionerAlternativeProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface VisionerAlternativeProductionSliceResult {
+  atom: "P02-B07-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerAlternativeProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerAlternativeMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerAlternativeProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: recoverVisionerAlternatives wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runVisionerAlternativeProductionSlice(
+  fixture: VisionerAlternativeBaseline = loadVisionerAlternativeBaseline(),
+): VisionerAlternativeProductionSliceResult {
+  const contract = getActiveVisionerAlternativeContract();
+  const fixtureValidation = validateVisionerAlternativeBaseline(fixture);
+  const contractValidation = validateVisionerAlternativeAgainstContract(fixture, contract);
+  const results = runVisionerAlternativeProbes(fixture);
+  const summary = summarizeVisionerAlternativeMatrix(results);
+  const matrixValidation = validateVisionerAlternativeProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B07-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 export {

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   loadVisionerAlternativeBaseline,
   runVisionerAlternativeProbes,
+  runVisionerAlternativeProductionSlice,
 } from "./forge-p02-visioner-alternative.probe.js";
 import {
   getActiveVisionerAlternativeContract,
@@ -14,6 +15,7 @@ import {
   validateVisionerAlternativeContractCoverage,
   validateVisionerAlternativeAgainstContract,
   validateVisionerAlternativeProbeMatrix,
+  recoverVisionerAlternatives,
   VISIONER_ALTERNATIVE_CATEGORIES,
   FORGE_VISIONER_ALTERNATIVE_VERSION,
 } from "./forge-p02-visioner-alternative.js";
@@ -53,19 +55,19 @@ describe("Forge Visioner Alternative Contract — P02-B07-A02", () => {
     }
   });
 
-  it("maps 23 probes with one documented gap anchored on structured alternative recovery", () => {
+  it("maps 23 probes with zero documented gaps after A03 recovery slice", () => {
     const contract = getActiveVisionerAlternativeContract();
     const summary = summarizeVisionerAlternativeContractCoverage(contract);
     const coverage = validateVisionerAlternativeContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 1);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 1);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 1);
+    assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.alternative_versioning.probeCount, 3);
     assert.equal(summary.byCategory.alternative_signal.probeCount, 3);
@@ -77,11 +79,9 @@ describe("Forge Visioner Alternative Contract — P02-B07-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists one remaining gap probe for structured alternative recovery", () => {
+  it("lists no remaining gap probes after A03 structured alternative recovery", () => {
     const gaps = listVisionerAlternativeProbesByDisposition("gap");
-    const ids = gaps.map(p => p.id).sort();
-    assert.deepEqual(ids, ["valt.structured_alternative_recovery"]);
-    assert.ok(gaps.every(p => p.expected === "FAIL"));
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -127,7 +127,7 @@ describe("Forge Visioner Alternative Contract — P02-B07-A02", () => {
     assert.deepEqual(categoryIds, flatIds);
   });
 
-  it("validates probe matrix with full alignment on documented FAIL gap", () => {
+  it("validates probe matrix with full alignment after A03 recovery slice", () => {
     const contract = getActiveVisionerAlternativeContract();
     const results = runVisionerAlternativeProbes();
     const matrixValidation = validateVisionerAlternativeProbeMatrix(results, contract);
@@ -137,15 +137,61 @@ describe("Forge Visioner Alternative Contract — P02-B07-A02", () => {
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
-    assert.equal(matrixValidation.passAligned, 22);
-    assert.equal(matrixValidation.gapAligned, 1);
+    assert.equal(matrixValidation.passAligned, 23);
+    assert.equal(matrixValidation.gapAligned, 0);
     assert.equal(matrixValidation.unexpectedMismatches, 0);
 
     const passMismatches = results.filter(r => r.expected === "PASS" && !r.aligned);
     assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
   });
 
-  it("exports A01 harness version for alternative contract gate", () => {
-    assert.equal(FORGE_VISIONER_ALTERNATIVE_VERSION, "1.0.0-a01");
+  it("exports A03 harness version for alternative contract gate", () => {
+    assert.equal(FORGE_VISIONER_ALTERNATIVE_VERSION, "1.0.0-a03");
+  });
+});
+
+describe("Forge Visioner Alternative Production Slice — P02-B07-A03", () => {
+  it("recoverVisionerAlternatives restructures malformed vision into selectable variants", () => {
+    const malformed = `REASONING: Two viable product directions for dental clinic
+OUTPUT: **GOAL**: Dental clinic platform
+alternative a: Premium concierge booking experience
+alternative b: Self-serve patient portal
+CONFIDENCE: 0.78`;
+    const recovery = recoverVisionerAlternatives(malformed);
+
+    assert.equal(recovery.recovered, true);
+    assert.match(recovery.composedVision, /\*\*ALTERNATIVE VISION A\*\*:/);
+    assert.match(recovery.composedVision, /\*\*ALTERNATIVE VISION B\*\*:/);
+    assert.equal(recovery.presence.hasAlternatives, true);
+    assert.ok(recovery.presence.alternativeCount >= 2);
+    assert.ok(recovery.alternatives.some(alt => alt.includes("concierge booking")));
+    assert.ok(recovery.alternatives.some(alt => alt.includes("patient portal")));
+  });
+
+  it("recoverVisionerAlternatives rejects null-byte vision output safely", () => {
+    const recovery = recoverVisionerAlternatives("vision\0output");
+    assert.equal(recovery.recovered, false);
+    assert.deepEqual(recovery.parseErrors, ["null_byte_in_vision"]);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after recovery slice", () => {
+    const contract = getActiveVisionerAlternativeContract();
+    const slice = runVisionerAlternativeProductionSlice();
+
+    assert.equal(slice.atom, "P02-B07-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
   });
 });

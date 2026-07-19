@@ -135,7 +135,7 @@
       "id": "valt.structured_alternative_recovery",
       "category": "recovery_path",
       "description": "recoverVisionerAlternatives restructures failed alternative parse into selectable vision variants",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "valt.visioner_confidence_block_gate",
