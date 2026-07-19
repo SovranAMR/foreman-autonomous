@@ -39,6 +39,16 @@ import {
   runStrategistIntentForgeRegression,
   detectStrategistIntentProbeRegression,
   applyStrategistIntentRunRecordFuzzMutation,
+  buildStrategistIntentAdversarialGuardScenarios,
+  detectStrategistIntentEvidenceSummaryMismatch,
+  detectStrategistIntentFalseAlignment,
+  getForgeStrategistIntentGuardControls,
+  listStrategistIntentContractProbeIds,
+  runStrategistIntentAdversarialGuardChecks,
+  validateForgeStrategistIntentGuard,
+  validateStrategistIntentCost,
+  validateStrategistIntentPerformance,
+  validateStrategistIntentSafety,
 } from "./forge-p03-strategist-intent.js";
 
 describe("Forge Strategist Intent Contract — P03-B01-A02", () => {
@@ -374,7 +384,7 @@ describe("Forge Strategist Intent Evidence — P03-B01-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_INTENT_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a09");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -406,7 +416,7 @@ describe("Forge Strategist Intent Evidence — P03-B01-A06", () => {
     assert.equal(record.evidence.length, 23);
     assert.equal(record.telemetry.length, 23);
     assert.equal(record.provenance.totalProbes, 23);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a09");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 23);
@@ -613,5 +623,172 @@ describe("Forge Strategist Intent Regression — P03-B01-A08", () => {
     const report = detectStrategistIntentProbeRegression(prior, tamperedCurrent);
     assert.equal(report.hasRegression, true);
     assert.deepEqual(report.regressions, [target.probeId]);
+  });
+});
+
+describe("Forge Strategist Intent Guard — P03-B01-A09 adversarial", () => {
+  it("rejects tampered records via adversarial scenarios", () => {
+    const record = runStrategistIntentProbesWithRecord();
+    const contract = getActiveStrategistIntentContract();
+    const adversarial = runStrategistIntentAdversarialGuardChecks(record, contract);
+
+    assert.equal(adversarial.total, 3);
+    assert.equal(adversarial.rejected, 3, adversarial.failures.join("; "));
+    assert.deepEqual(adversarial.failures, []);
+  });
+
+  it("detects false alignment and summary/evidence mismatch", () => {
+    const falsePassEvidence = buildStrategistIntentProbeEvidence(
+      "sint.version_tagged",
+      "intent_versioning",
+      "PASS",
+      "FAIL",
+      true,
+      "test",
+      "false pass claim",
+      "observed",
+      "2026-07-18T22:00:00.000Z",
+    );
+    const fixture = loadStrategistIntentBaseline();
+    const contract = getActiveStrategistIntentContract();
+    const falsePassRecord = buildStrategistIntentRunRecord(
+      buildStrategistIntentProvenance(
+        "adv-false-pass",
+        fixture,
+        contract,
+        "2026-07-18T22:00:00.000Z",
+        "2026-07-18T22:00:01.000Z",
+        1,
+      ),
+      [falsePassEvidence],
+      [buildStrategistIntentProbeTelemetry("sint.version_tagged", "intent_versioning", 0, 1)],
+    );
+    assert.ok(detectStrategistIntentFalseAlignment(falsePassRecord).length > 0);
+
+    const summaryEvidence = buildStrategistIntentProbeEvidence(
+      "sint.version_tagged",
+      "intent_versioning",
+      "PASS",
+      "FAIL",
+      false,
+      "test",
+      "summary tamper",
+      "observed",
+      "2026-07-18T22:00:00.000Z",
+    );
+    const summaryRecord = buildStrategistIntentRunRecord(
+      buildStrategistIntentProvenance(
+        "adv-summary",
+        fixture,
+        contract,
+        "2026-07-18T22:00:00.000Z",
+        "2026-07-18T22:00:01.000Z",
+        1,
+      ),
+      [summaryEvidence],
+      [buildStrategistIntentProbeTelemetry("sint.version_tagged", "intent_versioning", 0, 1)],
+    );
+    const mismatchedSummary = {
+      ...summaryRecord,
+      summary: { ...summaryRecord.summary, mismatches: 0, aligned: 1 },
+    };
+    assert.ok(detectStrategistIntentEvidenceSummaryMismatch(mismatchedSummary));
+  });
+
+  it("buildStrategistIntentAdversarialGuardScenarios cover false PASS attack vectors", () => {
+    const scenarios = buildStrategistIntentAdversarialGuardScenarios();
+    assert.equal(scenarios.length, 3);
+    assert.ok(scenarios.some(s => s.id.includes("false_alignment")));
+    assert.ok(scenarios.some(s => s.id.includes("summary_mismatch")));
+    assert.ok(scenarios.some(s => s.id.includes("dropped_probe")));
+  });
+});
+
+describe("Forge Strategist Intent Guard — P03-B01-A09 performance, cost, safety", () => {
+  it("passes performance and zero-cost guard on canonical strategist intent run", () => {
+    const record = runStrategistIntentProbesWithRecord();
+    const contract = getActiveStrategistIntentContract();
+    const guard = validateForgeStrategistIntentGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
+
+    assert.equal(guard.passed, true, guard.issues.map(i => i.detail).join("; "));
+    assert.ok(guard.metrics.suiteDurationMs >= 0);
+    assert.ok(
+      guard.metrics.maxProbeDurationMs <
+        getForgeStrategistIntentGuardControls().performance.maxProbeDurationMs,
+    );
+    assert.equal(guard.metrics.totalCostUsd, 0);
+    assert.equal(guard.metrics.llmCalls, 0);
+    assert.equal(guard.metrics.adversarialScenariosRejected, 3);
+  });
+
+  it("flags cost and performance budget violations", () => {
+    const fixture = loadStrategistIntentBaseline();
+    const contract = getActiveStrategistIntentContract();
+    const probeIds = listStrategistIntentContractProbeIds(contract);
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistIntentProbeEvidence(
+        id,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "ok",
+        probe.disposition,
+      );
+    });
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistIntentProbeTelemetry(id, probe.category, index, 10_000);
+    });
+    const record = buildStrategistIntentRunRecord(
+      buildStrategistIntentProvenance(
+        "perf-test",
+        fixture,
+        contract,
+        "2026-07-18T22:00:00.000Z",
+        "2026-07-18T22:00:01.000Z",
+        probeIds.length,
+      ),
+      evidence,
+      telemetry,
+    );
+
+    const perfIssues = validateStrategistIntentPerformance(record);
+    assert.ok(perfIssues.some(i => i.domain === "performance"));
+
+    const costIssues = validateStrategistIntentCost(0.05, 2);
+    assert.ok(costIssues.some(i => i.domain === "cost"));
+  });
+
+  it("flags forbidden secret patterns in evidence detail", () => {
+    const fixture = loadStrategistIntentBaseline();
+    const contract = getActiveStrategistIntentContract();
+    const evidence = buildStrategistIntentProbeEvidence(
+      "sint.version_tagged",
+      "intent_versioning",
+      "PASS",
+      "PASS",
+      true,
+      "ok",
+      "leaked sk-abcdefghijklmnopqrstuvwxyz1234567890",
+      "observed",
+    );
+    const record = buildStrategistIntentRunRecord(
+      buildStrategistIntentProvenance(
+        "safety-test",
+        fixture,
+        contract,
+        "2026-07-18T22:00:00.000Z",
+        "2026-07-18T22:00:01.000Z",
+        1,
+      ),
+      [evidence],
+      [buildStrategistIntentProbeTelemetry("sint.version_tagged", "intent_versioning", 0, 1)],
+    );
+
+    const safetyIssues = validateStrategistIntentSafety(record);
+    assert.ok(safetyIssues.some(i => i.code === "forbidden_pattern"));
   });
 });

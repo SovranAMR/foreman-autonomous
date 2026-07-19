@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 8
+completed_atoms: 9
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -23,7 +23,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B01-A06 — Hedef decomposition: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B01-A07 — Hedef decomposition: unit, property ve fuzz doğrulamasını ekle
 - [x] P03-B01-A08 — Hedef decomposition: Forge entegrasyonu ile regression testini tamamla
-- [ ] P03-B01-A09 — Hedef decomposition: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P03-B01-A09 — Hedef decomposition: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B01-A10 — Hedef decomposition: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P03-B02 — Block üretim kontratı
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B01-A08
-last_commit: bebb2f1
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (28/28); regression gate canonical PASS; probe regression detection; tampered prior rejected
-evidence: runStrategistIntentForgeRegression; detectStrategistIntentProbeRegression
-next: P03-B01-A09
+last_atom: P03-B01-A09
+last_commit: PENDING
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (34/34); guard adversarial 3/3; performance/cost/safety bounds enforced
+evidence: validateForgeStrategistIntentGuard; runStrategistIntentAdversarialGuardChecks
+next: P03-B01-A10
