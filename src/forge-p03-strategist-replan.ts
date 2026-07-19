@@ -11,7 +11,12 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import strategistReplanBaseline from "./fixtures/forge-strategist-replan-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP03B07ToB08Handoff,
   summarizeStrategistParallelWaveCoverage,
@@ -3060,5 +3065,243 @@ export function runForgeStrategistReplanRegressionGate(
     passed,
     guard,
     detail: detailParts.join(" | "),
+  };
+}
+
+// ─── Block gate and handoff (P03-B08-A10) ───────────────────────────────────
+
+export interface StrategistReplanBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface StrategistReplanBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    replanCategories: readonly StrategistReplanCategory[];
+    sourceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    replanRecordRequired: true;
+  };
+}
+
+export const FORGE_P03_B08_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P03-B08-A10",
+  blockId: "P03-B08",
+  title: "Replan ve plan repair",
+  requiredAtomIds: [
+    "P03-B08-A01",
+    "P03-B08-A02",
+    "P03-B08-A03",
+    "P03-B08-A04",
+    "P03-B08-A05",
+    "P03-B08-A06",
+    "P03-B08-A07",
+    "P03-B08-A08",
+    "P03-B08-A09",
+    "P03-B08-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P03-B08-A01",
+      description: "Replan baseline aligns with typed contract and P03-B07 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P03-B08-A02",
+      description: "Contract declares measurable probes for all replan categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P03-B08-A03",
+      description: "Replan probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P03-B08-A04",
+      description: "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P03-B08-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P03-B08-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P03-B08-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P03-B08-A08",
+      description: "Regression gate passes on canonical replan matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P03-B08-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P03-B08-A10",
+      description: "Block gate evidence sealed with valid B09 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P03_B08_TO_B09_HANDOFF_V1: StrategistReplanBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P03-B08-A10",
+  sourceBlock: {
+    blockId: "P03-B08",
+    title: "Replan ve plan repair",
+    completedAtoms: FORGE_P03_B08_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P03-B09",
+    title: "Plan provenance ve drift",
+    entryAtom: "P03-B09-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_STRATEGIST_REPLAN_CONTRACT_V1.version,
+    harnessVersion: FORGE_STRATEGIST_REPLAN_VERSION,
+    probeCount: summarizeStrategistReplanCoverage(FORGE_STRATEGIST_REPLAN_CONTRACT_V1).totalProbes,
+    replanCategories: STRATEGIST_REPLAN_CATEGORIES,
+    sourceBlockGateAtom: "P03-B07-A10",
+  },
+  prerequisites: [
+    "Replan v1 with measurable block/atom replan, plan repair and baseline link probes",
+    "Versioned replan baseline aligned to contract probe matrix and sealed P03-B07 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P03-B07 parallel wave block gate referenced by sourceBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P03-B09-A01 formalizes plan provenance and drift using sealed replan artifacts",
+    requiresBlockGatePass: true,
+    replanRecordRequired: true,
+  },
+};
+
+export function getForgeP03B08BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P03_B08_BLOCK_GATE_V1;
+}
+
+export function getForgeP03B08ToB09Handoff(): StrategistReplanBlockHandoffContract {
+  return FORGE_P03_B08_TO_B09_HANDOFF_V1;
+}
+
+export function validateStrategistReplanBlockHandoffContract(
+  handoff: StrategistReplanBlockHandoffContract,
+  evidence: Pick<
+    StrategistReplanBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: StrategistReplanContract = getActiveStrategistReplanContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeStrategistReplanCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_STRATEGIST_REPLAN_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_STRATEGIST_REPLAN_VERSION}`,
+    );
+  }
+  if (handoff.sealedArtifacts.replanCategories.length !== STRATEGIST_REPLAN_CATEGORIES.length) {
+    issues.push("handoff replanCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceBlockGateAtom !== "P03-B07-A10") {
+    issues.push(`unexpected source block gate atom: ${handoff.sealedArtifacts.sourceBlockGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P03-B09-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const validateStrategistReplanBlockHandoff =
+  validateStrategistReplanBlockHandoffContract;
+
+export function buildStrategistReplanBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P03_B08_BLOCK_GATE_V1.blockId,
+): StrategistReplanBlockGateEvidence {
+  const handoff = getForgeP03B08ToB09Handoff();
+  const handoffValid = validateStrategistReplanBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P03-B08-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }

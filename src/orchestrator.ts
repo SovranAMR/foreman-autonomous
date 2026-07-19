@@ -997,6 +997,25 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P03-B08 block gate and emit verification event with B09 handoff (P03-B08-A10).
+   */
+  async verifyForgeStrategistReplanBlockGate(): Promise<
+    import("./forge-p03-strategist-replan.probe.js").ForgeStrategistReplanBlockGateResult
+  > {
+    const { runForgeStrategistReplanBlockGate } = await import(
+      "./forge-p03-strategist-replan.probe.js"
+    );
+    const result = runForgeStrategistReplanBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "strategist_replan_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B06 block gate and emit verification event with B07 handoff (P02-B06-A10).
    */
   async verifyForgeVisionerUncertaintyBlockGate(): Promise<import("./forge-p02-visioner-uncertainty.probe.js").ForgeVisionerUncertaintyBlockGateResult> {
