@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B08-A02
-last_commit: pending
-tests: PASS — forge-p02-visioner-scoring.test.ts (9/9)
-evidence: validateVisionerScoringContractCoverage 23 probes across 8 categories; validateVisionerScoringProbeMatrix 22 passAligned + 1 gapAligned (vsco.structured_tradeoff_recovery)
-next: P02-B08-A03
+last_atom: P02-B08-A03
+last_commit: b1f6f1a
+tests: PASS — forge-p02-visioner-scoring.test.ts (12/12), forge-p02-visioner-scoring-baseline.test.ts (3/3)
+evidence: recoverVisionerTradeoff production slice; validateVisionerScoringProbeMatrix 23 passAligned + 0 gapAligned; vsco.structured_tradeoff_recovery PASS
+next: P02-B08-A04
