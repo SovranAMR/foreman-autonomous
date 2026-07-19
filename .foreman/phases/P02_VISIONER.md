@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B06-A06
-last_commit: pending
+last_commit: c9b46b2
 tests: PASS — forge-p02-visioner-uncertainty.test.ts (24/24); baseline (3/3)
 evidence: buildVisionerUncertaintyRunRecord + validateVisionerUncertaintyFailureRecoveryRunRecord; runVisionerUncertaintyFailureRecoverySliceWithRecord + runVisionerUncertaintyProbesWithRecord; 6 failure/recovery probes with evidence/telemetry/provenance; harness 1.0.0-a09; zero unexpected mismatches
 next: P02-B06-A07

@@ -44,7 +44,7 @@ fallback: property/fuzz requires orchestrator refactor beyond slice scope ise BL
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B06-A06
-last_commit: pending
+last_commit: c9b46b2
 tests: PASS — forge-p02-visioner-uncertainty.test.ts (24/24); baseline (3/3)
 evidence: buildVisionerUncertaintyRunRecord + validateVisionerUncertaintyFailureRecoveryRunRecord exported; runVisionerUncertaintyFailureRecoverySliceWithRecord + runVisionerUncertaintyProbesWithRecord; 6 failure/recovery probes evidence/telemetry/provenance; harness 1.0.0-a09; zero unexpected mismatches
 next: P02-B06-A07
