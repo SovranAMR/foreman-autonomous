@@ -1549,6 +1549,51 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher question decomposition regression gate and emit verification event (P04-B01-A08).
+   */
+  async verifyForgeResearcherQuestionDecompositionRegression(
+    priorRecord?: import("./forge-p04-researcher-question-decomposition.js").ResearcherQuestionDecompositionRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-question-decomposition.probe.js").ForgeResearcherQuestionDecompositionRegressionGateResult
+  > {
+    const { runForgeResearcherQuestionDecompositionRegressionGate } = await import(
+      "./forge-p04-researcher-question-decomposition.probe.js"
+    );
+    const result = runForgeResearcherQuestionDecompositionRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "researcher_question_decomposition_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
+   * Run Forge researcher question decomposition guard gate (adversarial/perf/cost/safety) and emit verification event (P04-B01-A09).
+   */
+  async verifyForgeResearcherQuestionDecompositionGuard(
+    priorRecord?: import("./forge-p04-researcher-question-decomposition.js").ResearcherQuestionDecompositionRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-question-decomposition.probe.js").ForgeResearcherQuestionDecompositionRegressionGateResult
+  > {
+    const { runForgeResearcherQuestionDecompositionRegressionGate } = await import(
+      "./forge-p04-researcher-question-decomposition.probe.js"
+    );
+    const result = runForgeResearcherQuestionDecompositionRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "researcher_question_decomposition_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

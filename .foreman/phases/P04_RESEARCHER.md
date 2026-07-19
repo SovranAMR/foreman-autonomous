@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 8
+completed_atoms: 9
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -23,7 +23,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B01-A06 — Research question decomposition: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B01-A07 — Research question decomposition: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B01-A08 — Research question decomposition: Forge entegrasyonu ile regression testini tamamla
-- [ ] P04-B01-A09 — Research question decomposition: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P04-B01-A09 — Research question decomposition: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B01-A10 — Research question decomposition: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B02 — Repo içi kanıt toplama
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B01-A08
-last_commit: bbd49aa
-tests: PASS — forge-p04-researcher*.test.ts (42/42); regression gate PASS; prior/current comparison valid; 0 unexpected mismatches
-evidence: runResearcherQuestionDecompositionForgeRegression; detectResearcherQuestionDecompositionProbeRegression; runForgeResearcherQuestionDecompositionRegressionGate; runResearcherQuestionDecompositionRegressionIntegration; harnessVersion=1.0.0-a08
-next: P04-B01-A09
+last_atom: P04-B01-A09
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (50/50); guard PASS; adversarial=3/3 rejected; perf/cost/safety within budgets; regression gate guard integrated
+evidence: validateForgeResearcherQuestionDecompositionGuard; runResearcherQuestionDecompositionAdversarialGuardChecks; verifyForgeResearcherQuestionDecompositionGuard; harnessVersion=1.0.0-a09
+next: P04-B01-A10

@@ -6,9 +6,9 @@ active_phase: P04
 active_block: P04-B01
 active_atom: P04-B01-A09
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 308/1000
-phase_progress: 8/100
-block_progress: 8/10
+program_progress: 309/1000
+phase_progress: 9/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B01-A09 — Research question decomposition: adversarial, performance, cost ve safety kontrolünü geçir.
+P04-B01-A10 — Research question decomposition: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P04-B01-A08 PASS; guard controls for researcher question decomposition regression gate.
-target: Adversarial tamper rejection, performance/cost budgets, safety pattern checks on run records.
-hypothesis: A08 regression gate stabilizes probe matrix; A09 can add guard without reopening regression.
-acceptance: guard PASS; adversarial scenarios rejected; performance/cost/safety within budgets.
+objective: P04-B01-A09 PASS; seal block gate evidence and handoff to P04-B02.
+target: Block gate evidence, atom seals, regression+guard PASS, P04-B02 entry handoff contract.
+hypothesis: A09 guard stabilizes adversarial/perf/cost/safety; A10 can seal block without reopening guard.
+acceptance: block gate PASS; handoff valid; seals cover A01–A09; next block entry atom wired.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-*.ts
-rollback: P04-B01-A09 guard slice değişikliklerini geri al.
+rollback: P04-B01-A10 block gate slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B01-A08
-last_commit: bbd49aa
-tests: PASS — forge-p04-researcher*.test.ts (42/42); regression gate PASS; prior/current comparison valid; 0 unexpected mismatches
-evidence: runResearcherQuestionDecompositionForgeRegression; detectResearcherQuestionDecompositionProbeRegression; runForgeResearcherQuestionDecompositionRegressionGate; runResearcherQuestionDecompositionRegressionIntegration
-next: P04-B01-A09
+last_atom: P04-B01-A09
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (50/50); guard PASS; adversarial=3/3 rejected; perf/cost/safety within budgets
+evidence: validateForgeResearcherQuestionDecompositionGuard; runResearcherQuestionDecompositionAdversarialGuardChecks; verifyForgeResearcherQuestionDecompositionGuard; harnessVersion=1.0.0-a09
+next: P04-B01-A10

@@ -2120,9 +2120,19 @@ describe("Forge Researcher Question Decomposition Regression Integration — P04
     assert.equal(result.productionSlice.matrixValid, true);
     assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
     assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.guard.passed, true);
     assert.ok(result.detail.includes("27/27 probes aligned"));
     assert.ok(result.detail.includes("productionSlice:"));
     assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("runForgeResearcherQuestionDecompositionRegressionGate guard passes on canonical question decomposition matrix", () => {
+    const result = runForgeResearcherQuestionDecompositionRegressionGate();
+    assert.equal(result.guard.passed, true, result.guard.issues.map(i => i.detail).join("; "));
+    assert.equal(result.guard.metrics.adversarialScenariosRejected, 3);
+    assert.equal(result.guard.metrics.adversarialScenariosTotal, 3);
   });
 
   it("runResearcherQuestionDecompositionRegressionIntegration alias matches regression gate", () => {
@@ -2179,9 +2189,19 @@ describe("Forge Researcher Question Decomposition Regression Integration — P04
     assert.equal(result.productionSlice.matrixValid, true);
     assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
     assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.guard.passed, true);
     assert.ok(result.detail.includes("27/27 probes aligned"));
     assert.ok(result.detail.includes("productionSlice:"));
     assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("runForgeResearcherQuestionDecompositionRegressionGate guard passes on canonical question decomposition matrix", () => {
+    const result = runForgeResearcherQuestionDecompositionRegressionGate();
+    assert.equal(result.guard.passed, true, result.guard.issues.map(i => i.detail).join("; "));
+    assert.equal(result.guard.metrics.adversarialScenariosRejected, 3);
+    assert.equal(result.guard.metrics.adversarialScenariosTotal, 3);
   });
 
   it("runResearcherQuestionDecompositionRegressionIntegration alias matches regression gate", () => {
