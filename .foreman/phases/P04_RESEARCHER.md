@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B04-A10
-last_commit: 56000d9
+last_commit: a239828
 tests: PASS — forge-p04-researcher-benchmark-prior-art-block-gate.test.ts (7/7); forge-p04-researcher-benchmark-prior-art*.test.ts (48/48); runForgeResearcherBenchmarkPriorArtBlockGate; verifyForgeResearcherBenchmarkPriorArtBlockGate
 evidence: block gate seals 10/10 atoms; regression+guard PASS; handoff=PASS→P04-B05 entry=P04-B05-A01
 next: P04-B05-A01
