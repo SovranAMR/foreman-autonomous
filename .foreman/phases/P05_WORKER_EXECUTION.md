@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 29
+completed_atoms: 30
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -55,7 +55,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P05-B04 — Shell ve process lifecycle
 
 - [x] P05-B04-A01 — Shell ve process lifecycle: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P05-B04-A02 — Shell ve process lifecycle: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P05-B04-A02 — Shell ve process lifecycle: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P05-B04-A03 — Shell ve process lifecycle: en küçük üretim dikey dilimini uygula
 - [ ] P05-B04-A04 — Shell ve process lifecycle: boundary ve edge-case davranışlarını tamamla
 - [ ] P05-B04-A05 — Shell ve process lifecycle: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B04-A01
+last_atom: P05-B04-A02
 last_commit: PENDING
-tests: PASS — forge-p05-worker-shell-process-baseline.test.ts (8/8)
-evidence: loadWorkerShellProcessBaseline + validateWorkerShellProcessBaseline + runWorkerShellProcessProbes; 27-probe matrix, 5 documented FAIL gaps, sourceBlockGate P05-B03-A10, handoff entry P05-B04-A01
-next: P05-B04-A02
+tests: PASS — forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
+evidence: FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1; 27 probes with 5 gap disposition from A01 FAIL gaps; validateWorkerShellProcessAgainstContract; criterion wired in runWorkerShellProcessProbes
+next: P05-B04-A03
