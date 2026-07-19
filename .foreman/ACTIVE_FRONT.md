@@ -6,9 +6,9 @@ active_phase: P03
 active_block: P03-B05
 active_atom: P03-B05-A07
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 245/1000
-phase_progress: 46/100
-block_progress: 6/10
+program_progress: 246/1000
+phase_progress: 47/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B05-A07 — Risk ve reversibility planı: unit, property ve fuzz doğrulamasını ekle.
+P03-B05-A08 — Risk ve reversibility planı: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P03-B05-A06 PASS; P03-B05-A07 implement property/fuzz validation slice for risk/reversibility run records.
-target: runStrategistRiskReversibilityPropertyChecks, runStrategistRiskReversibilityFuzzValidation, runStrategistRiskReversibilityRunRecordFuzzValidation.
-hypothesis: P03-B05-A07 wires structural properties and deterministic fuzz mutations into recoverable production seam with zero unexpected mismatches.
-acceptance: property checks pass; fuzz rejects all mutations; run record fuzz validation passes; zero unexpected mismatches on PASS probes; documented FAIL gaps preserved.
+objective: P03-B05-A07 PASS; P03-B05-A08 implement Forge regression integration slice for risk/reversibility run records.
+target: runStrategistRiskReversibilityForgeRegression, detectStrategistRiskReversibilityProbeRegression.
+hypothesis: P03-B05-A08 wires production + property/fuzz slices into recoverable Forge regression seam with zero probe alignment regressions.
+acceptance: regression slice passes; full matrix aligned; property/fuzz gates preserved; zero unexpected mismatches on PASS probes; documented FAIL gaps preserved.
 commands: npx tsx --test src/forge-p03-strategist-risk-reversibility*.test.ts
 blast_radius: src/forge-p03-strategist-risk-reversibility.ts
-rollback: P03-B05-A07 property/fuzz slice değişikliklerini geri al.
+rollback: P03-B05-A08 Forge regression slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: property/fuzz slice blocked ise BLOCKED raporla.
+fallback: Forge regression slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B05-A06
+last_atom: P03-B05-A07
 last_commit: pending
-tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (23/23); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); evidence slice 7 pass / 2 gap aligned / 0 unexpected mismatches
-evidence: runStrategistRiskReversibilityEvidenceSlice; validateStrategistRiskReversibilityFailureRecoveryRunRecord
-next: P03-B05-A07
+tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (29/29); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); property/fuzz 8 properties / 72 fuzz mutations rejected / 0 accepted
+evidence: runStrategistRiskReversibilityPropertyFuzzSlice; runStrategistRiskReversibilityPropertyChecks; runStrategistRiskReversibilityFuzzValidation; runStrategistRiskReversibilityRunRecordFuzzValidation
+next: P03-B05-A08
