@@ -135,7 +135,7 @@
       "id": "riev.structured_repo_evidence_recovery",
       "category": "recovery_path",
       "description": "recoverInRepoEvidence restructures failed repo citation parse into actionable evidence plan",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "riev.researcher_critical_block",

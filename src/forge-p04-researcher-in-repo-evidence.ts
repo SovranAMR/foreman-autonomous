@@ -18,7 +18,7 @@ import {
 } from "./forge-p04-researcher-question-decomposition.js";
 import { searchFiles, type FileSearchResult } from "./research-engine.js";
 
-export const FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION = "1.0.0-a02";
+export const FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P04_B01_SEALED_ATOM_COUNT = 10;
 
@@ -151,6 +151,124 @@ export function validateInRepoEvidenceCollection(
     valid: true,
     fileHitCount,
     issues: [],
+  };
+}
+
+export interface InRepoEvidenceRecoveryHints {
+  searchQueries?: string[];
+  topic?: string;
+}
+
+export interface InRepoEvidenceRecoveryResult {
+  recovered: boolean;
+  evidencePlan: {
+    searchQueries: string[];
+    citationTargets: Array<{ file: string; line?: number; text?: string }>;
+  };
+  parseErrors: string[];
+  detail: string;
+}
+
+const IN_REPO_CITATION_PATH_LINE_PATTERN =
+  /([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s*(?:[:#]\s*(\d+)|\s+line\s+(\d+))/gi;
+
+/**
+ * Restructure failed repo citation parse into actionable evidence plan (P04-B02-A03).
+ */
+export function recoverInRepoEvidence(
+  failedParse: string,
+  hints: InRepoEvidenceRecoveryHints = {},
+): InRepoEvidenceRecoveryResult {
+  const parseErrors: string[] = [];
+  const boundary = assessInRepoEvidenceInputBoundary(failedParse);
+
+  if (!boundary.acceptable) {
+    return {
+      recovered: false,
+      evidencePlan: { searchQueries: [], citationTargets: [] },
+      parseErrors: [boundary.disposition],
+      detail: `cannot recover ${boundary.disposition.replace(/_/g, "-")} citation parse`,
+    };
+  }
+
+  const raw = boundary.normalizedQuery;
+  const citationTargets: Array<{ file: string; line?: number; text?: string }> = [];
+
+  if (raw.includes("{") || raw.includes("[")) {
+    try {
+      JSON.parse(raw);
+    } catch {
+      parseErrors.push("json_parse_failed");
+    }
+  }
+
+  for (const match of raw.matchAll(IN_REPO_CITATION_PATH_LINE_PATTERN)) {
+    const file = match[1]?.trim();
+    const lineRaw = match[2] ?? match[3];
+    if (!file) continue;
+    const line = lineRaw ? Number.parseInt(lineRaw, 10) : undefined;
+    citationTargets.push({
+      file,
+      line: Number.isFinite(line) ? line : undefined,
+    });
+  }
+
+  const exportMatch = raw.match(/export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/);
+  if (exportMatch) {
+    const file = citationTargets[0]?.file ?? "unknown";
+    citationTargets.push({ file, text: exportMatch[1] });
+  }
+
+  const searchQueries: string[] = hints.searchQueries ? [...hints.searchQueries] : [];
+
+  for (const target of citationTargets) {
+    if (target.text) {
+      searchQueries.push(`export function ${target.text}`);
+      searchQueries.push(target.text);
+    } else {
+      const basename = target.file.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "";
+      if (basename.length > 2) {
+        searchQueries.push(basename);
+      }
+    }
+  }
+
+  if (hints.topic) {
+    searchQueries.push(hints.topic);
+  }
+
+  if (searchQueries.length === 0) {
+    const keywords = raw
+      .split(/\s+/)
+      .map(word => word.replace(/[^A-Za-z0-9_./-]/g, ""))
+      .filter(word => word.length > 4)
+      .slice(0, 4);
+    if (keywords.length > 0) {
+      searchQueries.push(keywords.join(" "));
+    }
+  }
+
+  const uniqueQueries = [
+    ...new Set(searchQueries.map(query => query.trim()).filter(query => query.length > 3)),
+  ];
+
+  if (uniqueQueries.length === 0) {
+    return {
+      recovered: false,
+      evidencePlan: { searchQueries: [], citationTargets },
+      parseErrors,
+      detail: "no actionable search queries extracted from failed citation parse",
+    };
+  }
+
+  return {
+    recovered: true,
+    evidencePlan: {
+      searchQueries: uniqueQueries,
+      citationTargets,
+    },
+    parseErrors,
+    detail: `recovered ${uniqueQueries.length} search queries from failed citation parse`,
   };
 }
 
@@ -447,7 +565,7 @@ const RESEARCHER_IN_REPO_EVIDENCE_CATEGORY_CONTRACTS: Record<
         category: "boundary",
         description: "Baseline fixture documents at least one measurable FAIL in-repo evidence gap",
         expected: "PASS",
-        disposition: "gap",
+        disposition: "observed",
         criterion: "Baseline fixture documents at least one measurable FAIL in-repo evidence gap",
       },
       {
@@ -508,7 +626,7 @@ const RESEARCHER_IN_REPO_EVIDENCE_CATEGORY_CONTRACTS: Record<
       invariant:
         "Recovery paths tolerate non-fatal research blocks and restructure failed repo evidence parses.",
       minProbeCount: 2,
-      requireFullAlignment: false,
+      requireFullAlignment: true,
     },
     probes: [
       {
@@ -523,8 +641,8 @@ const RESEARCHER_IN_REPO_EVIDENCE_CATEGORY_CONTRACTS: Record<
         id: "riev.structured_repo_evidence_recovery",
         category: "recovery_path",
         description: "recoverInRepoEvidence restructures failed repo citation parse into actionable evidence plan",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion: "recoverInRepoEvidence restructures failed repo citation parse into actionable evidence plan",
       },
     ],
@@ -930,11 +1048,19 @@ export function validateResearcherInRepoEvidenceBaseline(
     });
   }
 
+  const contract = getActiveResearcherInRepoEvidenceContract();
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length < 1) {
+  if (expectedFailCount > 0 && failGaps.length === 0) {
     issues.push({
       kind: "missing_category",
-      detail: "A01 fixture must document at least one known FAIL gap",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 
@@ -942,6 +1068,144 @@ export function validateResearcherInRepoEvidenceBaseline(
   issues.push(...contractAlignment.issues);
 
   return { valid: issues.length === 0, issues };
+}
+
+export interface ResearcherInRepoEvidenceProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherInRepoEvidenceProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ResearcherInRepoEvidenceProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateResearcherInRepoEvidenceProbeMatrix(
+  results: ResearcherInRepoEvidenceProbeResult[],
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): ResearcherInRepoEvidenceProbeMatrixValidationResult {
+  const issues: ResearcherInRepoEvidenceProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (results.length !== contract.probes.length) {
+    issues.push({
+      kind: "extra_result",
+      detail: `results=${results.length} contract=${contract.probes.length}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface ResearcherInRepoEvidenceProductionSliceResult {
+  atom: "P04-B02-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherInRepoEvidenceProbeResult[];
+  summary: ResearcherInRepoEvidenceProbeSummary;
+  matrixValidation: ResearcherInRepoEvidenceProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: recoverInRepoEvidence wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runResearcherInRepoEvidenceProductionSlice(
+  fixture: ResearcherInRepoEvidenceBaseline = loadResearcherInRepoEvidenceBaseline(),
+): ResearcherInRepoEvidenceProductionSliceResult {
+  const contract = getActiveResearcherInRepoEvidenceContract();
+  const fixtureValidation = validateResearcherInRepoEvidenceBaseline(fixture);
+  const contractValidation = validateResearcherInRepoEvidenceAgainstContract(fixture, contract);
+  const results = runResearcherInRepoEvidenceProbes(fixture);
+  const summary = summarizeResearcherInRepoEvidenceMatrix(results);
+  const matrixValidation = validateResearcherInRepoEvidenceProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B02-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 export function summarizeResearcherInRepoEvidenceMatrix(
@@ -1175,7 +1439,7 @@ function runResearcherInRepoEvidenceProbe(
       const contract = getActiveResearcherInRepoEvidenceContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -1252,8 +1516,22 @@ function runResearcherInRepoEvidenceProbe(
       return probe(id, category, expected, ok, `researchBlockNonFatal=${ok}`, criterion);
     }
     case "riev.structured_repo_evidence_recovery": {
-      const ok = hasProductionExport("recoverInRepoEvidence");
-      return probe(id, category, expected, ok, `recoverInRepoEvidence=${ok}`, criterion);
+      const recovery = recoverInRepoEvidence(
+        'malformed repo citation: src/research-engine.ts:30 export function searchFiles {"file":"broken',
+      );
+      const ok =
+        hasProductionExport("recoverInRepoEvidence") &&
+        recovery.recovered &&
+        recovery.evidencePlan.searchQueries.length >= 1 &&
+        recovery.evidencePlan.citationTargets.some(target => target.file.includes("research-engine.ts"));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recoverFn=${ok}, queryCount=${recovery.evidencePlan.searchQueries.length}`,
+        criterion,
+      );
     }
     case "riev.researcher_critical_block": {
       const ok =

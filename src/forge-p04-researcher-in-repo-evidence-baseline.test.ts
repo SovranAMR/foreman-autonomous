@@ -3,12 +3,16 @@ import assert from "node:assert/strict";
 import {
   loadResearcherInRepoEvidenceBaseline,
   runResearcherInRepoEvidenceProbes,
+  runResearcherInRepoEvidenceProductionSlice,
   validateResearcherInRepoEvidenceBaseline,
+  validateResearcherInRepoEvidenceProbeMatrix,
   summarizeResearcherInRepoEvidenceMatrix,
   listResearcherInRepoEvidenceProbesByExpected,
   listResearcherInRepoEvidenceKnownGaps,
   assessInRepoEvidenceInputBoundary,
   validateInRepoEvidenceCollection,
+  recoverInRepoEvidence,
+  getActiveResearcherInRepoEvidenceContract,
   RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES,
   RESEARCHER_IN_REPO_EVIDENCE_QUERY_MAX_LENGTH,
 } from "./forge-p04-researcher-in-repo-evidence.js";
@@ -40,26 +44,19 @@ describe("Forge Researcher In-Repo Evidence — P04-B02-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures in-repo evidence probes with documented FAIL gaps from P04-B01 sealed handoff", () => {
+  it("measures in-repo evidence probes with zero unexpected mismatches after A03 slice", () => {
     const results = runResearcherInRepoEvidenceProbes();
     const summary = summarizeResearcherInRepoEvidenceMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listResearcherInRepoEvidenceProbesByExpected(
       "FAIL",
       loadResearcherInRepoEvidenceBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(documentedFail.some(p => p.id === "riev.structured_repo_evidence_recovery"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -74,15 +71,9 @@ describe("Forge Researcher In-Repo Evidence — P04-B02-A01", () => {
     );
   });
 
-  it("documents remaining in-repo evidence gaps as measurable baseline debt", () => {
+  it("documents no remaining in-repo evidence FAIL gaps after production slice", () => {
     const gaps = listResearcherInRepoEvidenceKnownGaps(runResearcherInRepoEvidenceProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, ["riev.structured_repo_evidence_recovery"]);
-    assert.ok(
-      gaps.every(g => RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES.includes(g.category)),
-      "documented gaps are in-repo evidence probes",
-    );
+    assert.deepEqual(gaps, []);
   });
 
   it("assessInRepoEvidenceInputBoundary rejects empty and null-byte search queries", () => {
@@ -121,5 +112,67 @@ describe("Forge Researcher In-Repo Evidence — P04-B02-A01", () => {
     const validation = validateInRepoEvidenceCollection("valid query", []);
     assert.equal(validation.valid, false);
     assert.ok(validation.issues.some(issue => issue.includes("zero in-repo file hits")));
+  });
+});
+
+describe("Forge Researcher In-Repo Evidence Production Slice — P04-B02-A03", () => {
+  it("recoverInRepoEvidence restructures malformed repo citation parse into actionable evidence plan", () => {
+    const recovery = recoverInRepoEvidence(
+      'malformed repo citation: src/research-engine.ts:30 export function searchFiles {"file":"broken',
+    );
+
+    assert.equal(recovery.recovered, true);
+    assert.ok(recovery.evidencePlan.searchQueries.length >= 1);
+    assert.ok(
+      recovery.evidencePlan.citationTargets.some(target => target.file.includes("research-engine.ts")),
+    );
+    assert.ok(recovery.evidencePlan.searchQueries.some(query => query.includes("searchFiles")));
+  });
+
+  it("recoverInRepoEvidence rejects null-byte and empty citation parse safely", () => {
+    const emptyRecovery = recoverInRepoEvidence("");
+    assert.equal(emptyRecovery.recovered, false);
+    assert.deepEqual(emptyRecovery.parseErrors, ["empty"]);
+
+    const nullRecovery = recoverInRepoEvidence("citation\0parse");
+    assert.equal(nullRecovery.recovered, false);
+    assert.deepEqual(nullRecovery.parseErrors, ["contains_null_byte"]);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveResearcherInRepoEvidenceContract();
+    const slice = runResearcherInRepoEvidenceProductionSlice();
+
+    assert.equal(slice.atom, "P04-B02-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateResearcherInRepoEvidenceProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const recoveryProbe = slice.results.find(r => r.id === "riev.structured_repo_evidence_recovery");
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
   });
 });
