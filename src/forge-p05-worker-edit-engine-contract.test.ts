@@ -141,7 +141,7 @@ describe("Forge Worker Edit Engine Contract — P05-B03-A02", () => {
     assert.equal(FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.atom, "P05-B03-A02");
     assert.equal(FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_EDIT_ENGINE_VERSION, "1.0.0-a04");
+    assert.equal(FORGE_WORKER_EDIT_ENGINE_VERSION, "1.0.0-a05");
     assert.equal(contract.version, FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.version);
   });
 });
