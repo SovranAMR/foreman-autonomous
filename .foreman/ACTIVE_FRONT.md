@@ -6,9 +6,9 @@ active_phase: P02
 active_block: P02-B02
 active_atom: P02-B02-A01
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 110/1000
-phase_progress: 10/100
-block_progress: 0/10
+program_progress: 111/1000
+phase_progress: 11/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B02-A01 — Constraint ve non-goal çıkarımı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P02-B02-A02 — Constraint ve non-goal çıkarımı: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P02-B01 block gate sealed; B02 baseline A01 next.
-target: constraint/non-goal baseline fixture with measurable FAIL gaps and P02-B01 handoff entry.
-hypothesis: sealed visioner intent block inventory provides stable source for constraint extraction baseline.
-acceptance: baseline fixture loads; contract alignment probes pass; at least one documented FAIL gap.
+objective: P02-B02-A01 baseline sealed; B02 contract A02 next.
+target: typed constraint/non-goal contract with measurable probes aligned to baseline fixture.
+hypothesis: sealed B02 baseline probe matrix provides stable source for typed contract acceptance.
+acceptance: contract loads; fixture alignment probes pass; coverage declares all constraint categories.
 commands: npx tsx --test src/forge-p02-*.test.ts
-blast_radius: src/forge-p02-visioner-constraint.ts (new), src/fixtures/
-rollback: P02-B02-A01 baseline fixture değişikliklerini geri al.
+blast_radius: src/forge-p02-visioner-constraint.ts
+rollback: P02-B02-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: baseline cannot anchor without scope creep ise BLOCKED raporla.
+fallback: contract cannot anchor without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B01-A10
-last_commit: 7931a29
-tests: PASS — forge-p02-visioner-intent-block-gate.test.ts (6/6); forge-p02-visioner-intent*.test.ts (43/43); forge-pipeline-regression.integration.test.ts P02-B01-A10 (2/2)
-evidence: runForgeVisionerIntentBlockGate, verifyForgeVisionerIntentBlockGate; block=PASS seals=10/10 handoff=PASS→P02-B02
-next: P02-B02-A01
+last_atom: P02-B02-A01
+last_commit: PENDING
+tests: PASS — forge-p02-visioner-constraint-baseline.test.ts (3/3); forge-p02-visioner-constraint*.test.ts (3/3); forge-p02-visioner-intent*.test.ts (43/43)
+evidence: loadVisionerConstraintBaseline, runVisionerConstraintProbes, validateVisionerConstraintBaseline; baseline=23 probes FAIL gap=vcon.structured_constraint_recovery handoff=P02-B01→B02
+next: P02-B02-A02

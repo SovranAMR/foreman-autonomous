@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B02-A01",
+  "contractAtom": "P02-B02-A05",
+  "purpose": "Visioner constraint and non-goal extraction baseline measured from sealed P02-B01 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P02-B01-A10",
+    "contractVersion": "1.0.0",
+    "visionerIntentProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "vcon.version_tagged",
+      "category": "constraint_versioning",
+      "description": "Visioner constraint baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.atom_tagged",
+      "category": "constraint_versioning",
+      "description": "Visioner constraint baseline declares P02-B02-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.harness_version_exported",
+      "category": "constraint_versioning",
+      "description": "FORGE_VISIONER_CONSTRAINT_VERSION exported for constraint harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.prompt_constraints_section",
+      "category": "constraint_signal",
+      "description": "VISIONER_SYSTEM prompt declares CONSTRAINTS output section",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.prompt_forbidden_section",
+      "category": "constraint_signal",
+      "description": "VISIONER_SYSTEM prompt declares FORBIDDEN output section",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.vision_summary_constraint_extract",
+      "category": "constraint_signal",
+      "description": "Orchestrator buildVisionSummary extracts CONSTRAINT headers from vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.forbidden_list_rules",
+      "category": "non_goal_signal",
+      "description": "VISIONER_SYSTEM prompt declares FORBIDDEN LIST rules for non-goals",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.vision_pinned_constraints",
+      "category": "non_goal_signal",
+      "description": "Orchestrator pins vision document with respect-all-constraints directive",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.non_goal_forbidden_extract",
+      "category": "non_goal_signal",
+      "description": "assessVisionerConstraintPresence detects FORBIDDEN non-goal sections",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.b01_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_B01_TO_B02_HANDOFF_V1 targets P02-B02-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.b01_sealed_intent_probes",
+      "category": "baseline_link",
+      "description": "P02-B01→B02 handoff sealed probeCount matches active visioner intent contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02-B01 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerConstraintProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL constraint gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.empty_vision_constraint_presence",
+      "category": "boundary",
+      "description": "assessVisionerConstraintPresence reports no constraints for empty vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.memory_constraint_category",
+      "category": "boundary",
+      "description": "Memory category type includes constraint for project guardrails",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.worker_vision_summary_wired",
+      "category": "boundary",
+      "description": "Orchestrator injects buildVisionSummary constraint slice into worker context",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerConstraintBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.malformed_vision_presence_guard",
+      "category": "failure_path",
+      "description": "assessVisionerConstraintPresence rejects null-byte vision output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.vision_checkpoint_constraints",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses checkpoint vision output containing constraint sections",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.structured_constraint_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerConstraints restructures failed constraint parse into actionable guardrails",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vcon.strategist_contradiction_block",
+      "category": "nogo_path",
+      "description": "Strategist prompt can BLOCK visioner on internal contradictions",
+      "expected": "PASS"
+    },
+    {
+      "id": "vcon.worker_constraint_nogo",
+      "category": "nogo_path",
+      "description": "Worker prompt can BLOCK when atom contradicts vision constraints",
+      "expected": "PASS"
+    }
+  ]
+}
