@@ -28,7 +28,7 @@ const REQUIRE_FULL_ALIGNMENT: Record<
   boundary: true,
   failure_path: true,
   recovery_path: true,
-  nogo_path: false,
+  nogo_path: true,
 };
 
 describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
@@ -61,7 +61,7 @@ describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
     }
   });
 
-  it("maps 27 probes with four documented FAIL gaps after A03 production slice", () => {
+  it("maps 27 probes with one documented FAIL gap after A05 failure/recovery slice", () => {
     const contract = getActiveWorkerGitWorktreeContract();
     const summary = summarizeWorkerGitWorktreeContractCoverage(contract);
     const coverage = validateWorkerGitWorktreeContractCoverage(contract);
@@ -69,10 +69,10 @@ describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateWorkerGitWorktreeContract().valid, true);
     assert.equal(summary.totalProbes, 27);
-    assert.equal(summary.expectedPass, 23);
-    assert.equal(summary.expectedFail, 4);
-    assert.equal(summary.byDisposition.observed, 19);
-    assert.equal(summary.byDisposition.gap, 4);
+    assert.equal(summary.expectedPass, 26);
+    assert.equal(summary.expectedFail, 1);
+    assert.equal(summary.byDisposition.observed, 22);
+    assert.equal(summary.byDisposition.gap, 1);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 0);
@@ -86,17 +86,12 @@ describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
 
-  it("lists four remaining gap probes after A03 TypedGitCall slice", () => {
+  it("lists one remaining gap probe after A05 NO-GO slice", () => {
     const gaps = listWorkerGitWorktreeProbesByDisposition("gap");
-    assert.equal(gaps.length, 4);
+    assert.equal(gaps.length, 1);
     assert.deepEqual(
       gaps.map(p => p.id).sort(),
-      [
-        "wgt.exported_git_validator",
-        "wgt.orchestrator_pre_git_validation",
-        "wgt.worker_prompt_git_contract",
-        "wgt.worktree_transaction_engine",
-      ],
+      ["wgt.worktree_transaction_engine"],
     );
     assert.ok(gaps.every(probe => probe.expected === "FAIL"));
   });
@@ -151,7 +146,7 @@ describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
     assert.equal(FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.atom, "P05-B05-A02");
     assert.equal(FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a04");
+    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a05");
     assert.equal(contract.version, FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.version);
   });
 });

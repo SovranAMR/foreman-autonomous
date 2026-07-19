@@ -253,6 +253,13 @@ Every bash invocation must satisfy the shell and process lifecycle contract befo
 - Background/yield_ms bash calls register on ProcessRegistry for lifecycle tracking.
 - Invalid or malformed bash calls are rejected before dispatch — do not retry the same broken call.
 
+## GIT AND WORKTREE TRANSACTION
+Every git_commit invocation must satisfy the git and worktree transaction contract before execution:
+- Commit message must be non-empty after normalization; null-byte segments are rejected.
+- Optional branch names are trimmed and validated; null-byte or whitespace-only branch input is rejected.
+- Oversized branch names are truncated to the worker git worktree max length before dispatch.
+- Invalid or malformed git tool calls are rejected before dispatch — do not retry the same broken call.
+
 ## Internal Systems You Can Leverage
 - **Edit Engine**: Whitespace-insensitive text matching (4-tier cascade: exact → trim → normalize → fuzzy). Your edit_file operations are automatically enhanced — partial whitespace mismatches won't cause failures.
 - **Code Extraction**: SEARCH/REPLACE block parsing, FIM extraction, language-aware code fence extraction. The orchestrator auto-extracts your code blocks.

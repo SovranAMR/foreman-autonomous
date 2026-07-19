@@ -69,9 +69,9 @@ describe("Forge Worker Git Worktree Production Slice — P05-B05-A03", () => {
     assert.equal(slice.matrixValid, true);
     assert.equal(slice.summary.total, 27);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 23);
-    assert.equal(slice.matrixValidation.gapAligned, 4);
-    assert.equal(slice.summary.knownGaps.length, 4);
+    assert.equal(slice.matrixValidation.passAligned, 26);
+    assert.equal(slice.matrixValidation.gapAligned, 1);
+    assert.equal(slice.summary.knownGaps.length, 1);
 
     for (const contractProbe of contract.probes) {
       const result = slice.results.find(r => r.id === contractProbe.id);
@@ -90,7 +90,28 @@ describe("Forge Worker Git Worktree Production Slice — P05-B05-A03", () => {
     );
 
     const fixture = loadWorkerGitWorktreeBaseline();
-    assert.equal(fixture.probes.filter(p => p.expected === "FAIL").length, 4);
+    assert.equal(fixture.probes.filter(p => p.expected === "FAIL").length, 1);
+  });
+
+  it("closes three A05 NO-GO gap probes via git validator and orchestrator wiring", () => {
+    const slice = runWorkerGitWorktreeProductionSlice();
+    const nogoIds = [
+      "wgt.worker_prompt_git_contract",
+      "wgt.orchestrator_pre_git_validation",
+      "wgt.exported_git_validator",
+    ];
+
+    for (const probeId of nogoIds) {
+      const result = slice.results.find(r => r.id === probeId);
+      assert.ok(result, `missing ${probeId} probe result`);
+      assert.equal(result!.expected, "PASS");
+      assert.equal(result!.actual, "PASS");
+      assert.equal(result!.aligned, true);
+    }
+
+    const gaps = listWorkerGitWorktreeProbesByDisposition("gap");
+    assert.equal(gaps.length, 1);
+    assert.equal(gaps[0]!.id, "wgt.worktree_transaction_engine");
   });
 
   it("closes first A02 gap probe via TypedGitCall production wiring", () => {
@@ -102,16 +123,8 @@ describe("Forge Worker Git Worktree Production Slice — P05-B05-A03", () => {
     assert.equal(result!.aligned, true);
 
     const gaps = listWorkerGitWorktreeProbesByDisposition("gap");
-    assert.equal(gaps.length, 4);
+    assert.equal(gaps.length, 1);
     assert.ok(!gaps.some(probe => probe.id === "wgt.typed_git_call_union"));
-    assert.deepEqual(
-      gaps.map(p => p.id).sort(),
-      [
-        "wgt.exported_git_validator",
-        "wgt.orchestrator_pre_git_validation",
-        "wgt.worker_prompt_git_contract",
-        "wgt.worktree_transaction_engine",
-      ],
-    );
+    assert.deepEqual(gaps.map(p => p.id).sort(), ["wgt.worktree_transaction_engine"]);
   });
 });

@@ -17,7 +17,7 @@ import {
 } from "./forge-p05-worker-shell-process.js";
 import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 
-export const FORGE_WORKER_GIT_WORKTREE_VERSION = "1.0.0-a04";
+export const FORGE_WORKER_GIT_WORKTREE_VERSION = "1.0.0-a05";
 
 export const EXPECTED_P05_B04_SEALED_ATOM_COUNT = 10;
 
@@ -447,31 +447,31 @@ const WORKER_GIT_WORKTREE_CATEGORY_CONTRACTS: Record<
       invariant:
         "Worker prompt git contract, orchestrator pre-git validation and exported git validator gate NO-GO paths.",
       minProbeCount: 3,
-      requireFullAlignment: false,
+      requireFullAlignment: true,
     },
     probes: [
       {
         id: "wgt.worker_prompt_git_contract",
         category: "nogo_path",
         description: "WORKER_SYSTEM prompt declares git and worktree transaction contract for worker execution",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "WORKER_SYSTEM prompt declares git and worktree transaction contract for worker execution",
       },
       {
         id: "wgt.orchestrator_pre_git_validation",
         category: "nogo_path",
         description: "Orchestrator validates git branch boundary before git tool dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Orchestrator validates git branch boundary before git tool dispatch",
       },
       {
         id: "wgt.exported_git_validator",
         category: "nogo_path",
         description: "validateGitTransaction exported for orchestrator git worktree checks",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "validateGitTransaction exported for orchestrator git worktree checks",
       },
     ],
@@ -1484,7 +1484,12 @@ export interface GitCallValidationResult {
 
 /**
  * Validate git tool call boundary before orchestrator dispatch (P05-B05-A03).
+ * validateGitTransaction is the orchestrator-facing alias (P05-B05-A05).
  */
+export function validateGitTransaction(call: ToolCall): GitCallValidationResult {
+  return validateGitCall(call);
+}
+
 export function validateGitCall(call: ToolCall): GitCallValidationResult {
   const gitTools = new Set(["git_status", "git_commit", "git_diff", "git_log"]);
   if (!gitTools.has(call.name)) {
@@ -1716,6 +1721,82 @@ export function runWorkerGitWorktreeBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const WORKER_GIT_WORKTREE_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly WorkerGitWorktreeCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery probes and documented NO-GO wiring must align; zero unexpected mismatches.
+ */
+export function validateWorkerGitWorktreeFailureRecoveryProbeMatrix(
+  results: WorkerGitWorktreeProbeResult[],
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): WorkerGitWorktreeProbeMatrixValidationResult {
+  const failureRecoveryProbes = WORKER_GIT_WORKTREE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listWorkerGitWorktreeContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: WorkerGitWorktreeContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateWorkerGitWorktreeProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listWorkerGitWorktreeFailureRecoveryProbeIds(
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): string[] {
+  return WORKER_GIT_WORKTREE_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listWorkerGitWorktreeContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface WorkerGitWorktreeFailureRecoverySliceResult {
+  atom: "P05-B05-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: WorkerGitWorktreeProbeResult[];
+  failureRecoveryResults: WorkerGitWorktreeProbeResult[];
+  matrixValidation: WorkerGitWorktreeProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches.
+ */
+export function runWorkerGitWorktreeFailureRecoverySlice(
+  fixture: WorkerGitWorktreeBaseline = loadWorkerGitWorktreeBaseline(),
+): WorkerGitWorktreeFailureRecoverySliceResult {
+  const contract = getActiveWorkerGitWorktreeContract();
+  const results = runWorkerGitWorktreeProbes(fixture);
+  const failureRecoveryProbes = WORKER_GIT_WORKTREE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listWorkerGitWorktreeContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateWorkerGitWorktreeFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B05-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

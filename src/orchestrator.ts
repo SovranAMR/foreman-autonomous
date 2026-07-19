@@ -36,6 +36,10 @@ import {
   validateShellCommand,
   buildShellProcessTelemetry,
 } from "./forge-p05-worker-shell-process.js";
+import {
+  validateGitTransaction,
+  buildGitWorktreeTelemetry,
+} from "./forge-p05-worker-git-worktree.js";
 import { formatProjectContext } from "./project-detector.js";
 import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
@@ -3578,6 +3582,25 @@ ${visionOutput}`,
                       };
                     }
                   }
+                  if (
+                    call.name === "git_status" ||
+                    call.name === "git_commit" ||
+                    call.name === "git_diff" ||
+                    call.name === "git_log"
+                  ) {
+                    const gitValidation = validateGitTransaction(call);
+                    buildGitWorktreeTelemetry(call, {
+                      sequenceIndex: toolCallCount,
+                      validation: gitValidation,
+                    });
+                    if (!gitValidation.valid) {
+                      return {
+                        name: call.name,
+                        content: `Git transaction validation failed: ${gitValidation.errors.join("; ")}`,
+                        isError: true,
+                      };
+                    }
+                  }
                   const result = await toolExecutor(call);
                   if (!result.isError && call.name === "read_file" && grounding.path) {
                     groundedReadPaths.add(grounding.path);
@@ -4596,6 +4619,25 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                               return {
                                 name: call.name,
                                 content: `Shell command validation failed: ${shellValidation.errors.join("; ")}`,
+                                isError: true,
+                              };
+                            }
+                          }
+                          if (
+                            call.name === "git_status" ||
+                            call.name === "git_commit" ||
+                            call.name === "git_diff" ||
+                            call.name === "git_log"
+                          ) {
+                            const gitValidation = validateGitTransaction(call);
+                            buildGitWorktreeTelemetry(call, {
+                              sequenceIndex: reToolCallCount,
+                              validation: gitValidation,
+                            });
+                            if (!gitValidation.valid) {
+                              return {
+                                name: call.name,
+                                content: `Git transaction validation failed: ${gitValidation.errors.join("; ")}`,
                                 isError: true,
                               };
                             }

@@ -159,19 +159,19 @@
       "id": "wgt.worker_prompt_git_contract",
       "category": "nogo_path",
       "description": "WORKER_SYSTEM prompt declares git and worktree transaction contract for worker execution",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wgt.orchestrator_pre_git_validation",
       "category": "nogo_path",
       "description": "Orchestrator validates git branch boundary before git tool dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wgt.exported_git_validator",
       "category": "nogo_path",
       "description": "validateGitTransaction exported for orchestrator git worktree checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

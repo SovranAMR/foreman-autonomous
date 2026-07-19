@@ -71,7 +71,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B05-A02 — Git ve worktree transaction: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P05-B05-A03 — Git ve worktree transaction: en küçük üretim dikey dilimini uygula
 - [x] P05-B05-A04 — Git ve worktree transaction: boundary ve edge-case davranışlarını tamamla
-- [ ] P05-B05-A05 — Git ve worktree transaction: failure, recovery ve NO-GO yollarını uygula
+- [x] P05-B05-A05 — Git ve worktree transaction: failure, recovery ve NO-GO yollarını uygula
 - [ ] P05-B05-A06 — Git ve worktree transaction: evidence, telemetry ve provenance kaydını ekle
 - [ ] P05-B05-A07 — Git ve worktree transaction: unit, property ve fuzz doğrulamasını ekle
 - [ ] P05-B05-A08 — Git ve worktree transaction: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B05-A04
-last_commit: 8aad354
-tests: PASS — forge-p05-worker-git-worktree-boundary.test.ts (5/5), production (5/5), contract (8/8), baseline (8/8)
-evidence: normalizeGitCommitRequest + validateWorkerGitWorktreeBoundaryProbeMatrix + runWorkerGitWorktreeBoundarySlice; boundary matrix 7/7 PASS; 4 remaining FAIL gaps
-next: P05-B05-A05
+last_atom: P05-B05-A05
+last_commit: pending
+tests: PASS — forge-p05-worker-git-worktree-failure-recovery.test.ts (5/5), boundary (5/5), production (6/6), contract (8/8), baseline (8/8)
+evidence: validateGitTransaction + runWorkerGitWorktreeFailureRecoverySlice + orchestrator pre-git validation + WORKER_SYSTEM git contract; failure/recovery matrix 7/7 PASS; 3 NO-GO gaps closed; 1 remaining FAIL gap (worktree_transaction_engine)
+next: P05-B05-A06
