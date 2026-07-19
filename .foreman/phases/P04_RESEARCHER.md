@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 79
+completed_atoms: 80
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -135,7 +135,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B10-A01 — Araştırmacı phase gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B10-A02 — Araştırmacı phase gate: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B10-A03 — Araştırmacı phase gate: en küçük üretim dikey dilimini uygula
-- [ ] P04-B10-A04 — Araştırmacı phase gate: boundary ve edge-case davranışlarını tamamla
+- [x] P04-B10-A04 — Araştırmacı phase gate: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B10-A05 — Araştırmacı phase gate: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B10-A06 — Araştırmacı phase gate: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B10-A07 — Araştırmacı phase gate: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B10-A03
-last_commit: 70d3657
-tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (7/7); gap probes=0/0
-evidence: verifyForgeP04ResearcherPhaseGate + getForgeP04ToP05PhaseHandoff + runResearcherPhaseGateProductionSlice + validateResearcherPhaseGateProbeMatrix
-next: P04-B10-A04
+last_atom: P04-B10-A04
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (10/10); boundary probes=6/6
+evidence: validateResearcherPhaseGateBoundaryProbeMatrix + runResearcherPhaseGateBoundarySlice + assessResearcherPhaseGateInputBoundary manifest edge cases
+next: P04-B10-A05

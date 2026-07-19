@@ -1429,4 +1429,35 @@ export function validateResearcherPhaseGateProbeMatrix(
   };
 }
 
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherPhaseGateBoundaryProbeMatrix(
+  results: ResearcherPhaseGateProbeResult[],
+  contract: ResearcherPhaseGateContract = getActiveResearcherPhaseGateContract(),
+): ResearcherPhaseGateProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherPhaseGateContractProbesByCategory("boundary", contract);
+  const boundaryContract: ResearcherPhaseGateContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherPhaseGateProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherPhaseGateBoundarySliceResult {
+  atom: "P04-B10-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherPhaseGateProbeResult[];
+  boundaryResults: ResearcherPhaseGateProbeResult[];
+  matrixValidation: ResearcherPhaseGateProbeMatrixValidationResult;
+}
+
 export { FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION };

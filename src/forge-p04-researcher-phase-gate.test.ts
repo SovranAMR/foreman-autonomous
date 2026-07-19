@@ -4,12 +4,15 @@ import {
   loadResearcherPhaseGateBaseline,
   runResearcherPhaseGateProbes,
   runResearcherPhaseGateProductionSlice,
+  runResearcherPhaseGateBoundarySlice,
 } from "./forge-p04-researcher-phase-gate.probe.js";
 import {
   getActiveResearcherPhaseGateContract,
   getForgeP04ToP05PhaseHandoff,
+  listResearcherPhaseGateContractProbesByCategory,
   validateP04PhaseHandoffContract,
   validateResearcherPhaseGateProbeMatrix,
+  validateResearcherPhaseGateBoundaryProbeMatrix,
   recoverResearcherPhaseGateEvidence,
   assessResearcherPhaseGateInputBoundary,
   buildP04ResearcherPhaseGateEvidence,
@@ -118,5 +121,75 @@ handoff: valid`;
     const failProbes = fixture.probes.filter(p => p.expected === "FAIL");
     assert.equal(failProbes.length, 0);
     assert.equal(runResearcherPhaseGateProbes(fixture).every(r => r.aligned), true);
+  });
+});
+
+describe("Forge Researcher Phase Gate Boundary Slice — P04-B10-A04", () => {
+  it("defines six boundary probes with manifest input edge-case criteria", () => {
+    const boundary = listResearcherPhaseGateContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "rpg.empty_manifest_boundary",
+      "rpg.known_gaps_documented",
+      "rpg.long_manifest_truncation_boundary",
+      "rpg.probe_runner_exported",
+      "rpg.source_block_gate_ref",
+      "rpg.whitespace_manifest_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on manifest edge probes", () => {
+    const contract = getActiveResearcherPhaseGateContract();
+    const slice = runResearcherPhaseGateBoundarySlice();
+
+    assert.equal(slice.atom, "P04-B10-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listResearcherPhaseGateContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateResearcherPhaseGateBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("assessResearcherPhaseGateInputBoundary and recoverResearcherPhaseGateEvidence reject invalid boundary inputs", () => {
+    const empty = assessResearcherPhaseGateInputBoundary("");
+    assert.equal(empty.acceptable, false);
+    assert.equal(empty.disposition, "empty");
+
+    const whitespace = assessResearcherPhaseGateInputBoundary("   \t\n  ");
+    assert.equal(whitespace.acceptable, false);
+    assert.equal(whitespace.disposition, "whitespace_only");
+
+    const nullByte = assessResearcherPhaseGateInputBoundary("manifest\0parse");
+    assert.equal(nullByte.acceptable, false);
+    assert.equal(nullByte.disposition, "contains_null_byte");
+
+    const whitespaceRecovery = recoverResearcherPhaseGateEvidence("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_manifest"]);
   });
 });

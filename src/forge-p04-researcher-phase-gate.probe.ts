@@ -32,6 +32,7 @@ import {
   listResearcherPhaseGateProbesByExpected,
   listResearcherPhaseGateKnownGaps,
   validateResearcherPhaseGateProbeMatrix,
+  validateResearcherPhaseGateBoundaryProbeMatrix,
   loadResearcherPhaseGateBaseline,
   FORGE_RESEARCHER_PHASE_GATE_VERSION,
   RESEARCHER_PHASE_GATE_MANIFEST_MAX_LENGTH,
@@ -42,6 +43,7 @@ import {
   EXPECTED_P04_B09_SEALED_ATOM_COUNT,
   EXPECTED_P04_RESEARCHER_PRIOR_BLOCK_GATE_COUNT,
   type ResearcherPhaseGateBaseline,
+  type ResearcherPhaseGateBoundarySliceResult,
   type ResearcherPhaseGateCategory,
   type ResearcherPhaseGateProbeResult,
 } from "./forge-p04-researcher-phase-gate.js";
@@ -62,6 +64,7 @@ export {
   validateResearcherPhaseGateContractCoverage,
   validateResearcherPhaseGateAgainstContract,
   validateResearcherPhaseGateProbeMatrix,
+  validateResearcherPhaseGateBoundaryProbeMatrix,
   loadResearcherPhaseGateBaseline,
   FORGE_RESEARCHER_PHASE_GATE_VERSION,
   RESEARCHER_PHASE_GATE_CATEGORIES,
@@ -529,3 +532,29 @@ export function runResearcherPhaseGateProductionSlice(
 }
 
 export const runForgeResearcherPhaseGateProductionSlice = runResearcherPhaseGateProductionSlice;
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (manifest input edge cases,
+ * probe runner, documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherPhaseGateBoundarySlice(
+  fixture: ResearcherPhaseGateBaseline = loadResearcherPhaseGateBaseline(),
+): ResearcherPhaseGateBoundarySliceResult {
+  const contract = getActiveResearcherPhaseGateContract();
+  const results = runResearcherPhaseGateProbes(fixture);
+  const boundaryProbes = listResearcherPhaseGateContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherPhaseGateBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B10-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}
+
+export const runForgeResearcherPhaseGateBoundarySlice = runResearcherPhaseGateBoundarySlice;
