@@ -74,17 +74,17 @@ describe("Forge Integrated Baseline Contract — P01-B10-A02", () => {
     }
   });
 
-  it("maps 24 probes with six documented gap dispositions from A01 baseline", () => {
+  it("maps 24 probes with five documented gap dispositions from A01 baseline", () => {
     const contract = getActiveIntegratedBaselineContract();
     const summary = summarizeIntegratedBaselineContractCoverage(contract);
     const coverage = validateIntegratedBaselineContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 24);
-    assert.equal(summary.expectedPass, 18);
-    assert.equal(summary.expectedFail, 6);
-    assert.equal(summary.byDisposition.observed, 16);
-    assert.equal(summary.byDisposition.gap, 2);
+    assert.equal(summary.expectedPass, 19);
+    assert.equal(summary.expectedFail, 5);
+    assert.equal(summary.byDisposition.observed, 17);
+    assert.equal(summary.byDisposition.gap, 1);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
@@ -100,13 +100,10 @@ describe("Forge Integrated Baseline Contract — P01-B10-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists two documented gap probes for integrated gate wiring", () => {
+  it("lists one documented gap probe for unified block catalog", () => {
     const gaps = listIntegratedBaselineProbesByDisposition("gap");
     const ids = gaps.map(p => p.id).sort();
-    assert.deepEqual(ids, [
-      "ibase.integrated_block_gate_method",
-      "ibase.unified_block_catalog",
-    ]);
+    assert.deepEqual(ids, ["ibase.unified_block_catalog"]);
     assert.ok(gaps.every(p => p.expected === "FAIL"));
   });
 
@@ -171,7 +168,7 @@ describe("Forge Integrated Baseline Gate — P01-B10-A01", () => {
       "FAIL",
       loadIntegratedBaseline(),
     );
-    assert.equal(documentedFail.length, 6);
+    assert.equal(documentedFail.length, 5);
     assert.ok(documentedFail.some(p => p.id === "ibase.unified_block_catalog"));
     assert.ok(!documentedFail.some(p => p.id === "ibase.unified_regression_runner"));
 
@@ -199,7 +196,6 @@ describe("Forge Integrated Baseline Gate — P01-B10-A01", () => {
     const ids = gaps.map(g => g.id).sort();
 
     assert.deepEqual(ids, [
-      "ibase.integrated_block_gate_method",
       "ibase.nogo_block_inventory_drift",
       "ibase.nogo_integrated_gate_mismatch",
       "ibase.recovery_integrated_state_reset",
@@ -224,8 +220,8 @@ describe("Forge Integrated Baseline Production Slice — P01-B10-A03", () => {
     assert.equal(slice.matrixValid, true);
     assert.equal(slice.summary.total, 24);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 18);
-    assert.equal(slice.matrixValidation.gapAligned, 6);
+    assert.equal(slice.matrixValidation.passAligned, 19);
+    assert.equal(slice.matrixValidation.gapAligned, 5);
 
     for (const contractProbe of contract.probes) {
       const result = slice.results.find(r => r.id === contractProbe.id);
@@ -244,11 +240,10 @@ describe("Forge Integrated Baseline Production Slice — P01-B10-A03", () => {
     );
 
     assert.equal(slice.summary.mismatches.length, 0);
-    assert.equal(slice.summary.knownGaps.length, 6);
+    assert.equal(slice.summary.knownGaps.length, 5);
     assert.deepEqual(
       slice.summary.knownGaps.map(g => g.id).sort(),
       [
-        "ibase.integrated_block_gate_method",
         "ibase.nogo_block_inventory_drift",
         "ibase.nogo_integrated_gate_mismatch",
         "ibase.recovery_integrated_state_reset",
@@ -320,7 +315,7 @@ describe("Forge Integrated Baseline Boundary Slice — P01-B10-A04", () => {
     assert.ok(knownGaps);
     assert.equal(knownGaps!.expected, "PASS");
     assert.equal(knownGaps!.actual, "PASS");
-    assert.match(knownGaps!.detail, /documentedFailGaps=6/);
+    assert.match(knownGaps!.detail, /documentedFailGaps=5/);
   });
 });
 

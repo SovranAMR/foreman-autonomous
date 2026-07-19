@@ -653,6 +653,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01-B10 block gate and emit verification event with P02 handoff (P01-B10-A10).
+   */
+  async verifyForgeIntegratedBlockGate(): Promise<import("./forge-integrated-baseline.probe.js").ForgeIntegratedBlockGateResult> {
+    const { runForgeIntegratedBlockGate } = await import("./forge-integrated-baseline.probe.js");
+    const result = runForgeIntegratedBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "integrated_baseline_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

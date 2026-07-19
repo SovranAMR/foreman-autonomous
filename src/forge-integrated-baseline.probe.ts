@@ -34,6 +34,7 @@ import {
   INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES,
   listIntegratedBaselineFailureRecoveryProbeIds,
   summarizeIntegratedBaselineMatrix,
+  summarizeIntegratedBaselineContractCoverage,
   buildIntegratedBaselineProbeEvidence,
   buildIntegratedBaselineProbeTelemetry,
   buildIntegratedBaselineProvenance,
@@ -45,6 +46,12 @@ import {
   runIntegratedBaselineFuzzValidation,
   runIntegratedBaselineRunRecordFuzzValidation,
   validateForgeIntegratedBaselineGuard,
+  listIntegratedBaselineProbesByDisposition,
+  getForgeP01B10BlockGate,
+  getForgeP01B10ToP02Handoff,
+  validateIntegratedBaselineBlockHandoffContract,
+  buildIntegratedBaselineBlockGateEvidence,
+  validateForgeIntegratedBaselineBlockGate,
   type IntegratedBaselineGuardCheckResult,
   type IntegratedBaseline,
   type IntegratedBaselineCategory,
@@ -85,6 +92,11 @@ export {
   buildIntegratedBaselineProvenance,
   buildIntegratedBaselineRunRecord,
   validateIntegratedBaselineFailureRecoveryRunRecord,
+  getForgeP01B10BlockGate,
+  getForgeP01B10ToP02Handoff,
+  validateIntegratedBaselineBlockHandoffContract,
+  buildIntegratedBaselineBlockGateEvidence,
+  validateForgeIntegratedBaselineBlockGate,
 } from "./forge-integrated-baseline.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -920,3 +932,192 @@ export function runForgeIntegratedBaselineRegressionGate(
 
 /** Alias for forge-pipeline-regression integration seam (P01-B10-A08). */
 export const runIntegratedBaselineRegressionIntegration = runForgeIntegratedBaselineRegressionGate;
+
+export interface ForgeIntegratedBlockGateResult {
+  passed: boolean;
+  evidence: import("./forge-integrated-baseline.js").IntegratedBaselineBlockGateEvidence;
+  handoff: import("./forge-integrated-baseline.js").IntegratedBaselineBlockHandoffContract;
+  regression: ForgeIntegratedBaselineRegressionResult;
+  atomSeals: import("./forge-baseline-contract.js").ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealIntegratedBaselineBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): import("./forge-baseline-contract.js").ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P01-B10 block gate: validate A01–A09 deliverables, regression, guard, and P02 handoff (P01-B10-A10).
+ */
+export function runIntegratedBaselineBlockGate(): ForgeIntegratedBlockGateResult {
+  const blockGate = getForgeP01B10BlockGate();
+  const handoff = getForgeP01B10ToP02Handoff();
+  const contract = getActiveIntegratedBaselineContract();
+  const fixture = loadIntegratedBaseline();
+  const atomSeals: import("./forge-baseline-contract.js").ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateIntegratedBaselineAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A01",
+      "integrated_baseline",
+      fixtureValidation.valid && fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeIntegratedBaselineContractCoverage(contract).totalProbes} probes)`
+        : fixtureValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeIntegratedBaselineContractCoverage(contract);
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${INTEGRATED_BASELINE_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runIntegratedBaselineProductionSlice(fixture);
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runIntegratedBaselineBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.gap > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runIntegratedBaselineFailureRecoverySlice(fixture);
+  const nogoProbes = listIntegratedBaselineProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgeIntegratedBaselineRegressionGate();
+  const recordValidation = validateIntegratedBaselineRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const properties = runIntegratedBaselinePropertyChecks(contract);
+  const contractFuzz = runIntegratedBaselineFuzzValidation(fixture, contract);
+  const runFuzz = runIntegratedBaselineRunRecordFuzzValidation(regression.record, contract);
+  const fuzzOk = properties.allPassed && contractFuzz.allMutationsRejected && runFuzz.mutationsAccepted === 0;
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A07",
+      "property_fuzz",
+      fuzzOk,
+      `properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const inventoryOk =
+    SEALED_FORGE_BLOCK_INVENTORY.length === EXPECTED_SEALED_BLOCK_COUNT &&
+    INTEGRATED_FORGE_BLOCK_GATE_METHODS.length === EXPECTED_SEALED_BLOCK_COUNT;
+  const handoffValidation = validateIntegratedBaselineBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+    sealedBlockCount: EXPECTED_SEALED_BLOCK_COUNT,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid && inventoryOk;
+  atomSeals.push(
+    sealIntegratedBaselineBlockAtom(
+      "P01-B10-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom} inventory=${EXPECTED_SEALED_BLOCK_COUNT}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildIntegratedBaselineBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+  const blockGateValidation = validateForgeIntegratedBaselineBlockGate(evidence, handoff, contract);
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `inventory=${inventoryOk ? "PASS" : "FAIL"}:${EXPECTED_SEALED_BLOCK_COUNT}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid && blockGateValidation.valid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runForgeIntegratedBlockGate = runIntegratedBaselineBlockGate;

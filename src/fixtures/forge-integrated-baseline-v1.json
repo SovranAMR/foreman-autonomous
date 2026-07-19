@@ -87,7 +87,7 @@
       "id": "ibase.integrated_block_gate_method",
       "category": "block_gate_integration",
       "description": "Orchestrator exposes verifyForgeIntegratedBlockGate sealing P01 phase integrated gate",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "ibase.b09_handoff_entry",

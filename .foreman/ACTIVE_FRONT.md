@@ -6,9 +6,9 @@ active_phase: P01
 active_block: P01-B10
 active_atom: P01-B10-A10
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 98/1000
-phase_progress: 97/100
-block_progress: 9/10
+program_progress: 99/1000
+phase_progress: 100/100
+block_progress: 10/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B10-A10 — Entegre Forge baseline gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P01 phase gate — P01 tamamlanma doğrulaması: 10 block gate PASS, phase suite ve npm test.
 
-objective: A09 integrated guard sealed; Forge integrated block gate for P01 phase seal and P02 handoff.
-target: verifyForgeIntegratedBlockGate + validateForgeIntegratedBaselineBlockGate.
-hypothesis: A09 guard + A08 regression sufficient foundation for integrated block gate slice.
-acceptance: integrated block gate passes against sealed fixture and contract with full P01 block inventory.
-commands: npx tsx --test src/forge-integrated-baseline*.test.ts
-blast_radius: src/forge-integrated-baseline.ts, src/orchestrator.ts
+objective: B10-A10 integrated block gate sealed; P01 phase acceptance gate next.
+target: P01 phase gate suite + tam npm test.
+hypothesis: Ten sealed block gates + integrated baseline block gate sufficient for P01 phase seal.
+acceptance: all P01 block gates PASS; phase acceptance checklist green.
+commands: npm test
+blast_radius: .foreman/phases/P01_FORGE_CONTRACT.md
 rollback: B10-A10 block gate slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A09 guard fails ise BLOCKED raporla.
+fallback: block gate fails ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B10-A09
+last_atom: P01-B10-A10
 last_commit: pending
-tests: PASS — forge-integrated-baseline*.test.ts (74/74); forge-pipeline-regression.integration.test.ts P01-B10-A09 (2/2); validateForgeIntegratedBaselineGuard; verifyForgeIntegratedGuard orchestrator wiring
-evidence: validateForgeIntegratedBaselineGuard adversarial=3/3; runForgeIntegratedBaselineRegressionGate guard PASS; verifyForgeIntegratedGuard emits integrated_baseline_guard verification; ibase.integrated_guard_orchestrator sealed PASS
-next: P01-B10-A10
+tests: PASS — forge-integrated-baseline*.test.ts (83/83); forge-pipeline-regression.integration.test.ts P01-B10-A10 (2/2); validateForgeIntegratedBaselineBlockGate; verifyForgeIntegratedBlockGate orchestrator wiring
+evidence: runIntegratedBaselineBlockGate seals=10/10 inventory=9 handoff=PASS→P02-B01; validateForgeIntegratedBaselineBlockGate PASS; verifyForgeIntegratedBlockGate emits integrated_baseline_block_gate verification; ibase.integrated_block_gate_method sealed PASS
+next: P01 phase gate

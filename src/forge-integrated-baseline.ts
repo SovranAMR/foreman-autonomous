@@ -4,7 +4,12 @@
  * Measures cross-block integrated gate behavior on sealed P01-B09 orchestrator seam artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP01B09ToB10Handoff,
   getActiveOrchestratorSeamContract,
@@ -375,7 +380,7 @@ const INTEGRATED_BASELINE_CATEGORY_CONTRACTS: Record<
     category: "block_gate_integration",
     acceptance: {
       invariant:
-        "Orchestrator block gate inventory includes orchestrator seam gate; integrated block gate method sealing P01 phase is a documented gap.",
+        "Orchestrator block gate inventory includes orchestrator seam gate and verifyForgeIntegratedBlockGate sealing P01 phase.",
       minProbeCount: 2,
       requireFullAlignment: true,
     },
@@ -392,8 +397,8 @@ const INTEGRATED_BASELINE_CATEGORY_CONTRACTS: Record<
         id: "ibase.integrated_block_gate_method",
         category: "block_gate_integration",
         description: "Orchestrator exposes verifyForgeIntegratedBlockGate sealing P01 phase integrated gate",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Orchestrator exposes verifyForgeIntegratedBlockGate sealing P01 phase integrated gate",
       },
     ],
@@ -2286,4 +2291,234 @@ export function validateForgeIntegratedBaselineGuard(
       adversarialScenariosTotal: adversarial.total,
     },
   };
+}
+
+// ─── Block gate and handoff (P01-B10-A10) ─────────────────────────────────────
+
+export interface IntegratedBaselineBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  sealedBlockCount: number;
+  gitCommit?: string;
+}
+
+export interface IntegratedBaselineBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    integratedBaselineCategories: readonly IntegratedBaselineCategory[];
+    sealedBlockCount: number;
+    sourceOrchestratorSeamAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    integratedBaselineRecordRequired: true;
+  };
+}
+
+export const FORGE_P01_B10_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P01-B10-A10",
+  blockId: "P01-B10",
+  title: "Entegre Forge baseline gate",
+  requiredAtomIds: [
+    "P01-B10-A01",
+    "P01-B10-A02",
+    "P01-B10-A03",
+    "P01-B10-A04",
+    "P01-B10-A05",
+    "P01-B10-A06",
+    "P01-B10-A07",
+    "P01-B10-A08",
+    "P01-B10-A09",
+    "P01-B10-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P01-B10-A01", description: "Integrated baseline aligns with typed contract and B09 handoff" },
+    { id: "typed_contract_coverage", atomId: "P01-B10-A02", description: "Contract declares measurable probes for all integrated baseline categories" },
+    { id: "probe_matrix_aligned", atomId: "P01-B10-A03", description: "Integrated baseline probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P01-B10-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P01-B10-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P01-B10-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P01-B10-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P01-B10-A08", description: "Regression gate passes on canonical integrated baseline matrix" },
+    { id: "guard_controls", atomId: "P01-B10-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P01-B10-A10", description: "Block gate evidence sealed with valid P02 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P01_B10_TO_P02_HANDOFF_V1: IntegratedBaselineBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P01-B10-A10",
+  sourceBlock: {
+    blockId: "P01-B10",
+    title: "Entegre Forge baseline gate",
+    completedAtoms: FORGE_P01_B10_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P02-B01",
+    title: "Intent ve görev anlamlandırma",
+    entryAtom: "P02-B01-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_INTEGRATED_BASELINE_CONTRACT_V1.version,
+    harnessVersion: FORGE_INTEGRATED_BASELINE_VERSION,
+    probeCount: summarizeIntegratedBaselineContractCoverage(FORGE_INTEGRATED_BASELINE_CONTRACT_V1).totalProbes,
+    integratedBaselineCategories: INTEGRATED_BASELINE_CATEGORIES,
+    sealedBlockCount: EXPECTED_SEALED_BLOCK_COUNT,
+    sourceOrchestratorSeamAtom: "P01-B09-A10",
+  },
+  prerequisites: [
+    "Integrated baseline contract v1 with measurable cross-block inventory, regression, guard and block gate probes",
+    "Versioned integrated baseline fixture aligned to contract probe matrix and sealed B09 handoff",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Nine sealed P01 block gates referenced by integrated block inventory",
+  ],
+  entryCriteria: {
+    description:
+      "P02-B01-A01 formalizes visioner intent baseline using sealed P01 integrated gate artifacts",
+    requiresBlockGatePass: true,
+    integratedBaselineRecordRequired: true,
+  },
+};
+
+export function getForgeP01B10BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P01_B10_BLOCK_GATE_V1;
+}
+
+export function getForgeP01B10ToP02Handoff(): IntegratedBaselineBlockHandoffContract {
+  return FORGE_P01_B10_TO_P02_HANDOFF_V1;
+}
+
+export function validateIntegratedBaselineBlockHandoffContract(
+  handoff: IntegratedBaselineBlockHandoffContract,
+  evidence: Pick<IntegratedBaselineBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed" | "sealedBlockCount">,
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeIntegratedBaselineContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.integratedBaselineCategories.length !== INTEGRATED_BASELINE_CATEGORIES.length) {
+    issues.push("handoff integratedBaselineCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sealedBlockCount !== EXPECTED_SEALED_BLOCK_COUNT) {
+    issues.push(
+      `handoff sealedBlockCount=${handoff.sealedArtifacts.sealedBlockCount} expected=${EXPECTED_SEALED_BLOCK_COUNT}`,
+    );
+  }
+  if (handoff.targetBlock.entryAtom !== "P02-B01-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+  if (evidence.sealedBlockCount !== EXPECTED_SEALED_BLOCK_COUNT) {
+    issues.push(
+      `evidence sealedBlockCount=${evidence.sealedBlockCount} expected=${EXPECTED_SEALED_BLOCK_COUNT}`,
+    );
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildIntegratedBaselineBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P01_B10_BLOCK_GATE_V1.blockId,
+): IntegratedBaselineBlockGateEvidence {
+  const handoff = getForgeP01B10ToP02Handoff();
+  const handoffValid = validateIntegratedBaselineBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+    sealedBlockCount: EXPECTED_SEALED_BLOCK_COUNT,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P01-B10-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    sealedBlockCount: EXPECTED_SEALED_BLOCK_COUNT,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}
+
+/** Validate sealed integrated baseline block gate evidence against P02 handoff contract. */
+export function validateForgeIntegratedBaselineBlockGate(
+  evidence: IntegratedBaselineBlockGateEvidence,
+  handoff: IntegratedBaselineBlockHandoffContract = getForgeP01B10ToP02Handoff(),
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+
+  if (evidence.blockId !== handoff.sourceBlock.blockId) {
+    issues.push(`evidence blockId=${evidence.blockId} handoff=${handoff.sourceBlock.blockId}`);
+  }
+  if (evidence.atom !== handoff.atom) {
+    issues.push(`evidence atom=${evidence.atom} handoff=${handoff.atom}`);
+  }
+  if (evidence.atomSeals.length !== handoff.sourceBlock.completedAtoms.length) {
+    issues.push(
+      `atom seal count=${evidence.atomSeals.length} expected=${handoff.sourceBlock.completedAtoms.length}`,
+    );
+  }
+  if (!evidence.atomSeals.every(seal => seal.passed)) {
+    issues.push("one or more atom seals failed");
+  }
+  if (!evidence.handoffValid) {
+    issues.push("evidence handoffValid=false");
+  }
+
+  const handoffValidation = validateIntegratedBaselineBlockHandoffContract(handoff, evidence, contract);
+  issues.push(...handoffValidation.issues);
+
+  return { valid: issues.length === 0, issues };
 }

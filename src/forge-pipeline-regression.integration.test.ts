@@ -44,6 +44,7 @@ import {
 import { detectOrchestratorSeamProbeRegression } from "./forge-orchestrator-seam.js";
 import {
   runForgeIntegratedBaselineRegressionGate,
+  runIntegratedBaselineBlockGate,
   runIntegratedBaselineProbesWithRecord,
   runIntegratedBaselineRegressionIntegration,
 } from "./forge-integrated-baseline.probe.js";
@@ -694,7 +695,6 @@ describe("Forge Pipeline Regression — P01-B10-A08", () => {
     }
   });
 });
-
 describe("Forge Pipeline Regression — P01-B10-A09", () => {
   it("runForgeIntegratedBaselineRegressionGate guard passes on canonical integrated baseline matrix", () => {
     const result = runForgeIntegratedBaselineRegressionGate();
@@ -733,6 +733,46 @@ describe("Forge Pipeline Regression — P01-B10-A09", () => {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("guard PASS"));
       assert.ok(verification.detail.includes("adversarial=3/3"));
+    }
+  });
+});
+
+describe("Forge Pipeline Regression — P01-B10-A10", () => {
+  it("runIntegratedBaselineBlockGate seals P01-B10 with full block inventory", () => {
+    const result = runIntegratedBaselineBlockGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.evidence.sealedBlockCount, 9);
+    assert.ok(result.detail.includes("inventory=PASS:9"));
+    assert.ok(result.detail.includes("handoff=PASS→P02-B01"));
+  });
+
+  it("orchestrator verifyForgeIntegratedBlockGate emits integrated_baseline_block_gate verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-integrated-baseline-block-gate-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "integrated-baseline" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeIntegratedBlockGate();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "integrated_baseline_block_gate",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("handoff=PASS→P02-B01"));
     }
   });
 });
