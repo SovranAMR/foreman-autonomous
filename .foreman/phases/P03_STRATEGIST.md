@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B10-A06
-last_commit: PENDING
+last_commit: 71cbe8e
 tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (29/29)
 evidence: runStrategistPhaseGateFailureRecoverySliceWithRecord; runStrategistPhaseGateEvidenceSlice; validateStrategistPhaseGateFailureRecoveryRunRecord; evidence/telemetry/provenance 7/7 PASS; zero mismatches
 next: P03-B10-A07
