@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B04-A06
-last_commit: f9b1cb5
+last_commit: 1208a2a
 tests: PASS — forge-p05-worker-shell-process-evidence.test.ts (5/5), forge-p05-worker-shell-process-failure-recovery.test.ts (5/5), forge-p05-worker-shell-process-boundary.test.ts (6/6), forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
 evidence: validateWorkerShellProcessEvidenceProbeMatrix + runWorkerShellProcessEvidenceSlice + validateWorkerShellProcessEvidenceRunRecord + buildWorkerShellProcessRunRecord; 7/7 evidence probes aligned, 27/27 total probes aligned
 next: P05-B04-A07
