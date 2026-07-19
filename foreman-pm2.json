@@ -1,0 +1,29 @@
+{
+  "apps": [
+    {
+      "name": "foreman-web",
+      "script": "npx",
+      "args": "tsx src/web-server.ts",
+      "cwd": "/home/sovranamr/projects/foreman",
+      "env": {
+        "NODE_ENV": "production",
+        "FOREMAN_WEB_PORT": "4567"
+      },
+      "restart_delay": 3000,
+      "max_restarts": 10,
+      "min_uptime": "10s",
+      "watch": false,
+      "autorestart": true
+    },
+    {
+      "name": "foreman-watch",
+      "script": "./foreman-watch.sh",
+      "cwd": "/home/sovranamr/projects/foreman",
+      "restart_delay": 5000,
+      "max_restarts": 5,
+      "min_uptime": "30s",
+      "watch": false,
+      "autorestart": true
+    }
+  ]
+}
