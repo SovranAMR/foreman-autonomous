@@ -44,7 +44,7 @@ fallback: Baseline blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B05-A10
-last_commit: pending
+last_commit: 4e96dd4
 tests: PASS — forge-p03-strategist-risk-reversibility*.test.ts (50/50); block gate 7/7
 evidence: runStrategistRiskReversibilityBlockGate; FORGE_P03_B05_TO_B06_HANDOFF_V1
 next: P03-B06-A01
