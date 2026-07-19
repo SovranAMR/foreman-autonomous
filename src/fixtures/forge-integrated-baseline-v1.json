@@ -62,8 +62,8 @@
     {
       "id": "ibase.unified_regression_runner",
       "category": "regression_integration",
-      "description": "Orchestrator exposes verifyForgeIntegratedRegression for cross-block integrated baseline gate",
-      "expected": "FAIL"
+      "description": "verifyForgeIntegratedRegression lazy-loads integrated baseline regression gate",
+      "expected": "PASS"
     },
     {
       "id": "ibase.orchestrator_guard_methods",

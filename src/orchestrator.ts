@@ -320,6 +320,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge integrated baseline regression gate and emit verification event (P01-B10-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeIntegratedRegression(
+    priorRecord?: import("./forge-integrated-baseline.js").IntegratedBaselineRunRecord,
+  ): Promise<import("./forge-integrated-baseline.probe.js").ForgeIntegratedBaselineRegressionResult> {
+    const { runForgeIntegratedBaselineRegressionGate } = await import("./forge-integrated-baseline.probe.js");
+    const result = runForgeIntegratedBaselineRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "integrated_baseline_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge orchestrator seam guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B09-A09).
    */
   async verifyForgeOrchestratorSeamGuard(

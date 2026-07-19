@@ -313,7 +313,7 @@ const INTEGRATED_BASELINE_CATEGORY_CONTRACTS: Record<
     category: "regression_integration",
     acceptance: {
       invariant:
-        "Orchestrator exposes nine regression methods including orchestrator seam wiring; unified integrated regression runner is a documented gap.",
+        "Orchestrator exposes nine regression methods including orchestrator seam wiring and verifyForgeIntegratedRegression for integrated baseline gate.",
       minProbeCount: 3,
       requireFullAlignment: true,
     },
@@ -337,10 +337,10 @@ const INTEGRATED_BASELINE_CATEGORY_CONTRACTS: Record<
       {
         id: "ibase.unified_regression_runner",
         category: "regression_integration",
-        description: "Orchestrator exposes verifyForgeIntegratedRegression for cross-block integrated baseline gate",
-        expected: "FAIL",
-        disposition: "gap",
-        criterion: "Orchestrator exposes verifyForgeIntegratedRegression for cross-block integrated baseline gate",
+        description: "verifyForgeIntegratedRegression lazy-loads integrated baseline regression gate",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "verifyForgeIntegratedRegression lazy-loads integrated baseline regression gate",
       },
     ],
   },
@@ -1876,5 +1876,55 @@ export function runIntegratedBaselineRunRecordFuzzValidation(
     validBaseline: baseline.valid,
     mutationsRejected,
     mutationsAccepted,
+  };
+}
+
+// ─── Probe regression detection (P01-B10-A08) ─────────────────────────────────
+
+export interface IntegratedBaselineProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+export function detectIntegratedBaselineProbeRegression(
+  prior: IntegratedBaselineRunRecord,
+  current: IntegratedBaselineRunRecord,
+): IntegratedBaselineProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression = regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
   };
 }

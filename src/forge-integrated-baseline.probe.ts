@@ -39,6 +39,11 @@ import {
   buildIntegratedBaselineProvenance,
   buildIntegratedBaselineRunRecord,
   validateIntegratedBaselineFailureRecoveryRunRecord,
+  validateIntegratedBaselineRunRecord,
+  detectIntegratedBaselineProbeRegression,
+  runIntegratedBaselinePropertyChecks,
+  runIntegratedBaselineFuzzValidation,
+  runIntegratedBaselineRunRecordFuzzValidation,
   type IntegratedBaseline,
   type IntegratedBaselineCategory,
   type IntegratedBaselineProbeResult,
@@ -258,14 +263,18 @@ function probeRegressionIntegration(
       );
     }
     case "ibase.unified_regression_runner": {
-      const ok = /\basync verifyForgeIntegratedRegression\(/.test(src);
+      const section = src.slice(src.indexOf("verifyForgeIntegratedRegression"));
+      const ok =
+        /\basync verifyForgeIntegratedRegression\(/.test(src) &&
+        section.includes("forge-integrated-baseline.probe.js") &&
+        section.includes("runForgeIntegratedBaselineRegressionGate");
       return probe(
         id,
         category,
         expected,
         ok,
-        `integratedRegression=${ok}`,
-        "Orchestrator exposes verifyForgeIntegratedRegression for cross-block integrated baseline gate",
+        `integratedRegressionWired=${ok}`,
+        "verifyForgeIntegratedRegression lazy-loads integrated baseline regression gate",
       );
     }
     default:
@@ -799,3 +808,101 @@ export function runIntegratedBaselineFailureRecoverySliceWithRecord(
     sliceCategories: INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES,
   });
 }
+
+/** Run all integrated baseline probes and emit auditable evidence, telemetry and provenance (P01-B10-A08). */
+export function runIntegratedBaselineProbesWithRecord(
+  fixture: IntegratedBaseline = loadIntegratedBaseline(),
+): IntegratedBaselineRunRecord {
+  const contract = getActiveIntegratedBaselineContract();
+  return buildIntegratedBaselineRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+export interface ForgeIntegratedBaselineRegressionPropertyFuzzResult {
+  passed: boolean;
+  properties: import("./forge-integrated-baseline.js").IntegratedBaselinePropertyResult;
+  contractFuzz: import("./forge-integrated-baseline.js").IntegratedBaselineFuzzValidationResult;
+  runFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface ForgeIntegratedBaselineRegressionResult {
+  passed: boolean;
+  record: IntegratedBaselineRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: import("./forge-integrated-baseline.js").IntegratedBaselineProbeRegressionReport | null;
+  propertyFuzz: ForgeIntegratedBaselineRegressionPropertyFuzzResult;
+  detail: string;
+}
+
+/**
+ * Execute integrated baseline probes, validate run record, property/fuzz gates, and optionally detect regression vs prior run.
+ * Forge pipeline integration gate (P01-B10-A08).
+ */
+export function runForgeIntegratedBaselineRegressionGate(
+  priorRecord?: IntegratedBaselineRunRecord,
+): ForgeIntegratedBaselineRegressionResult {
+  const fixture = loadIntegratedBaseline();
+  const contract = getActiveIntegratedBaselineContract();
+  const productionSlice = runIntegratedBaselineProductionSlice(fixture);
+  const record = runIntegratedBaselineProbesWithRecord(fixture);
+  const validation = validateIntegratedBaselineRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectIntegratedBaselineProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const properties = runIntegratedBaselinePropertyChecks(contract);
+  const contractFuzz = runIntegratedBaselineFuzzValidation(fixture, contract);
+  const runFuzz = runIntegratedBaselineRunRecordFuzzValidation(record, contract);
+  const propertyFuzzPassed =
+    properties.allPassed &&
+    contractFuzz.allMutationsRejected &&
+    runFuzz.mutationsAccepted === 0;
+  const propertyFuzz: ForgeIntegratedBaselineRegressionPropertyFuzzResult = {
+    passed: propertyFuzzPassed,
+    properties,
+    contractFuzz,
+    runFuzz: {
+      validBaseline: runFuzz.validBaseline,
+      mutationsRejected: runFuzz.mutationsRejected,
+      mutationsAccepted: runFuzz.mutationsAccepted,
+    },
+  };
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const passed = productionSliceOk && recordValid && !alignmentRegression && propertyFuzzPassed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}`,
+  );
+
+  return {
+    passed,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    propertyFuzz,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P01-B10-A08). */
+export const runIntegratedBaselineRegressionIntegration = runForgeIntegratedBaselineRegressionGate;

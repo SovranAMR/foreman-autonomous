@@ -42,6 +42,12 @@ import {
   runOrchestratorSeamRegressionIntegration,
 } from "./forge-orchestrator-seam.probe.js";
 import { detectOrchestratorSeamProbeRegression } from "./forge-orchestrator-seam.js";
+import {
+  runForgeIntegratedBaselineRegressionGate,
+  runIntegratedBaselineProbesWithRecord,
+  runIntegratedBaselineRegressionIntegration,
+} from "./forge-integrated-baseline.probe.js";
+import { detectIntegratedBaselineProbeRegression } from "./forge-integrated-baseline.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -609,6 +615,78 @@ describe("Forge Orchestrator Seam Regression Integration — P01-B09-A08", () =>
     if (verification?.type === "verification") {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("23/23 probes aligned"));
+    }
+  });
+});
+
+describe("Forge Pipeline Regression — P01-B10-A08", () => {
+  it("runForgeIntegratedBaselineRegressionGate passes on canonical integrated baseline matrix", () => {
+    const result = runForgeIntegratedBaselineRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 24);
+    assert.equal(result.probeRegression, null);
+    assert.ok(result.propertyFuzz.passed);
+    assert.ok(result.detail.includes("24/24 probes aligned"));
+  });
+
+  it("detectIntegratedBaselineProbeRegression flags newly misaligned probes", () => {
+    const prior = runIntegratedBaselineProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectIntegratedBaselineProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runIntegratedBaselineRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeIntegratedBaselineRegressionGate();
+    const integration = runIntegratedBaselineRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.detail, gate.detail);
+  });
+
+  it("orchestrator verifyForgeIntegratedRegression emits integrated_baseline_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-integrated-baseline-regression-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "integrated-baseline" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeIntegratedRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "integrated_baseline_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("24/24 probes aligned"));
     }
   });
 });

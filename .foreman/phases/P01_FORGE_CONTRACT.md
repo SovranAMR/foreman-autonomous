@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 8
-completed_atoms: 95
+completed_atoms: 96
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -139,7 +139,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B10-A05 — Entegre Forge baseline gate: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B10-A06 — Entegre Forge baseline gate: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B10-A07 — Entegre Forge baseline gate: unit, property ve fuzz doğrulamasını ekle
-- [ ] P01-B10-A08 — Entegre Forge baseline gate: Forge entegrasyonu ile regression testini tamamla
+- [x] P01-B10-A08 — Entegre Forge baseline gate: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B10-A09 — Entegre Forge baseline gate: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B10-A10 — Entegre Forge baseline gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B10-A07
+last_atom: P01-B10-A08
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (23/23); runIntegratedBaselinePropertyChecks (8/8); runIntegratedBaselineFuzzValidation (72/72 rejected); runIntegratedBaselineRunRecordFuzzValidation (5+3 mutations rejected)
+tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts src/forge-pipeline-regression.integration.test.ts` (63/63); runForgeIntegratedBaselineRegressionGate; verifyForgeIntegratedRegression orchestrator wiring; detectIntegratedBaselineProbeRegression
 evidence: |
-  P01-B10-A07: runIntegratedBaselinePropertyChecks passes 8 structural properties on canonical contract;
-  runIntegratedBaselineFuzzValidation rejects all deterministic fixture mutations across 3 seeds;
-  runIntegratedBaselineRunRecordFuzzValidation rejects tampered failure/recovery and full run records.
-next: P01-B10-A08
+  P01-B10-A08: runForgeIntegratedBaselineRegressionGate passes 24/24 probes with property/fuzz gates;
+  verifyForgeIntegratedRegression lazy-loads integrated baseline regression gate and emits integrated_baseline_regression verification;
+  ibase.unified_regression_runner sealed from documented gap to PASS.
+next: P01-B10-A09

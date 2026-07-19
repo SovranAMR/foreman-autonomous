@@ -7,6 +7,9 @@ import {
   runIntegratedBaselineBoundarySlice,
   runIntegratedBaselineFailureRecoverySlice,
   runIntegratedBaselineFailureRecoverySliceWithRecord,
+  runIntegratedBaselineProbesWithRecord,
+  runForgeIntegratedBaselineRegressionGate,
+  runIntegratedBaselineRegressionIntegration,
   validateIntegratedBaseline,
   summarizeIntegratedBaselineMatrix,
   listIntegratedBaselineProbesByExpected,
@@ -33,6 +36,7 @@ import {
   buildIntegratedBaselineProvenance,
   buildIntegratedBaselineRunRecord,
   validateIntegratedBaselineFailureRecoveryRunRecord,
+  detectIntegratedBaselineProbeRegression,
 } from "./forge-integrated-baseline.js";
 
 function formatMismatchReport(
@@ -70,17 +74,17 @@ describe("Forge Integrated Baseline Contract — P01-B10-A02", () => {
     }
   });
 
-  it("maps 24 probes with eight documented gap dispositions from A01 baseline", () => {
+  it("maps 24 probes with seven documented gap dispositions from A01 baseline", () => {
     const contract = getActiveIntegratedBaselineContract();
     const summary = summarizeIntegratedBaselineContractCoverage(contract);
     const coverage = validateIntegratedBaselineContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 24);
-    assert.equal(summary.expectedPass, 16);
-    assert.equal(summary.expectedFail, 8);
-    assert.equal(summary.byDisposition.observed, 14);
-    assert.equal(summary.byDisposition.gap, 4);
+    assert.equal(summary.expectedPass, 17);
+    assert.equal(summary.expectedFail, 7);
+    assert.equal(summary.byDisposition.observed, 15);
+    assert.equal(summary.byDisposition.gap, 3);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
@@ -96,14 +100,13 @@ describe("Forge Integrated Baseline Contract — P01-B10-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists four documented gap probes for integrated gate wiring", () => {
+  it("lists three documented gap probes for integrated gate wiring", () => {
     const gaps = listIntegratedBaselineProbesByDisposition("gap");
     const ids = gaps.map(p => p.id).sort();
     assert.deepEqual(ids, [
       "ibase.integrated_block_gate_method",
       "ibase.integrated_guard_orchestrator",
       "ibase.unified_block_catalog",
-      "ibase.unified_regression_runner",
     ]);
     assert.ok(gaps.every(p => p.expected === "FAIL"));
   });
@@ -169,9 +172,9 @@ describe("Forge Integrated Baseline Gate — P01-B10-A01", () => {
       "FAIL",
       loadIntegratedBaseline(),
     );
-    assert.equal(documentedFail.length, 8);
+    assert.equal(documentedFail.length, 7);
     assert.ok(documentedFail.some(p => p.id === "ibase.unified_block_catalog"));
-    assert.ok(documentedFail.some(p => p.id === "ibase.unified_regression_runner"));
+    assert.ok(!documentedFail.some(p => p.id === "ibase.unified_regression_runner"));
 
     for (const gap of summary.knownGaps) {
       assert.equal(gap.expected, "FAIL");
@@ -204,7 +207,6 @@ describe("Forge Integrated Baseline Gate — P01-B10-A01", () => {
       "ibase.recovery_integrated_state_reset",
       "ibase.recovery_missing_b09_handoff_fallback",
       "ibase.unified_block_catalog",
-      "ibase.unified_regression_runner",
     ]);
     assert.ok(
       gaps.every(g => INTEGRATED_BASELINE_CATEGORIES.includes(g.category)),
@@ -224,8 +226,8 @@ describe("Forge Integrated Baseline Production Slice — P01-B10-A03", () => {
     assert.equal(slice.matrixValid, true);
     assert.equal(slice.summary.total, 24);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 16);
-    assert.equal(slice.matrixValidation.gapAligned, 8);
+    assert.equal(slice.matrixValidation.passAligned, 17);
+    assert.equal(slice.matrixValidation.gapAligned, 7);
 
     for (const contractProbe of contract.probes) {
       const result = slice.results.find(r => r.id === contractProbe.id);
@@ -244,7 +246,7 @@ describe("Forge Integrated Baseline Production Slice — P01-B10-A03", () => {
     );
 
     assert.equal(slice.summary.mismatches.length, 0);
-    assert.equal(slice.summary.knownGaps.length, 8);
+    assert.equal(slice.summary.knownGaps.length, 7);
     assert.deepEqual(
       slice.summary.knownGaps.map(g => g.id).sort(),
       [
@@ -255,7 +257,6 @@ describe("Forge Integrated Baseline Production Slice — P01-B10-A03", () => {
         "ibase.recovery_integrated_state_reset",
         "ibase.recovery_missing_b09_handoff_fallback",
         "ibase.unified_block_catalog",
-        "ibase.unified_regression_runner",
       ],
     );
   });
@@ -322,7 +323,7 @@ describe("Forge Integrated Baseline Boundary Slice — P01-B10-A04", () => {
     assert.ok(knownGaps);
     assert.equal(knownGaps!.expected, "PASS");
     assert.equal(knownGaps!.actual, "PASS");
-    assert.match(knownGaps!.detail, /documentedFailGaps=8/);
+    assert.match(knownGaps!.detail, /documentedFailGaps=7/);
   });
 });
 
@@ -496,5 +497,57 @@ describe("Forge Integrated Baseline Evidence — P01-B10-A06", () => {
       assert.equal(item.aligned, true);
       assert.ok(item.recordedAt.length > 10);
     }
+  });
+});
+
+describe("Forge Integrated Baseline Regression — P01-B10-A08", () => {
+  it("runForgeIntegratedBaselineRegressionGate passes on canonical integrated baseline matrix", () => {
+    const result = runForgeIntegratedBaselineRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 24);
+    assert.equal(result.probeRegression, null);
+    assert.ok(result.propertyFuzz.passed);
+    assert.ok(result.detail.includes("24/24 probes aligned"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectIntegratedBaselineProbeRegression flags newly misaligned probes", () => {
+    const prior = runIntegratedBaselineProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectIntegratedBaselineProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeIntegratedBaselineRegressionGate compares against prior record without false regression", () => {
+    const prior = runIntegratedBaselineProbesWithRecord();
+    const result = runForgeIntegratedBaselineRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runIntegratedBaselineRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeIntegratedBaselineRegressionGate();
+    const integration = runIntegratedBaselineRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.detail, gate.detail);
   });
 });
