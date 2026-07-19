@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B09-A08
-last_commit: PENDING
+last_commit: 260320b
 tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (50/50); regression 8/8; propertyFuzz wired; guard adversarial=3/3
 evidence: runResearcherResearchToWorkerHandoffForgeRegression + runForgeResearcherResearchToWorkerHandoffRegressionGate + validateForgeResearcherResearchToWorkerHandoffGuard
 next: P04-B09-A09
