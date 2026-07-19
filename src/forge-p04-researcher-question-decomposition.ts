@@ -21,7 +21,7 @@ import {
 } from "./forge-p03-strategist-provenance.js";
 import { parseResearchResponse } from "./parser.js";
 
-export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a04";
+export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a05";
 
 export const EXPECTED_P03_PHASE_GATE_SEALED_BLOCK_COUNT = P03_STRATEGIST_PHASE_BLOCK_COUNT;
 
@@ -480,6 +480,89 @@ export function runResearcherQuestionDecompositionBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly ResearcherQuestionDecompositionCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes must align; zero unexpected mismatches.
+ */
+export function validateResearcherQuestionDecompositionFailureRecoveryProbeMatrix(
+  results: ResearcherQuestionDecompositionProbeResult[],
+  contract: ResearcherQuestionDecompositionContract = getActiveResearcherQuestionDecompositionContract(),
+): ResearcherQuestionDecompositionProbeMatrixValidationResult {
+  const failureRecoveryProbes = RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherQuestionDecompositionContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: ResearcherQuestionDecompositionContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateResearcherQuestionDecompositionProbeMatrix(
+    failureRecoveryResults,
+    failureRecoveryContract,
+  );
+}
+
+export function listResearcherQuestionDecompositionFailureRecoveryProbeIds(
+  contract: ResearcherQuestionDecompositionContract = getActiveResearcherQuestionDecompositionContract(),
+): string[] {
+  return RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listResearcherQuestionDecompositionContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface ResearcherQuestionDecompositionFailureRecoverySliceResult {
+  atom: "P04-B01-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherQuestionDecompositionProbeResult[];
+  failureRecoveryResults: ResearcherQuestionDecompositionProbeResult[];
+  matrixValidation: ResearcherQuestionDecompositionProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes (orchestrator halt, non-fatal research BLOCK, validator export) with zero
+ * unexpected mismatches.
+ */
+export function runResearcherQuestionDecompositionFailureRecoverySlice(
+  fixture: ResearcherQuestionDecompositionBaseline = loadResearcherQuestionDecompositionBaseline(),
+): ResearcherQuestionDecompositionFailureRecoverySliceResult {
+  const contract = getActiveResearcherQuestionDecompositionContract();
+  const results = runResearcherQuestionDecompositionProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherQuestionDecompositionContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherQuestionDecompositionFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B01-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

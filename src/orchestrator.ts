@@ -2323,8 +2323,14 @@ ${visionOutput}`,
           );
         }
 
-        // Research BLOCK'u non-fatal — bulgular yoksa bile devam edebilir
-        findings = researchResult.parsed?.findings ?? researchResult.thought.output;
+        if (researchResult.thought.status === "blocked") {
+          // Research BLOCK is non-fatal — pipeline continues with partial or empty findings
+          this.engine.streaming.warning(
+            `Research BLOCK for block ${i + 1} (non-fatal): ${researchResult.thought.blockedReason ?? "researcher blocked"}`,
+          );
+        }
+
+        findings = researchResult.parsed?.findings ?? researchResult.thought.output ?? "";
       }
 
       this.emit({ type: "phase_end", phase: "research", detail: findings.slice(0, 80) });

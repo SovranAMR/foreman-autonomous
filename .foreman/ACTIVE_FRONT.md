@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B01
-active_atom: P04-B01-A05
+active_atom: P04-B01-A06
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 304/1000
-phase_progress: 4/100
-block_progress: 4/10
+program_progress: 305/1000
+phase_progress: 5/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B01-A05 — Research question decomposition: failure, recovery ve NO-GO yollarını uygula.
+P04-B01-A06 — Research question decomposition: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P04-B01-A04 PASS; failure, recovery and NO-GO paths for researcher question decomposition.
-target: Wire failure/recovery/NO-GO category probes with orchestrator halt and non-fatal paths.
-hypothesis: A04 boundary hardening enables targeted failure/recovery slice without reopening production probes.
-acceptance: failure/recovery/nogo probes PASS; slice matrix valid; zero unexpected mismatches.
+objective: P04-B01-A05 PASS; evidence, telemetry and provenance for researcher question decomposition.
+target: Record failure/recovery slice runs with auditable probe evidence and provenance lineage.
+hypothesis: A05 failure/recovery slice enables targeted evidence/telemetry slice without reopening boundary probes.
+acceptance: evidence/telemetry/provenance probes PASS; slice record valid; zero unexpected mismatches.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-*.ts
-rollback: P04-B01-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P04-B01-A06 evidence/telemetry slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B01-A04
-last_commit: da5b299
-tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (19/19); 27/27 probes aligned; boundary slice 6/6 PASS
-evidence: validateResearcherQuestionDecompositionBoundaryProbeMatrix; runResearcherQuestionDecompositionBoundarySlice; rques.whitespace_block_boundary; rques.long_block_truncation_boundary
-next: P04-B01-A05
+last_atom: P04-B01-A05
+last_commit: 30a5880
+tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (22/22); failure/recovery slice 7/7 PASS; 0 unexpected mismatches
+evidence: validateResearcherQuestionDecompositionFailureRecoveryProbeMatrix; runResearcherQuestionDecompositionFailureRecoverySlice; rques.research_block_non_fatal; rques.nogo_empty_question_halt
+next: P04-B01-A06

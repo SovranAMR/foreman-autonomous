@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 4
+completed_atoms: 5
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -19,7 +19,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B01-A02 — Research question decomposition: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B01-A03 — Research question decomposition: en küçük üretim dikey dilimini uygula
 - [x] P04-B01-A04 — Research question decomposition: boundary ve edge-case davranışlarını tamamla
-- [ ] P04-B01-A05 — Research question decomposition: failure, recovery ve NO-GO yollarını uygula
+- [x] P04-B01-A05 — Research question decomposition: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B01-A06 — Research question decomposition: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B01-A07 — Research question decomposition: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B01-A08 — Research question decomposition: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B01-A04
-last_commit: da5b299
-tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (19/19); 27/27 probes aligned; boundary slice 6/6 PASS; 0 unexpected mismatches
-evidence: validateResearcherQuestionDecompositionBoundaryProbeMatrix; runResearcherQuestionDecompositionBoundarySlice; whitespace+truncation block task edge probes
-next: P04-B01-A05
+last_atom: P04-B01-A05
+last_commit: 30a5880
+tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (22/22); failure/recovery slice 7/7 PASS; orchestrator Research BLOCK non-fatal wired; 0 unexpected mismatches
+evidence: validateResearcherQuestionDecompositionFailureRecoveryProbeMatrix; runResearcherQuestionDecompositionFailureRecoverySlice; rques.research_block_non_fatal; rques.nogo_empty_question_halt; rques.exported_orchestrator_question_validator
+next: P04-B01-A06

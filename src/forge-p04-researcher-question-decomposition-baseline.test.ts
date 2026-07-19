@@ -13,8 +13,12 @@ import {
   decomposeResearchQuestions,
   runResearcherQuestionDecompositionProductionSlice,
   runResearcherQuestionDecompositionBoundarySlice,
+  runResearcherQuestionDecompositionFailureRecoverySlice,
   validateResearcherQuestionDecompositionProbeMatrix,
   validateResearcherQuestionDecompositionBoundaryProbeMatrix,
+  validateResearcherQuestionDecompositionFailureRecoveryProbeMatrix,
+  listResearcherQuestionDecompositionFailureRecoveryProbeIds,
+  RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES,
   getActiveResearcherQuestionDecompositionContract,
   listResearcherQuestionDecompositionContractProbesByCategory,
   RESEARCHER_QUESTION_DECOMPOSITION_CATEGORIES,
@@ -226,5 +230,99 @@ describe("Forge Researcher Question Decomposition Boundary Slice — P04-B01-A04
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Researcher Question Decomposition Failure/Recovery Slice — P04-B01-A05", () => {
+  it("defines seven failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveResearcherQuestionDecompositionContract();
+    const failure = listResearcherQuestionDecompositionContractProbesByCategory(
+      "failure_path",
+      contract,
+    );
+    const recovery = listResearcherQuestionDecompositionContractProbesByCategory(
+      "recovery_path",
+      contract,
+    );
+    const nogo = listResearcherQuestionDecompositionContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 3);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveResearcherQuestionDecompositionContract();
+    const slice = runResearcherQuestionDecompositionFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B01-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 7);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherQuestionDecompositionContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherQuestionDecompositionFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with orchestrator halt and non-fatal wiring", () => {
+    const slice = runResearcherQuestionDecompositionFailureRecoverySlice();
+    const probeIds = listResearcherQuestionDecompositionFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 7);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "rques.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const researchBlockNonFatal = slice.failureRecoveryResults.find(
+      r => r.id === "rques.research_block_non_fatal",
+    );
+    assert.ok(researchBlockNonFatal);
+    assert.equal(researchBlockNonFatal!.expected, "PASS");
+    assert.equal(researchBlockNonFatal!.actual, "PASS");
+
+    const emptyQuestionHalt = slice.failureRecoveryResults.find(
+      r => r.id === "rques.nogo_empty_question_halt",
+    );
+    assert.ok(emptyQuestionHalt);
+    assert.equal(emptyQuestionHalt!.expected, "PASS");
+    assert.equal(emptyQuestionHalt!.actual, "PASS");
+
+    const orchestratorValidator = slice.failureRecoveryResults.find(
+      r => r.id === "rques.exported_orchestrator_question_validator",
+    );
+    assert.ok(orchestratorValidator);
+    assert.equal(orchestratorValidator!.expected, "PASS");
+    assert.equal(orchestratorValidator!.actual, "PASS");
   });
 });
