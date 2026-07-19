@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B04-A10
-last_commit: pending
+last_commit: e35b378
 tests: PASS — forge-p05-worker-shell-process-block-gate.test.ts (9/9), forge-p05-worker-shell-process*.test.ts (69/69)
 evidence: runWorkerShellProcessBlockGate + validateForgeWorkerShellProcessBlockGate + buildWorkerShellProcessBlockGateEvidence + FORGE_P05_B04_TO_B05_HANDOFF_V1; block gate PASS, handoff→P05-B05 sealed, orchestrator verifyForgeWorkerShellProcessBlockGate
 next: P05-B05-A01
