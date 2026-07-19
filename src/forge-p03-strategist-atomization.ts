@@ -18,7 +18,7 @@ import {
 } from "./forge-p03-strategist-block-contract.js";
 import { parseAtomizeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a04";
+export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a05";
 
 /** Maximum normalized atomize length before truncation (P03-B03-A01 boundary debt). */
 export const STRATEGIST_ATOMIZE_MAX_LENGTH = 32000;
@@ -869,6 +869,88 @@ export function runStrategistAtomizationBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly StrategistAtomizationCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes must align; zero unexpected mismatches required.
+ */
+export function validateStrategistAtomizationFailureRecoveryProbeMatrix(
+  results: StrategistAtomizationProbeResult[],
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationProbeMatrixValidationResult {
+  const failureRecoveryProbes = STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistAtomizationContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: StrategistAtomizationContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateStrategistAtomizationProbeMatrix(
+    failureRecoveryResults,
+    failureRecoveryContract,
+  );
+}
+
+export function listStrategistAtomizationFailureRecoveryProbeIds(
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): string[] {
+  return STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listStrategistAtomizationContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface StrategistAtomizationFailureRecoverySliceResult {
+  atom: "P03-B03-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistAtomizationProbeResult[];
+  failureRecoveryResults: StrategistAtomizationProbeResult[];
+  matrixValidation: StrategistAtomizationProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches.
+ */
+export function runStrategistAtomizationFailureRecoverySlice(
+  fixture: StrategistAtomizationBaseline = loadStrategistAtomizationBaseline(),
+): StrategistAtomizationFailureRecoverySliceResult {
+  const contract = getActiveStrategistAtomizationContract();
+  const results = runStrategistAtomizationProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistAtomizationContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistAtomizationFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P03-B03-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

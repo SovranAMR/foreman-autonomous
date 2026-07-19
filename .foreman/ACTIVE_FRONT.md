@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B03
-active_atom: P03-B03-A05
+active_atom: P03-B03-A06
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 223/1000
-phase_progress: 24/100
-block_progress: 4/10
+program_progress: 224/1000
+phase_progress: 25/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B03-A05 — Atomization ve atom boyutu: failure, recovery ve NO-GO yollarını uygula.
+P03-B03-A06 — Atomization ve atom boyutu: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P03-B03-A04 PASS; P03-B03-A05 implement failure, recovery and NO-GO paths for atomization.
-target: failure_path, recovery_path, nogo_path probe matrix and slice gates.
-hypothesis: P03-B03-A05 extends A04 boundary closure with failure/recovery/NO-GO slice alignment.
-acceptance: failure/recovery/NO-GO probes PASS; production slice tests green; no regression on contract coverage.
+objective: P03-B03-A05 PASS; P03-B03-A06 add evidence, telemetry and provenance recording for atomization probes.
+target: failure/recovery run record, telemetry timing, provenance metadata for atomization slice.
+hypothesis: P03-B03-A06 extends A05 failure/recovery closure with auditable evidence artifacts.
+acceptance: evidence slice probes PASS; failure/recovery with-record helper green; no regression on contract coverage.
 commands: npx tsx --test src/forge-p03-strategist-atomization*.test.ts
 blast_radius: src/forge-p03-strategist-atomization.ts
-rollback: P03-B03-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P03-B03-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: failure/recovery closure blocked ise BLOCKED raporla.
+fallback: evidence closure blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B03-A04
-last_commit: 884d7a4
-tests: PASS — forge-p03-strategist-atomization*.test.ts (17/17); contract 24 probes; boundary slice 7/7 aligned
-evidence: assessStrategistAtomizeInputBoundary; runStrategistAtomizationBoundarySlice; validateStrategistAtomizationBoundaryProbeMatrix; satom.long_atomize_truncation_boundary
-next: P03-B03-A05
+last_atom: P03-B03-A05
+last_commit: 7606aa1
+tests: PASS — forge-p03-strategist-atomization*.test.ts (20/20); contract 24 probes; failure/recovery slice 6/6 aligned
+evidence: runStrategistAtomizationFailureRecoverySlice; validateStrategistAtomizationFailureRecoveryProbeMatrix; satom.malformed_atomize_guard; satom.structured_atom_recovery; satom.orchestrator_zero_atoms_skip
+next: P03-B03-A06

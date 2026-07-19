@@ -14,7 +14,11 @@ import {
   assessStrategistAtomizeInputBoundary,
   runStrategistAtomizationProductionSlice,
   runStrategistAtomizationBoundarySlice,
+  runStrategistAtomizationFailureRecoverySlice,
   validateStrategistAtomizationBoundaryProbeMatrix,
+  validateStrategistAtomizationFailureRecoveryProbeMatrix,
+  listStrategistAtomizationFailureRecoveryProbeIds,
+  STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES,
   validateStrategistAtomizationProbeMatrix,
   STRATEGIST_ATOMIZE_MAX_LENGTH,
   STRATEGIST_ATOMIZATION_CATEGORIES,
@@ -280,5 +284,83 @@ describe("Forge Strategist Atomization Boundary Slice — P03-B03-A04", () => {
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Atomization Failure/Recovery Slice — P03-B03-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveStrategistAtomizationContract();
+    const failure = listStrategistAtomizationContractProbesByCategory("failure_path", contract);
+    const recovery = listStrategistAtomizationContractProbesByCategory("recovery_path", contract);
+    const nogo = listStrategistAtomizationContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistAtomizationContract();
+    const slice = runStrategistAtomizationFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B03-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistAtomizationContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistAtomizationFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure, recovery and NO-GO atomization paths", () => {
+    const slice = runStrategistAtomizationFailureRecoverySlice();
+    const probeIds = listStrategistAtomizationFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "satom.malformed_atomize_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const recoveryProbe = slice.failureRecoveryResults.find(
+      r => r.id === "satom.structured_atom_recovery",
+    );
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+
+    const zeroAtomsNogo = slice.failureRecoveryResults.find(
+      r => r.id === "satom.orchestrator_zero_atoms_skip",
+    );
+    assert.ok(zeroAtomsNogo);
+    assert.equal(zeroAtomsNogo!.expected, "PASS");
+    assert.equal(zeroAtomsNogo!.actual, "PASS");
   });
 });
