@@ -4,8 +4,10 @@ import {
   loadVisionerSynthesisBaseline,
   runVisionerSynthesisProbes,
   runVisionerSynthesisProductionSlice,
+  runVisionerSynthesisBoundarySlice,
 } from "./forge-p02-visioner-synthesis.probe.js";
 import {
+  assessVisionerSynthesisInputBoundary,
   extractVisionerSynthesis,
   buildVisionSynthesisSummary,
   getActiveVisionerSynthesisContract,
@@ -17,7 +19,9 @@ import {
   validateVisionerSynthesisAgainstContract,
   validateVisionerSynthesisContractCoverage,
   validateVisionerSynthesisProbeMatrix,
+  validateVisionerSynthesisBoundaryProbeMatrix,
   VISIONER_SYNTHESIS_CATEGORIES,
+  VISIONER_SYNTHESIS_VISION_MAX_LENGTH,
 } from "./forge-p02-visioner-synthesis.js";
 
 function formatMismatchReport(
@@ -200,5 +204,89 @@ describe("Forge Visioner Synthesis Production Slice — P02-B03-A03", () => {
       assert.equal(result!.actual, "PASS");
       assert.equal(result!.aligned, true);
     }
+  });
+});
+
+describe("Forge Visioner Synthesis Boundary Slice — P02-B03-A04", () => {
+  it("assessVisionerSynthesisInputBoundary handles empty, whitespace-only and oversized inputs", () => {
+    const empty = assessVisionerSynthesisInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerSynthesisInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerSynthesisInputBoundary("vision\x00output");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longVision = "x".repeat(VISIONER_SYNTHESIS_VISION_MAX_LENGTH + 200);
+    const truncated = assessVisionerSynthesisInputBoundary(longVision);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedVision.length, VISIONER_SYNTHESIS_VISION_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("extractVisionerSynthesis returns empty tokens for unacceptable boundary inputs", () => {
+    const extracted = extractVisionerSynthesis("   ");
+    assert.equal(extracted.hasEmotionTarget, false);
+    assert.equal(extracted.hasFocalPoint, false);
+    assert.deepEqual(extracted.emotionTarget, []);
+    assert.deepEqual(extracted.focalPoint, []);
+  });
+
+  it("defines boundary category with vision output edge-case probes", () => {
+    const boundary = listVisionerSynthesisContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "vsyn.empty_vision_synthesis_presence",
+      "vsyn.known_gaps_documented",
+      "vsyn.long_vision_truncation_boundary",
+      "vsyn.probe_runner_exported",
+      "vsyn.source_block_gate_ref",
+      "vsyn.whitespace_vision_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerSynthesisContract();
+    const slice = runVisionerSynthesisBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B03-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerSynthesisContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerSynthesisBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves structured_synthesis_recovery gap while boundary probes pass", () => {
+    const slice = runVisionerSynthesisBoundarySlice();
+    const recoveryGap = slice.results.find(r => r.id === "vsyn.structured_synthesis_recovery");
+
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+    assert.equal(recoveryGap!.aligned, true);
   });
 });

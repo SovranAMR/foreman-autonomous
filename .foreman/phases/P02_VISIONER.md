@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 22
+completed_atoms: 23
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -44,7 +44,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B03-A01 — Ürün vizyonu sentezi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P02-B03-A02 — Ürün vizyonu sentezi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B03-A03 — Ürün vizyonu sentezi: en küçük üretim dikey dilimini uygula
-- [ ] P02-B03-A04 — Ürün vizyonu sentezi: boundary ve edge-case davranışlarını tamamla
+- [x] P02-B03-A04 — Ürün vizyonu sentezi: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B03-A05 — Ürün vizyonu sentezi: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B03-A06 — Ürün vizyonu sentezi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B03-A07 — Ürün vizyonu sentezi: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B03-A03
-last_commit: 1aabc44
-tests: PASS — forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis.test.ts (10/10); forge-p02-visioner-synthesis*.test.ts (13/13); forge-p02-*.test.ts (99/99)
-evidence: runVisionerSynthesisProductionSlice atom=P02-B03-A03 matrixValid=true unexpectedMismatches=0 passAligned=22 gapAligned=1; validateVisionerSynthesisProbeMatrix valid=true; knownGaps=1 vsyn.structured_synthesis_recovery
-next: P02-B03-A04
+last_atom: P02-B03-A04
+last_commit: 67f6532
+tests: PASS — forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis.test.ts (15/15); forge-p02-visioner-synthesis*.test.ts (18/18); forge-p02-*.test.ts (104/104)
+evidence: runVisionerSynthesisBoundarySlice atom=P02-B03-A04 boundaryProbeCount=6 matrixValid=true unexpectedMismatches=0 passAligned=6 gapAligned=0; validateVisionerSynthesisBoundaryProbeMatrix valid=true; knownGaps preserved vsyn.structured_synthesis_recovery
+next: P02-B03-A05

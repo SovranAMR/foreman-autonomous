@@ -13,7 +13,7 @@ import {
   summarizeVisionerConstraintContractCoverage,
 } from "./forge-p02-visioner-constraint.js";
 
-export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a03";
+export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a04";
 
 /** Maximum normalized vision length before truncation (P02-B03-A04 boundary). */
 export const VISIONER_SYNTHESIS_VISION_MAX_LENGTH = 32000;
@@ -1121,4 +1121,26 @@ export function validateVisionerSynthesisProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateVisionerSynthesisBoundaryProbeMatrix(
+  results: VisionerSynthesisProbeResult[],
+  contract: VisionerSynthesisContract = getActiveVisionerSynthesisContract(),
+): VisionerSynthesisProbeMatrixValidationResult {
+  const boundaryProbes = listVisionerSynthesisContractProbesByCategory("boundary", contract);
+  const boundaryContract: VisionerSynthesisContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateVisionerSynthesisProbeMatrix(boundaryResults, boundaryContract);
 }
