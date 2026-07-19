@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B03-A05
-last_commit: 5f51ce7
+last_commit: 78ca23c
 tests: PASS — forge-p05-worker-edit-engine-failure-recovery.test.ts (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 33 total
 evidence: runWorkerEditEngineFailureRecoverySlice + validateWorkerEditEngineFailureRecoveryProbeMatrix; 7/7 failure/recovery/NO-GO probes aligned
 next: P05-B03-A06
