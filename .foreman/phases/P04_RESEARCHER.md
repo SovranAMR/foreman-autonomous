@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B07-A10
-last_commit: pending
+last_commit: 08dd61e
 tests: PASS — forge-p04-researcher-risk-tradeoff-block-gate.test.ts (7/7); risk-tradeoff suite 61/61; block gate seals=10/10 handoff→P04-B08
 evidence: runResearcherRiskTradeoffBlockGate + verifyForgeResearcherRiskTradeoffBlockGate + FORGE_P04_B07_TO_B08_HANDOFF_V1
 next: P04-B08-A01
