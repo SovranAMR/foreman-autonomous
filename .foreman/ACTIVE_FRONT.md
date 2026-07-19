@@ -44,7 +44,7 @@ fallback: Guard slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B03-A08
-last_commit: pending
+last_commit: 2dfb15b
 tests: PASS — forge-p05-worker-edit-engine-integration.test.ts (7/7), property-fuzz (7/7), evidence (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 52 total
 evidence: runWorkerEditEngineIntegrationSlice + validateWorkerEditEngineIntegrationProbeMatrix; 6/6 sub-slices aligned, prior/current run record comparison, guard checks pass
 next: P05-B03-A09
