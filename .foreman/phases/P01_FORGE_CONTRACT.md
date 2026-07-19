@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 63
+completed_atoms: 64
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -98,7 +98,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B07-A03 — Reproducible fixture sistemi: en küçük üretim dikey dilimini uygula
 - [x] P01-B07-A04 — Reproducible fixture sistemi: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B07-A05 — Reproducible fixture sistemi: failure, recovery ve NO-GO yollarını uygula
-- [ ] P01-B07-A06 — Reproducible fixture sistemi: evidence, telemetry ve provenance kaydını ekle
+- [x] P01-B07-A06 — Reproducible fixture sistemi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B07-A07 — Reproducible fixture sistemi: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B07-A08 — Reproducible fixture sistemi: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B07-A09 — Reproducible fixture sistemi: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,13 +156,13 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B07-A05
-last_commit: pending
-tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (17/17)
+last_atom: P01-B07-A06
+last_commit: 862ef68
+tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (19/19)
 evidence: |
-  P01-B07-A05 failure/recovery slice: runReproducibleFixtureFailureRecoverySlice +
-  validateReproducibleFixtureFailureRecoveryProbeMatrix;
+  P01-B07-A06 failure/recovery run record: runReproducibleFixtureFailureRecoverySliceWithRecord +
+  validateReproducibleFixtureFailureRecoveryRunRecord;
   failureRecoveryProbeCount=6 (failure_path=2, recovery_path=2, nogo_path=2);
-  matrixValid=true, unexpectedMismatches=0, passAligned=2, gapAligned=4;
-  documented recovery/NO-GO gaps preserved as aligned FAIL probes.
-next: P01-B07-A06
+  evidence=6, telemetry=6, sliceAtom=P01-B07-A06, harnessVersion=1.0.0-a06;
+  matrixValid=true, mismatches=0; contract-wired criterion/disposition on all evidence items.
+next: P01-B07-A07

@@ -6,6 +6,7 @@ import {
   runReproducibleFixtureProductionSlice,
   runReproducibleFixtureBoundarySlice,
   runReproducibleFixtureFailureRecoverySlice,
+  runReproducibleFixtureFailureRecoverySliceWithRecord,
   validateReproducibleFixtureBaseline,
   summarizeReproducibleFixtureMatrix,
   listReproducibleFixtureProbesByExpected,
@@ -23,6 +24,11 @@ import {
   validateReproducibleFixtureFailureRecoveryProbeMatrix,
   listReproducibleFixtureFailureRecoveryProbeIds,
   canonicalFixtureHash,
+  buildReproducibleFixtureProbeEvidence,
+  buildReproducibleFixtureProbeTelemetry,
+  buildReproducibleFixtureProvenance,
+  buildReproducibleFixtureRunRecord,
+  validateReproducibleFixtureFailureRecoveryRunRecord,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
   REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-reproducible-fixture.probe.js";
@@ -407,5 +413,96 @@ describe("Forge Reproducible Fixture Failure/Recovery Slice — P01-B07-A05", ()
     assert.ok(nogoGap);
     assert.equal(nogoGap!.expected, "FAIL");
     assert.equal(nogoGap!.actual, "FAIL");
+  });
+});
+
+describe("Forge Reproducible Fixture Evidence — P01-B07-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadReproducibleFixtureBaseline();
+    const contract = getActiveReproducibleFixtureContract();
+    const probeIds = listReproducibleFixtureFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-18T00:00:00.000Z";
+    const completedAt = "2026-07-18T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildReproducibleFixtureProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildReproducibleFixtureProbeTelemetry(probeId, contractProbe.category, index, index * 0.5);
+    });
+
+    const provenance = buildReproducibleFixtureProvenance(
+      "run-fix-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P01-B07-A06",
+        sliceCategories: REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildReproducibleFixtureRunRecord(provenance, evidence, telemetry);
+    const validation = validateReproducibleFixtureFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 6);
+    assert.equal(record.summary.mismatches, 0);
+    assert.ok(record.summary.byDisposition.failure >= 2);
+    assert.ok(record.summary.byDisposition.gap >= 4);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBenchmarkEvalAtom, fixture.sourceBenchmarkEval.atom);
+  });
+
+  it("records evidence, telemetry and provenance for failure/recovery slice run", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    const record = runReproducibleFixtureFailureRecoverySliceWithRecord();
+    const validation = validateReproducibleFixtureFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 6);
+    assert.equal(record.telemetry.length, 6);
+    assert.equal(record.provenance.totalProbes, 6);
+    assert.equal(record.provenance.sliceAtom, "P01-B07-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.equal(item.aligned, true);
+      assert.ok(item.recordedAt.length > 10);
+    }
   });
 });

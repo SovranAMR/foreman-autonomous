@@ -5,6 +5,8 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import reproducibleFixtureBaseline from "./fixtures/forge-reproducible-fixture-v1.json" with { type: "json" };
@@ -27,10 +29,16 @@ import {
   REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
   summarizeReproducibleFixtureMatrix,
   validateReproducibleFixtureBaselineAgainstContract,
+  buildReproducibleFixtureProbeEvidence,
+  buildReproducibleFixtureProbeTelemetry,
+  buildReproducibleFixtureProvenance,
+  buildReproducibleFixtureRunRecord,
   type ReproducibleFixtureBaseline,
   type ReproducibleFixtureCategory,
   type ReproducibleFixtureProbeResult,
   type ReproducibleFixtureProbeMatrixValidationResult,
+  type ReproducibleFixtureRunRecord,
+  type ReproducibleFixtureProbeDisposition,
 } from "./forge-reproducible-fixture.js";
 
 export type { ReproducibleFixtureBaseline, ReproducibleFixtureProbeResult } from "./forge-reproducible-fixture.js";
@@ -56,6 +64,12 @@ export {
   REPRODUCIBLE_FIXTURE_CATEGORIES,
   REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
   SEALED_FORGE_FIXTURE_FILES,
+  buildReproducibleFixtureProbeEvidence,
+  buildReproducibleFixtureProbeTelemetry,
+  buildReproducibleFixtureProvenance,
+  buildReproducibleFixtureRunRecord,
+  validateReproducibleFixtureRunRecord,
+  validateReproducibleFixtureFailureRecoveryRunRecord,
 } from "./forge-reproducible-fixture.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -540,6 +554,110 @@ export function runReproducibleFixtureProbes(
     return contractProbe?.criterion
       ? { ...result, criterion: contractProbe.criterion }
       : result;
+  });
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runReproducibleFixtureProbeWithTiming(
+  entry: ReproducibleFixtureBaseline["probes"][number],
+  fixture: ReproducibleFixtureBaseline,
+  contractProbe:
+    | { criterion: string; disposition: ReproducibleFixtureProbeDisposition }
+    | undefined,
+): {
+  result: ReproducibleFixtureProbeResult;
+  durationMs: number;
+  disposition: ReproducibleFixtureProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildReproducibleFixtureRecordFromEntries(
+  entries: ReproducibleFixtureBaseline["probes"],
+  fixture: ReproducibleFixtureBaseline,
+  contract: ReturnType<typeof getActiveReproducibleFixtureContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ReproducibleFixtureCategory[];
+  },
+): ReproducibleFixtureRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildReproducibleFixtureProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildReproducibleFixtureProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runReproducibleFixtureProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildReproducibleFixtureProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildReproducibleFixtureProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildReproducibleFixtureProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildReproducibleFixtureRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P01-B07-A06). */
+export function runReproducibleFixtureFailureRecoverySliceWithRecord(
+  fixture: ReproducibleFixtureBaseline = loadReproducibleFixtureBaseline(),
+): ReproducibleFixtureRunRecord {
+  const contract = getActiveReproducibleFixtureContract();
+  const failureRecoveryIds = new Set(listReproducibleFixtureFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildReproducibleFixtureRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P01-B07-A06",
+    sliceCategories: REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
   });
 }
 

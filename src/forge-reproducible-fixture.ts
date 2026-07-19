@@ -14,7 +14,7 @@ import {
   BENCHMARK_EVAL_CATEGORIES,
 } from "./forge-benchmark-eval-harness.js";
 
-export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a05";
+export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a06";
 
 export const REPRODUCIBLE_FIXTURE_CATEGORIES = [
   "fixture_versioning",
@@ -974,4 +974,285 @@ export function listReproducibleFixtureFailureRecoveryProbeIds(
   return REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
     listReproducibleFixtureProbesByCategory(category, contract).map(p => p.id),
   );
+}
+
+/** Per-probe evidence artifact — auditable proof of reproducible fixture probe outcome (P01-B07-A06). */
+export interface ReproducibleFixtureProbeEvidence {
+  probeId: string;
+  category: ReproducibleFixtureCategory;
+  disposition: ReproducibleFixtureProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for reproducible fixture runs (P01-B07-A06). */
+export interface ReproducibleFixtureProbeTelemetry {
+  probeId: string;
+  category: ReproducibleFixtureCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P01-B07-A06). */
+export interface ReproducibleFixtureProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBenchmarkEvalVersion: string;
+  sourceBenchmarkEvalAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ReproducibleFixtureCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated reproducible fixture run record bundling evidence, telemetry and provenance. */
+export interface ReproducibleFixtureRunRecord {
+  provenance: ReproducibleFixtureProvenance;
+  evidence: ReproducibleFixtureProbeEvidence[];
+  telemetry: ReproducibleFixtureProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ReproducibleFixtureCategory, number>;
+    byDisposition: Record<ReproducibleFixtureProbeDisposition, number>;
+  };
+}
+
+export interface ReproducibleFixtureRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ReproducibleFixtureRunValidationResult {
+  valid: boolean;
+  issues: ReproducibleFixtureRunValidationIssue[];
+}
+
+export function buildReproducibleFixtureProbeEvidence(
+  probeId: string,
+  category: ReproducibleFixtureCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ReproducibleFixtureProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ReproducibleFixtureProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildReproducibleFixtureProbeTelemetry(
+  probeId: string,
+  category: ReproducibleFixtureCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ReproducibleFixtureProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildReproducibleFixtureProvenance(
+  runId: string,
+  fixture: ReproducibleFixtureBaseline,
+  contract: ReproducibleFixtureContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ReproducibleFixtureCategory[];
+  },
+): ReproducibleFixtureProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_REPRODUCIBLE_FIXTURE_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBenchmarkEvalVersion: fixture.sourceBenchmarkEval.version,
+    sourceBenchmarkEvalAtom: fixture.sourceBenchmarkEval.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildReproducibleFixtureRunRecord(
+  provenance: ReproducibleFixtureProvenance,
+  evidence: ReproducibleFixtureProbeEvidence[],
+  telemetry: ReproducibleFixtureProbeTelemetry[],
+): ReproducibleFixtureRunRecord {
+  const byCategory = {} as Record<ReproducibleFixtureCategory, number>;
+  const byDisposition: Record<ReproducibleFixtureProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of REPRODUCIBLE_FIXTURE_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateReproducibleFixtureRunRecordAgainstProbeIds(
+  record: ReproducibleFixtureRunRecord,
+  expectedProbeIds: string[],
+  contract: ReproducibleFixtureContract,
+): ReproducibleFixtureRunValidationResult {
+  const issues: ReproducibleFixtureRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateReproducibleFixtureRunRecord(
+  record: ReproducibleFixtureRunRecord,
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixtureRunValidationResult {
+  return validateReproducibleFixtureRunRecordAgainstProbeIds(
+    record,
+    listReproducibleFixtureContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateReproducibleFixtureFailureRecoveryRunRecord(
+  record: ReproducibleFixtureRunRecord,
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixtureRunValidationResult {
+  const issues: ReproducibleFixtureRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P01-B07-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P01-B07-A06`,
+    });
+  }
+
+  const expectedCategories = [...REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateReproducibleFixtureRunRecordAgainstProbeIds(
+    record,
+    listReproducibleFixtureFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
 }
