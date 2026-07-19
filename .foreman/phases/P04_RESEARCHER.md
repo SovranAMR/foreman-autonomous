@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B02-A08
-last_commit: pending
+last_commit: 1a27ce5
 tests: PASS — forge-p04-researcher*.test.ts (98/98); regression gate 23/23 aligned; adversarial=3/3; propertyFuzz rejected=24/24; runFuzz rejected=5; orchestrator verification PASS
 evidence: runForgeResearcherInRepoEvidenceRegressionGate; detectResearcherInRepoEvidenceProbeRegression; validateForgeResearcherInRepoEvidenceGuard; verifyForgeResearcherInRepoEvidenceRegression; forge-pipeline-regression integration PASS
 next: P04-B02-A09
