@@ -44,7 +44,7 @@ fallback: Failure/recovery slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B02-A04
-last_commit: PENDING
+last_commit: 81f44ee
 tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (28/28)
 evidence: assessFilesystemReadLineRangeBoundary + normalizeFilesystemGroundingPath; boundary trim/backslash/line-range; runWorkerFilesystemGroundingBoundarySlice; 7 boundary probes, 0 FAIL gaps
 next: P05-B02-A05
