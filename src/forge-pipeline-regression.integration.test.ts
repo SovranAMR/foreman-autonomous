@@ -88,6 +88,12 @@ import {
   runVisionerUncertaintyRegressionIntegration,
 } from "./forge-p02-visioner-uncertainty.probe.js";
 import { detectVisionerUncertaintyProbeRegression } from "./forge-p02-visioner-uncertainty.js";
+import {
+  runForgeVisionerAlternativeRegressionGate,
+  runVisionerAlternativeProbesWithRecord,
+  runVisionerAlternativeRegressionIntegration,
+} from "./forge-p02-visioner-alternative.probe.js";
+import { detectVisionerAlternativeProbeRegression } from "./forge-p02-visioner-alternative.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -1531,5 +1537,98 @@ describe("Forge Visioner Uncertainty Regression Integration — P02-B06-A08", ()
     assert.equal(result.passed, true, result.detail);
     assert.ok(result.probeRegression);
     assert.equal(result.probeRegression?.hasRegression, false);
+  });
+});
+
+describe("Forge Visioner Alternative Regression Integration — P02-B07-A08", () => {
+  it("runForgeVisionerAlternativeRegressionGate passes on canonical visioner alternative matrix", () => {
+    const result = runForgeVisionerAlternativeRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.propertyFuzz.passed, true);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("runVisionerAlternativeRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeVisionerAlternativeRegressionGate();
+    const integration = runVisionerAlternativeRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
+    assert.ok(integration.detail.includes("23/23 probes aligned"));
+    assert.equal(integration.record.summary.total, 23);
+  });
+
+  it("detectVisionerAlternativeProbeRegression flags newly misaligned probes", () => {
+    const prior = runVisionerAlternativeProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectVisionerAlternativeProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeVisionerAlternativeRegressionGate compares against prior record without false regression", () => {
+    const prior = runVisionerAlternativeProbesWithRecord();
+    const result = runForgeVisionerAlternativeRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("orchestrator verifyForgeVisionerAlternativeRegression emits visioner_alternative_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-alternative-regression-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-alternative" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeVisionerAlternativeRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_alternative_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("23/23 probes aligned"));
+    }
   });
 });

@@ -593,6 +593,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner alternative regression gate and emit verification event (P02-B07-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeVisionerAlternativeRegression(
+    priorRecord?: import("./forge-p02-visioner-alternative.js").VisionerAlternativeRunRecord,
+  ): Promise<import("./forge-p02-visioner-alternative.probe.js").ForgeVisionerAlternativeRegressionResult> {
+    const { runForgeVisionerAlternativeRegressionGate } = await import(
+      "./forge-p02-visioner-alternative.probe.js"
+    );
+    const result = runForgeVisionerAlternativeRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "visioner_alternative_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B06 block gate and emit verification event with B07 handoff (P02-B06-A10).
    */
   async verifyForgeVisionerUncertaintyBlockGate(): Promise<import("./forge-p02-visioner-uncertainty.probe.js").ForgeVisionerUncertaintyBlockGateResult> {

@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B07
-active_atom: P02-B07-A08
+active_atom: P02-B07-A09
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 166/1000
-phase_progress: 65/100
+program_progress: 167/1000
+phase_progress: 66/100
 block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B07-A07 — Alternative vision production slice: unit, property and fuzz validation.
+P02-B07-A09 — Alternative vision production slice: adversarial, performance, cost and safety controls.
 
-objective: P02-B07-A06 evidence slice PASS; property/fuzz next.
-target: Add unit, property and fuzz validation for alternative vision evidence run record.
-hypothesis: run record contract survives property checks and fuzz tamper rejection.
-acceptance: forge-p02-visioner-alternative property/fuzz slice PASS (A07 tests when added).
-commands: npx tsx --test src/forge-p02-visioner-alternative.property-fuzz.test.ts
+objective: P02-B07-A08 regression gate PASS; guard controls next.
+target: Add adversarial, performance, cost and safety guard validation for alternative vision evidence run record.
+hypothesis: guard controls reject tampered records and enforce perf/cost/safety bounds.
+acceptance: forge-p02-visioner-alternative guard slice PASS (A09 tests when added).
+commands: npx tsx --test src/forge-p02-visioner-alternative.guard.test.ts
 blast_radius: src/forge-p02-visioner-alternative*
-rollback: P02-B07-A07 property/fuzz değişikliklerini geri al.
+rollback: P02-B07-A09 guard değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: property/fuzz requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
+fallback: guard requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B07-A07
-last_commit: 0aa559c
-tests: PASS — forge-p02-visioner-alternative.property-fuzz.test.ts (5/5); forge-p02-visioner-alternative.test.ts (24/24); forge-p02-visioner-alternative-baseline.test.ts (3/3)
-evidence: runVisionerAlternativePropertyChecks (8/8); runVisionerAlternativeFuzzValidation rejects 24/24 mutations per seed; runVisionerAlternativeRunRecordFuzzValidation rejects 5/5 failure-recovery and 3/3 full-record tamper cases
-next: P02-B07-A08
+last_atom: P02-B07-A08
+last_commit: 566112d
+tests: PASS — forge-pipeline-regression.integration.test.ts (84/84); forge-p02-visioner-alternative*.test.ts (32/32)
+evidence: runForgeVisionerAlternativeRegressionGate (23/23 aligned); detectVisionerAlternativeProbeRegression flags misalignment; orchestrator verifyForgeVisionerAlternativeRegression emits visioner_alternative_regression
+next: P02-B07-A09
