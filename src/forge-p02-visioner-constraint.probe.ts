@@ -45,6 +45,8 @@ import {
   runVisionerConstraintFuzzValidation,
   runVisionerConstraintRunRecordFuzzValidation,
   validateVisionerConstraintRunRecord,
+  validateForgeVisionerConstraintGuard,
+  type VisionerConstraintGuardCheckResult,
   type VisionerConstraintBaseline,
   type VisionerConstraintCategory,
   type VisionerConstraintProbeResult,
@@ -693,6 +695,7 @@ export interface ForgeVisionerConstraintRegressionResult {
   recordValid: boolean;
   validationIssues: string[];
   probeRegression: VisionerConstraintProbeRegressionReport | null;
+  guard: VisionerConstraintGuardCheckResult;
   propertyFuzz: ForgeVisionerConstraintRegressionPropertyFuzzResult;
   detail: string;
 }
@@ -716,6 +719,7 @@ export function runForgeVisionerConstraintRegressionGate(
     ? detectVisionerConstraintProbeRegression(priorRecord, record)
     : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeVisionerConstraintGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
 
   const properties = runVisionerConstraintPropertyChecks(contract);
   const contractFuzz = runVisionerConstraintFuzzValidation(fixture, contract);
@@ -737,7 +741,8 @@ export function runForgeVisionerConstraintRegressionGate(
 
   const productionSliceOk =
     productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
-  const passed = productionSliceOk && recordValid && !alignmentRegression && propertyFuzzPassed;
+  const passed =
+    productionSliceOk && recordValid && !alignmentRegression && guard.passed && propertyFuzzPassed;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
@@ -751,6 +756,15 @@ export function runForgeVisionerConstraintRegressionGate(
   detailParts.push(
     `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
   );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   return {
     passed,
@@ -759,6 +773,7 @@ export function runForgeVisionerConstraintRegressionGate(
     recordValid,
     validationIssues,
     probeRegression,
+    guard,
     propertyFuzz,
     detail: detailParts.join(" | "),
   };
