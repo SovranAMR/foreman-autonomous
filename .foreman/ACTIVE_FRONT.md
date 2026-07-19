@@ -44,7 +44,7 @@ fallback: block gate cannot seal without scope creep ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B01-A09
-last_commit: pending
+last_commit: d4363b8
 tests: PASS — forge-p02-visioner-intent.guard.test.ts (8/8); forge-p02-visioner-intent*.test.ts (37/37); forge-pipeline-regression.integration.test.ts P02-B01-A09 (2/2)
 evidence: verifyForgeVisionerIntentGuard, validateForgeVisionerIntentGuard canonical matrix adversarial=3/3; orchestrator visioner_intent_guard verification
 next: P02-B01-A10
