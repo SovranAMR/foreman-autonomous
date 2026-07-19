@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 4
-completed_atoms: 42
+completed_atoms: 43
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -72,7 +72,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B05-A03 — Risk ve reversibility planı: en küçük üretim dikey dilimini uygula
 - [x] P03-B05-A04 — Risk ve reversibility planı: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B05-A05 — Risk ve reversibility planı: failure, recovery ve NO-GO yollarını uygula
-- [ ] P03-B05-A06 — Risk ve reversibility planı: evidence, telemetry ve provenance kaydını ekle
+- [x] P03-B05-A06 — Risk ve reversibility planı: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B05-A07 — Risk ve reversibility planı: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B05-A08 — Risk ve reversibility planı: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B05-A09 — Risk ve reversibility planı: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B05-A05
+last_atom: P03-B05-A06
 last_commit: pending
-tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (19/19); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); failure/recovery slice 7 pass / 2 gap aligned / 0 unexpected mismatches
-evidence: runStrategistRiskReversibilityFailureRecoverySlice; validateStrategistRiskReversibilityFailureRecoveryProbeMatrix
-next: P03-B05-A06
+tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (23/23); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); evidence slice 7 pass / 2 gap aligned / 0 unexpected mismatches
+evidence: runStrategistRiskReversibilityEvidenceSlice; validateStrategistRiskReversibilityFailureRecoveryRunRecord
+next: P03-B05-A07
