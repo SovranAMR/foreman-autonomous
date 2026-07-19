@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 60
+completed_atoms: 61
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -96,7 +96,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B07-A01 — Parallel execution wave planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P03-B07-A02 — Parallel execution wave planı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P03-B07-A03 — Parallel execution wave planı: en küçük üretim dikey dilimini uygula
-- [ ] P03-B07-A04 — Parallel execution wave planı: boundary ve edge-case davranışlarını tamamla
+- [x] P03-B07-A04 — Parallel execution wave planı: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B07-A05 — Parallel execution wave planı: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B07-A06 — Parallel execution wave planı: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B07-A07 — Parallel execution wave planı: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B07-A03
-last_commit: b959e4f
-tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (13/13); 21 pass-aligned; 6 gap-aligned; zero unexpected mismatches
-evidence: runStrategistParallelWaveProductionSlice; validateStrategistParallelWaveProbeMatrix
-next: P03-B07-A04
+last_atom: P03-B07-A04
+last_commit: pending
+tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (16/16); boundary 6/6 pass-aligned; zero unexpected mismatches
+evidence: runStrategistParallelWaveBoundarySlice; validateStrategistParallelWaveBoundaryProbeMatrix
+next: P03-B07-A05

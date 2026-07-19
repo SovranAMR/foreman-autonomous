@@ -4,13 +4,18 @@ import {
   loadStrategistParallelWaveBaseline,
   runStrategistParallelWaveProbes,
   runStrategistParallelWaveProductionSlice,
+  runStrategistParallelWaveBoundarySlice,
   getActiveStrategistParallelWaveContract,
   validateStrategistParallelWaveBaseline,
   validateStrategistParallelWaveProbeMatrix,
+  validateStrategistParallelWaveBoundaryProbeMatrix,
   summarizeStrategistParallelWaveMatrix,
   listStrategistParallelWaveProbesByExpected,
   listStrategistParallelWaveKnownGaps,
+  listStrategistParallelWaveContractProbesByCategory,
+  assessStrategistParallelWaveInputBoundary,
   STRATEGIST_PARALLEL_WAVE_CATEGORIES,
+  STRATEGIST_PARALLEL_WAVE_DECOMPOSE_MAX_LENGTH,
 } from "./forge-p03-strategist-parallel-wave.js";
 
 function formatMismatchReport(
@@ -131,5 +136,84 @@ describe("Forge Strategist Parallel Wave Production Slice — P03-B07-A03", () =
       "swave.parser_wave_plan_fields",
       "swave.prompt_parallel_wave_plan",
     ]);
+  });
+});
+
+describe("Forge Strategist Parallel Wave Boundary Slice — P03-B07-A04", () => {
+  it("assessStrategistParallelWaveInputBoundary handles decompose edge cases including truncation", () => {
+    const empty = assessStrategistParallelWaveInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistParallelWaveInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistParallelWaveInputBoundary("bad\0decompose");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const valid = assessStrategistParallelWaveInputBoundary(
+      "REASONING: valid\nOUTPUT:\nBlock 1: task\nDEPENDENCIES: none\nRESOURCE PLAN: lightweight\nTOKEN BUDGET: perThought=4096\nCONFIDENCE: 0.8",
+    );
+    assert.equal(valid.disposition, "valid");
+    assert.equal(valid.acceptable, true);
+
+    const longDecompose = "x".repeat(STRATEGIST_PARALLEL_WAVE_DECOMPOSE_MAX_LENGTH + 500);
+    const truncated = assessStrategistParallelWaveInputBoundary(longDecompose);
+    assert.equal(truncated.disposition, "exceeds_max_length");
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedDecompose.length, STRATEGIST_PARALLEL_WAVE_DECOMPOSE_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("defines boundary category with decompose input edge-case probes", () => {
+    const boundary = listStrategistParallelWaveContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "swave.empty_decompose_boundary",
+      "swave.known_gaps_documented",
+      "swave.long_decompose_truncation_boundary",
+      "swave.probe_runner_exported",
+      "swave.source_block_gate_ref",
+      "swave.whitespace_decompose_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistParallelWaveContract();
+    const slice = runStrategistParallelWaveBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B07-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistParallelWaveContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistParallelWaveBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });

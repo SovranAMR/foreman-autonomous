@@ -1116,6 +1116,60 @@ export function runStrategistParallelWaveProductionSlice(
   };
 }
 
+export interface StrategistParallelWaveBoundarySliceResult {
+  atom: "P03-B07-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistParallelWaveProbeResult[];
+  boundaryResults: StrategistParallelWaveProbeResult[];
+  matrixValidation: StrategistParallelWaveProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateStrategistParallelWaveBoundaryProbeMatrix(
+  results: StrategistParallelWaveProbeResult[],
+  contract: StrategistParallelWaveContract = getActiveStrategistParallelWaveContract(),
+): StrategistParallelWaveProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistParallelWaveContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistParallelWaveContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistParallelWaveProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (decompose input edge cases, probe runner,
+ * documented gaps, source block gate refs) with zero unexpected mismatches.
+ */
+export function runStrategistParallelWaveBoundarySlice(
+  fixture: StrategistParallelWaveBaseline = loadStrategistParallelWaveBaseline(),
+): StrategistParallelWaveBoundarySliceResult {
+  const contract = getActiveStrategistParallelWaveContract();
+  const results = runStrategistParallelWaveProbes(fixture);
+  const boundaryProbes = listStrategistParallelWaveContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistParallelWaveBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B07-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = __dirname;
 
