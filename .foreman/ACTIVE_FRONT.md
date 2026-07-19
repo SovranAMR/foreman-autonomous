@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B03
-active_atom: P04-B03-A01
+active_atom: P04-B03-A02
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 320/1000
-phase_progress: 20/100
-block_progress: 0/10
+program_progress: 321/1000
+phase_progress: 21/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -43,8 +43,8 @@ fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B02-A10
-last_commit: e84daac
-tests: PASS — forge-p04-researcher*.test.ts (113/113); block gate seals=10/10; handoff→P04-B03; orchestrator block gate verification PASS
-evidence: runResearcherInRepoEvidenceBlockGate; getForgeP04B02ToB03Handoff; verifyForgeResearcherInRepoEvidenceBlockGate; forge-p04-researcher-in-repo-evidence-block-gate.test.ts
-next: P04-B03-A01
+last_atom: P04-B03-A01
+last_commit: PENDING
+tests: PASS — forge-p04-researcher*.test.ts (120/120); baseline fixture v1; probes=23; documented FAIL gap=rwps.structured_web_primary_source_recovery
+evidence: loadResearcherWebPrimarySourceBaseline; runResearcherWebPrimarySourceProbes; validateWebPrimarySourceCollection; forge-p04-researcher-web-primary-source-baseline.test.ts
+next: P04-B03-A02
