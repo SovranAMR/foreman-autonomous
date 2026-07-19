@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B05-A02
-last_commit: pending
+last_commit: 955cdb9
 tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (15/15); validateResearcherCitationProvenanceGraphContract; fixture↔contract alignment gate PASS
 evidence: contract v1 23 probes (19 PASS / 4 FAIL); gap=rcpg.researcher_sources_prompt,rcpg.build_research_citation_graph; nogo=rcpg.parser_citation_edges,rcpg.exported_citation_graph_validator
 next: P04-B05-A03

@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B05-A02
-last_commit: pending
+last_commit: 955cdb9
 tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (15/15); validateResearcherCitationProvenanceGraphContract; validateResearcherCitationProvenanceGraphAgainstContract fixture↔contract alignment
 evidence: FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_CONTRACT_V1 23 probes; 4 FAIL gaps (2 gap + 2 nogo); disposition/criterion fields wired to probe runner
 next: P04-B05-A03
