@@ -44,7 +44,7 @@ fallback: slice uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B07-A02
-last_commit: pending
+last_commit: 26d35ae
 tests: PASS — forge-reproducible-fixture-baseline.test.ts (9/9)
 evidence: getActiveReproducibleFixtureContract; validateReproducibleFixtureContractCoverage; 21-probe typed contract with 8 categories minProbeCount+criteria; fixture↔contract alignment
 next: P01-B07-A03

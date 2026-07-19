@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B07-A02
-last_commit: pending
+last_commit: 26d35ae
 tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (9/9)
 evidence: |
   P01-B07-A02 contract: getActiveReproducibleFixtureContract + validateReproducibleFixtureContractCoverage;
