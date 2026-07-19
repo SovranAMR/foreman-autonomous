@@ -4,7 +4,10 @@
  * Static probes for vision scoring and trade-off baseline measurement.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { performance } from "node:perf_hooks";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import visionerScoringBaseline from "./fixtures/forge-visioner-scoring-v1.json" with { type: "json" };
@@ -30,11 +33,16 @@ import {
   validateVisionerScoringProbeMatrix,
   VISIONER_SCORING_FAILURE_RECOVERY_CATEGORIES,
   listVisionerScoringContractProbesByCategory,
+  listVisionerScoringFailureRecoveryProbeIds,
   summarizeVisionerScoringMatrix,
   listVisionerScoringProbesByExpected,
   listVisionerScoringKnownGaps,
   getActiveVisionerScoringContract,
   summarizeVisionerScoringContractCoverage,
+  buildVisionerScoringProbeEvidence,
+  buildVisionerScoringProbeTelemetry,
+  buildVisionerScoringProvenance,
+  buildVisionerScoringRunRecord,
   FORGE_VISIONER_SCORING_VERSION,
   VISIONER_SCORING_CATEGORIES,
   VISIONER_SCORING_VISION_MAX_LENGTH,
@@ -42,18 +50,30 @@ import {
   SAMPLE_VISION_FOR_SCORING,
   type VisionerScoringBaseline,
   type VisionerScoringCategory,
+  type VisionerScoringProbeDisposition,
   type VisionerScoringProbeResult,
+  type VisionerScoringRunRecord,
 } from "./forge-p02-visioner-scoring.js";
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 
-export type { VisionerScoringBaseline, VisionerScoringProbeResult } from "./forge-p02-visioner-scoring.js";
+export type {
+  VisionerScoringBaseline,
+  VisionerScoringProbeResult,
+  VisionerScoringRunRecord,
+} from "./forge-p02-visioner-scoring.js";
 export {
   validateVisionerScoringBaseline,
+  validateVisionerScoringRunRecord,
+  validateVisionerScoringFailureRecoveryRunRecord,
   summarizeVisionerScoringMatrix,
   listVisionerScoringProbesByExpected,
   listVisionerScoringKnownGaps,
   getActiveVisionerScoringContract,
   summarizeVisionerScoringContractCoverage,
+  buildVisionerScoringProbeEvidence,
+  buildVisionerScoringProbeTelemetry,
+  buildVisionerScoringProvenance,
+  buildVisionerScoringRunRecord,
   FORGE_VISIONER_SCORING_VERSION,
   VISIONER_SCORING_CATEGORIES,
   VISIONER_SCORING_VISION_MAX_LENGTH,
@@ -613,4 +633,116 @@ export function runVisionerScoringFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerScoringProbeWithTiming(
+  entry: VisionerScoringBaseline["probes"][number],
+  fixture: VisionerScoringBaseline,
+  contractProbe:
+    | { criterion: string; disposition: VisionerScoringProbeDisposition }
+    | undefined,
+): {
+  result: VisionerScoringProbeResult;
+  durationMs: number;
+  disposition: VisionerScoringProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerScoringRecordFromEntries(
+  entries: VisionerScoringBaseline["probes"],
+  fixture: VisionerScoringBaseline,
+  contract: ReturnType<typeof getActiveVisionerScoringContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerScoringCategory[];
+  },
+): VisionerScoringRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerScoringProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerScoringProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerScoringProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerScoringProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerScoringProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerScoringProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerScoringRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner scoring probes and emit auditable evidence, telemetry and provenance (P02-B08-A06). */
+export function runVisionerScoringProbesWithRecord(
+  fixture: VisionerScoringBaseline = loadVisionerScoringBaseline(),
+): VisionerScoringRunRecord {
+  const contract = getActiveVisionerScoringContract();
+  return buildVisionerScoringRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B08-A06). */
+export function runVisionerScoringFailureRecoverySliceWithRecord(
+  fixture: VisionerScoringBaseline = loadVisionerScoringBaseline(),
+): VisionerScoringRunRecord {
+  const contract = getActiveVisionerScoringContract();
+  const failureRecoveryIds = new Set(listVisionerScoringFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerScoringRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B08-A06",
+    sliceCategories: VISIONER_SCORING_FAILURE_RECOVERY_CATEGORIES,
+  });
 }

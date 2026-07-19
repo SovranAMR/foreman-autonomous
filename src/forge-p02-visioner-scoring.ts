@@ -1311,6 +1311,287 @@ export function listVisionerScoringKnownGaps(
   return summarizeVisionerScoringMatrix(results).knownGaps;
 }
 
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P02-B08-A06). */
+export interface VisionerScoringProbeEvidence {
+  probeId: string;
+  category: VisionerScoringCategory;
+  disposition: VisionerScoringProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for visioner scoring runs (P02-B08-A06). */
+export interface VisionerScoringProbeTelemetry {
+  probeId: string;
+  category: VisionerScoringCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P02-B08-A06). */
+export interface VisionerScoringProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly VisionerScoringCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated visioner scoring run record bundling evidence, telemetry and provenance. */
+export interface VisionerScoringRunRecord {
+  provenance: VisionerScoringProvenance;
+  evidence: VisionerScoringProbeEvidence[];
+  telemetry: VisionerScoringProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<VisionerScoringCategory, number>;
+    byDisposition: Record<VisionerScoringProbeDisposition, number>;
+  };
+}
+
+export interface VisionerScoringRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface VisionerScoringRunValidationResult {
+  valid: boolean;
+  issues: VisionerScoringRunValidationIssue[];
+}
+
+export function buildVisionerScoringProbeEvidence(
+  probeId: string,
+  category: VisionerScoringCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: VisionerScoringProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): VisionerScoringProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildVisionerScoringProbeTelemetry(
+  probeId: string,
+  category: VisionerScoringCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): VisionerScoringProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildVisionerScoringProvenance(
+  runId: string,
+  fixture: VisionerScoringBaseline,
+  contract: VisionerScoringContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerScoringCategory[];
+  },
+): VisionerScoringProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_VISIONER_SCORING_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildVisionerScoringRunRecord(
+  provenance: VisionerScoringProvenance,
+  evidence: VisionerScoringProbeEvidence[],
+  telemetry: VisionerScoringProbeTelemetry[],
+): VisionerScoringRunRecord {
+  const byCategory = {} as Record<VisionerScoringCategory, number>;
+  const byDisposition: Record<VisionerScoringProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of VISIONER_SCORING_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateVisionerScoringRunRecordAgainstProbeIds(
+  record: VisionerScoringRunRecord,
+  expectedProbeIds: string[],
+  contract: VisionerScoringContract,
+): VisionerScoringRunValidationResult {
+  const issues: VisionerScoringRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateVisionerScoringRunRecord(
+  record: VisionerScoringRunRecord,
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): VisionerScoringRunValidationResult {
+  return validateVisionerScoringRunRecordAgainstProbeIds(
+    record,
+    listVisionerScoringContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateVisionerScoringFailureRecoveryRunRecord(
+  record: VisionerScoringRunRecord,
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): VisionerScoringRunValidationResult {
+  const issues: VisionerScoringRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P02-B08-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P02-B08-A06`,
+    });
+  }
+
+  const expectedCategories = [...VISIONER_SCORING_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateVisionerScoringRunRecordAgainstProbeIds(
+    record,
+    listVisionerScoringFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
 /** Sample vision with explicit alternatives for scoring presence probes. */
 export const SAMPLE_VISION_FOR_SCORING = `REASONING: Two viable product directions for trade-off scoring
 OUTPUT:
