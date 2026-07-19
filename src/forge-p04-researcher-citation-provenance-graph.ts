@@ -14,7 +14,12 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import researcherCitationProvenanceGraphBaseline from "./fixtures/forge-researcher-citation-provenance-graph-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP04B04ToB05Handoff,
   getActiveResearcherBenchmarkPriorArtContract,
@@ -2970,5 +2975,779 @@ export function runResearcherCitationProvenanceGraphPropertyFuzzSlice(
     propertyResult,
     contractFuzz,
     runRecordFuzz,
+  };
+}
+
+// ─── Probe regression detection (P04-B05-A08) ────────────────────────────────
+
+export interface ResearcherCitationProvenanceGraphProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare citation provenance graph run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectResearcherCitationProvenanceGraphProbeRegression(
+  prior: ResearcherCitationProvenanceGraphRunRecord,
+  current: ResearcherCitationProvenanceGraphRunRecord,
+): ResearcherCitationProvenanceGraphProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+export interface ResearcherCitationProvenanceGraphForgeRegressionResult {
+  atom: "P04-B05-A08";
+  passed: boolean;
+  productionSlice: ResearcherCitationProvenanceGraphProductionSliceResult;
+  propertyFuzzSlice: ResearcherCitationProvenanceGraphPropertyFuzzSliceResult;
+  record: ResearcherCitationProvenanceGraphRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: ResearcherCitationProvenanceGraphProbeRegressionReport | null;
+  guard: ResearcherCitationProvenanceGraphGuardCheckResult;
+  detail: string;
+}
+
+/**
+ * Execute citation provenance graph probes, validate production slice + run record,
+ * property/fuzz gates, and optionally detect regression vs prior run (P04-B05-A08).
+ */
+export function runResearcherCitationProvenanceGraphForgeRegression(
+  priorRecord?: ResearcherCitationProvenanceGraphRunRecord,
+): ResearcherCitationProvenanceGraphForgeRegressionResult {
+  const fixture = loadResearcherCitationProvenanceGraphBaseline();
+  const contract = getActiveResearcherCitationProvenanceGraphContract();
+  const productionSlice = runResearcherCitationProvenanceGraphProductionSlice(fixture);
+  const propertyFuzzSlice = runResearcherCitationProvenanceGraphPropertyFuzzSlice(fixture);
+  const record = runResearcherCitationProvenanceGraphProbesWithRecord(fixture);
+  const validation = validateResearcherCitationProvenanceGraphRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateResearcherCitationProvenanceGraphRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectResearcherCitationProvenanceGraphProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeResearcherCitationProvenanceGraphGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk &&
+    recordValid &&
+    priorRecordValid &&
+    !alignmentRegression &&
+    propertyFuzzOk &&
+    guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(`priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    atom: "P04-B05-A08",
+    passed,
+    productionSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    guard,
+    detail: detailParts.join(" | "),
+  };
+}
+
+// ─── Guard controls (P04-B05-A09 foundation, used by A08 regression gate) ────
+
+export interface ForgeResearcherCitationProvenanceGraphGuardControls {
+  atom: string;
+  adversarial: {
+    rejectTamperedRecords: true;
+    rejectFalseAlignment: true;
+    rejectSummaryEvidenceMismatch: true;
+  };
+  performance: {
+    maxSuiteDurationMs: number;
+    maxProbeDurationMs: number;
+    maxWallClockMs: number;
+  };
+  cost: {
+    maxTotalCostUsd: number;
+    maxLlmCalls: number;
+  };
+  safety: {
+    maxDetailLength: number;
+    forbiddenPatterns: readonly RegExp[];
+  };
+}
+
+export interface ResearcherCitationProvenanceGraphGuardCheckIssue {
+  domain: "adversarial" | "performance" | "cost" | "safety";
+  code: string;
+  detail: string;
+}
+
+export interface ResearcherCitationProvenanceGraphGuardCheckResult {
+  passed: boolean;
+  issues: ResearcherCitationProvenanceGraphGuardCheckIssue[];
+  metrics: {
+    suiteDurationMs: number;
+    wallClockMs: number;
+    maxProbeDurationMs: number;
+    totalCostUsd: number;
+    llmCalls: number;
+    adversarialScenariosRejected: number;
+    adversarialScenariosTotal: number;
+  };
+}
+
+export interface ResearcherCitationProvenanceGraphAdversarialGuardScenario {
+  id: string;
+  description: string;
+  build: (
+    record: ResearcherCitationProvenanceGraphRunRecord,
+  ) => ResearcherCitationProvenanceGraphRunRecord;
+  expectRejected: true;
+}
+
+export const FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_GUARD_CONTROLS_V1: ForgeResearcherCitationProvenanceGraphGuardControls =
+  {
+    atom: "P04-B05-A09",
+    adversarial: {
+      rejectTamperedRecords: true,
+      rejectFalseAlignment: true,
+      rejectSummaryEvidenceMismatch: true,
+    },
+    performance: {
+      maxSuiteDurationMs: 30_000,
+      maxProbeDurationMs: 5_000,
+      maxWallClockMs: 45_000,
+    },
+    cost: {
+      maxTotalCostUsd: 0,
+      maxLlmCalls: 0,
+    },
+    safety: {
+      maxDetailLength: 4096,
+      forbiddenPatterns: [
+        /sk-[a-zA-Z0-9]{20,}/,
+        /api[_-]?key\s*[:=]\s*\S+/i,
+        /Bearer\s+[a-zA-Z0-9._-]{20,}/i,
+        /password\s*[:=]\s*\S+/i,
+        /-----BEGIN (RSA |EC )?PRIVATE KEY-----/,
+      ],
+    },
+  };
+
+export function getForgeResearcherCitationProvenanceGraphGuardControls(): ForgeResearcherCitationProvenanceGraphGuardControls {
+  return FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_GUARD_CONTROLS_V1;
+}
+
+function parseResearcherCitationProvenanceGraphIsoDurationMs(
+  startedAt: string,
+  completedAt: string,
+): number {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(completedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
+  return end - start;
+}
+
+export function summarizeResearcherCitationProvenanceGraphTelemetry(
+  telemetry: ResearcherCitationProvenanceGraphProbeTelemetry[],
+): {
+  suiteDurationMs: number;
+  maxProbeDurationMs: number;
+} {
+  let suiteDurationMs = 0;
+  let maxProbeDurationMs = 0;
+  for (const item of telemetry) {
+    suiteDurationMs += item.durationMs;
+    if (item.durationMs > maxProbeDurationMs) maxProbeDurationMs = item.durationMs;
+  }
+  return { suiteDurationMs, maxProbeDurationMs };
+}
+
+export function detectResearcherCitationProvenanceGraphEvidenceSummaryMismatch(
+  record: ResearcherCitationProvenanceGraphRunRecord,
+): string | null {
+  let alignedCount = 0;
+  for (const item of record.evidence) {
+    if (item.aligned) alignedCount++;
+  }
+  const mismatches = record.evidence.length - alignedCount;
+  if (record.summary.aligned !== alignedCount) {
+    return `summary.aligned=${record.summary.aligned} evidence=${alignedCount}`;
+  }
+  if (record.summary.mismatches !== mismatches) {
+    return `summary.mismatches=${record.summary.mismatches} evidence=${mismatches}`;
+  }
+  if (record.summary.total !== record.evidence.length) {
+    return `summary.total=${record.summary.total} evidence=${record.evidence.length}`;
+  }
+  return null;
+}
+
+export function detectResearcherCitationProvenanceGraphFalseAlignment(
+  record: ResearcherCitationProvenanceGraphRunRecord,
+): string[] {
+  const violations: string[] = [];
+  for (const item of record.evidence) {
+    const shouldAlign = item.actual === item.expected;
+    if (item.aligned !== shouldAlign) {
+      violations.push(
+        `${item.probeId}: aligned=${item.aligned} actual=${item.actual} expected=${item.expected}`,
+      );
+    }
+    if (item.aligned && item.actual !== item.expected) {
+      violations.push(`${item.probeId}: false PASS claim`);
+    }
+  }
+  return violations;
+}
+
+export function validateResearcherCitationProvenanceGraphSafety(
+  record: ResearcherCitationProvenanceGraphRunRecord,
+  controls: ForgeResearcherCitationProvenanceGraphGuardControls = getForgeResearcherCitationProvenanceGraphGuardControls(),
+): ResearcherCitationProvenanceGraphGuardCheckIssue[] {
+  const issues: ResearcherCitationProvenanceGraphGuardCheckIssue[] = [];
+  for (const item of record.evidence) {
+    if (item.detail.length > controls.safety.maxDetailLength) {
+      issues.push({
+        domain: "safety",
+        code: "detail_too_long",
+        detail: `${item.probeId} detail length=${item.detail.length}`,
+      });
+    }
+    for (const pattern of controls.safety.forbiddenPatterns) {
+      if (pattern.test(item.detail) || pattern.test(item.criterion)) {
+        issues.push({
+          domain: "safety",
+          code: "forbidden_pattern",
+          detail: `${item.probeId} matched ${pattern.source}`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+export function validateResearcherCitationProvenanceGraphPerformance(
+  record: ResearcherCitationProvenanceGraphRunRecord,
+  controls: ForgeResearcherCitationProvenanceGraphGuardControls = getForgeResearcherCitationProvenanceGraphGuardControls(),
+): ResearcherCitationProvenanceGraphGuardCheckIssue[] {
+  const issues: ResearcherCitationProvenanceGraphGuardCheckIssue[] = [];
+  const { suiteDurationMs, maxProbeDurationMs } = summarizeResearcherCitationProvenanceGraphTelemetry(
+    record.telemetry,
+  );
+  const wallClockMs = parseResearcherCitationProvenanceGraphIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  if (suiteDurationMs > controls.performance.maxSuiteDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "suite_duration_exceeded",
+      detail: `${suiteDurationMs}ms > ${controls.performance.maxSuiteDurationMs}ms`,
+    });
+  }
+  if (maxProbeDurationMs > controls.performance.maxProbeDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "probe_duration_exceeded",
+      detail: `${maxProbeDurationMs}ms > ${controls.performance.maxProbeDurationMs}ms`,
+    });
+  }
+  if (wallClockMs > controls.performance.maxWallClockMs) {
+    issues.push({
+      domain: "performance",
+      code: "wall_clock_exceeded",
+      detail: `${wallClockMs}ms > ${controls.performance.maxWallClockMs}ms`,
+    });
+  }
+  return issues;
+}
+
+export function validateResearcherCitationProvenanceGraphCost(
+  totalCostUsd: number,
+  llmCalls: number,
+  controls: ForgeResearcherCitationProvenanceGraphGuardControls = getForgeResearcherCitationProvenanceGraphGuardControls(),
+): ResearcherCitationProvenanceGraphGuardCheckIssue[] {
+  const issues: ResearcherCitationProvenanceGraphGuardCheckIssue[] = [];
+  if (totalCostUsd > controls.cost.maxTotalCostUsd) {
+    issues.push({
+      domain: "cost",
+      code: "cost_exceeded",
+      detail: `$${totalCostUsd.toFixed(4)} > $${controls.cost.maxTotalCostUsd}`,
+    });
+  }
+  if (llmCalls > controls.cost.maxLlmCalls) {
+    issues.push({
+      domain: "cost",
+      code: "llm_calls_exceeded",
+      detail: `${llmCalls} > ${controls.cost.maxLlmCalls}`,
+    });
+  }
+  return issues;
+}
+
+export function buildResearcherCitationProvenanceGraphAdversarialGuardScenarios(): ResearcherCitationProvenanceGraphAdversarialGuardScenario[] {
+  return [
+    {
+      id: "adversarial.false_alignment_claim",
+      description: "Evidence claims aligned while actual !== expected",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = true;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.summary_mismatch",
+      description: "Summary reports zero mismatches while evidence is tampered",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = false;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        cloned.summary = { ...cloned.summary, aligned: cloned.summary.total, mismatches: 0 };
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.dropped_probe",
+      description: "Run record omits required probe evidence",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        cloned.evidence = cloned.evidence.slice(1);
+        cloned.telemetry = cloned.telemetry.slice(1);
+        cloned.summary = {
+          ...cloned.summary,
+          total: cloned.evidence.length,
+          aligned: cloned.evidence.filter(item => item.aligned).length,
+          mismatches: cloned.evidence.filter(item => !item.aligned).length,
+        };
+        return cloned;
+      },
+    },
+  ];
+}
+
+export function runResearcherCitationProvenanceGraphAdversarialGuardChecks(
+  fixtureRecord: ResearcherCitationProvenanceGraphRunRecord,
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): { rejected: number; total: number; failures: string[] } {
+  const scenarios = buildResearcherCitationProvenanceGraphAdversarialGuardScenarios();
+  const failures: string[] = [];
+  let rejected = 0;
+
+  for (const scenario of scenarios) {
+    const tampered = scenario.build(fixtureRecord);
+    const validation = validateResearcherCitationProvenanceGraphRunRecord(tampered, contract);
+    const falseAlignment = detectResearcherCitationProvenanceGraphFalseAlignment(tampered);
+    const summaryMismatch = detectResearcherCitationProvenanceGraphEvidenceSummaryMismatch(tampered);
+    const rejectedByGuard =
+      !validation.valid || falseAlignment.length > 0 || summaryMismatch !== null;
+
+    if (rejectedByGuard) rejected++;
+    else failures.push(`${scenario.id}: tampered record was not rejected`);
+  }
+
+  return { rejected, total: scenarios.length, failures };
+}
+
+export function validateForgeResearcherCitationProvenanceGraphGuard(
+  record: ResearcherCitationProvenanceGraphRunRecord,
+  options: {
+    totalCostUsd?: number;
+    llmCalls?: number;
+    contract?: ResearcherCitationProvenanceGraphContract;
+    controls?: ForgeResearcherCitationProvenanceGraphGuardControls;
+  } = {},
+): ResearcherCitationProvenanceGraphGuardCheckResult {
+  const controls = options.controls ?? getForgeResearcherCitationProvenanceGraphGuardControls();
+  const contract = options.contract ?? getActiveResearcherCitationProvenanceGraphContract();
+  const totalCostUsd = options.totalCostUsd ?? 0;
+  const llmCalls = options.llmCalls ?? 0;
+  const issues: ResearcherCitationProvenanceGraphGuardCheckIssue[] = [];
+
+  issues.push(...validateResearcherCitationProvenanceGraphPerformance(record, controls));
+  issues.push(...validateResearcherCitationProvenanceGraphCost(totalCostUsd, llmCalls, controls));
+  issues.push(...validateResearcherCitationProvenanceGraphSafety(record, controls));
+
+  const falseAlignment = detectResearcherCitationProvenanceGraphFalseAlignment(record);
+  if (falseAlignment.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "false_alignment",
+      detail: falseAlignment.join("; "),
+    });
+  }
+  const summaryMismatch = detectResearcherCitationProvenanceGraphEvidenceSummaryMismatch(record);
+  if (summaryMismatch) {
+    issues.push({
+      domain: "adversarial",
+      code: "summary_evidence_mismatch",
+      detail: summaryMismatch,
+    });
+  }
+
+  const adversarial = runResearcherCitationProvenanceGraphAdversarialGuardChecks(record, contract);
+  if (adversarial.failures.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "scenario_not_rejected",
+      detail: adversarial.failures.join("; "),
+    });
+  }
+
+  const telemetrySummary = summarizeResearcherCitationProvenanceGraphTelemetry(record.telemetry);
+  const wallClockMs = parseResearcherCitationProvenanceGraphIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  return {
+    passed: issues.length === 0 && adversarial.rejected === adversarial.total,
+    issues,
+    metrics: {
+      suiteDurationMs: telemetrySummary.suiteDurationMs,
+      wallClockMs,
+      maxProbeDurationMs: telemetrySummary.maxProbeDurationMs,
+      totalCostUsd,
+      llmCalls,
+      adversarialScenariosRejected: adversarial.rejected,
+      adversarialScenariosTotal: adversarial.total,
+    },
+  };
+}
+
+// ─── Block gate and handoff (P04-B05-A10) ─────────────────────────────────────
+
+export interface ResearcherCitationProvenanceGraphBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface ResearcherCitationProvenanceGraphBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    citationProvenanceGraphCategories: readonly ResearcherCitationProvenanceGraphCategory[];
+    sourceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    citationProvenanceGraphRecordRequired: true;
+  };
+}
+
+export const FORGE_P04_B05_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P04-B05-A10",
+  blockId: "P04-B05",
+  title: "Citation ve provenance graph",
+  requiredAtomIds: [
+    "P04-B05-A01",
+    "P04-B05-A02",
+    "P04-B05-A03",
+    "P04-B05-A04",
+    "P04-B05-A05",
+    "P04-B05-A06",
+    "P04-B05-A07",
+    "P04-B05-A08",
+    "P04-B05-A09",
+    "P04-B05-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P04-B05-A01",
+      description:
+        "Citation provenance graph baseline aligns with typed contract and P04-B04 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P04-B05-A02",
+      description: "Contract declares measurable probes for all citation provenance graph categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P04-B05-A03",
+      description: "Citation provenance graph probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P04-B05-A04",
+      description:
+        "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P04-B05-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P04-B05-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P04-B05-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P04-B05-A08",
+      description: "Regression gate passes on canonical citation provenance graph matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P04-B05-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P04-B05-A10",
+      description: "Block gate evidence sealed with valid B06 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P04_B05_TO_B06_HANDOFF_V1: ResearcherCitationProvenanceGraphBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P04-B05-A10",
+  sourceBlock: {
+    blockId: "P04-B05",
+    title: "Citation ve provenance graph",
+    completedAtoms: FORGE_P04_B05_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P04-B06",
+    title: "Contradiction ve freshness çözümü",
+    entryAtom: "P04-B06-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_CONTRACT_V1.version,
+    harnessVersion: FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_VERSION,
+    probeCount: summarizeResearcherCitationProvenanceGraphContractCoverage(
+      FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_CONTRACT_V1,
+    ).totalProbes,
+    citationProvenanceGraphCategories: RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORIES,
+    sourceBlockGateAtom: "P04-B04-A10",
+  },
+  prerequisites: [
+    "Citation provenance graph contract v1 with measurable citation, provenance and guard probes",
+    "Versioned citation provenance graph baseline aligned to contract probe matrix and sealed P04-B04 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P04-B04 benchmark prior-art block gate referenced by sourceBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P04-B06-A01 formalizes contradiction and freshness resolution using sealed citation provenance graph artifacts",
+    requiresBlockGatePass: true,
+    citationProvenanceGraphRecordRequired: true,
+  },
+};
+
+export function getForgeP04B05BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P04_B05_BLOCK_GATE_V1;
+}
+
+export function getForgeP04B05ToB06Handoff(): ResearcherCitationProvenanceGraphBlockHandoffContract {
+  return FORGE_P04_B05_TO_B06_HANDOFF_V1;
+}
+
+export function validateResearcherCitationProvenanceGraphBlockHandoffContract(
+  handoff: ResearcherCitationProvenanceGraphBlockHandoffContract,
+  evidence: Pick<
+    ResearcherCitationProvenanceGraphBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeResearcherCitationProvenanceGraphContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.citationProvenanceGraphCategories.length !==
+    RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORIES.length
+  ) {
+    issues.push("handoff citationProvenanceGraphCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceBlockGateAtom !== "P04-B04-A10") {
+    issues.push(`unexpected source block gate atom: ${handoff.sealedArtifacts.sourceBlockGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P04-B06-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildResearcherCitationProvenanceGraphBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P04_B05_BLOCK_GATE_V1.blockId,
+): ResearcherCitationProvenanceGraphBlockGateEvidence {
+  const handoff = getForgeP04B05ToB06Handoff();
+  const handoffValid = validateResearcherCitationProvenanceGraphBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P04-B05-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }

@@ -74,7 +74,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B05-A05 — Citation ve provenance graph: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B05-A06 — Citation ve provenance graph: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B05-A07 — Citation ve provenance graph: unit, property ve fuzz doğrulamasını ekle
-- [ ] P04-B05-A08 — Citation ve provenance graph: Forge entegrasyonu ile regression testini tamamla
+- [x] P04-B05-A08 — Citation ve provenance graph: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B05-A09 — Citation ve provenance graph: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B05-A10 — Citation ve provenance graph: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B05-A07
-last_commit: 05ee3eb
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (32/32); runResearcherCitationProvenanceGraphPropertyFuzzSlice; propertyChecks=8 contractFuzzRejected=true runRecordFuzzRejected=true
-evidence: runResearcherCitationProvenanceGraphPropertyValidation + runResearcherCitationProvenanceGraphFuzzValidation + runResearcherCitationProvenanceGraphRunRecordFuzzValidation; 8 structural properties, 72 fixture mutations rejected, 5 run-record mutations rejected
-next: P04-B05-A08
+last_atom: P04-B05-A08
+last_commit: pending
+tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (40/40); runForgeResearcherCitationProvenanceGraphRegressionGate; 23/23 probes aligned; propertyFuzz properties=8/8; guard adversarial=3/3; orchestrator verifyForgeResearcherCitationProvenanceGraphRegression
+evidence: runResearcherCitationProvenanceGraphForgeRegression + detectResearcherCitationProvenanceGraphProbeRegression + forge-pipeline-regression integration slice; prior record tamper rejection via applyResearcherCitationProvenanceGraphRunRecordFuzzMutation
+next: P04-B05-A09

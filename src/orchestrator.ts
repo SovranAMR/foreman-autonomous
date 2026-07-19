@@ -1784,6 +1784,27 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher citation provenance graph regression gate and emit verification event (P04-B05-A08).
+   */
+  async verifyForgeResearcherCitationProvenanceGraphRegression(
+    priorRecord?: import("./forge-p04-researcher-citation-provenance-graph.js").ResearcherCitationProvenanceGraphRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-citation-provenance-graph.probe.js").ForgeResearcherCitationProvenanceGraphRegressionGateResult
+  > {
+    const { runForgeResearcherCitationProvenanceGraphRegressionGate } = await import(
+      "./forge-p04-researcher-citation-provenance-graph.probe.js"
+    );
+    const result = runForgeResearcherCitationProvenanceGraphRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "researcher_citation_provenance_graph_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */
