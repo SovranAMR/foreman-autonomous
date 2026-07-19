@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 1
-completed_atoms: 10
+completed_atoms: 11
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -28,7 +28,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P04-B02 — Repo içi kanıt toplama
 
-- [ ] P04-B02-A01 — Repo içi kanıt toplama: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P04-B02-A01 — Repo içi kanıt toplama: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P04-B02-A02 — Repo içi kanıt toplama: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B02-A03 — Repo içi kanıt toplama: en küçük üretim dikey dilimini uygula
 - [ ] P04-B02-A04 — Repo içi kanıt toplama: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B01-A10
-last_commit: a1dc6cb
-tests: PASS — forge-p04-researcher*.test.ts (57/57); block gate PASS; seals=10/10; handoff→P04-B02; regression+guard PASS
-evidence: runResearcherQuestionDecompositionBlockGate; verifyForgeResearcherQuestionDecompositionBlockGate; FORGE_P04_B01_BLOCK_GATE_V1; FORGE_P04_B01_TO_B02_HANDOFF_V1; harnessVersion=1.0.0-a10
-next: P04-B02-A01
+last_atom: P04-B02-A01
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (64/64); baseline 23 probes; knownGaps=1 (riev.structured_repo_evidence_recovery); handoff P04-B01→B02 validated
+evidence: loadResearcherInRepoEvidenceBaseline; runResearcherInRepoEvidenceProbes; validateResearcherInRepoEvidenceBaseline; assessInRepoEvidenceInputBoundary; validateInRepoEvidenceCollection; FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1; harnessVersion=1.0.0-a01
+next: P04-B02-A02

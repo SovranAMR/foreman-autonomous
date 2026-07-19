@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P04-B02-A01",
+  "contractAtom": "P04-B02-A06",
+  "purpose": "Researcher in-repo evidence collection baseline measured from sealed P04-B01 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P04-B01-A10",
+    "contractVersion": "1.0.0",
+    "questionDecompositionProbeCount": 27,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "riev.version_tagged",
+      "category": "evidence_versioning",
+      "description": "In-repo evidence baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.atom_tagged",
+      "category": "evidence_versioning",
+      "description": "In-repo evidence baseline declares P04-B02-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.harness_version_exported",
+      "category": "evidence_versioning",
+      "description": "FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION exported for in-repo evidence harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.research_engine_search_files",
+      "category": "repo_signal",
+      "description": "research-engine searchFiles greps project files for in-repo evidence",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.research_combined_file_results",
+      "category": "repo_signal",
+      "description": "research() aggregates fileResults alongside web findings",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.tools_search_fallback",
+      "category": "repo_signal",
+      "description": "web_search tool falls back to local searchFiles when Brave API unavailable",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.research_context_file_fields",
+      "category": "citation_signal",
+      "description": "FileSearchResult exposes file path, line number and matching text for citations",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.tools_read_file",
+      "category": "citation_signal",
+      "description": "read_file tool enables grounded file content inspection",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.tools_grep",
+      "category": "citation_signal",
+      "description": "grep tool searches repository contents with path:line citations",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.b01_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P04_B01_TO_B02_HANDOFF_V1 targets P04-B02-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.b01_sealed_question_probes",
+      "category": "baseline_link",
+      "description": "P04-B01→B02 handoff sealed probeCount matches active question decomposition contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P04-B01 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.probe_runner_exported",
+      "category": "boundary",
+      "description": "runResearcherInRepoEvidenceProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL in-repo evidence gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.empty_query_boundary",
+      "category": "boundary",
+      "description": "assessInRepoEvidenceInputBoundary rejects empty search query input",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.whitespace_query_boundary",
+      "category": "boundary",
+      "description": "assessInRepoEvidenceInputBoundary rejects whitespace-only search query input",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.long_query_truncation_boundary",
+      "category": "boundary",
+      "description": "assessInRepoEvidenceInputBoundary truncates search query exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateResearcherInRepoEvidenceBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.malformed_query_guard",
+      "category": "failure_path",
+      "description": "assessInRepoEvidenceInputBoundary rejects null-byte search query safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.research_block_non_fatal",
+      "category": "recovery_path",
+      "description": "Orchestrator treats researcher BLOCK as non-fatal and continues pipeline",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.structured_repo_evidence_recovery",
+      "category": "recovery_path",
+      "description": "recoverInRepoEvidence restructures failed repo citation parse into actionable evidence plan",
+      "expected": "FAIL"
+    },
+    {
+      "id": "riev.researcher_critical_block",
+      "category": "nogo_path",
+      "description": "RESEARCHER_SYSTEM prompt can BLOCK on critical infeasibility findings",
+      "expected": "PASS"
+    },
+    {
+      "id": "riev.exported_repo_evidence_validator",
+      "category": "nogo_path",
+      "description": "validateInRepoEvidenceCollection exported for orchestrator pre-research wiring",
+      "expected": "PASS"
+    }
+  ]
+}
