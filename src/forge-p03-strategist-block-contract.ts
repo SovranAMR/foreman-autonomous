@@ -19,7 +19,7 @@ import {
 } from "./forge-p03-strategist-intent.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION = "1.0.0-a04";
+export const FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION = "1.0.0-a05";
 
 /** Maximum normalized decompose length before truncation (P03-B02-A01 boundary). */
 export const STRATEGIST_BLOCK_DECOMPOSE_MAX_LENGTH = 64000;
@@ -278,6 +278,88 @@ export function validateStrategistBlockContractBoundaryProbeMatrix(
   const boundaryIds = new Set(boundaryProbes.map(p => p.id));
   const boundaryResults = results.filter(r => boundaryIds.has(r.id));
   return validateStrategistBlockContractProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const STRATEGIST_BLOCK_CONTRACT_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly StrategistBlockContractCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes must align; zero unexpected mismatches required.
+ */
+export function validateStrategistBlockContractFailureRecoveryProbeMatrix(
+  results: StrategistBlockContractProbeResult[],
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): StrategistBlockContractProbeMatrixValidationResult {
+  const failureRecoveryProbes = STRATEGIST_BLOCK_CONTRACT_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistBlockContractContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: StrategistBlockContractContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateStrategistBlockContractProbeMatrix(
+    failureRecoveryResults,
+    failureRecoveryContract,
+  );
+}
+
+export function listStrategistBlockContractFailureRecoveryProbeIds(
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): string[] {
+  return STRATEGIST_BLOCK_CONTRACT_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listStrategistBlockContractContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface StrategistBlockContractFailureRecoverySliceResult {
+  atom: "P03-B02-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistBlockContractProbeResult[];
+  failureRecoveryResults: StrategistBlockContractProbeResult[];
+  matrixValidation: StrategistBlockContractProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches.
+ */
+export function runStrategistBlockContractFailureRecoverySlice(
+  fixture: StrategistBlockContractBaseline = loadStrategistBlockContractBaseline(),
+): StrategistBlockContractFailureRecoverySliceResult {
+  const contract = getActiveStrategistBlockContract();
+  const results = runStrategistBlockContractProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_BLOCK_CONTRACT_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistBlockContractContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistBlockContractFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P03-B02-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
+    matrixValidation,
+  };
 }
 
 export interface StrategistBlockContractProductionSliceResult {

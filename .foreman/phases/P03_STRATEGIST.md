@@ -32,7 +32,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B02-A02 — Block üretim kontratı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P03-B02-A03 — Block üretim kontratı: en küçük üretim dikey dilimini uygula
 - [x] P03-B02-A04 — Block üretim kontratı: boundary ve edge-case davranışlarını tamamla
-- [ ] P03-B02-A05 — Block üretim kontratı: failure, recovery ve NO-GO yollarını uygula
+- [x] P03-B02-A05 — Block üretim kontratı: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B02-A06 — Block üretim kontratı: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B02-A07 — Block üretim kontratı: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B02-A08 — Block üretim kontratı: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B02-A04
-last_commit: 69d5b4c
-tests: PASS — forge-p03-strategist-block-contract.test.ts (11/11); forge-p03-strategist-block-contract-baseline.test.ts (3/3); boundary 6 probes; 0 unexpected mismatches; assessStrategistBlockInputBoundary edge cases
-evidence: runStrategistBlockContractBoundarySlice; validateStrategistBlockContractBoundaryProbeMatrix; assessStrategistBlockInputBoundary
-next: P03-B02-A05
+last_atom: P03-B02-A05
+last_commit: pending
+tests: PASS — forge-p03-strategist-block-contract.test.ts (14/14); forge-p03-strategist-block-contract-baseline.test.ts (3/3); failure/recovery 6 probes; 0 unexpected mismatches
+evidence: runStrategistBlockContractFailureRecoverySlice; validateStrategistBlockContractFailureRecoveryProbeMatrix; listStrategistBlockContractFailureRecoveryProbeIds
+next: P03-B02-A06

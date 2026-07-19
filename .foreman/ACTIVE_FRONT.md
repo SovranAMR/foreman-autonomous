@@ -6,9 +6,9 @@ active_phase: P03
 active_block: P03-B02
 active_atom: P03-B02-A05
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 213/1000
-phase_progress: 14/100
-block_progress: 4/10
+program_progress: 214/1000
+phase_progress: 15/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B02-A05 — Block üretim kontratı: failure, recovery ve NO-GO yollarını uygula.
+P03-B02-A06 — Block üretim kontratı: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P03-B02-A04 PASS; P03-B02-A05 failure/recovery slice for block contract probes.
-target: runStrategistBlockContractFailureRecoverySlice, validateStrategistBlockContractFailureRecoveryProbeMatrix.
-hypothesis: P03-B02-A05 closes failure/recovery/NO-GO paths with zero unexpected mismatches.
-acceptance: failure/recovery slice exported; six probes aligned; zero unexpected mismatches on failure matrix.
+objective: P03-B02-A05 PASS; P03-B02-A06 evidence/telemetry slice for block contract probes.
+target: runStrategistBlockContractFailureRecoverySliceWithRecord, validateStrategistBlockContractFailureRecoveryRunRecord.
+hypothesis: P03-B02-A06 closes evidence/telemetry/provenance for failure/recovery slice with aligned run record gate.
+acceptance: failure/recovery run record exported; six probes aligned; run record gate PASS.
 commands: npx tsx --test src/forge-p03-strategist-block-contract.test.ts
 blast_radius: src/forge-p03-strategist-block-contract.ts
-rollback: P03-B02-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P03-B02-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: A04 boundary misaligned ise BLOCKED raporla.
+fallback: A05 failure matrix misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B02-A04
-last_commit: 69d5b4c
-tests: PASS — forge-p03-strategist-block-contract.test.ts (11/11); forge-p03-strategist-block-contract-baseline.test.ts (3/3); boundary 6 probes; 0 unexpected mismatches
-evidence: runStrategistBlockContractBoundarySlice; validateStrategistBlockContractBoundaryProbeMatrix; assessStrategistBlockInputBoundary
-next: P03-B02-A05
+last_atom: P03-B02-A05
+last_commit: pending
+tests: PASS — forge-p03-strategist-block-contract.test.ts (14/14); forge-p03-strategist-block-contract-baseline.test.ts (3/3); failure/recovery 6 probes; 0 unexpected mismatches
+evidence: runStrategistBlockContractFailureRecoverySlice; validateStrategistBlockContractFailureRecoveryProbeMatrix; listStrategistBlockContractFailureRecoveryProbeIds
+next: P03-B02-A06

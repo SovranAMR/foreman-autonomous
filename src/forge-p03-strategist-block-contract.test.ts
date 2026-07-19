@@ -12,9 +12,13 @@ import {
   recoverStrategistBlockProduction,
   runStrategistBlockContractProductionSlice,
   runStrategistBlockContractBoundarySlice,
+  runStrategistBlockContractFailureRecoverySlice,
   validateStrategistBlockContractProbeMatrix,
   validateStrategistBlockContractBoundaryProbeMatrix,
+  validateStrategistBlockContractFailureRecoveryProbeMatrix,
   listStrategistBlockContractContractProbesByCategory,
+  listStrategistBlockContractFailureRecoveryProbeIds,
+  STRATEGIST_BLOCK_CONTRACT_FAILURE_RECOVERY_CATEGORIES,
   assessStrategistBlockInputBoundary,
   STRATEGIST_BLOCK_DECOMPOSE_MAX_LENGTH,
   STRATEGIST_BLOCK_CONTRACT_CATEGORIES,
@@ -248,5 +252,83 @@ describe("Forge Strategist Block Contract Boundary Slice — P03-B02-A04", () =>
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Block Contract Failure/Recovery Slice — P03-B02-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveStrategistBlockContract();
+    const failure = listStrategistBlockContractContractProbesByCategory("failure_path", contract);
+    const recovery = listStrategistBlockContractContractProbesByCategory("recovery_path", contract);
+    const nogo = listStrategistBlockContractContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...STRATEGIST_BLOCK_CONTRACT_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistBlockContract();
+    const slice = runStrategistBlockContractFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B02-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of STRATEGIST_BLOCK_CONTRACT_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistBlockContractContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistBlockContractFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure, recovery and NO-GO block production paths", () => {
+    const slice = runStrategistBlockContractFailureRecoverySlice();
+    const probeIds = listStrategistBlockContractFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "sblk.malformed_decompose_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const recoveryProbe = slice.failureRecoveryResults.find(
+      r => r.id === "sblk.structured_block_recovery",
+    );
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+
+    const emptyBlocksNogo = slice.failureRecoveryResults.find(
+      r => r.id === "sblk.strategist_empty_blocks_block",
+    );
+    assert.ok(emptyBlocksNogo);
+    assert.equal(emptyBlocksNogo!.expected, "PASS");
+    assert.equal(emptyBlocksNogo!.actual, "PASS");
   });
 });
