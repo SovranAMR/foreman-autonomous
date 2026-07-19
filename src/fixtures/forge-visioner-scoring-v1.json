@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B08-A01",
+  "contractAtom": "P02-B08-A06",
+  "purpose": "Vision scoring and trade-off baseline measured from sealed P02-B07 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P02-B07-A10",
+    "contractVersion": "1.0.0",
+    "visionerAlternativeProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "vsco.version_tagged",
+      "category": "scoring_versioning",
+      "description": "Visioner scoring baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.atom_tagged",
+      "category": "scoring_versioning",
+      "description": "Visioner scoring baseline declares P02-B08-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.harness_version_exported",
+      "category": "scoring_versioning",
+      "description": "FORGE_VISIONER_SCORING_VERSION exported for scoring harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.alternative_presence_wired",
+      "category": "scoring_signal",
+      "description": "assessVisionerScoringPresence detects alternatives prerequisite for scoring input",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.orchestrator_vision_before_decompose",
+      "category": "scoring_signal",
+      "description": "Orchestrator stores primary visionOutput string before decomposition for scoring context",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.b07_handoff_prerequisite",
+      "category": "scoring_signal",
+      "description": "FORGE_P02_B07_TO_B08_HANDOFF requires sealed visioner alternative record before scoring entry",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.prompt_tradeoff_language",
+      "category": "tradeoff_signal",
+      "description": "VISIONER_SYSTEM prompt declares trade-off analysis language",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.assess_scoring_presence",
+      "category": "tradeoff_signal",
+      "description": "assessVisionerScoringPresence exports typed scoreable alternative detection from vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.parse_vision_without_scores",
+      "category": "tradeoff_signal",
+      "description": "parseVisionResponse extracts primary vision fields without score array",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.b07_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_B07_TO_B08_HANDOFF_V1 targets P02-B08-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.b07_sealed_alternative_probes",
+      "category": "baseline_link",
+      "description": "P02-B07→B08 handoff sealed probeCount matches active visioner alternative contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02-B07 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerScoringProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL scoring gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.empty_vision_scoring_boundary",
+      "category": "boundary",
+      "description": "assessVisionerScoringInputBoundary rejects empty vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.whitespace_vision_boundary",
+      "category": "boundary",
+      "description": "assessVisionerScoringInputBoundary rejects whitespace-only vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.long_vision_truncation_boundary",
+      "category": "boundary",
+      "description": "assessVisionerScoringInputBoundary truncates vision exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerScoringBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.malformed_vision_scoring_guard",
+      "category": "failure_path",
+      "description": "assessVisionerScoringPresence rejects null-byte vision output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.vision_checkpoint_scoring",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses checkpoint primary vision output without scoring fan-out",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.structured_tradeoff_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerTradeoff restructures failed trade-off parse into actionable scoring input",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vsco.scoring_tiebreak_nogo",
+      "category": "nogo_path",
+      "description": "checkVisionerScoringTieBreak NO-GO gate blocks tied alternatives before scoring spend",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsco.alternative_clarification_nogo",
+      "category": "nogo_path",
+      "description": "assessVisionerAlternativePresence flags clarification need before scoring spend",
+      "expected": "PASS"
+    }
+  ]
+}
