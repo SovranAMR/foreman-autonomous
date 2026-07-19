@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B08-A09
-last_commit: pending
+last_commit: bac4e00
 tests: PASS — forge-p04-researcher-spike-falsification*.test.ts (58/58); guard adversarial=3/3; perf/cost/safety green; orchestrator verifyForgeResearcherSpikeFalsificationGuard
 evidence: validateForgeResearcherSpikeFalsificationGuard + verifyForgeResearcherSpikeFalsificationGuard
 next: P04-B08-A10
