@@ -1,0 +1,177 @@
+{
+  "version": "1.0.0",
+  "atom": "P05-B04-A01",
+  "contractAtom": "P05-B04-A02",
+  "purpose": "Worker shell and process lifecycle baseline measured from sealed P05-B03 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P05-B03-A10",
+    "contractVersion": "1.0.0-a08",
+    "workerEditEngineProbeCount": 27,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "wsp.version_tagged",
+      "category": "shell_versioning",
+      "description": "Shell process baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.atom_tagged",
+      "category": "shell_versioning",
+      "description": "Shell process baseline declares P05-B04-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.harness_version_exported",
+      "category": "shell_versioning",
+      "description": "FORGE_WORKER_SHELL_PROCESS_VERSION exported for shell process harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.bash_tool_defined",
+      "category": "shell_signal",
+      "description": "bash tool routes worker shell commands through ExecutionEngine dispatch",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.execution_engine_run_shell",
+      "category": "shell_signal",
+      "description": "ExecutionEngine.runShell provides sync shell execution with timeout",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.execution_engine_run_shell_async",
+      "category": "shell_signal",
+      "description": "ExecutionEngine.runShellAsync provides async spawn with kill escalation",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.typed_shell_call_union",
+      "category": "shell_signal",
+      "description": "TypedBashCall discriminated union narrows command and timeout args before shell dispatch",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wsp.process_registry_exported",
+      "category": "process_signal",
+      "description": "ProcessRegistry exports lifecycle tracking for background shell processes",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.list_processes_tool",
+      "category": "process_signal",
+      "description": "list_processes tool exposes running and finished process sessions to worker",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.run_shell_background",
+      "category": "process_signal",
+      "description": "ExecutionEngine.runShellBackground supports yieldMs background execution",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.thought_scoped_process_tracking",
+      "category": "process_signal",
+      "description": "Async shell spawn registers thoughtId and layer on ProcessRegistry sessions",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wsp.b03_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P05_B03_TO_B04_HANDOFF_V1 targets P05-B04-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.b03_sealed_edit_engine_probes",
+      "category": "baseline_link",
+      "description": "P05-B03→B04 handoff sealed probeCount matches active worker edit engine contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P05-B03 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.probe_runner_exported",
+      "category": "boundary",
+      "description": "runWorkerShellProcessProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL shell process gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.empty_command_boundary",
+      "category": "boundary",
+      "description": "assessShellCommandInputBoundary rejects empty shell command input",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.whitespace_command_boundary",
+      "category": "boundary",
+      "description": "assessShellCommandInputBoundary rejects whitespace-only shell command input",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.null_byte_command_boundary",
+      "category": "boundary",
+      "description": "assessShellCommandInputBoundary rejects null-byte shell command safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.long_command_truncation_boundary",
+      "category": "boundary",
+      "description": "assessShellCommandInputBoundary truncates command exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateWorkerShellProcessBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.malformed_command_guard",
+      "category": "failure_path",
+      "description": "assessShellCommandInputBoundary rejects embedded null-byte command segments safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.recovery_string_args_coercion",
+      "category": "recovery_path",
+      "description": "recoverShellCommandRequest coerces JSON string args into dispatch-ready record",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.recovery_missing_command_rejected",
+      "category": "recovery_path",
+      "description": "recoverShellCommandRequest rejects unrecoverable missing command input",
+      "expected": "PASS"
+    },
+    {
+      "id": "wsp.worker_prompt_shell_contract",
+      "category": "nogo_path",
+      "description": "WORKER_SYSTEM prompt declares shell and process lifecycle contract for worker execution",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wsp.orchestrator_pre_shell_validation",
+      "category": "nogo_path",
+      "description": "Orchestrator validates shell command boundary before bash tool dispatch",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wsp.exported_shell_validator",
+      "category": "nogo_path",
+      "description": "validateShellCommand exported for orchestrator shell process checks",
+      "expected": "FAIL"
+    }
+  ]
+}
