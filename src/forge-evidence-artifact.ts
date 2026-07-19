@@ -1076,3 +1076,44 @@ export function validateEvidenceArtifactBoundaryProbeMatrix(
   const boundaryResults = results.filter(r => boundaryIds.has(r.id));
   return validateEvidenceArtifactProbeMatrix(boundaryResults, boundaryContract);
 }
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly EvidenceArtifactCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes and documented FAIL gaps must align; zero unexpected mismatches.
+ */
+export function validateEvidenceArtifactFailureRecoveryProbeMatrix(
+  results: EvidenceArtifactProbeResult[],
+  contract: EvidenceArtifactContract = getActiveEvidenceArtifactContract(),
+): EvidenceArtifactProbeMatrixValidationResult {
+  const failureRecoveryProbes = EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listEvidenceArtifactContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: EvidenceArtifactContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateEvidenceArtifactProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listEvidenceArtifactFailureRecoveryProbeIds(
+  contract: EvidenceArtifactContract = getActiveEvidenceArtifactContract(),
+): string[] {
+  return EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listEvidenceArtifactContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}

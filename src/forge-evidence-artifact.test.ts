@@ -5,8 +5,10 @@ import {
   runEvidenceArtifactProbes,
   runEvidenceArtifactProductionSlice,
   runEvidenceArtifactBoundarySlice,
+  runEvidenceArtifactFailureRecoverySlice,
   validateEvidenceArtifactProbeMatrix,
   validateEvidenceArtifactBoundaryProbeMatrix,
+  validateEvidenceArtifactFailureRecoveryProbeMatrix,
 } from "./forge-evidence-artifact.probe.js";
 
 function formatMismatchReport(
@@ -22,10 +24,12 @@ import {
   listEvidenceArtifactContractProbeIds,
   listEvidenceArtifactContractProbesByCategory,
   listEvidenceArtifactProbesByDisposition,
+  listEvidenceArtifactFailureRecoveryProbeIds,
   summarizeEvidenceArtifactContractCoverage,
   validateEvidenceArtifactContractCoverage,
   validateEvidenceArtifactBaselineAgainstContract,
   EVIDENCE_ARTIFACT_CATEGORIES,
+  EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-evidence-artifact.js";
 
 describe("Forge Evidence Artifact Contract — P01-B08-A02", () => {
@@ -238,5 +242,86 @@ describe("Forge Evidence Artifact Boundary Slice — P01-B08-A04", () => {
     assert.equal(knownGaps!.expected, "PASS");
     assert.equal(knownGaps!.actual, "PASS");
     assert.match(knownGaps!.detail, /documentedFail=7/);
+  });
+});
+
+describe("Forge Evidence Artifact Failure/Recovery Slice — P01-B08-A05", () => {
+  it("defines failure/recovery/NO-GO categories with disposition probes", () => {
+    const contract = getActiveEvidenceArtifactContract();
+    const failure = listEvidenceArtifactProbesByDisposition("failure");
+    const recovery = listEvidenceArtifactContractProbesByCategory("recovery_path", contract);
+    const nogo = listEvidenceArtifactContractProbesByCategory("nogo_path", contract);
+    const failurePath = listEvidenceArtifactContractProbesByCategory("failure_path", contract);
+
+    assert.ok(failure.some(p => p.id === "eva.invalid_version_rejected"));
+    assert.ok(failure.some(p => p.id === "eva.min_category_probes"));
+    assert.ok(recovery.some(p => p.id === "eva.recovery_missing_schema_fallback"));
+    assert.ok(recovery.some(p => p.id === "eva.recovery_baseline_reset"));
+    assert.ok(nogo.some(p => p.id === "eva.nogo_schema_drift_gate"));
+    assert.ok(nogo.some(p => p.id === "eva.nogo_cross_block_mismatch_gate"));
+    assert.equal(failurePath.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveEvidenceArtifactContract();
+    const slice = runEvidenceArtifactFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P01-B08-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 2);
+    assert.equal(slice.matrixValidation.gapAligned, 4);
+
+    for (const category of EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listEvidenceArtifactContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateEvidenceArtifactFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented gaps while exercising failure/recovery/NO-GO paths", () => {
+    const slice = runEvidenceArtifactFailureRecoverySlice();
+    const probeIds = listEvidenceArtifactFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(r => r.id === "eva.invalid_version_rejected");
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const recoveryGap = slice.failureRecoveryResults.find(
+      r => r.id === "eva.recovery_missing_schema_fallback",
+    );
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+
+    const nogoGap = slice.failureRecoveryResults.find(r => r.id === "eva.nogo_schema_drift_gate");
+    assert.ok(nogoGap);
+    assert.equal(nogoGap!.expected, "FAIL");
+    assert.equal(nogoGap!.actual, "FAIL");
   });
 });

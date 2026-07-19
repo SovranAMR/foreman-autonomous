@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B08
-active_atom: P01-B08-A05
+active_atom: P01-B08-A06
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 73/1000
-phase_progress: 72/100
-block_progress: 4/10
+program_progress: 74/1000
+phase_progress: 73/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B08-A05 — Evidence ve artifact şeması: failure, recovery ve NO-GO yollarını uygula.
+P01-B08-A06 — Evidence ve artifact şeması: evidence, telemetry ve provenance kaydını ekle.
 
-objective: A04 boundary slice PASS; failure, recovery ve NO-GO yollarını uygula.
-target: runEvidenceArtifactFailureRecoverySlice; failure/recovery/nogo category probes with zero unexpected mismatches.
-hypothesis: A04 boundary gate + contract failure/recovery/nogo probes yeterli giriş kanıtı sağlar.
-acceptance: failure/recovery slice çalışır; contract-aligned failure matrix; zero pass mismatches.
-commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A05 suite)
+objective: A05 failure/recovery slice PASS; evidence, telemetry ve provenance kaydını ekle.
+target: runEvidenceArtifactFailureRecoverySliceWithRecord; auditable evidence/telemetry/provenance for failure/recovery gate.
+hypothesis: A05 failure/recovery gate + run record builder yeterli giriş kanıtı sağlar.
+acceptance: failure/recovery run record çalışır; contract-aligned evidence bundle; zero pass mismatches.
+commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A06 suite)
 blast_radius: forge-evidence-artifact*.ts
-rollback: A05 failure/recovery slice değişikliklerini geri al.
+rollback: A06 evidence/telemetry/provenance slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: failure/recovery slice uygulanamazsa BLOCKED raporla.
+fallback: run record uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B08-A04
+last_atom: P01-B08-A05
 last_commit: pending
-tests: PASS — forge-evidence-artifact*.test.ts (13/13); runEvidenceArtifactBoundarySlice 3 pass / 0 gap aligned
-evidence: validateEvidenceArtifactBoundaryProbeMatrix; runEvidenceArtifactBoundarySlice contract-wired boundary gate
-next: P01-B08-A05
+tests: PASS — forge-evidence-artifact*.test.ts (16/16); runEvidenceArtifactFailureRecoverySlice 2 pass / 4 gap aligned
+evidence: validateEvidenceArtifactFailureRecoveryProbeMatrix; runEvidenceArtifactFailureRecoverySlice contract-wired failure/recovery/nogo gate
+next: P01-B08-A06

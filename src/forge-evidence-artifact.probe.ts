@@ -30,6 +30,9 @@ import {
   validateEvidenceArtifactBaselineAgainstContract,
   validateEvidenceArtifactProbeMatrix,
   validateEvidenceArtifactBoundaryProbeMatrix,
+  validateEvidenceArtifactFailureRecoveryProbeMatrix,
+  listEvidenceArtifactFailureRecoveryProbeIds,
+  EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES,
   listEvidenceArtifactContractProbesByCategory,
   type EvidenceArtifactBaseline,
   type EvidenceArtifactCategory,
@@ -58,6 +61,9 @@ export {
   validateEvidenceArtifactBaselineAgainstContract,
   validateEvidenceArtifactProbeMatrix,
   validateEvidenceArtifactBoundaryProbeMatrix,
+  validateEvidenceArtifactFailureRecoveryProbeMatrix,
+  listEvidenceArtifactFailureRecoveryProbeIds,
+  EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES,
   FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1,
   type EvidenceArtifactProbeMatrixValidationResult,
 } from "./forge-evidence-artifact.js";
@@ -675,6 +681,41 @@ export function runEvidenceArtifactBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface EvidenceArtifactFailureRecoverySliceResult {
+  atom: "P01-B08-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: EvidenceArtifactProbeResult[];
+  failureRecoveryResults: EvidenceArtifactProbeResult[];
+  matrixValidation: EvidenceArtifactProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runEvidenceArtifactFailureRecoverySlice(
+  fixture: EvidenceArtifactBaseline = loadEvidenceArtifactBaseline(),
+): EvidenceArtifactFailureRecoverySliceResult {
+  const contract = getActiveEvidenceArtifactContract();
+  const results = runEvidenceArtifactProbes(fixture);
+  const failureRecoveryProbes = EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listEvidenceArtifactContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateEvidenceArtifactFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B08-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }
