@@ -5,8 +5,11 @@
  * P04-B05 citation provenance graph block gate artifacts.
  * A04: boundary-category slice gate for evidence input edge cases and probe matrix alignment.
  * A05: failure_path, recovery_path and nogo_path slice gate for failure/recovery/NO-GO probes.
+ * A06: evidence, telemetry and provenance run record for failure/recovery slice gate.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,7 +23,7 @@ import {
   FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_CONTRACT_V1,
 } from "./forge-p04-researcher-citation-provenance-graph.js";
 
-export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION = "1.0.0-a05";
+export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P04_B05_SEALED_ATOM_COUNT = 10;
 
@@ -1556,6 +1559,459 @@ export function runResearcherContradictionFreshnessFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P04-B06-A06). */
+export interface ResearcherContradictionFreshnessProbeEvidence {
+  probeId: string;
+  category: ResearcherContradictionFreshnessCategory;
+  disposition: ResearcherContradictionFreshnessProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for contradiction freshness runs (P04-B06-A06). */
+export interface ResearcherContradictionFreshnessProbeTelemetry {
+  probeId: string;
+  category: ResearcherContradictionFreshnessCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B06-A06). */
+export interface ResearcherContradictionFreshnessProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherContradictionFreshnessCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated contradiction freshness run record bundling evidence, telemetry and provenance. */
+export interface ResearcherContradictionFreshnessRunRecord {
+  provenance: ResearcherContradictionFreshnessProvenance;
+  evidence: ResearcherContradictionFreshnessProbeEvidence[];
+  telemetry: ResearcherContradictionFreshnessProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherContradictionFreshnessCategory, number>;
+    byDisposition: Record<ResearcherContradictionFreshnessProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherContradictionFreshnessRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherContradictionFreshnessRunValidationResult {
+  valid: boolean;
+  issues: ResearcherContradictionFreshnessRunValidationIssue[];
+}
+
+export function buildResearcherContradictionFreshnessProbeEvidence(
+  probeId: string,
+  category: ResearcherContradictionFreshnessCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherContradictionFreshnessProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherContradictionFreshnessProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherContradictionFreshnessProbeTelemetry(
+  probeId: string,
+  category: ResearcherContradictionFreshnessCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherContradictionFreshnessProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherContradictionFreshnessProvenance(
+  runId: string,
+  fixture: ResearcherContradictionFreshnessBaseline,
+  contract: ResearcherContradictionFreshnessContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherContradictionFreshnessCategory[];
+  },
+): ResearcherContradictionFreshnessProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherContradictionFreshnessRunRecord(
+  provenance: ResearcherContradictionFreshnessProvenance,
+  evidence: ResearcherContradictionFreshnessProbeEvidence[],
+  telemetry: ResearcherContradictionFreshnessProbeTelemetry[],
+): ResearcherContradictionFreshnessRunRecord {
+  const byCategory = {} as Record<ResearcherContradictionFreshnessCategory, number>;
+  const byDisposition: Record<ResearcherContradictionFreshnessProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherContradictionFreshnessRunRecordAgainstProbeIds(
+  record: ResearcherContradictionFreshnessRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherContradictionFreshnessContract,
+): ResearcherContradictionFreshnessRunValidationResult {
+  const issues: ResearcherContradictionFreshnessRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherContradictionFreshnessRunRecord(
+  record: ResearcherContradictionFreshnessRunRecord,
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): ResearcherContradictionFreshnessRunValidationResult {
+  return validateResearcherContradictionFreshnessRunRecordAgainstProbeIds(
+    record,
+    listResearcherContradictionFreshnessContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherContradictionFreshnessEvidenceRunRecord(
+  record: ResearcherContradictionFreshnessRunRecord,
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): ResearcherContradictionFreshnessRunValidationResult {
+  const issues: ResearcherContradictionFreshnessRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B06-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B06-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_CONTRADICTION_FRESHNESS_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherContradictionFreshnessRunRecordAgainstProbeIds(
+    record,
+    listResearcherContradictionFreshnessFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherContradictionFreshnessEvidenceSliceResult {
+  atom: "P04-B06-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherContradictionFreshnessProbeResult[];
+  evidenceResults: ResearcherContradictionFreshnessProbeResult[];
+  matrixValidation: ResearcherContradictionFreshnessProbeMatrixValidationResult;
+  record: ResearcherContradictionFreshnessRunRecord;
+  recordValidation: ResearcherContradictionFreshnessRunValidationResult;
+}
+
+function resolveResearcherContradictionFreshnessGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherContradictionFreshnessProbeWithTiming(
+  entry: ResearcherContradictionFreshnessFixtureEntry,
+  fixture: ResearcherContradictionFreshnessBaseline,
+  contractProbe: ResearcherContradictionFreshnessProbeContract | undefined,
+): {
+  result: ResearcherContradictionFreshnessProbeResult;
+  durationMs: number;
+  disposition: ResearcherContradictionFreshnessProbeDisposition;
+} {
+  const start = performance.now();
+  const expected = contractProbe?.expected ?? entry.expected;
+  const result = runSingleProbe(entry.id, entry.category, expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherContradictionFreshnessRecordFromEntries(
+  entries: ResearcherContradictionFreshnessFixtureEntry[],
+  fixture: ResearcherContradictionFreshnessBaseline,
+  contract: ResearcherContradictionFreshnessContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherContradictionFreshnessCategory[];
+  },
+): ResearcherContradictionFreshnessRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ResearcherContradictionFreshnessProbeEvidence[] = [];
+  const telemetry: ResearcherContradictionFreshnessProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherContradictionFreshnessProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherContradictionFreshnessProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherContradictionFreshnessProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherContradictionFreshnessProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherContradictionFreshnessGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherContradictionFreshnessRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all contradiction freshness probes and emit auditable evidence, telemetry and provenance (P04-B06-A06). */
+export function runResearcherContradictionFreshnessProbesWithRecord(
+  fixture: ResearcherContradictionFreshnessBaseline = loadResearcherContradictionFreshnessBaseline(),
+): ResearcherContradictionFreshnessRunRecord {
+  const contract = getActiveResearcherContradictionFreshnessContract();
+  return buildResearcherContradictionFreshnessRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B06-A06). */
+export function runResearcherContradictionFreshnessFailureRecoverySliceWithRecord(
+  fixture: ResearcherContradictionFreshnessBaseline = loadResearcherContradictionFreshnessBaseline(),
+): ResearcherContradictionFreshnessRunRecord {
+  const contract = getActiveResearcherContradictionFreshnessContract();
+  const failureRecoveryIds = new Set(
+    listResearcherContradictionFreshnessFailureRecoveryProbeIds(contract),
+  );
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherContradictionFreshnessRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B06-A06",
+    sliceCategories: RESEARCHER_CONTRADICTION_FRESHNESS_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherContradictionFreshnessEvidenceSlice(
+  fixture: ResearcherContradictionFreshnessBaseline = loadResearcherContradictionFreshnessBaseline(),
+): ResearcherContradictionFreshnessEvidenceSliceResult {
+  const contract = getActiveResearcherContradictionFreshnessContract();
+  const results = runResearcherContradictionFreshnessProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_CONTRADICTION_FRESHNESS_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherContradictionFreshnessContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherContradictionFreshnessFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherContradictionFreshnessFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherContradictionFreshnessEvidenceRunRecord(
+    record,
+    contract,
+  );
+
+  return {
+    atom: "P04-B06-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
 

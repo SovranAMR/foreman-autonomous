@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B06
-active_atom: P04-B06-A06
+active_atom: P04-B06-A07
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 355/1000
-phase_progress: 55/100
-block_progress: 5/10
+program_progress: 356/1000
+phase_progress: 56/100
+block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B06-A06 — Contradiction ve freshness çözümü: evidence, telemetry ve provenance kaydını ekle.
+P04-B06-A07 — Contradiction ve freshness çözümü: unit, property ve fuzz doğrulamasını ekle.
 
-objective: P04-B06-A05 PASS; failure/recovery slice 6/6 probes; validateResearcherContradictionFreshnessFailureRecoveryProbeMatrix + runResearcherContradictionFreshnessFailureRecoverySlice exported; 28/28 tests PASS.
-target: Forge contradiction freshness evidence slice with disposition, criterion and aligned probe outcomes.
-hypothesis: Evidence slice closes telemetry/provenance recording while preserving A05 failure/recovery wiring.
-acceptance: Evidence record exports; failure/recovery slice remains green; regression suite green.
+objective: P04-B06-A06 PASS; evidence slice 6/6 probes; validateResearcherContradictionFreshnessEvidenceRunRecord + runResearcherContradictionFreshnessEvidenceSlice exported; 31/31 tests PASS.
+target: Forge contradiction freshness property/fuzz validation for evidence run records and contract invariants.
+hypothesis: Property and fuzz checks harden A06 evidence/telemetry/provenance without regressing failure/recovery slice.
+acceptance: Property suite exports; evidence slice remains green; regression suite green.
 commands: npx tsx --test src/forge-p04-researcher-contradiction-freshness*.test.ts
 blast_radius: src/forge-p04-researcher-contradiction-freshness*.ts
-rollback: P04-B06-A06 evidence slice değişikliklerini geri al.
+rollback: P04-B06-A07 property/fuzz değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B06-A05
-last_commit: 35bd237
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (28/28); failure/recovery slice 6/6 probes PASS; validateResearcherContradictionFreshnessFailureRecoveryProbeMatrix + runResearcherContradictionFreshnessFailureRecoverySlice
-evidence: failure_path + recovery_path + nogo_path slice gate + invalid version/null-byte guards + recoverContradictionFreshnessEvidence + orchestrator validateResearchFreshness wiring
-next: P04-B06-A06
+last_atom: P04-B06-A06
+last_commit: d0e039d
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (31/31); evidence slice 6/6 probes PASS; validateResearcherContradictionFreshnessEvidenceRunRecord + runResearcherContradictionFreshnessEvidenceSlice + buildResearcherContradictionFreshnessRunRecord
+evidence: failure/recovery slice preserved + evidence/telemetry/provenance run record + disposition/criterion aligned probe outcomes + sliceAtom P04-B06-A06
+next: P04-B06-A07

@@ -85,7 +85,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B06-A03 — Contradiction ve freshness çözümü: en küçük üretim dikey dilimini uygula
 - [x] P04-B06-A04 — Contradiction ve freshness çözümü: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B06-A05 — Contradiction ve freshness çözümü: failure, recovery ve NO-GO yollarını uygula
-- [ ] P04-B06-A06 — Contradiction ve freshness çözümü: evidence, telemetry ve provenance kaydını ekle
+- [x] P04-B06-A06 — Contradiction ve freshness çözümü: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B06-A07 — Contradiction ve freshness çözümü: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B06-A08 — Contradiction ve freshness çözümü: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B06-A09 — Contradiction ve freshness çözümü: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B06-A05
-last_commit: 35bd237
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (28/28); failure/recovery slice 6/6 probes PASS; validateResearcherContradictionFreshnessFailureRecoveryProbeMatrix + runResearcherContradictionFreshnessFailureRecoverySlice
-evidence: failure_path + recovery_path + nogo_path slice gate + invalid version/null-byte guards + recoverContradictionFreshnessEvidence + orchestrator validateResearchFreshness wiring
-next: P04-B06-A06
+last_atom: P04-B06-A06
+last_commit: d0e039d
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (31/31); evidence slice 6/6 probes PASS; validateResearcherContradictionFreshnessEvidenceRunRecord + runResearcherContradictionFreshnessEvidenceSlice + buildResearcherContradictionFreshnessRunRecord
+evidence: failure/recovery slice preserved + evidence/telemetry/provenance run record + disposition/criterion aligned probe outcomes + sliceAtom P04-B06-A06
+next: P04-B06-A07
