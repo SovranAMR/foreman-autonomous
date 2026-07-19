@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B01
-active_atom: P02-B01-A02
+active_atom: P02-B01-A03
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 101/1000
-phase_progress: 1/100
+program_progress: 102/1000
+phase_progress: 2/100
 block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B01-A02 — Intent ve görev anlamlandırma: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P02-B01-A03 — Intent ve görev anlamlandırma: en küçük üretim dikey dilimini uygula.
 
-objective: P02-B01-A01 baseline sealed; typed intent contract A02 next.
-target: visioner intent typed contract + measurable acceptance probes.
-hypothesis: A01 failing baseline matrix sufficient to declare A02 contract coverage.
-acceptance: typed contract probes declared; contract coverage validation passes.
+objective: P02-B01-A02 contract sealed; production slice A03 next.
+target: visioner intent production exports for parse/classify/route gaps.
+hypothesis: typed contract gap probes define minimal production slice scope.
+acceptance: production slice probes flip documented gaps; regression suite passes.
 commands: npx tsx --test src/forge-p02-*.test.ts
-blast_radius: src/forge-p02-visioner-intent*.ts
-rollback: P02-B01-A02 slice değişikliklerini geri al.
+blast_radius: src/forge-p02-visioner-intent*.ts, src/orchestrator.ts
+rollback: P02-B01-A03 slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: contract coverage alignment fails ise BLOCKED raporla.
+fallback: production slice cannot flip gap probes without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B01-A01
-last_commit: 14eb4e0
-tests: PASS — forge-p02-visioner-intent-baseline.test.ts (3/3); 20 probes 14 PASS + 5 aligned FAIL gaps; validateVisionerIntentBaseline PASS; P01 handoff link PASS
-evidence: loadVisionerIntentBaseline v1.0.0 atom P02-B01-A01; runVisionerIntentProbes matrix 20/20 aligned; documented gaps: structured_intent_parse, programmatic_depth_classifier, depth_routed_prompt, structured_intent_recovery, intent_ambiguity_nogo
-next: P02-B01-A02
+last_atom: P02-B01-A02
+last_commit: pending
+tests: PASS — forge-p02-visioner-intent.test.ts (7/7); forge-p02-visioner-intent-baseline.test.ts (3/3); contract coverage 20 probes 15 PASS + 5 gap FAIL
+evidence: validateVisionerIntentContractCoverage PASS; validateVisionerIntentAgainstContract PASS; 5 gap dispositions wired; criterion source-of-truth from FORGE_VISIONER_INTENT_CONTRACT_V1
+next: P02-B01-A03
