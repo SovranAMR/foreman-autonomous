@@ -44,7 +44,7 @@ fallback: run record requires new schema dependency ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B04-A05
-last_commit: f0b107e
+last_commit: 8cd5a1b
 tests: PASS — forge-p02-visioner-grounding.test.ts (18/18); forge-p02-visioner-grounding-baseline.test.ts (3/3)
 evidence: validateVisionerGroundingFailureRecoveryProbeMatrix export; runVisionerGroundingFailureRecoverySlice; 6/6 failure/recovery/NO-GO probes aligned; zero unexpected mismatches
 next: P02-B04-A06
