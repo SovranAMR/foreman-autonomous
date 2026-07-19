@@ -55,7 +55,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P03-B04 — Dependency DAG
 
 - [x] P03-B04-A01 — Dependency DAG: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P03-B04-A02 — Dependency DAG: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P03-B04-A02 — Dependency DAG: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B04-A03 — Dependency DAG: en küçük üretim dikey dilimini uygula
 - [ ] P03-B04-A04 — Dependency DAG: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B04-A05 — Dependency DAG: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B04-A01
-last_commit: 1fd2b66
-tests: PASS — forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 23 probes; 8 FAIL gaps; B03 handoff aligned
-evidence: loadStrategistDependencyDagBaseline; validateStrategistDependencyDagBaseline; runStrategistDependencyDagProbes
-next: P03-B04-A02
+last_atom: P03-B04-A02
+last_commit: pending
+tests: PASS — forge-p03-strategist-dependency-dag.test.ts (8/8); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 23 probes; 8 gap dispositions; fixture↔contract aligned
+evidence: StrategistDependencyDagContract; validateStrategistDependencyDagAgainstContract; validateStrategistDependencyDagCoverage
+next: P03-B04-A03
