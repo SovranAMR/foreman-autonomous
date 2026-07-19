@@ -10,6 +10,11 @@ import {
   assessResearchToWorkerHandoffInputBoundary,
   validateResearchToWorkerHandoffCollection,
   recoverResearchToWorkerHandoff,
+  validateResearchToWorkerHandoff,
+  runResearcherResearchToWorkerHandoffBoundarySlice,
+  validateResearcherResearchToWorkerHandoffBoundaryProbeMatrix,
+  getActiveResearcherResearchToWorkerHandoffContract,
+  listResearcherResearchToWorkerHandoffContractProbesByCategory,
   RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES,
   RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_INPUT_MAX_LENGTH,
   FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION,
@@ -151,5 +156,72 @@ describe("Forge Researcher Research-to-Worker Handoff — P04-B09-A01", () => {
 
   it("harness version exported for research-to-worker handoff baseline", () => {
     assert.equal(FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION.startsWith("1.0.0"), true);
+  });
+});
+
+describe("Forge Researcher Research-to-Worker Handoff Boundary Slice — P04-B09-A04", () => {
+  it("assessResearchToWorkerHandoffInputBoundary edge cases align with boundary probe matrix", () => {
+    const slice = runResearcherResearchToWorkerHandoffBoundarySlice();
+    const handoffProbes = [
+      "rtwh.empty_handoff_input_boundary",
+      "rtwh.whitespace_handoff_input_boundary",
+      "rtwh.long_handoff_input_truncation_boundary",
+    ] as const;
+
+    for (const probeId of handoffProbes) {
+      const result = slice.boundaryResults.find(r => r.id === probeId);
+      assert.ok(result, `missing ${probeId}`);
+      assert.equal(result!.actual, "PASS");
+      assert.equal(result!.aligned, true);
+    }
+  });
+
+  it("validateResearchToWorkerHandoffCollection rejects whitespace-only findings at boundary", () => {
+    const validation = validateResearchToWorkerHandoffCollection({
+      version: "1.0.0",
+      findings: "   \t\n  ",
+      sources: ["https://example.com/async-patterns"],
+      risks: [],
+      tradeoffs: [],
+      relevance: null,
+    });
+    assert.equal(validation.valid, false);
+    assert.ok(validation.issues.some(issue => issue.includes("missing findings")));
+  });
+
+  it("recoverResearchToWorkerHandoff rejects whitespace-only parse at boundary", () => {
+    const recovery = recoverResearchToWorkerHandoff("  \t  ");
+    assert.equal(recovery.recovered, false);
+    assert.deepEqual(recovery.parseErrors, ["whitespace_only"]);
+    assert.equal(recovery.detail, "cannot recover whitespace-only handoff parse");
+  });
+
+  it("boundary slice matrix validation passes with contract-wired probes", () => {
+    const contract = getActiveResearcherResearchToWorkerHandoffContract();
+    const slice = runResearcherResearchToWorkerHandoffBoundarySlice();
+    const boundary = listResearcherResearchToWorkerHandoffContractProbesByCategory(
+      "boundary",
+      contract,
+    );
+
+    assert.equal(slice.atom, "P04-B09-A04");
+    assert.equal(boundary.length, slice.boundaryProbeCount);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+
+    const matrixValidation = validateResearcherResearchToWorkerHandoffBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(matrixValidation.unexpectedMismatches, 0);
+    assert.equal(matrixValidation.valid, true);
+  });
+
+  it("validateResearchToWorkerHandoff rejects null-byte input at boundary", () => {
+    const validation = validateResearchToWorkerHandoff("FINDINGS\0handoff");
+    assert.equal(validation.valid, false);
+    assert.equal(validation.findingsPresent, false);
+    assert.ok(validation.issues.some(i => i.includes("null byte")));
   });
 });

@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B09
-active_atom: P04-B09-A04
+active_atom: P04-B09-A05
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 383/1000
-phase_progress: 82/100
-block_progress: 3/10
+program_progress: 384/1000
+phase_progress: 83/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B09-A04 — Research-to-worker handoff: boundary ve edge-case davranışlarını tamamla.
+P04-B09-A05 — Research-to-worker handoff: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P04-B09-A03 PASS; production slice closes nogo gaps with zero unexpected mismatches.
-target: Complete boundary-category probe matrix for handoff input edge cases.
-hypothesis: A03 slice enables A04 boundary gate with contract-wired edge-case probes.
-acceptance: Boundary probes align; zero unexpected mismatches in boundary slice.
+objective: P04-B09-A04 PASS; boundary slice closes edge-case gaps with zero unexpected mismatches.
+target: Complete failure/recovery/NO-GO category probe matrix for handoff guard paths.
+hypothesis: A04 boundary slice enables A05 failure-recovery gate with contract-wired probes.
+acceptance: Failure/recovery/NO-GO probes align; zero unexpected mismatches in slice.
 commands: npx tsx --test src/forge-p04-researcher-research-to-worker-handoff*.test.ts
 blast_radius: src/forge-p04-researcher-research-to-worker-handoff*.ts
-rollback: P04-B09-A04 boundary slice değişikliklerini geri al.
+rollback: P04-B09-A05 failure-recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Boundary slice blocked ise BLOCKED raporla.
+fallback: Failure-recovery slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B09-A03
+last_atom: P04-B09-A04
 last_commit: pending
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (21/21); probe matrix 23/23 aligned; unexpectedMismatches=0
-evidence: parseResearchToWorkerHandoff + validateResearchToWorkerHandoff + orchestrator wiring + runResearcherResearchToWorkerHandoffProductionSlice
-next: P04-B09-A04
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (29/29); boundary slice 6/6 aligned; unexpectedMismatches=0
+evidence: validateResearcherResearchToWorkerHandoffBoundaryProbeMatrix + runResearcherResearchToWorkerHandoffBoundarySlice + handoff input edge-case probes
+next: P04-B09-A05

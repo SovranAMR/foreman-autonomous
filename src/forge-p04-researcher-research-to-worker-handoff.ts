@@ -1673,3 +1673,67 @@ export function runResearcherResearchToWorkerHandoffProductionSlice(
     matrixValidation,
   };
 }
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherResearchToWorkerHandoffBoundaryProbeMatrix(
+  results: ResearcherResearchToWorkerHandoffProbeResult[],
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherResearchToWorkerHandoffContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryContract: ResearcherResearchToWorkerHandoffContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherResearchToWorkerHandoffProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherResearchToWorkerHandoffBoundarySliceResult {
+  atom: "P04-B09-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherResearchToWorkerHandoffProbeResult[];
+  boundaryResults: ResearcherResearchToWorkerHandoffProbeResult[];
+  matrixValidation: ResearcherResearchToWorkerHandoffProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (handoff input edge cases,
+ * probe runner, documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherResearchToWorkerHandoffBoundarySlice(
+  fixture: ResearcherResearchToWorkerHandoffBaseline = loadResearcherResearchToWorkerHandoffBaseline(),
+): ResearcherResearchToWorkerHandoffBoundarySliceResult {
+  const contract = getActiveResearcherResearchToWorkerHandoffContract();
+  const results = runResearcherResearchToWorkerHandoffProbes(fixture);
+  const boundaryProbes = listResearcherResearchToWorkerHandoffContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherResearchToWorkerHandoffBoundaryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B09-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}

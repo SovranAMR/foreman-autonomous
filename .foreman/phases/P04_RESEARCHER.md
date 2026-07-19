@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 74
+completed_atoms: 75
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -122,7 +122,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B09-A01 — Research-to-worker handoff: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B09-A02 — Research-to-worker handoff: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B09-A03 — Research-to-worker handoff: en küçük üretim dikey dilimini uygula
-- [ ] P04-B09-A04 — Research-to-worker handoff: boundary ve edge-case davranışlarını tamamla
+- [x] P04-B09-A04 — Research-to-worker handoff: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B09-A05 — Research-to-worker handoff: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B09-A06 — Research-to-worker handoff: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B09-A07 — Research-to-worker handoff: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B09-A03
+last_atom: P04-B09-A04
 last_commit: pending
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (21/21); probe matrix 23/23 aligned; unexpectedMismatches=0; expectedFail=0
-evidence: parseResearchToWorkerHandoff (parser.ts) + validateResearchToWorkerHandoff + orchestrator pre-worker gate + runResearcherResearchToWorkerHandoffProductionSlice
-next: P04-B09-A04
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (29/29); boundary slice 6/6 aligned; unexpectedMismatches=0
+evidence: validateResearcherResearchToWorkerHandoffBoundaryProbeMatrix + runResearcherResearchToWorkerHandoffBoundarySlice + handoff input edge-case probes
+next: P04-B09-A05
