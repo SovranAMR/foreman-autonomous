@@ -44,7 +44,7 @@ fallback: Baseline blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B08-A01
-last_commit: 120f607
+last_commit: 34249f4
 tests: PASS — forge-p03-strategist-replan-baseline.test.ts (3/3); 28 probes; 6 documented FAIL gaps aligned
 evidence: loadStrategistReplanBaseline; runStrategistReplanProbes; validateStrategistReplanBaseline
 next: P03-B08-A02
