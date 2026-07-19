@@ -155,7 +155,7 @@ describe("Forge Worker Filesystem Grounding Property/Fuzz Slice — P05-B02-A07"
     assert.equal(slice.runRecordFuzz.validBaseline, true);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
     assert.equal(slice.runRecordFuzz.mutationsRejected, 5);
-    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a08");
+    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a09");
   });
 
   it("maps property_checks + fuzz_mutations through validateWorkerFilesystemGroundingPropertyProbeMatrix", () => {

@@ -176,6 +176,7 @@ import {
 import { detectWorkerToolDispatchProbeRegression } from "./forge-p05-worker-tool-dispatch.js";
 import {
   runForgeWorkerFilesystemGroundingRegressionGate,
+  runForgeWorkerFilesystemGroundingGuardGate,
   runWorkerFilesystemGroundingProbesWithRecord,
   runWorkerFilesystemGroundingRegressionIntegration,
 } from "./forge-p05-worker-filesystem-grounding.probe.js";
@@ -3012,6 +3013,8 @@ describe("Forge Pipeline Regression — P05-B02-A08 worker filesystem grounding"
     assert.ok(result.detail.includes("27/27 probes aligned"));
     assert.ok(result.detail.includes("productionSlice:"));
     assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("guard:"));
   });
 
   it("runWorkerFilesystemGroundingRegressionIntegration alias matches regression gate", () => {
@@ -3056,5 +3059,25 @@ describe("Forge Pipeline Regression — P05-B02-A08 worker filesystem grounding"
     assert.equal(result.passed, true, result.detail);
     assert.ok(result.probeRegression);
     assert.equal(result.probeRegression?.hasRegression, false);
+  });
+});
+
+describe("Forge Pipeline Regression — P05-B02-A09 worker filesystem grounding guard", () => {
+  it("runForgeWorkerFilesystemGroundingGuardGate passes adversarial controls", () => {
+    const result = runForgeWorkerFilesystemGroundingGuardGate();
+
+    assert.equal(result.atom, "P05-B02-A09");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("guard PASS"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("runForgeWorkerFilesystemGroundingRegressionGate guard matches guard gate", () => {
+    const regression = runForgeWorkerFilesystemGroundingRegressionGate();
+    const guard = runForgeWorkerFilesystemGroundingGuardGate();
+
+    assert.equal(regression.guard.passed, guard.guard.passed);
+    assert.equal(guard.passed, regression.guard.passed);
   });
 });

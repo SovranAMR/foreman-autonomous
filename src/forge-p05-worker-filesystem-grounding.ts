@@ -23,7 +23,7 @@ import { TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
-export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a08";
+export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a09";
 
 export const EXPECTED_P05_B01_SEALED_ATOM_COUNT = 10;
 
@@ -3004,6 +3004,7 @@ export interface WorkerFilesystemGroundingIntegrationSliceResult {
   validationIssues: string[];
   priorValidationIssues: string[];
   probeRegression: WorkerFilesystemGroundingProbeRegressionReport | null;
+  guard: WorkerFilesystemGroundingGuardCheckResult;
   matrixValid: boolean;
   matrixValidation: WorkerFilesystemGroundingIntegrationProbeMatrixValidationResult;
   detail: string;
@@ -3140,6 +3141,11 @@ export function runWorkerFilesystemGroundingIntegrationSlice(
     ? detectWorkerFilesystemGroundingProbeRegression(priorRecord, record)
     : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeWorkerFilesystemGroundingGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
 
   const productionSliceOk =
     productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
@@ -3165,7 +3171,8 @@ export function runWorkerFilesystemGroundingIntegrationSlice(
     propertyFuzzOk &&
     recordValid &&
     priorRecordValid &&
-    !alignmentRegression;
+    !alignmentRegression &&
+    guard.passed;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
@@ -3187,6 +3194,15 @@ export function runWorkerFilesystemGroundingIntegrationSlice(
   detailParts.push(
     `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
   );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   const partial: WorkerFilesystemGroundingIntegrationSliceResult = {
     atom: "P05-B02-A08",
@@ -3202,6 +3218,7 @@ export function runWorkerFilesystemGroundingIntegrationSlice(
     validationIssues,
     priorValidationIssues,
     probeRegression,
+    guard,
     matrixValid: false,
     matrixValidation: {
       valid: false,
@@ -3228,3 +3245,410 @@ export function runWorkerFilesystemGroundingIntegrationSlice(
 /** Alias for forge-pipeline-regression integration seam (P05-B02-A08). */
 export const runWorkerFilesystemGroundingRegressionIntegration =
   runWorkerFilesystemGroundingIntegrationSlice;
+
+// ─── Guard controls (P05-B02-A09) ─────────────────────────────────────────────
+
+export interface ForgeWorkerFilesystemGroundingGuardControls {
+  atom: string;
+  adversarial: {
+    rejectTamperedRecords: true;
+    rejectFalseAlignment: true;
+    rejectSummaryEvidenceMismatch: true;
+  };
+  performance: {
+    maxSuiteDurationMs: number;
+    maxProbeDurationMs: number;
+    maxWallClockMs: number;
+  };
+  cost: {
+    maxTotalCostUsd: number;
+    maxLlmCalls: number;
+  };
+  safety: {
+    maxDetailLength: number;
+    forbiddenPatterns: readonly RegExp[];
+  };
+}
+
+export interface WorkerFilesystemGroundingGuardCheckIssue {
+  domain: "adversarial" | "performance" | "cost" | "safety";
+  code: string;
+  detail: string;
+}
+
+export interface WorkerFilesystemGroundingGuardCheckResult {
+  passed: boolean;
+  issues: WorkerFilesystemGroundingGuardCheckIssue[];
+  metrics: {
+    suiteDurationMs: number;
+    wallClockMs: number;
+    maxProbeDurationMs: number;
+    totalCostUsd: number;
+    llmCalls: number;
+    adversarialScenariosRejected: number;
+    adversarialScenariosTotal: number;
+  };
+}
+
+export interface WorkerFilesystemGroundingAdversarialGuardScenario {
+  id: string;
+  description: string;
+  build: (record: WorkerFilesystemGroundingRunRecord) => WorkerFilesystemGroundingRunRecord;
+  expectRejected: true;
+}
+
+export interface WorkerFilesystemGroundingGuardSliceResult {
+  atom: "P05-B02-A09";
+  passed: boolean;
+  record: WorkerFilesystemGroundingRunRecord;
+  guard: WorkerFilesystemGroundingGuardCheckResult;
+  detail: string;
+}
+
+export const FORGE_WORKER_FILESYSTEM_GROUNDING_GUARD_CONTROLS_V1: ForgeWorkerFilesystemGroundingGuardControls =
+  {
+    atom: "P05-B02-A09",
+    adversarial: {
+      rejectTamperedRecords: true,
+      rejectFalseAlignment: true,
+      rejectSummaryEvidenceMismatch: true,
+    },
+    performance: {
+      maxSuiteDurationMs: 60_000,
+      maxProbeDurationMs: 10_000,
+      maxWallClockMs: 90_000,
+    },
+    cost: {
+      maxTotalCostUsd: 0,
+      maxLlmCalls: 0,
+    },
+    safety: {
+      maxDetailLength: 4096,
+      forbiddenPatterns: [
+        /sk-[a-zA-Z0-9]{20,}/,
+        /api[_-]?key\s*[:=]\s*\S+/i,
+        /Bearer\s+[a-zA-Z0-9._-]{20,}/i,
+        /password\s*[:=]\s*\S+/i,
+        /-----BEGIN (RSA |EC )?PRIVATE KEY-----/,
+      ],
+    },
+  };
+
+export function getForgeWorkerFilesystemGroundingGuardControls(): ForgeWorkerFilesystemGroundingGuardControls {
+  return FORGE_WORKER_FILESYSTEM_GROUNDING_GUARD_CONTROLS_V1;
+}
+
+function parseWorkerFilesystemGroundingIsoDurationMs(startedAt: string, completedAt: string): number {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(completedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
+  return end - start;
+}
+
+export function summarizeWorkerFilesystemGroundingTelemetry(
+  telemetry: WorkerFilesystemGroundingProbeRunTelemetry[],
+): {
+  suiteDurationMs: number;
+  maxProbeDurationMs: number;
+} {
+  let suiteDurationMs = 0;
+  let maxProbeDurationMs = 0;
+  for (const item of telemetry) {
+    suiteDurationMs += item.durationMs;
+    if (item.durationMs > maxProbeDurationMs) maxProbeDurationMs = item.durationMs;
+  }
+  return { suiteDurationMs, maxProbeDurationMs };
+}
+
+export function detectWorkerFilesystemGroundingEvidenceSummaryMismatch(
+  record: WorkerFilesystemGroundingRunRecord,
+): string | null {
+  let alignedCount = 0;
+  for (const item of record.evidence) {
+    if (item.aligned) alignedCount++;
+  }
+  const mismatches = record.evidence.length - alignedCount;
+  if (record.summary.aligned !== alignedCount) {
+    return `summary.aligned=${record.summary.aligned} evidence=${alignedCount}`;
+  }
+  if (record.summary.mismatches !== mismatches) {
+    return `summary.mismatches=${record.summary.mismatches} evidence=${mismatches}`;
+  }
+  if (record.summary.total !== record.evidence.length) {
+    return `summary.total=${record.summary.total} evidence=${record.evidence.length}`;
+  }
+  return null;
+}
+
+export function detectWorkerFilesystemGroundingFalseAlignment(
+  record: WorkerFilesystemGroundingRunRecord,
+): string[] {
+  const violations: string[] = [];
+  for (const item of record.evidence) {
+    const shouldAlign = item.actual === item.expected;
+    if (item.aligned !== shouldAlign) {
+      violations.push(
+        `${item.probeId}: aligned=${item.aligned} actual=${item.actual} expected=${item.expected}`,
+      );
+    }
+    if (item.aligned && item.actual !== item.expected) {
+      violations.push(`${item.probeId}: false PASS claim`);
+    }
+  }
+  return violations;
+}
+
+export function validateWorkerFilesystemGroundingSafety(
+  record: WorkerFilesystemGroundingRunRecord,
+  controls: ForgeWorkerFilesystemGroundingGuardControls = getForgeWorkerFilesystemGroundingGuardControls(),
+): WorkerFilesystemGroundingGuardCheckIssue[] {
+  const issues: WorkerFilesystemGroundingGuardCheckIssue[] = [];
+  for (const item of record.evidence) {
+    if (item.detail.length > controls.safety.maxDetailLength) {
+      issues.push({
+        domain: "safety",
+        code: "detail_too_long",
+        detail: `${item.probeId} detail length=${item.detail.length}`,
+      });
+    }
+    for (const pattern of controls.safety.forbiddenPatterns) {
+      if (pattern.test(item.detail) || pattern.test(item.criterion)) {
+        issues.push({
+          domain: "safety",
+          code: "forbidden_pattern",
+          detail: `${item.probeId} matched ${pattern.source}`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+export function validateWorkerFilesystemGroundingPerformance(
+  record: WorkerFilesystemGroundingRunRecord,
+  controls: ForgeWorkerFilesystemGroundingGuardControls = getForgeWorkerFilesystemGroundingGuardControls(),
+): WorkerFilesystemGroundingGuardCheckIssue[] {
+  const issues: WorkerFilesystemGroundingGuardCheckIssue[] = [];
+  const { suiteDurationMs, maxProbeDurationMs } = summarizeWorkerFilesystemGroundingTelemetry(
+    record.telemetry,
+  );
+  const wallClockMs = parseWorkerFilesystemGroundingIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  if (suiteDurationMs > controls.performance.maxSuiteDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "suite_duration_exceeded",
+      detail: `${suiteDurationMs}ms > ${controls.performance.maxSuiteDurationMs}ms`,
+    });
+  }
+  if (maxProbeDurationMs > controls.performance.maxProbeDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "probe_duration_exceeded",
+      detail: `${maxProbeDurationMs}ms > ${controls.performance.maxProbeDurationMs}ms`,
+    });
+  }
+  if (wallClockMs > controls.performance.maxWallClockMs) {
+    issues.push({
+      domain: "performance",
+      code: "wall_clock_exceeded",
+      detail: `${wallClockMs}ms > ${controls.performance.maxWallClockMs}ms`,
+    });
+  }
+  return issues;
+}
+
+export function validateWorkerFilesystemGroundingCost(
+  totalCostUsd: number,
+  llmCalls: number,
+  controls: ForgeWorkerFilesystemGroundingGuardControls = getForgeWorkerFilesystemGroundingGuardControls(),
+): WorkerFilesystemGroundingGuardCheckIssue[] {
+  const issues: WorkerFilesystemGroundingGuardCheckIssue[] = [];
+  if (totalCostUsd > controls.cost.maxTotalCostUsd) {
+    issues.push({
+      domain: "cost",
+      code: "cost_exceeded",
+      detail: `$${totalCostUsd.toFixed(4)} > $${controls.cost.maxTotalCostUsd}`,
+    });
+  }
+  if (llmCalls > controls.cost.maxLlmCalls) {
+    issues.push({
+      domain: "cost",
+      code: "llm_calls_exceeded",
+      detail: `${llmCalls} > ${controls.cost.maxLlmCalls}`,
+    });
+  }
+  return issues;
+}
+
+export function buildWorkerFilesystemGroundingAdversarialGuardScenarios(): WorkerFilesystemGroundingAdversarialGuardScenario[] {
+  return [
+    {
+      id: "adversarial.false_alignment_claim",
+      description: "Evidence claims aligned while actual !== expected",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = true;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.summary_mismatch",
+      description: "Summary reports zero mismatches while evidence is tampered",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = false;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        cloned.summary = { ...cloned.summary, aligned: cloned.summary.total, mismatches: 0 };
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.dropped_probe",
+      description: "Run record omits required probe evidence",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        cloned.evidence = cloned.evidence.slice(1);
+        cloned.telemetry = cloned.telemetry.slice(1);
+        cloned.summary = buildWorkerFilesystemGroundingRunRecord(
+          cloned.provenance,
+          cloned.evidence,
+          cloned.telemetry,
+        ).summary;
+        return cloned;
+      },
+    },
+  ];
+}
+
+export function runWorkerFilesystemGroundingAdversarialGuardChecks(
+  fixtureRecord: WorkerFilesystemGroundingRunRecord,
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+): { rejected: number; total: number; failures: string[] } {
+  const scenarios = buildWorkerFilesystemGroundingAdversarialGuardScenarios();
+  const failures: string[] = [];
+  let rejected = 0;
+
+  for (const scenario of scenarios) {
+    const tampered = scenario.build(fixtureRecord);
+    const validation = validateWorkerFilesystemGroundingRunRecord(tampered, contract);
+    const falseAlignment = detectWorkerFilesystemGroundingFalseAlignment(tampered);
+    const summaryMismatch = detectWorkerFilesystemGroundingEvidenceSummaryMismatch(tampered);
+    const rejectedByGuard =
+      !validation.valid || falseAlignment.length > 0 || summaryMismatch !== null;
+
+    if (rejectedByGuard) rejected++;
+    else failures.push(`${scenario.id}: tampered record was not rejected`);
+  }
+
+  return { rejected, total: scenarios.length, failures };
+}
+
+export function validateForgeWorkerFilesystemGroundingGuard(
+  record: WorkerFilesystemGroundingRunRecord,
+  options: {
+    totalCostUsd?: number;
+    llmCalls?: number;
+    contract?: WorkerFilesystemGroundingContract;
+    controls?: ForgeWorkerFilesystemGroundingGuardControls;
+  } = {},
+): WorkerFilesystemGroundingGuardCheckResult {
+  const controls = options.controls ?? getForgeWorkerFilesystemGroundingGuardControls();
+  const contract = options.contract ?? getActiveWorkerFilesystemGroundingContract();
+  const totalCostUsd = options.totalCostUsd ?? 0;
+  const llmCalls = options.llmCalls ?? 0;
+  const issues: WorkerFilesystemGroundingGuardCheckIssue[] = [];
+
+  issues.push(...validateWorkerFilesystemGroundingPerformance(record, controls));
+  issues.push(...validateWorkerFilesystemGroundingCost(totalCostUsd, llmCalls, controls));
+  issues.push(...validateWorkerFilesystemGroundingSafety(record, controls));
+
+  const falseAlignment = detectWorkerFilesystemGroundingFalseAlignment(record);
+  if (falseAlignment.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "false_alignment",
+      detail: falseAlignment.join("; "),
+    });
+  }
+  const summaryMismatch = detectWorkerFilesystemGroundingEvidenceSummaryMismatch(record);
+  if (summaryMismatch) {
+    issues.push({
+      domain: "adversarial",
+      code: "summary_evidence_mismatch",
+      detail: summaryMismatch,
+    });
+  }
+
+  const adversarial = runWorkerFilesystemGroundingAdversarialGuardChecks(record, contract);
+  if (adversarial.failures.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "scenario_not_rejected",
+      detail: adversarial.failures.join("; "),
+    });
+  }
+
+  const telemetrySummary = summarizeWorkerFilesystemGroundingTelemetry(record.telemetry);
+  const wallClockMs = parseWorkerFilesystemGroundingIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  return {
+    passed: issues.length === 0 && adversarial.rejected === adversarial.total,
+    issues,
+    metrics: {
+      suiteDurationMs: telemetrySummary.suiteDurationMs,
+      wallClockMs,
+      maxProbeDurationMs: telemetrySummary.maxProbeDurationMs,
+      totalCostUsd,
+      llmCalls,
+      adversarialScenariosRejected: adversarial.rejected,
+      adversarialScenariosTotal: adversarial.total,
+    },
+  };
+}
+
+/**
+ * A09 guard slice: adversarial tamper rejection plus performance, cost and safety ceilings.
+ */
+export function runWorkerFilesystemGroundingGuardSlice(): WorkerFilesystemGroundingGuardSliceResult {
+  const record = runWorkerFilesystemGroundingProbesWithRecord();
+  const contract = getActiveWorkerFilesystemGroundingContract();
+  const guard = validateForgeWorkerFilesystemGroundingGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+  const passed = guard.passed && record.summary.mismatches === 0;
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard FAIL: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard PASS: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+  return {
+    atom: "P05-B02-A09",
+    passed,
+    record,
+    guard,
+    detail: detailParts.join(" | "),
+  };
+}

@@ -2085,6 +2085,27 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge worker filesystem grounding guard gate (adversarial/perf/cost/safety) and emit verification event (P05-B02-A09).
+   */
+  async verifyForgeWorkerFilesystemGroundingGuard(): Promise<
+    import("./forge-p05-worker-filesystem-grounding.probe.js").ForgeWorkerFilesystemGroundingGuardGateResult
+  > {
+    const { runForgeWorkerFilesystemGroundingGuardGate } = await import(
+      "./forge-p05-worker-filesystem-grounding.probe.js"
+    );
+    const result = runForgeWorkerFilesystemGroundingGuardGate();
+    this.emit({
+      type: "verification",
+      phase: "worker_filesystem_grounding_guard",
+      passed: result.passed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Seal P05-B01 block gate and emit verification event with B02 handoff (P05-B01-A10).
    */
   async verifyForgeWorkerToolDispatchBlockGate(): Promise<

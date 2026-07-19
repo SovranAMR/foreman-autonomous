@@ -41,7 +41,9 @@ describe("Forge Worker Filesystem Grounding Integration — P05-B02-A08", () => 
     assert.ok(result.detail.includes("27/27 probes aligned"));
     assert.ok(result.detail.includes("productionSlice:"));
     assert.ok(result.detail.includes("propertyFuzz:"));
-    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a08");
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("guard:"));
+    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a09");
   });
 
   it("maps integration sub-slices through validateWorkerFilesystemGroundingIntegrationProbeMatrix", () => {
@@ -130,6 +132,8 @@ describe("Forge Worker Filesystem Grounding Regression Gate — P05-B02-A08 prob
     );
     assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
     assert.ok(integration.detail.includes("27/27 probes aligned"));
+    assert.equal(integration.guard.passed, true);
+    assert.ok(integration.detail.includes("guard:"));
     assert.equal(integration.record.summary.total, 27);
   });
 });
