@@ -240,6 +240,12 @@ Every file edit or write must satisfy the filesystem grounding contract before e
 - Read args must include a valid path and explanation; optional start_line/end_line for slices.
 - Ungrounded edit/write tool calls are rejected before dispatch — do not retry without reading first.
 
+## SURGICAL EDIT ENGINE
+Every edit_file invocation must satisfy the surgical edit engine contract before execution:
+- Path, old_string, and new_string are required; old_string must be non-empty after normalization.
+- Use occurrence selector when old_string appears multiple times (1-indexed integer or "all").
+- Invalid or malformed edit calls are rejected before dispatch — do not retry the same broken call.
+
 ## Internal Systems You Can Leverage
 - **Edit Engine**: Whitespace-insensitive text matching (4-tier cascade: exact → trim → normalize → fuzzy). Your edit_file operations are automatically enhanced — partial whitespace mismatches won't cause failures.
 - **Code Extraction**: SEARCH/REPLACE block parsing, FIM extraction, language-aware code fence extraction. The orchestrator auto-extracts your code blocks.

@@ -17,10 +17,10 @@ import {
   getActiveWorkerFilesystemGroundingContract,
   summarizeWorkerFilesystemGroundingContractCoverage,
 } from "./forge-p05-worker-filesystem-grounding.js";
-import { TOOL_DEFINITIONS } from "./tools.js";
+import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 import { EditEngine } from "./edit-engine.js";
 
-export const FORGE_WORKER_EDIT_ENGINE_VERSION = "1.0.0-a02";
+export const FORGE_WORKER_EDIT_ENGINE_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P05_B02_SEALED_ATOM_COUNT = 10;
 
@@ -297,6 +297,138 @@ export function recoverEditRequest(
   };
 }
 
+export interface SurgicalEditValidationResult {
+  valid: boolean;
+  errors: string[];
+  path?: string;
+  oldText?: string;
+  newText?: string;
+  occurrence?: number | "all";
+}
+
+export interface EditEngineTelemetry {
+  toolName: string;
+  path: string;
+  sequenceIndex: number;
+  validated: boolean;
+  validatedAt: string;
+  contractVersion: string;
+  harnessVersion: string;
+  errors: string[];
+}
+
+function parseEditOccurrence(value: unknown): number | "all" | undefined | null {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (value === "all") {
+    return "all";
+  }
+  if (typeof value === "number" && Number.isInteger(value) && value >= 1) {
+    return value;
+  }
+  return null;
+}
+
+/**
+ * Validate surgical edit tool call boundary before orchestrator dispatch (P05-B03-A03).
+ */
+export function validateSurgicalEdit(call: ToolCall): SurgicalEditValidationResult {
+  if (call.name !== "edit_file" && call.name !== "edit_range") {
+    return { valid: true, errors: [] };
+  }
+
+  if (call.name === "edit_range") {
+    const pathArg = call.args.path;
+    const startLine = call.args.start_line;
+    const endLine = call.args.end_line;
+    const newContent = call.args.new_content;
+
+    if (typeof pathArg !== "string" || pathArg.trim().length === 0) {
+      return { valid: false, errors: ["edit_range requires path argument"] };
+    }
+    if (
+      typeof startLine !== "number" ||
+      typeof endLine !== "number" ||
+      typeof newContent !== "string"
+    ) {
+      return {
+        valid: false,
+        errors: ["edit_range requires start_line, end_line, and new_content"],
+      };
+    }
+    if (!Number.isInteger(startLine) || !Number.isInteger(endLine) || startLine < 1 || endLine < startLine) {
+      return { valid: false, errors: ["edit_range line range invalid"] };
+    }
+
+    let normalizedPath = pathArg.trim().replace(/\\/g, "/");
+    if (normalizedPath.startsWith("./")) {
+      normalizedPath = normalizedPath.slice(2);
+    }
+
+    return { valid: true, errors: [], path: normalizedPath };
+  }
+
+  const pathArg = call.args.path;
+  const oldArg = call.args.old_string;
+  const newArg = call.args.new_string;
+
+  if (typeof pathArg !== "string" || pathArg.trim().length === 0) {
+    return { valid: false, errors: ["edit_file requires path argument"] };
+  }
+  if (oldArg === undefined || newArg === undefined) {
+    return { valid: false, errors: ["edit_file requires old_string and new_string"] };
+  }
+
+  const recovery = recoverEditRequest(pathArg, oldArg, newArg);
+  if (!recovery.recovered) {
+    return { valid: false, errors: [recovery.detail], path: recovery.path };
+  }
+
+  const occurrence = parseEditOccurrence(call.args.occurrence);
+  if (call.args.occurrence !== undefined && occurrence === null) {
+    return { valid: false, errors: ["invalid occurrence selector"], path: recovery.path };
+  }
+
+  return {
+    valid: true,
+    errors: [],
+    path: recovery.path,
+    oldText: recovery.oldText,
+    newText: recovery.newText,
+    occurrence: occurrence ?? undefined,
+  };
+}
+
+/**
+ * Record surgical edit provenance for worker tool loop telemetry (P05-B03-A03).
+ */
+export function buildEditEngineTelemetry(
+  call: ToolCall,
+  options: {
+    sequenceIndex?: number;
+    validation?: SurgicalEditValidationResult;
+  } = {},
+): EditEngineTelemetry {
+  const validation = options.validation ?? validateSurgicalEdit(call);
+  const path =
+    validation.path ??
+    (typeof call.args.path === "string"
+      ? recoverEditRequest(call.args.path, call.args.old_string ?? "", call.args.new_string ?? "").path
+      : "");
+
+  return {
+    toolName: call.name,
+    path,
+    sequenceIndex: options.sequenceIndex ?? 0,
+    validated: validation.valid,
+    validatedAt: new Date().toISOString(),
+    contractVersion: FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.version,
+    harnessVersion: FORGE_WORKER_EDIT_ENGINE_VERSION,
+    errors: validation.errors,
+  };
+}
+
 export const FORGE_WORKER_EDIT_ENGINE_A01_PROBE_MATRIX: readonly WorkerEditEngineFixtureEntry[] =
   workerEditEngineBaseline.probes as WorkerEditEngineFixtureEntry[];
 
@@ -378,11 +510,19 @@ export function validateWorkerEditEngineBaseline(
     }
   }
 
+  const contract = getActiveWorkerEditEngineContract();
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length === 0) {
+  if (expectedFailCount > 0 && failGaps.length === 0) {
     issues.push({
       kind: "missing_category",
-      detail: "fixture must document at least one measurable FAIL gap",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 
@@ -499,16 +639,16 @@ const WORKER_EDIT_ENGINE_CATEGORY_CONTRACTS: Record<
         id: "wee.typed_edit_call_union",
         category: "edit_signal",
         description: "TypedEditCall discriminated union narrows path and old/new text args before edit",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "TypedEditCall discriminated union narrows path and old/new text args before edit",
       },
       {
         id: "wee.worker_prompt_edit_contract",
         category: "edit_signal",
         description: "WORKER_SYSTEM prompt declares surgical edit engine contract for worker execution",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "WORKER_SYSTEM prompt declares surgical edit engine contract for worker execution",
       },
     ],
@@ -550,8 +690,8 @@ const WORKER_EDIT_ENGINE_CATEGORY_CONTRACTS: Record<
         id: "wee.multi_occurrence_dispatch",
         category: "match_signal",
         description: "executeEditFileV2 passes occurrence selector into EditEngine.edit dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "executeEditFileV2 passes occurrence selector into EditEngine.edit dispatch",
       },
     ],
@@ -715,24 +855,24 @@ const WORKER_EDIT_ENGINE_CATEGORY_CONTRACTS: Record<
         id: "wee.orchestrator_pre_edit_validation",
         category: "nogo_path",
         description: "Orchestrator validates surgical edit calls through forge edit engine contract before dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Orchestrator validates surgical edit calls through forge edit engine contract before dispatch",
       },
       {
         id: "wee.edit_telemetry_record",
         category: "nogo_path",
         description: "buildEditEngineTelemetry records edit provenance for worker tool loop",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "buildEditEngineTelemetry records edit provenance for worker tool loop",
       },
       {
         id: "wee.exported_edit_validator",
         category: "nogo_path",
         description: "validateSurgicalEdit exported for orchestrator pre-edit contract checks",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "validateSurgicalEdit exported for orchestrator pre-edit contract checks",
       },
     ],
@@ -1214,9 +1354,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "wee.known_gaps_documented": {
+      const contract = getActiveWorkerEditEngineContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount >= 1;
-      return probe(id, category, expected, ok, `documentedFailGaps=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "wee.empty_old_text_boundary": {
       const result = assessEditInputBoundary("");
@@ -1310,17 +1458,35 @@ function probeNogoPath(
 
   switch (id) {
     case "wee.orchestrator_pre_edit_validation": {
-      const ok =
-        orchestrator.includes("validateSurgicalEdit(") ||
-        orchestrator.includes("validateEditEngineGrounding(");
+      const ok = orchestrator.includes("validateSurgicalEdit(");
       return probe(id, category, expected, ok, `preEditValidation=${ok}`);
     }
     case "wee.edit_telemetry_record": {
-      const ok = hasProductionExport("buildEditEngineTelemetry");
+      const telemetry = buildEditEngineTelemetry(
+        {
+          name: "edit_file",
+          args: {
+            explanation: "probe",
+            path: "src/tools.ts",
+            old_string: "const x = 1;",
+            new_string: "const x = 2;",
+          },
+        },
+        { sequenceIndex: 1 },
+      );
+      const ok =
+        hasProductionExport("buildEditEngineTelemetry") &&
+        telemetry.toolName === "edit_file" &&
+        telemetry.sequenceIndex === 1 &&
+        telemetry.validated === true;
       return probe(id, category, expected, ok, `editTelemetry=${ok}`);
     }
     case "wee.exported_edit_validator": {
-      const ok = hasProductionExport("validateSurgicalEdit");
+      const invalidEdit = validateSurgicalEdit({
+        name: "edit_file",
+        args: { path: "src/tools.ts", old_string: "", new_string: "x" },
+      });
+      const ok = hasProductionExport("validateSurgicalEdit") && !invalidEdit.valid;
       return probe(id, category, expected, ok, `editValidator=${ok}`);
     }
     default:
@@ -1409,6 +1575,121 @@ export function listWorkerEditEngineKnownGaps(
   results: WorkerEditEngineProbeResult[] = runWorkerEditEngineProbes(),
 ): WorkerEditEngineProbeResult[] {
   return summarizeWorkerEditEngineMatrix(results).knownGaps;
+}
+
+export interface WorkerEditEngineProbeMatrixValidationIssue {
+  kind: "missing_result" | "criterion_mismatch" | "pass_mismatch" | "gap_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface WorkerEditEngineProbeMatrixValidationResult {
+  valid: boolean;
+  issues: WorkerEditEngineProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+export function validateWorkerEditEngineProbeMatrix(
+  results: WorkerEditEngineProbeResult[],
+  contract: WorkerEditEngineContract = getActiveWorkerEditEngineContract(),
+): WorkerEditEngineProbeMatrixValidationResult {
+  const issues: WorkerEditEngineProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+      continue;
+    }
+
+    if (result.aligned) {
+      gapAligned++;
+    } else {
+      issues.push({
+        kind: "gap_mismatch",
+        probeId: contractProbe.id,
+        detail: `FAIL probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface WorkerEditEngineProductionSliceResult {
+  atom: "P05-B03-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: WorkerEditEngineProbeResult[];
+  summary: WorkerEditEngineProbeSummary;
+  matrixValidation: WorkerEditEngineProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: surgical edit engine wired to contract probes
+ * with zero unexpected mismatches against the sealed contract matrix.
+ */
+export function runWorkerEditEngineProductionSlice(
+  fixture: WorkerEditEngineBaseline = loadWorkerEditEngineBaseline(),
+): WorkerEditEngineProductionSliceResult {
+  const contract = getActiveWorkerEditEngineContract();
+  const fixtureValidation = validateWorkerEditEngineBaseline(fixture);
+  const contractValidation = validateWorkerEditEngineAgainstContract(fixture, contract);
+  const results = runWorkerEditEngineProbes(fixture);
+  const summary = summarizeWorkerEditEngineMatrix(results);
+  const matrixValidation = validateWorkerEditEngineProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B03-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 /** Smoke probe: edit with missing old_text returns deterministic not-found error (P05-B03-A01 boundary). */

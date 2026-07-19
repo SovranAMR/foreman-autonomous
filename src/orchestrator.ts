@@ -28,6 +28,10 @@ import {
   validateFilesystemGrounding,
   buildFilesystemGroundingTelemetry,
 } from "./forge-p05-worker-filesystem-grounding.js";
+import {
+  validateSurgicalEdit,
+  buildEditEngineTelemetry,
+} from "./forge-p05-worker-edit-engine.js";
 import { formatProjectContext } from "./project-detector.js";
 import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
@@ -3504,6 +3508,20 @@ ${visionOutput}`,
                       isError: true,
                     };
                   }
+                  if (call.name === "edit_file" || call.name === "edit_range") {
+                    const editValidation = validateSurgicalEdit(call);
+                    buildEditEngineTelemetry(call, {
+                      sequenceIndex: toolCallCount,
+                      validation: editValidation,
+                    });
+                    if (!editValidation.valid) {
+                      return {
+                        name: call.name,
+                        content: `Surgical edit validation failed: ${editValidation.errors.join("; ")}`,
+                        isError: true,
+                      };
+                    }
+                  }
                   const result = await toolExecutor(call);
                   if (!result.isError && call.name === "read_file" && grounding.path) {
                     groundedReadPaths.add(grounding.path);
@@ -4497,6 +4515,20 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                               content: `Filesystem grounding failed: ${grounding.errors.join("; ")}`,
                               isError: true,
                             };
+                          }
+                          if (call.name === "edit_file" || call.name === "edit_range") {
+                            const editValidation = validateSurgicalEdit(call);
+                            buildEditEngineTelemetry(call, {
+                              sequenceIndex: reToolCallCount,
+                              validation: editValidation,
+                            });
+                            if (!editValidation.valid) {
+                              return {
+                                name: call.name,
+                                content: `Surgical edit validation failed: ${editValidation.errors.join("; ")}`,
+                                isError: true,
+                              };
+                            }
                           }
                           const result = await toolExecutor(call);
                           if (!result.isError && call.name === "read_file" && grounding.path) {

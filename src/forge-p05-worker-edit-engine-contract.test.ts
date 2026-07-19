@@ -61,7 +61,7 @@ describe("Forge Worker Edit Engine Contract — P05-B03-A02", () => {
     }
   });
 
-  it("maps 27 probes with six documented FAIL gaps from A01 baseline", () => {
+  it("maps 27 probes with zero documented FAIL gaps after A03 production slice", () => {
     const contract = getActiveWorkerEditEngineContract();
     const summary = summarizeWorkerEditEngineContractCoverage(contract);
     const coverage = validateWorkerEditEngineContractCoverage(contract);
@@ -69,10 +69,10 @@ describe("Forge Worker Edit Engine Contract — P05-B03-A02", () => {
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateWorkerEditEngineContract().valid, true);
     assert.equal(summary.totalProbes, 27);
-    assert.equal(summary.expectedPass, 21);
-    assert.equal(summary.expectedFail, 6);
-    assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 6);
+    assert.equal(summary.expectedPass, 27);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 23);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 0);
@@ -86,21 +86,9 @@ describe("Forge Worker Edit Engine Contract — P05-B03-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
 
-  it("lists six gap probes aligned with A01 documented FAIL debt", () => {
+  it("lists zero gap probes after A03 production wiring", () => {
     const gaps = listWorkerEditEngineProbesByDisposition("gap");
-    assert.equal(gaps.length, 6);
-    assert.deepEqual(
-      gaps.map(p => p.id).sort(),
-      [
-        "wee.edit_telemetry_record",
-        "wee.exported_edit_validator",
-        "wee.multi_occurrence_dispatch",
-        "wee.orchestrator_pre_edit_validation",
-        "wee.typed_edit_call_union",
-        "wee.worker_prompt_edit_contract",
-      ],
-    );
-    assert.ok(gaps.every(probe => probe.expected === "FAIL"));
+    assert.equal(gaps.length, 0);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -153,7 +141,7 @@ describe("Forge Worker Edit Engine Contract — P05-B03-A02", () => {
     assert.equal(FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.atom, "P05-B03-A02");
     assert.equal(FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_EDIT_ENGINE_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_EDIT_ENGINE_VERSION, "1.0.0-a03");
     assert.equal(contract.version, FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.version);
   });
 });

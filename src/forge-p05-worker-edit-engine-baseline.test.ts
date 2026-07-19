@@ -41,28 +41,19 @@ describe("Forge Worker Edit Engine — P05-B03-A01", () => {
     assert.equal(handoff.targetBlock.entryAtom, "P05-B03-A01");
   });
 
-  it("measures edit engine probes with documented FAIL gaps from P05-B02 sealed handoff", () => {
+  it("measures edit engine probes with zero unexpected mismatches after A03 slice", () => {
     const results = runWorkerEditEngineProbes();
     const summary = summarizeWorkerEditEngineMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 27);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listWorkerEditEngineProbesByExpected(
       "FAIL",
       loadWorkerEditEngineBaseline(),
     );
-    assert.equal(documentedFail.length, 6);
-    assert.ok(documentedFail.some(p => p.id === "wee.typed_edit_call_union"));
-    assert.ok(documentedFail.some(p => p.id === "wee.multi_occurrence_dispatch"));
-    assert.ok(documentedFail.some(p => p.id === "wee.exported_edit_validator"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of WORKER_EDIT_ENGINE_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -77,20 +68,9 @@ describe("Forge Worker Edit Engine — P05-B03-A01", () => {
     );
   });
 
-  it("documents edit engine gaps as measurable baseline debt", () => {
+  it("documents zero remaining edit engine gaps after production slice", () => {
     const gaps = listWorkerEditEngineKnownGaps(runWorkerEditEngineProbes());
-    assert.equal(gaps.length, 6);
-    assert.deepEqual(
-      gaps.map(g => g.id).sort(),
-      [
-        "wee.edit_telemetry_record",
-        "wee.exported_edit_validator",
-        "wee.multi_occurrence_dispatch",
-        "wee.orchestrator_pre_edit_validation",
-        "wee.typed_edit_call_union",
-        "wee.worker_prompt_edit_contract",
-      ],
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 
   it("assessEditInputBoundary rejects empty and null-byte old_text", () => {
@@ -133,6 +113,6 @@ describe("Forge Worker Edit Engine — P05-B03-A01", () => {
   });
 
   it("exports harness version for edit engine baseline", () => {
-    assert.equal(FORGE_WORKER_EDIT_ENGINE_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_EDIT_ENGINE_VERSION, "1.0.0-a03");
   });
 });

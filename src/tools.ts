@@ -173,6 +173,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "string",
           description: "The replacement string.",
         },
+        occurrence: {
+          type: ["number", "string"],
+          description:
+            'Which occurrence of old_string to replace: 1-indexed integer, or "all" for every match. Default: 1.',
+        },
       },
       required: ["explanation", "path", "old_string", "new_string"],
     },
@@ -1070,6 +1075,18 @@ export type TypedReadCall = {
   };
 };
 
+/** Discriminated union narrowing edit_file args before surgical edit dispatch (P05-B03-A03). */
+export type TypedEditCall = {
+  name: "edit_file";
+  args: {
+    explanation: string;
+    path: string;
+    old_string: string;
+    new_string: string;
+    occurrence?: number | "all";
+  };
+};
+
 /**
  * Creates a tool executor bound to a project root via ExecutionEngine.
  * All file operations go through the engine's security checks.
@@ -1830,15 +1847,32 @@ function executeEditFileV2(editEngine: EditEngine, args: Record<string, unknown>
   const filePath = args.path as string;
   const oldStr = args.old_string as string;
   const newStr = args.new_string as string;
+  const occurrenceArg = args.occurrence;
 
   if (!filePath || oldStr === undefined || newStr === undefined) {
     return { name: "edit_file", content: "Error: path, old_string, and new_string are required", isError: true };
+  }
+
+  let occurrence: number | "all" | undefined;
+  if (occurrenceArg !== undefined && occurrenceArg !== null) {
+    if (occurrenceArg === "all") {
+      occurrence = "all";
+    } else if (typeof occurrenceArg === "number" && Number.isInteger(occurrenceArg) && occurrenceArg >= 1) {
+      occurrence = occurrenceArg;
+    } else {
+      return {
+        name: "edit_file",
+        content: "Error: occurrence must be a positive integer or \"all\"",
+        isError: true,
+      };
+    }
   }
 
   const result = editEngine.edit({
     filePath,
     oldText: oldStr,
     newText: newStr,
+    occurrence,
   });
 
   if (!result.success) {

@@ -45,13 +45,13 @@
       "id": "wee.typed_edit_call_union",
       "category": "edit_signal",
       "description": "TypedEditCall discriminated union narrows path and old/new text args before edit",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wee.worker_prompt_edit_contract",
       "category": "edit_signal",
       "description": "WORKER_SYSTEM prompt declares surgical edit engine contract for worker execution",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wee.fuzzy_match_exported",
@@ -75,7 +75,7 @@
       "id": "wee.multi_occurrence_dispatch",
       "category": "match_signal",
       "description": "executeEditFileV2 passes occurrence selector into EditEngine.edit dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wee.b02_handoff_entry",
@@ -159,19 +159,19 @@
       "id": "wee.orchestrator_pre_edit_validation",
       "category": "nogo_path",
       "description": "Orchestrator validates surgical edit calls through forge edit engine contract before dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wee.edit_telemetry_record",
       "category": "nogo_path",
       "description": "buildEditEngineTelemetry records edit provenance for worker tool loop",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wee.exported_edit_validator",
       "category": "nogo_path",
       "description": "validateSurgicalEdit exported for orchestrator pre-edit contract checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }
