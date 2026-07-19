@@ -44,7 +44,7 @@ fallback: contract cannot express baseline gaps ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B09-A01
-last_commit: pending
+last_commit: 3fa7982
 tests: PASS — forge-p02-visioner-approval-baseline.test.ts (3/3)
 evidence: runVisionerApprovalProbes 22/23 aligned; documented FAIL gap vapp.structured_steering_recovery; fixture+probe harness sealed from P02-B08 handoff
 next: P02-B09-A02

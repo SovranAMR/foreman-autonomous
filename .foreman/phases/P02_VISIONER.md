@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B09-A01
-last_commit: pending
+last_commit: 3fa7982
 tests: PASS — forge-p02-visioner-approval-baseline.test.ts (3/3)
 evidence: runVisionerApprovalProbes 22/23 aligned; documented FAIL gap vapp.structured_steering_recovery (recoverVisionerSteering absent); P02-B08→B09 handoff prerequisite sealed
 next: P02-B09-A02
