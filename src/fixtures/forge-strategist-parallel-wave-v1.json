@@ -1,0 +1,177 @@
+{
+  "version": "1.0.0",
+  "atom": "P03-B07-A01",
+  "contractAtom": "P03-B07-A06",
+  "purpose": "Strategist parallel execution wave baseline measured from sealed P03-B06 resource budget block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P03-B06-A10",
+    "contractVersion": "1.0.0-a07",
+    "resourceBudgetProbeCount": 27,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "swave.version_tagged",
+      "category": "wave_versioning",
+      "description": "Strategist parallel wave baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.atom_tagged",
+      "category": "wave_versioning",
+      "description": "Strategist parallel wave baseline declares P03-B07-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.harness_version_exported",
+      "category": "wave_versioning",
+      "description": "FORGE_STRATEGIST_PARALLEL_WAVE_VERSION exported for parallel wave harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.orchestrator_block_waves",
+      "category": "block_wave_plan",
+      "description": "Orchestrator computeBlockWaves derives execution waves from blockDeps graph",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.orchestrator_parallel_plan_phase",
+      "category": "block_wave_plan",
+      "description": "Orchestrator emits parallel_plan streaming phase with wave summary",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.prompt_parallel_wave_plan",
+      "category": "block_wave_plan",
+      "description": "STRATEGIST decompose format declares PARALLEL WAVE PLAN section",
+      "expected": "FAIL"
+    },
+    {
+      "id": "swave.parser_wave_plan_fields",
+      "category": "block_wave_plan",
+      "description": "parseDecomposeResponse exports parallelWavePlan fields from decompose output",
+      "expected": "FAIL"
+    },
+    {
+      "id": "swave.orchestrator_atom_waves",
+      "category": "atom_wave_plan",
+      "description": "Orchestrator computeAtomWaves derives execution waves from atom dependency graph",
+      "expected": "FAIL"
+    },
+    {
+      "id": "swave.block_order_preserves_waves",
+      "category": "atom_wave_plan",
+      "description": "Orchestrator block loop preserves computeBlockWaves wave ordering",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.rate_limiter_parallel_safety",
+      "category": "resource_wave_budget",
+      "description": "RateLimiter throttles parallel LLM calls to protect wave execution budget",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.resource_plan_wave_budget_link",
+      "category": "resource_wave_budget",
+      "description": "Strategist decompose RESOURCE PLAN section links blocks to resource-aware wave batches",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.orchestrator_pre_exec_wave_gate",
+      "category": "resource_wave_budget",
+      "description": "Orchestrator validates strategist parallel wave plan before block execution",
+      "expected": "FAIL"
+    },
+    {
+      "id": "swave.b06_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P03_B06_TO_B07_HANDOFF_V1 targets P03-B07-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.b06_sealed_resource_budget_probes",
+      "category": "baseline_link",
+      "description": "P03-B06→B07 handoff sealed probeCount matches active resource budget contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P03-B06 resource budget block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.probe_runner_exported",
+      "category": "boundary",
+      "description": "runStrategistParallelWaveProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL parallel wave gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.empty_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistParallelWaveInputBoundary rejects empty decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.whitespace_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistParallelWaveInputBoundary rejects whitespace-only decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.long_decompose_truncation_boundary",
+      "category": "boundary",
+      "description": "assessStrategistParallelWaveInputBoundary truncates decompose exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateStrategistParallelWaveBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.malformed_decompose_guard",
+      "category": "failure_path",
+      "description": "assessStrategistParallelWaveInputBoundary rejects null-byte decompose output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.min_category_probes",
+      "category": "failure_path",
+      "description": "validateStrategistParallelWaveBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.recovery_sequential_fallback",
+      "category": "recovery_path",
+      "description": "Orchestrator falls back to sequential execution within each wave for shared filesystem safety",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.recovery_wave_checkpoint",
+      "category": "recovery_path",
+      "description": "Rollback checkpoint created per block preserves wave resume ordering after failure",
+      "expected": "PASS"
+    },
+    {
+      "id": "swave.nogo_invalid_wave_plan",
+      "category": "nogo_path",
+      "description": "NO-GO gate rejects run when parallel wave plan references non-existent block indices",
+      "expected": "FAIL"
+    },
+    {
+      "id": "swave.exported_wave_validator",
+      "category": "nogo_path",
+      "description": "validateStrategistParallelWave exported for orchestrator pre-execution wave checks",
+      "expected": "FAIL"
+    }
+  ]
+}

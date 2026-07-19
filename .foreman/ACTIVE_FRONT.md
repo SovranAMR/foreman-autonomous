@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B07
-active_atom: P03-B07-A01
+active_atom: P03-B07-A02
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 259/1000
-phase_progress: 60/100
-block_progress: 0/10
+program_progress: 260/1000
+phase_progress: 61/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B07-A01 — Parallel execution wave planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P03-B07-A02 — Parallel execution wave planı: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P03-B06-A10 PASS; P03-B07-A01 measure parallel execution wave behavior and create failing baseline fixture.
-target: loadStrategistParallelWaveBaseline, validateStrategistParallelWaveBaseline.
-hypothesis: P03-B07-A01 captures parallel wave planning gaps against sealed P03-B06 resource budget block gate.
-acceptance: baseline fixture loads; probes document measurable gaps; validation passes on canonical fixture.
+objective: P03-B07-A01 PASS; P03-B07-A02 define measurable acceptance criteria with typed contract.
+target: getActiveStrategistParallelWaveContract, validateStrategistParallelWaveCoverage.
+hypothesis: P03-B07-A02 seals A01 probe matrix into versioned contract with category invariants.
+acceptance: contract loads; coverage validation passes; fixture aligns with contract probe matrix.
 commands: npx tsx --test src/forge-p03-strategist-parallel-wave*.test.ts
 blast_radius: src/forge-p03-strategist-parallel-wave.ts
-rollback: P03-B07-A01 baseline değişikliklerini geri al.
+rollback: P03-B07-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Baseline blocked ise BLOCKED raporla.
+fallback: Contract blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B06-A10
-last_commit: d233a5c
-tests: PASS — forge-p03-strategist-resource-budget*.test.ts (56/56); block gate 7/7; regression+guard integrated
-evidence: sealStrategistResourceBudgetBlockGate; runForgeStrategistResourceBudgetBlockGate; verifyForgeStrategistResourceBudgetBlockGate
-next: P03-B07-A01
+last_atom: P03-B07-A01
+last_commit: 4f98b70
+tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (3/3); 27 probes; 6 documented FAIL gaps aligned
+evidence: loadStrategistParallelWaveBaseline; validateStrategistParallelWaveBaseline; runStrategistParallelWaveProbes
+next: P03-B07-A02
