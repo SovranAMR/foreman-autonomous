@@ -23,7 +23,7 @@ import {
 } from "./forge-p03-strategist-provenance.js";
 import { parseResearchResponse } from "./parser.js";
 
-export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a07";
+export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a08";
 
 export const EXPECTED_P03_PHASE_GATE_SEALED_BLOCK_COUNT = P03_STRATEGIST_PHASE_BLOCK_COUNT;
 
@@ -2801,5 +2801,144 @@ export function runResearcherQuestionDecompositionPropertyFuzzSlice(
     propertyResult,
     contractFuzz,
     runRecordFuzz,
+  };
+}
+
+// ─── Probe regression detection (P04-B01-A08) ────────────────────────────────
+
+export interface ResearcherQuestionDecompositionProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare question decomposition run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectResearcherQuestionDecompositionProbeRegression(
+  prior: ResearcherQuestionDecompositionRunRecord,
+  current: ResearcherQuestionDecompositionRunRecord,
+): ResearcherQuestionDecompositionProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+export interface ResearcherQuestionDecompositionForgeRegressionResult {
+  atom: "P04-B01-A08";
+  passed: boolean;
+  productionSlice: ResearcherQuestionDecompositionProductionSliceResult;
+  propertyFuzzSlice: ResearcherQuestionDecompositionPropertyFuzzSliceResult;
+  record: ResearcherQuestionDecompositionRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: ResearcherQuestionDecompositionProbeRegressionReport | null;
+  detail: string;
+}
+
+/**
+ * Execute question decomposition probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P04-B01-A08).
+ */
+export function runResearcherQuestionDecompositionForgeRegression(
+  priorRecord?: ResearcherQuestionDecompositionRunRecord,
+): ResearcherQuestionDecompositionForgeRegressionResult {
+  const fixture = loadResearcherQuestionDecompositionBaseline();
+  const contract = getActiveResearcherQuestionDecompositionContract();
+  const productionSlice = runResearcherQuestionDecompositionProductionSlice(fixture);
+  const propertyFuzzSlice = runResearcherQuestionDecompositionPropertyFuzzSlice(fixture);
+  const record = runResearcherQuestionDecompositionProbesWithRecord(fixture);
+  const validation = validateResearcherQuestionDecompositionRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateResearcherQuestionDecompositionRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectResearcherQuestionDecompositionProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk && recordValid && priorRecordValid && !alignmentRegression && propertyFuzzOk;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(`priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+
+  return {
+    atom: "P04-B01-A08",
+    passed,
+    productionSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    detail: detailParts.join(" | "),
   };
 }

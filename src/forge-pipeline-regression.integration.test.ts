@@ -114,6 +114,12 @@ import {
   runForgeVisionerPhaseGateBlockGate,
 } from "./forge-p02-visioner-phase-gate.probe.js";
 import { detectVisionerPhaseGateProbeRegression, validateForgeVisionerPhaseGateGuard } from "./forge-p02-visioner-phase-gate.js";
+import {
+  runForgeResearcherQuestionDecompositionRegressionGate,
+  runResearcherQuestionDecompositionProbesWithRecord,
+  runResearcherQuestionDecompositionRegressionIntegration,
+} from "./forge-p04-researcher-question-decomposition.probe.js";
+import { detectResearcherQuestionDecompositionProbeRegression } from "./forge-p04-researcher-question-decomposition.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -2099,5 +2105,123 @@ describe("Forge Visioner Phase Gate Block Gate Integration — P02-B10-A10", () 
       assert.ok(verification.detail.includes("handoff=PASS→P03-B01"));
       assert.ok(verification.detail.includes("seals=10/10"));
     }
+  });
+});
+
+describe("Forge Researcher Question Decomposition Regression Integration — P04-B01-A08", () => {
+  it("runForgeResearcherQuestionDecompositionRegressionGate passes on canonical question decomposition matrix", () => {
+    const result = runForgeResearcherQuestionDecompositionRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 27);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.ok(result.detail.includes("27/27 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("runResearcherQuestionDecompositionRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeResearcherQuestionDecompositionRegressionGate();
+    const integration = runResearcherQuestionDecompositionRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzzSlice.propertyChecksPassed, gate.propertyFuzzSlice.propertyChecksPassed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("27/27 probes aligned"));
+    assert.equal(integration.record.summary.total, 27);
+  });
+
+  it("detectResearcherQuestionDecompositionProbeRegression flags newly misaligned probes", () => {
+    const prior = runResearcherQuestionDecompositionProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectResearcherQuestionDecompositionProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeResearcherQuestionDecompositionRegressionGate compares against prior record without false regression", () => {
+    const prior = runResearcherQuestionDecompositionProbesWithRecord();
+    const result = runForgeResearcherQuestionDecompositionRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+});
+
+describe("Forge Researcher Question Decomposition Regression Integration — P04-B01-A08", () => {
+  it("runForgeResearcherQuestionDecompositionRegressionGate passes on canonical question decomposition matrix", () => {
+    const result = runForgeResearcherQuestionDecompositionRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 27);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.ok(result.detail.includes("27/27 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("runResearcherQuestionDecompositionRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeResearcherQuestionDecompositionRegressionGate();
+    const integration = runResearcherQuestionDecompositionRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzzSlice.propertyChecksPassed, gate.propertyFuzzSlice.propertyChecksPassed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("27/27 probes aligned"));
+    assert.equal(integration.record.summary.total, 27);
+  });
+
+  it("detectResearcherQuestionDecompositionProbeRegression flags newly misaligned probes", () => {
+    const prior = runResearcherQuestionDecompositionProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectResearcherQuestionDecompositionProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeResearcherQuestionDecompositionRegressionGate compares against prior record without false regression", () => {
+    const prior = runResearcherQuestionDecompositionProbesWithRecord();
+    const result = runForgeResearcherQuestionDecompositionRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
   });
 });

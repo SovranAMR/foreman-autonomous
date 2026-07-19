@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B01
-active_atom: P04-B01-A08
+active_atom: P04-B01-A09
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 307/1000
-phase_progress: 7/100
-block_progress: 7/10
+program_progress: 308/1000
+phase_progress: 8/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B01-A08 — Research question decomposition: Forge entegrasyonu ile regression testini tamamla.
+P04-B01-A09 — Research question decomposition: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P04-B01-A07 PASS; Forge integration regression gate for researcher question decomposition.
-target: Wire probe regression detection and orchestrator/pipeline regression gate for question decomposition matrix.
-hypothesis: A07 property/fuzz slice stabilizes contract; A08 can add regression gate without reopening probe matrix.
-acceptance: regression gate PASS; prior/current run comparison valid; zero unexpected mismatches.
+objective: P04-B01-A08 PASS; guard controls for researcher question decomposition regression gate.
+target: Adversarial tamper rejection, performance/cost budgets, safety pattern checks on run records.
+hypothesis: A08 regression gate stabilizes probe matrix; A09 can add guard without reopening regression.
+acceptance: guard PASS; adversarial scenarios rejected; performance/cost/safety within budgets.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-*.ts
-rollback: P04-B01-A08 regression slice değişikliklerini geri al.
+rollback: P04-B01-A09 guard slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B01-A07
-last_commit: a142ca3
-tests: PASS — forge-p04-researcher*.test.ts (37/37); property 8/8; fuzz 72/72 rejected; run-record fuzz 5/5 rejected; 0 unexpected mismatches
-evidence: runResearcherQuestionDecompositionPropertyFuzzSlice; runResearcherQuestionDecompositionPropertyChecks; runResearcherQuestionDecompositionFuzzValidation; runResearcherQuestionDecompositionRunRecordFuzzValidation
-next: P04-B01-A08
+last_atom: P04-B01-A08
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (42/42); regression gate PASS; prior/current comparison valid; 0 unexpected mismatches
+evidence: runResearcherQuestionDecompositionForgeRegression; detectResearcherQuestionDecompositionProbeRegression; runForgeResearcherQuestionDecompositionRegressionGate; runResearcherQuestionDecompositionRegressionIntegration
+next: P04-B01-A09

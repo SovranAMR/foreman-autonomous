@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 7
+completed_atoms: 8
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -22,7 +22,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B01-A05 — Research question decomposition: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B01-A06 — Research question decomposition: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B01-A07 — Research question decomposition: unit, property ve fuzz doğrulamasını ekle
-- [ ] P04-B01-A08 — Research question decomposition: Forge entegrasyonu ile regression testini tamamla
+- [x] P04-B01-A08 — Research question decomposition: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B01-A09 — Research question decomposition: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B01-A10 — Research question decomposition: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B01-A07
-last_commit: a142ca3
-tests: PASS — forge-p04-researcher*.test.ts (37/37); property 8/8; fuzz mutations 72/72 rejected; run-record fuzz 5/5 rejected; 0 unexpected mismatches
-evidence: runResearcherQuestionDecompositionPropertyFuzzSlice; runResearcherQuestionDecompositionPropertyChecks; runResearcherQuestionDecompositionFuzzValidation; runResearcherQuestionDecompositionRunRecordFuzzValidation; harnessVersion=1.0.0-a07
-next: P04-B01-A08
+last_atom: P04-B01-A08
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (42/42); regression gate PASS; prior/current comparison valid; 0 unexpected mismatches
+evidence: runResearcherQuestionDecompositionForgeRegression; detectResearcherQuestionDecompositionProbeRegression; runForgeResearcherQuestionDecompositionRegressionGate; runResearcherQuestionDecompositionRegressionIntegration; harnessVersion=1.0.0-a08
+next: P04-B01-A09

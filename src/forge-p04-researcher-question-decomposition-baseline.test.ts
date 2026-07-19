@@ -40,6 +40,9 @@ import {
   runResearcherQuestionDecompositionRunRecordFuzzValidation,
   FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1,
   listResearcherQuestionDecompositionContractProbeIds,
+  runResearcherQuestionDecompositionForgeRegression,
+  detectResearcherQuestionDecompositionProbeRegression,
+  applyResearcherQuestionDecompositionRunRecordFuzzMutation,
 } from "./forge-p04-researcher-question-decomposition.js";
 
 function formatMismatchReport(
@@ -443,7 +446,7 @@ describe("Forge Researcher Question Decomposition Evidence — P04-B01-A06", () 
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -475,7 +478,7 @@ describe("Forge Researcher Question Decomposition Evidence — P04-B01-A06", () 
     assert.equal(record.evidence.length, 27);
     assert.equal(record.telemetry.length, 27);
     assert.equal(record.provenance.totalProbes, 27);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 27);
@@ -575,7 +578,88 @@ describe("Forge Researcher Question Decomposition Property/Fuzz — P04-B01-A07"
       true,
     );
     assert.equal(record.summary.mismatches, 0);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(listResearcherQuestionDecompositionContractProbeIds(contract).length, 27);
+  });
+});
+
+describe("Forge Researcher Question Decomposition Regression — P04-B01-A08", () => {
+  it("runResearcherQuestionDecompositionForgeRegression passes on canonical question decomposition matrix", () => {
+    const result = runResearcherQuestionDecompositionForgeRegression();
+
+    assert.equal(result.atom, "P04-B01-A08");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 27);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.ok(result.detail.includes("27/27 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectResearcherQuestionDecompositionProbeRegression flags newly misaligned probes", () => {
+    const prior = runResearcherQuestionDecompositionProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectResearcherQuestionDecompositionProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runResearcherQuestionDecompositionForgeRegression compares against prior record without false regression", () => {
+    const prior = runResearcherQuestionDecompositionProbesWithRecord();
+    const result = runResearcherQuestionDecompositionForgeRegression(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runResearcherQuestionDecompositionForgeRegression rejects tampered prior records", () => {
+    const prior = runResearcherQuestionDecompositionProbesWithRecord();
+    const tamperedPrior = applyResearcherQuestionDecompositionRunRecordFuzzMutation(prior, {
+      kind: "drop_evidence",
+      probeId: prior.evidence[0]?.probeId,
+    });
+
+    assert.equal(validateResearcherQuestionDecompositionRunRecord(tamperedPrior).valid, false);
+
+    const result = runResearcherQuestionDecompositionForgeRegression(tamperedPrior);
+    assert.equal(result.priorRecordValid, false);
+    assert.equal(result.passed, false);
+    assert.ok(result.detail.includes("priorValidation:"));
+  });
+
+  it("runResearcherQuestionDecompositionForgeRegression fails when probe alignment regresses", () => {
+    const prior = runResearcherQuestionDecompositionProbesWithRecord();
+    const tamperedCurrent = structuredClone(prior);
+    const target = tamperedCurrent.evidence[0]!;
+    target.aligned = false;
+    target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+    tamperedCurrent.summary = {
+      ...tamperedCurrent.summary,
+      aligned: tamperedCurrent.summary.aligned - 1,
+      mismatches: tamperedCurrent.summary.mismatches + 1,
+    };
+
+    const report = detectResearcherQuestionDecompositionProbeRegression(prior, tamperedCurrent);
+    assert.equal(report.hasRegression, true);
   });
 });
