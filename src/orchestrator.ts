@@ -1859,6 +1859,27 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher risk trade-off regression gate and emit verification event (P04-B07-A08).
+   */
+  async verifyForgeResearcherRiskTradeoffRegression(
+    priorRecord?: import("./forge-p04-researcher-risk-tradeoff.js").ResearcherRiskTradeoffRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-risk-tradeoff.probe.js").ForgeResearcherRiskTradeoffRegressionGateResult
+  > {
+    const { runForgeResearcherRiskTradeoffRegressionGate } = await import(
+      "./forge-p04-researcher-risk-tradeoff.probe.js"
+    );
+    const result = runForgeResearcherRiskTradeoffRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "researcher_risk_tradeoff_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge researcher citation provenance graph regression gate and emit verification event (P04-B05-A08).
    */
   async verifyForgeResearcherCitationProvenanceGraphRegression(
