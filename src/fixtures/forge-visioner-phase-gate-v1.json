@@ -132,10 +132,16 @@
       "expected": "PASS"
     },
     {
+      "id": "vpg.structured_phase_gate_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerPhaseGateEvidence restructures failed block seal manifest into phase gate evidence",
+      "expected": "PASS"
+    },
+    {
       "id": "vpg.orchestrator_phase_gate_runner",
       "category": "recovery_path",
       "description": "Orchestrator exposes verifyForgeP02VisionerPhaseGate for P02 phase acceptance",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "vpg.vision_fact_check_block",

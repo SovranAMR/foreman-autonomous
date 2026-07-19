@@ -29,29 +29,22 @@ describe("Forge Visioner Phase Gate — P02-B10-A01", () => {
     assert.equal(fixture.sourceBlockGate.atom, "P02-B09-A10");
     assert.equal(fixture.sourceBlockGate.sealedAtomCount, 10);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
-    assert.equal(fixture.probes.length, 23);
+    assert.equal(fixture.probes.length, 24);
   });
 
-  it("measures visioner phase gate probes with documented FAIL gaps from P02-B09 sealed handoff", () => {
+  it("measures visioner phase gate probes with full alignment after A03 production slice", () => {
     const results = runVisionerPhaseGateProbes();
     const summary = summarizeVisionerPhaseGateMatrix(results);
 
     assert.equal(summary.total, results.length);
-    assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.total, 24);
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listVisionerPhaseGateProbesByExpected(
       "FAIL",
       loadVisionerPhaseGateBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(documentedFail.some(p => p.id === "vpg.orchestrator_phase_gate_runner"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of VISIONER_PHASE_GATE_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -66,14 +59,8 @@ describe("Forge Visioner Phase Gate — P02-B10-A01", () => {
     );
   });
 
-  it("documents remaining visioner phase gate gaps as measurable baseline debt", () => {
+  it("documents zero remaining visioner phase gate gaps after A03 orchestrator wiring", () => {
     const gaps = listVisionerPhaseGateKnownGaps(runVisionerPhaseGateProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, ["vpg.orchestrator_phase_gate_runner"]);
-    assert.ok(
-      gaps.every(g => VISIONER_PHASE_GATE_CATEGORIES.includes(g.category)),
-      "documented gaps are visioner phase gate probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });

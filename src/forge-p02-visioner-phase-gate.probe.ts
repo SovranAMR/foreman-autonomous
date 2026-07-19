@@ -16,12 +16,15 @@ import {
 } from "./forge-p02-visioner-approval.js";
 import {
   validateVisionerPhaseGateBaseline,
+  validateVisionerPhaseGateAgainstContract,
   validateP02PhaseHandoffContract,
   validateForgeP02VisionerPhaseGateEvidence,
   buildP02VisionerPhaseGateEvidence,
+  recoverVisionerPhaseGateEvidence,
   getForgeP02ToP03PhaseHandoff,
   getActiveVisionerPhaseGateContract,
   summarizeVisionerPhaseGateMatrix,
+  validateVisionerPhaseGateProbeMatrix,
   listVisionerPhaseGateProbesByExpected,
   listVisionerPhaseGateKnownGaps,
   FORGE_VISIONER_PHASE_GATE_VERSION,
@@ -251,8 +254,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "vpg.known_gaps_documented": {
+      const contract = getActiveVisionerPhaseGateContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      return probe(id, category, expected, failCount >= 1, `documentedFail=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "vpg.block_inventory_runners": {
       const src = productionPhaseGateSource() + readSrc("orchestrator.ts");
@@ -337,6 +349,33 @@ function probeRecoveryPath(
         orchestrator.includes("!isResuming && this.engine.interactive.isEnabled()") &&
         orchestrator.includes("On resume, skip approval");
       return probe(id, category, expected, ok, `resumeSkipsApproval=${ok}`);
+    }
+    case "vpg.structured_phase_gate_recovery": {
+      const malformed = `block gates incomplete
+P02-B01: PASS atoms=10
+P02-B02: pass atoms=10
+approval regression: pass
+handoff: valid`;
+      const recovery = recoverVisionerPhaseGateEvidence(malformed, {
+        approvalRegressionPassed: true,
+        handoffValid: true,
+      });
+      const handoff = getForgeP02ToP03PhaseHandoff();
+      const ok =
+        hasProductionExport("recoverVisionerPhaseGateEvidence") &&
+        recovery.recovered === true &&
+        recovery.evidence !== null &&
+        recovery.blockSeals.length === P02_VISIONER_PHASE_BLOCK_COUNT &&
+        recovery.approvalRegressionPassed &&
+        recovery.handoffValid &&
+        validateForgeP02VisionerPhaseGateEvidence(recovery.evidence, handoff).valid;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recovered=${recovery.recovered}, ${recovery.detail}`,
+      );
     }
     case "vpg.orchestrator_phase_gate_runner": {
       const ok = orchestrator.includes("verifyForgeP02VisionerPhaseGate");
@@ -430,3 +469,40 @@ export function runVisionerPhaseGateProbes(
 }
 
 export const runForgeVisionerPhaseGateProbes = runVisionerPhaseGateProbes;
+
+export interface VisionerPhaseGateProductionSliceResult {
+  atom: "P02-B10-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerPhaseGateProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerPhaseGateMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerPhaseGateProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: recoverVisionerPhaseGateEvidence wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runVisionerPhaseGateProductionSlice(
+  fixture: VisionerPhaseGateBaseline = loadVisionerPhaseGateBaseline(),
+): VisionerPhaseGateProductionSliceResult {
+  const contract = getActiveVisionerPhaseGateContract();
+  const fixtureValidation = validateVisionerPhaseGateBaseline(fixture);
+  const contractValidation = validateVisionerPhaseGateAgainstContract(fixture, contract);
+  const results = runVisionerPhaseGateProbes(fixture);
+  const summary = summarizeVisionerPhaseGateMatrix(results);
+  const matrixValidation = validateVisionerPhaseGateProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B10-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
+}
+
+export const runForgeVisionerPhaseGateProductionSlice = runVisionerPhaseGateProductionSlice;

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   loadVisionerPhaseGateBaseline,
   runVisionerPhaseGateProbes,
+  runVisionerPhaseGateProductionSlice,
 } from "./forge-p02-visioner-phase-gate.probe.js";
 import {
   getActiveVisionerPhaseGateContract,
@@ -13,8 +14,12 @@ import {
   summarizeVisionerPhaseGateContractCoverage,
   validateVisionerPhaseGateContractCoverage,
   validateVisionerPhaseGateAgainstContract,
+  validateVisionerPhaseGateProbeMatrix,
+  recoverVisionerPhaseGateEvidence,
+  assessVisionerPhaseGateInputBoundary,
   VISIONER_PHASE_GATE_CATEGORIES,
   FORGE_VISIONER_PHASE_GATE_VERSION,
+  P02_VISIONER_PHASE_BLOCK_COUNT,
 } from "./forge-p02-visioner-phase-gate.js";
 
 describe("Forge Visioner Phase Gate Contract — P02-B10-A02", () => {
@@ -44,19 +49,19 @@ describe("Forge Visioner Phase Gate Contract — P02-B10-A02", () => {
     }
   });
 
-  it("maps 23 probes with one documented orchestrator phase gate gap", () => {
+  it("maps 24 probes with full alignment after A03 production slice", () => {
     const contract = getActiveVisionerPhaseGateContract();
     const summary = summarizeVisionerPhaseGateContractCoverage(contract);
     const coverage = validateVisionerPhaseGateContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
-    assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 1);
+    assert.equal(summary.totalProbes, 24);
+    assert.equal(summary.expectedPass, 24);
+    assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 1);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 1);
+    assert.equal(summary.byDisposition.recovery, 3);
     assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.phase_versioning.probeCount, 3);
     assert.equal(summary.byCategory.block_gate_signal.probeCount, 3);
@@ -64,14 +69,13 @@ describe("Forge Visioner Phase Gate Contract — P02-B10-A02", () => {
     assert.equal(summary.byCategory.baseline_link.probeCount, 2);
     assert.equal(summary.byCategory.boundary.probeCount, 6);
     assert.equal(summary.byCategory.failure_path.probeCount, 2);
-    assert.equal(summary.byCategory.recovery_path.probeCount, 2);
+    assert.equal(summary.byCategory.recovery_path.probeCount, 3);
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists one remaining gap probe for orchestrator phase gate runner", () => {
+  it("lists zero remaining gap probes after A03 orchestrator wiring", () => {
     const gaps = listVisionerPhaseGateProbesByDisposition("gap");
-    assert.deepEqual(gaps.map(p => p.id).sort(), ["vpg.orchestrator_phase_gate_runner"]);
-    assert.ok(gaps.every(p => p.expected === "FAIL"));
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -120,5 +124,70 @@ describe("Forge Visioner Phase Gate Contract — P02-B10-A02", () => {
   it("exports FORGE_VISIONER_PHASE_GATE_VERSION aligned with contract semver", () => {
     const contract = getActiveVisionerPhaseGateContract();
     assert.equal(FORGE_VISIONER_PHASE_GATE_VERSION, contract.version);
+  });
+});
+
+describe("Forge Visioner Phase Gate Production Slice — P02-B10-A03", () => {
+  it("recoverVisionerPhaseGateEvidence restructures malformed block seal manifest", () => {
+    const malformed = `block gates incomplete
+P02-B01: PASS atoms=10
+P02-B02: pass atoms=10
+approval regression: pass
+handoff: valid`;
+    const recovery = recoverVisionerPhaseGateEvidence(malformed, {
+      approvalRegressionPassed: true,
+      handoffValid: true,
+    });
+
+    assert.equal(recovery.recovered, true);
+    assert.ok(recovery.evidence);
+    assert.equal(recovery.blockSeals.length, P02_VISIONER_PHASE_BLOCK_COUNT);
+    assert.equal(recovery.approvalRegressionPassed, true);
+    assert.equal(recovery.handoffValid, true);
+    assert.ok(recovery.blockSeals.every(seal => seal.passed));
+  });
+
+  it("recoverVisionerPhaseGateEvidence rejects null-byte manifest safely", () => {
+    const recovery = recoverVisionerPhaseGateEvidence("manifest\0corrupt");
+    assert.equal(recovery.recovered, false);
+    assert.deepEqual(recovery.parseErrors, ["null_byte_in_manifest"]);
+  });
+
+  it("assessVisionerPhaseGateInputBoundary handles empty and whitespace-only manifest", () => {
+    const empty = assessVisionerPhaseGateInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerPhaseGateInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveVisionerPhaseGateContract();
+    const slice = runVisionerPhaseGateProductionSlice();
+
+    assert.equal(slice.atom, "P02-B10-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 24);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 24);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const matrixValidation = validateVisionerPhaseGateProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });
