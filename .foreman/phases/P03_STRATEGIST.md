@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 1
-completed_atoms: 14
+completed_atoms: 15
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -33,7 +33,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B02-A03 — Block üretim kontratı: en küçük üretim dikey dilimini uygula
 - [x] P03-B02-A04 — Block üretim kontratı: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B02-A05 — Block üretim kontratı: failure, recovery ve NO-GO yollarını uygula
-- [ ] P03-B02-A06 — Block üretim kontratı: evidence, telemetry ve provenance kaydını ekle
+- [x] P03-B02-A06 — Block üretim kontratı: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B02-A07 — Block üretim kontratı: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B02-A08 — Block üretim kontratı: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B02-A09 — Block üretim kontratı: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B02-A05
-last_commit: a2b840d
-tests: PASS — forge-p03-strategist-block-contract.test.ts (14/14); forge-p03-strategist-block-contract-baseline.test.ts (3/3); failure/recovery 6 probes; 0 unexpected mismatches
-evidence: runStrategistBlockContractFailureRecoverySlice; validateStrategistBlockContractFailureRecoveryProbeMatrix; listStrategistBlockContractFailureRecoveryProbeIds
-next: P03-B02-A06
+last_atom: P03-B02-A06
+last_commit: pending
+tests: PASS — forge-p03-strategist-block-contract.test.ts (18/18); forge-p03-strategist-block-contract-baseline.test.ts (3/3); failure/recovery 6 probes; run record gate PASS
+evidence: runStrategistBlockContractFailureRecoverySliceWithRecord; validateStrategistBlockContractFailureRecoveryRunRecord; runStrategistBlockContractEvidenceSlice
+next: P03-B02-A07

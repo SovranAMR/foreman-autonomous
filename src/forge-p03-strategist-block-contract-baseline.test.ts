@@ -25,7 +25,7 @@ describe("Forge Strategist Block Contract — P03-B02-A01", () => {
 
     assert.equal(fixture.version, "1.0.0");
     assert.equal(fixture.atom, "P03-B02-A01");
-    assert.equal(fixture.contractAtom, "P03-B02-A05");
+    assert.equal(fixture.contractAtom, "P03-B02-A06");
     assert.equal(fixture.sourceBlockGate.atom, "P03-B01-A10");
     assert.equal(fixture.sourceBlockGate.sealedAtomCount, 10);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));

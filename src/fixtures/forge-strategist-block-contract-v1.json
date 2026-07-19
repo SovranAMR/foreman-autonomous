@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P03-B02-A01",
-  "contractAtom": "P03-B02-A05",
+  "contractAtom": "P03-B02-A06",
   "purpose": "Strategist block production contract baseline measured from sealed P03-B01 block gate artifacts (includes documented FAIL gaps).",
   "sourceBlockGate": {
     "version": "1.0.0",
