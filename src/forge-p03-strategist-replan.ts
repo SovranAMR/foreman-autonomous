@@ -1353,6 +1353,60 @@ export function runStrategistReplanProductionSlice(
   };
 }
 
+export interface StrategistReplanBoundarySliceResult {
+  atom: "P03-B08-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistReplanProbeResult[];
+  boundaryResults: StrategistReplanProbeResult[];
+  matrixValidation: StrategistReplanProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateStrategistReplanBoundaryProbeMatrix(
+  results: StrategistReplanProbeResult[],
+  contract: StrategistReplanContract = getActiveStrategistReplanContract(),
+): StrategistReplanProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistReplanContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistReplanContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistReplanProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (decompose input edge cases, probe runner,
+ * documented gaps, source block gate refs) with zero unexpected mismatches.
+ */
+export function runStrategistReplanBoundarySlice(
+  fixture: StrategistReplanBaseline = loadStrategistReplanBaseline(),
+): StrategistReplanBoundarySliceResult {
+  const contract = getActiveStrategistReplanContract();
+  const results = runStrategistReplanProbes(fixture);
+  const boundaryProbes = listStrategistReplanContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistReplanBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B08-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}
+
 function runSingleProbe(
   id: string,
   category: StrategistReplanCategory,

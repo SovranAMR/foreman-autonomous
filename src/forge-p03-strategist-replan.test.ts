@@ -4,8 +4,11 @@ import {
   loadStrategistReplanBaseline,
   runStrategistReplanProbes,
   runStrategistReplanProductionSlice,
+  runStrategistReplanBoundarySlice,
   validateStrategistReplan,
   validateStrategistReplanProbeMatrix,
+  validateStrategistReplanBoundaryProbeMatrix,
+  assessStrategistReplanInputBoundary,
   getActiveStrategistReplanContract,
   getStrategistReplanCategoryContract,
   listStrategistReplanContractProbeIds,
@@ -16,6 +19,7 @@ import {
   validateStrategistReplanAgainstContract,
   validateStrategistReplanBaseline,
   STRATEGIST_REPLAN_CATEGORIES,
+  STRATEGIST_REPLAN_DECOMPOSE_MAX_LENGTH,
   FORGE_STRATEGIST_REPLAN_CONTRACT_V1,
 } from "./forge-p03-strategist-replan.js";
 
@@ -208,6 +212,85 @@ CONFIDENCE: 0.8`;
     assert.equal(flippedGaps.length, 6, "A03 closes all six replan contract gaps");
 
     const matrixValidation = validateStrategistReplanProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+});
+
+describe("Forge Strategist Replan Boundary Slice — P03-B08-A04", () => {
+  it("assessStrategistReplanInputBoundary handles decompose edge cases including truncation", () => {
+    const empty = assessStrategistReplanInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistReplanInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistReplanInputBoundary("bad\0decompose");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const valid = assessStrategistReplanInputBoundary(
+      "REASONING: valid\nOUTPUT:\nBlock 1: task\nDEPENDENCIES: none\nREPLAN PLAN: re-decompose block 1\nCONFIDENCE: 0.8",
+    );
+    assert.equal(valid.disposition, "valid");
+    assert.equal(valid.acceptable, true);
+
+    const longDecompose = "x".repeat(STRATEGIST_REPLAN_DECOMPOSE_MAX_LENGTH + 500);
+    const truncated = assessStrategistReplanInputBoundary(longDecompose);
+    assert.equal(truncated.disposition, "exceeds_max_length");
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedDecompose.length, STRATEGIST_REPLAN_DECOMPOSE_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("defines boundary category with decompose input edge-case probes", () => {
+    const boundary = listStrategistReplanContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "sreplan.empty_decompose_boundary",
+      "sreplan.known_gaps_documented",
+      "sreplan.long_decompose_truncation_boundary",
+      "sreplan.probe_runner_exported",
+      "sreplan.source_block_gate_ref",
+      "sreplan.whitespace_decompose_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistReplanContract();
+    const slice = runStrategistReplanBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B08-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistReplanContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistReplanBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
     assert.equal(
       matrixValidation.valid,
       true,

@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 64
+completed_atoms: 65
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -109,7 +109,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B08-A01 — Replan ve plan repair: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P03-B08-A02 — Replan ve plan repair: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P03-B08-A03 — Replan ve plan repair: en küçük üretim dikey dilimini uygula
-- [ ] P03-B08-A04 — Replan ve plan repair: boundary ve edge-case davranışlarını tamamla
+- [x] P03-B08-A04 — Replan ve plan repair: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B08-A05 — Replan ve plan repair: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B08-A06 — Replan ve plan repair: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B08-A07 — Replan ve plan repair: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B08-A03
-last_commit: 056b22a
-tests: PASS — forge-p03-strategist-replan*.test.ts (14/14); validateStrategistReplan; runStrategistReplanProductionSlice; 28/28 probes PASS; 6 replan gaps closed
-evidence: validateStrategistReplan; parseReplanBlockRefs; orchestrator replan gate; replanCheckpoint/replanLineage; REPLAN PLAN in prompts+parser
-next: P03-B08-A04
+last_atom: P03-B08-A04
+last_commit: pending
+tests: PASS — forge-p03-strategist-replan*.test.ts (17/17); assessStrategistReplanInputBoundary edge cases; runStrategistReplanBoundarySlice; 6/6 boundary probes aligned
+evidence: validateStrategistReplanBoundaryProbeMatrix; runStrategistReplanBoundarySlice; assessStrategistReplanInputBoundary empty/whitespace/null-byte/truncation
+next: P03-B08-A05
