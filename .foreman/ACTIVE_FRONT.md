@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B10
-active_atom: P01-B10-A02
+active_atom: P01-B10-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 91/1000
-phase_progress: 90/100
+program_progress: 92/1000
+phase_progress: 91/100
 block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B10-A03 — Entegre Forge baseline gate: en küçük üretim dikey dilimini uygula.
+P01-B10-A04 — Entegre Forge baseline gate: boundary ve edge-case davranışlarını tamamla.
 
-objective: B10-A02 typed contract sealed; production vertical slice with zero unexpected mismatches.
-target: runIntegratedBaselineProductionSlice + validateIntegratedBaselineProbeMatrix.
-hypothesis: A02 contract + A01 fixture sufficient for contract-wired production slice gate.
-acceptance: slice executes 24 probes; passAligned=16; gapAligned=8; unexpectedMismatches=0.
+objective: A03 production slice sealed; boundary category probes with zero unexpected mismatches.
+target: runIntegratedBaselineBoundarySlice + validateIntegratedBaselineBoundaryProbeMatrix.
+hypothesis: A03 matrix gate + boundary contract probes sufficient for edge-case slice.
+acceptance: boundary slice executes 3 probes; passAligned=3; gapAligned=0; unexpectedMismatches=0.
 commands: npx tsx --test src/forge-integrated-baseline*.test.ts
 blast_radius: src/forge-integrated-baseline.ts, src/forge-integrated-baseline.probe.ts
-rollback: B10-A03 production slice değişikliklerini geri al.
+rollback: B10-A04 boundary slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A02 contract invalid ise BLOCKED raporla.
+fallback: A03 matrix invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B10-A02
+last_atom: P01-B10-A03
 last_commit: pending
-tests: PASS — forge-integrated-baseline*.test.ts (9/9); FORGE_INTEGRATED_BASELINE_CONTRACT_V1; 24 probes; 16 pass + 8 gap dispositions; fixture↔contract aligned
-evidence: FORGE_INTEGRATED_BASELINE_CONTRACT_V1, validateIntegratedBaselineAgainstContract, validateIntegratedBaselineContractCoverage, contract-wired probe criteria
-next: P01-B10-A03
+tests: PASS — forge-integrated-baseline*.test.ts (10/10); runIntegratedBaselineProductionSlice; validateIntegratedBaselineProbeMatrix; 24 probes; passAligned=16; gapAligned=8; unexpectedMismatches=0
+evidence: runIntegratedBaselineProductionSlice, validateIntegratedBaselineProbeMatrix, contract-wired A03 production vertical slice gate
+next: P01-B10-A04

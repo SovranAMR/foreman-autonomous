@@ -24,6 +24,9 @@ import {
   INTEGRATED_FORGE_BLOCK_GATE_METHODS,
   getActiveIntegratedBaselineContract,
   validateIntegratedBaseline,
+  validateIntegratedBaselineAgainstContract,
+  validateIntegratedBaselineProbeMatrix,
+  summarizeIntegratedBaselineMatrix,
   type IntegratedBaseline,
   type IntegratedBaselineCategory,
   type IntegratedBaselineProbeResult,
@@ -47,6 +50,7 @@ export {
   validateIntegratedBaselineContractCoverage,
   validateIntegratedBaselineAgainstContract,
   validateIntegratedBaseline,
+  validateIntegratedBaselineProbeMatrix,
   summarizeIntegratedBaselineMatrix,
   listIntegratedBaselineProbesByExpected,
   listIntegratedBaselineKnownGaps,
@@ -564,4 +568,39 @@ export function runIntegratedBaselineProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface IntegratedBaselineProductionSliceResult {
+  atom: "P01-B10-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: IntegratedBaselineProbeResult[];
+  summary: ReturnType<typeof summarizeIntegratedBaselineMatrix>;
+  matrixValidation: ReturnType<typeof validateIntegratedBaselineProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: fixture ↔ contract validation, contract-wired probe
+ * execution, and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runIntegratedBaselineProductionSlice(
+  fixture: IntegratedBaseline = loadIntegratedBaseline(),
+): IntegratedBaselineProductionSliceResult {
+  const contract = getActiveIntegratedBaselineContract();
+  const fixtureValidation = validateIntegratedBaseline(fixture);
+  const contractValidation = validateIntegratedBaselineAgainstContract(fixture, contract);
+  const results = runIntegratedBaselineProbes(fixture);
+  const summary = summarizeIntegratedBaselineMatrix(results);
+  const matrixValidation = validateIntegratedBaselineProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B10-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

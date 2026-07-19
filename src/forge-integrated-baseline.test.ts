@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   loadIntegratedBaseline,
   runIntegratedBaselineProbes,
+  runIntegratedBaselineProductionSlice,
   validateIntegratedBaseline,
   summarizeIntegratedBaselineMatrix,
   listIntegratedBaselineProbesByExpected,
@@ -15,6 +16,7 @@ import {
   summarizeIntegratedBaselineContractCoverage,
   validateIntegratedBaselineContractCoverage,
   validateIntegratedBaselineAgainstContract,
+  validateIntegratedBaselineProbeMatrix,
 } from "./forge-integrated-baseline.probe.js";
 
 function formatMismatchReport(
@@ -191,6 +193,54 @@ describe("Forge Integrated Baseline Gate — P01-B10-A01", () => {
     assert.ok(
       gaps.every(g => INTEGRATED_BASELINE_CATEGORIES.includes(g.category)),
       "documented gaps are integrated baseline probes",
+    );
+  });
+});
+
+describe("Forge Integrated Baseline Production Slice — P01-B10-A03", () => {
+  it("executes contract-wired probes with zero unexpected mismatches", () => {
+    const contract = getActiveIntegratedBaselineContract();
+    const slice = runIntegratedBaselineProductionSlice();
+
+    assert.equal(slice.atom, "P01-B10-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 24);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 16);
+    assert.equal(slice.matrixValidation.gapAligned, 8);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateIntegratedBaselineProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 8);
+    assert.deepEqual(
+      slice.summary.knownGaps.map(g => g.id).sort(),
+      [
+        "ibase.integrated_block_gate_method",
+        "ibase.integrated_guard_orchestrator",
+        "ibase.nogo_block_inventory_drift",
+        "ibase.nogo_integrated_gate_mismatch",
+        "ibase.recovery_integrated_state_reset",
+        "ibase.recovery_missing_b09_handoff_fallback",
+        "ibase.unified_block_catalog",
+        "ibase.unified_regression_runner",
+      ],
     );
   });
 });
