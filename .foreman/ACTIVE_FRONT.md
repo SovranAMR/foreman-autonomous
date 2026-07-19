@@ -44,7 +44,7 @@ fallback: gap closure blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B03-A02
-last_commit: pending
+last_commit: e903757
 tests: PASS — forge-p03-strategist-atomization*.test.ts (10/10); contract 23 probes; 4 gap dispositions
 evidence: getActiveStrategistAtomizationContract; validateStrategistAtomizationCoverage; validateStrategistAtomizationAgainstContract
 next: P03-B03-A03
