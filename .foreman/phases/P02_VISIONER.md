@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 5
+completed_atoms: 6
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -20,7 +20,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B01-A03 — Intent ve görev anlamlandırma: en küçük üretim dikey dilimini uygula
 - [x] P02-B01-A04 — Intent ve görev anlamlandırma: boundary ve edge-case davranışlarını tamamla
 - [x] P02-B01-A05 — Intent ve görev anlamlandırma: failure, recovery ve NO-GO yollarını uygula
-- [ ] P02-B01-A06 — Intent ve görev anlamlandırma: evidence, telemetry ve provenance kaydını ekle
+- [x] P02-B01-A06 — Intent ve görev anlamlandırma: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B01-A07 — Intent ve görev anlamlandırma: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B01-A08 — Intent ve görev anlamlandırma: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B01-A09 — Intent ve görev anlamlandırma: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B01-A05
-last_commit: b58060f
-tests: PASS — forge-p02-visioner-intent.test.ts (21/21); failure/recovery slice 6/6 PASS; passAligned=5 gapAligned=1; matrixValidation unexpectedMismatches=0; structured_intent_recovery gap preserved
-evidence: validateVisionerIntentFailureRecoveryProbeMatrix, runVisionerIntentFailureRecoverySlice, listVisionerIntentFailureRecoveryProbeIds, VISIONER_INTENT_FAILURE_RECOVERY_CATEGORIES; 6 failure/recovery/NO-GO probes aligned
-next: P02-B01-A06
+last_atom: P02-B01-A06
+last_commit: pending
+tests: PASS — forge-p02-visioner-intent.test.ts (24/24); failure/recovery run record 6/6; full run record 23/23; harnessVersion=1.0.0-b06; validateVisionerIntentFailureRecoveryRunRecord valid
+evidence: buildVisionerIntentRunRecord, runVisionerIntentFailureRecoverySliceWithRecord, runVisionerIntentProbesWithRecord; probe evidence with disposition/criterion/recordedAt; telemetry with sequenceIndex/durationMs; provenance with sliceAtom P02-B01-A06
+next: P02-B01-A07

@@ -7,6 +7,8 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import visionerIntentBaseline from "./fixtures/forge-visioner-intent-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -30,15 +32,22 @@ import {
   listVisionerIntentProbesByExpected,
   listVisionerIntentKnownGaps,
   listVisionerIntentContractProbesByCategory,
+  listVisionerIntentFailureRecoveryProbeIds,
   assessVisionerTaskInputBoundary,
   checkVisionerIntentAmbiguity,
   parseVisionerTaskIntent,
   VISIONER_TASK_MAX_LENGTH,
   FORGE_VISIONER_INTENT_VERSION,
   VISIONER_INTENT_CATEGORIES,
+  buildVisionerIntentProbeEvidence,
+  buildVisionerIntentProbeTelemetry,
+  buildVisionerIntentProvenance,
+  buildVisionerIntentRunRecord,
   type VisionerIntentBaseline,
   type VisionerIntentCategory,
+  type VisionerIntentProbeDisposition,
   type VisionerIntentProbeResult,
+  type VisionerIntentRunRecord,
 } from "./forge-p02-visioner-intent.js";
 
 export type { VisionerIntentBaseline, VisionerIntentProbeResult } from "./forge-p02-visioner-intent.js";
@@ -63,6 +72,12 @@ export {
   VISIONER_INTENT_FAILURE_RECOVERY_CATEGORIES,
   FORGE_VISIONER_INTENT_VERSION,
   VISIONER_INTENT_CATEGORIES,
+  buildVisionerIntentProbeEvidence,
+  buildVisionerIntentProbeTelemetry,
+  buildVisionerIntentProvenance,
+  buildVisionerIntentRunRecord,
+  validateVisionerIntentFailureRecoveryRunRecord,
+  validateVisionerIntentRunRecord,
 } from "./forge-p02-visioner-intent.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -527,4 +542,116 @@ export function runVisionerIntentFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerIntentProbeWithTiming(
+  entry: VisionerIntentBaseline["probes"][number],
+  fixture: VisionerIntentBaseline,
+  contractProbe:
+    | { criterion: string; disposition: VisionerIntentProbeDisposition }
+    | undefined,
+): {
+  result: VisionerIntentProbeResult;
+  durationMs: number;
+  disposition: VisionerIntentProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerIntentRecordFromEntries(
+  entries: VisionerIntentBaseline["probes"],
+  fixture: VisionerIntentBaseline,
+  contract: ReturnType<typeof getActiveVisionerIntentContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerIntentCategory[];
+  },
+): VisionerIntentRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerIntentProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerIntentProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerIntentProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerIntentProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerIntentProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerIntentProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerIntentRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner intent probes and emit auditable evidence, telemetry and provenance (P02-B01-A06). */
+export function runVisionerIntentProbesWithRecord(
+  fixture: VisionerIntentBaseline = loadVisionerIntentBaseline(),
+): VisionerIntentRunRecord {
+  const contract = getActiveVisionerIntentContract();
+  return buildVisionerIntentRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B01-A06). */
+export function runVisionerIntentFailureRecoverySliceWithRecord(
+  fixture: VisionerIntentBaseline = loadVisionerIntentBaseline(),
+): VisionerIntentRunRecord {
+  const contract = getActiveVisionerIntentContract();
+  const failureRecoveryIds = new Set(listVisionerIntentFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerIntentRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B01-A06",
+    sliceCategories: VISIONER_INTENT_FAILURE_RECOVERY_CATEGORIES,
+  });
 }
