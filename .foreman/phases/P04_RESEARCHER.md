@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B09-A06
-last_commit: PENDING
+last_commit: d4201de
 tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (36/36); evidence slice 6/6 aligned; unexpectedMismatches=0; recordValid=true
 evidence: validateResearcherResearchToWorkerHandoffEvidenceRunRecord + runResearcherResearchToWorkerHandoffEvidenceSlice + failure/recovery/NO-GO probe evidence/telemetry/provenance
 next: P04-B09-A07
