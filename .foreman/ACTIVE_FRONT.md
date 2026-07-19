@@ -44,7 +44,7 @@ fallback: P03-B01-A06 evidence slice misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B01-A06
-last_commit: 9ef17e3
+last_commit: a99c11a
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (17/17); evidence slice 6/6 probes; 0 unexpected mismatches
 evidence: runStrategistIntentEvidenceSlice; validateStrategistIntentEvidenceRunRecord; runStrategistIntentProbesWithRecord
 next: P03-B01-A07
