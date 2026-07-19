@@ -34,6 +34,7 @@ import {
   VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES,
   listVisionerUncertaintyContractProbesByCategory,
   summarizeVisionerUncertaintyContractCoverage,
+  listVisionerUncertaintyProbesByDisposition,
   VISIONER_UNCERTAINTY_CATEGORIES,
   VISIONER_UNCERTAINTY_VISION_MAX_LENGTH,
   FORGE_VISIONER_UNCERTAINTY_VERSION,
@@ -49,6 +50,10 @@ import {
   runVisionerUncertaintyPropertyChecks,
   runVisionerUncertaintyFuzzValidation,
   runVisionerUncertaintyRunRecordFuzzValidation,
+  getForgeP02B06BlockGate,
+  getForgeP02B06ToB07Handoff,
+  validateVisionerUncertaintyBlockHandoffContract,
+  buildVisionerUncertaintyBlockGateEvidence,
   type VisionerUncertaintyBaseline,
   type VisionerUncertaintyProbeRegressionReport,
   type VisionerUncertaintyPropertyResult,
@@ -58,7 +63,7 @@ import {
   type VisionerUncertaintyProbeResult,
   type VisionerUncertaintyRunRecord,
 } from "./forge-p02-visioner-uncertainty.js";
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 
 export type {
   VisionerUncertaintyBaseline,
@@ -100,6 +105,10 @@ export {
   runVisionerUncertaintyPropertyChecks,
   runVisionerUncertaintyFuzzValidation,
   runVisionerUncertaintyRunRecordFuzzValidation,
+  getForgeP02B06BlockGate,
+  getForgeP02B06ToB07Handoff,
+  validateVisionerUncertaintyBlockHandoffContract,
+  buildVisionerUncertaintyBlockGateEvidence,
 } from "./forge-p02-visioner-uncertainty.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -867,3 +876,185 @@ export function runForgeVisionerUncertaintyRegressionGate(
 
 /** Alias for forge-pipeline-regression integration seam (P02-B06-A08). */
 export const runVisionerUncertaintyRegressionIntegration = runForgeVisionerUncertaintyRegressionGate;
+
+export interface ForgeVisionerUncertaintyBlockGateResult {
+  passed: boolean;
+  evidence: ReturnType<typeof buildVisionerUncertaintyBlockGateEvidence>;
+  handoff: ReturnType<typeof getForgeP02B06ToB07Handoff>;
+  regression: ForgeVisionerUncertaintyRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealVisionerUncertaintyBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P02-B06 block gate: validate A01–A09 deliverables, regression, guard, and B07 handoff (P02-B06-A10).
+ */
+export function runVisionerUncertaintyBlockGate(): ForgeVisionerUncertaintyBlockGateResult {
+  const blockGate = getForgeP02B06BlockGate();
+  const handoff = getForgeP02B06ToB07Handoff();
+  const contract = getActiveVisionerUncertaintyContract();
+  const fixture = loadVisionerUncertaintyBaseline();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateVisionerUncertaintyBaseline(fixture);
+  const contractValidation = validateVisionerUncertaintyAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A01",
+      "visioner_uncertainty",
+      fixtureValidation.valid &&
+        contractValidation.valid &&
+        fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid && contractValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeVisionerUncertaintyContractCoverage(contract).totalProbes} probes)`
+        : [...fixtureValidation.issues, ...contractValidation.issues].map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeVisionerUncertaintyContractCoverage(contract);
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${VISIONER_UNCERTAINTY_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runVisionerUncertaintyProductionSlice(fixture);
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runVisionerUncertaintyBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runVisionerUncertaintyFailureRecoverySlice(fixture);
+  const nogoProbes = listVisionerUncertaintyProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgeVisionerUncertaintyRegressionGate();
+  const recordValidation = validateVisionerUncertaintyRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const propertyFuzz = regression.propertyFuzz;
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A07",
+      "property_fuzz",
+      propertyFuzz.passed,
+      `properties=${propertyFuzz.properties.passed}/${propertyFuzz.properties.total} contractFuzz rejected=${propertyFuzz.contractFuzz.rejected}/${propertyFuzz.contractFuzz.iterations} runFuzz rejected=${propertyFuzz.runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validateVisionerUncertaintyBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealVisionerUncertaintyBlockAtom(
+      "P02-B06-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildVisionerUncertaintyBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runForgeVisionerUncertaintyBlockGate = runVisionerUncertaintyBlockGate;

@@ -89,7 +89,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B06-A07 — Uncertainty ve clarification policy: unit, property ve fuzz doğrulamasını ekle
 - [x] P02-B06-A08 — Uncertainty ve clarification policy: Forge entegrasyonu ile regression testini tamamla
 - [x] P02-B06-A09 — Uncertainty ve clarification policy: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P02-B06-A10 — Uncertainty ve clarification policy: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P02-B06-A10 — Uncertainty ve clarification policy: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P02-B07 — Alternatif vizyon üretimi
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B06-A09
-last_commit: 8fa7b61
-tests: PASS — forge-p02-visioner-uncertainty.guard.test.ts (8/8); forge-pipeline-regression.integration.test.ts (87/87)
-evidence: validateForgeVisionerUncertaintyGuard adversarial=3/3 rejected; runForgeVisionerUncertaintyRegressionGate guard PASS with perf/cost metrics; orchestrator verifyForgeVisionerUncertaintyGuard emits visioner_uncertainty_guard verification
-next: P02-B06-A10
+last_atom: P02-B06-A10
+last_commit: pending
+tests: PASS — forge-p02-visioner-uncertainty-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts
+evidence: runVisionerUncertaintyBlockGate seals 10/10 atom seals with regression/guard PASS; FORGE_P02_B06_TO_B07_HANDOFF_V1 valid; orchestrator verifyForgeVisionerUncertaintyBlockGate emits visioner_uncertainty_block_gate verification
+next: P02-B07-A01
