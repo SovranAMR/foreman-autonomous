@@ -539,6 +539,23 @@ export interface StrategistPhaseGateValidationResult {
   issues: StrategistPhaseGateValidationIssue[];
 }
 
+export interface StrategistPhaseGateContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: StrategistPhaseGateCategory;
+  detail: string;
+}
+
+export interface StrategistPhaseGateContractCoverageResult {
+  valid: boolean;
+  issues: StrategistPhaseGateContractCoverageIssue[];
+}
+
 export type StrategistPhaseGateProbeDisposition =
   | "observed"
   | "gap"
@@ -892,6 +909,163 @@ export const FORGE_STRATEGIST_PHASE_GATE_CONTRACT_V1: StrategistPhaseGateContrac
 
 export function getActiveStrategistPhaseGateContract(): StrategistPhaseGateContract {
   return FORGE_STRATEGIST_PHASE_GATE_CONTRACT_V1;
+}
+
+export function getStrategistPhaseGateCategoryContract(
+  category: StrategistPhaseGateCategory,
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): StrategistPhaseGateCategoryContract {
+  return contract.categories[category];
+}
+
+export function listStrategistPhaseGateContractProbeIds(
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listStrategistPhaseGateProbesByDisposition(
+  disposition: StrategistPhaseGateProbeDisposition,
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): StrategistPhaseGateProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listStrategistPhaseGateContractProbesByCategory(
+  category: StrategistPhaseGateCategory,
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): readonly StrategistPhaseGateProbeContract[] {
+  return contract.categories[category].probes;
+}
+
+export function summarizeStrategistPhaseGateCoverage(
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<StrategistPhaseGateCategory, { probeCount: number; invariant: string }>;
+  byDisposition: Record<StrategistPhaseGateProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    StrategistPhaseGateCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<StrategistPhaseGateProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of STRATEGIST_PHASE_GATE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    totalProbes += categoryContract.probes.length;
+    for (const probeEntry of categoryContract.probes) {
+      if (probeEntry.expected === "PASS") {
+        expectedPass++;
+      } else {
+        expectedFail++;
+      }
+      byDisposition[probeEntry.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateStrategistPhaseGateCoverage(
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): StrategistPhaseGateContractCoverageResult {
+  const issues: StrategistPhaseGateContractCoverageIssue[] = [];
+
+  for (const category of STRATEGIST_PHASE_GATE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < STRATEGIST_PHASE_GATE_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${STRATEGIST_PHASE_GATE_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probeEntry of categoryContract.probes) {
+      if (probeEntry.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probeEntry.id,
+          detail: `${probeEntry.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listStrategistPhaseGateContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeStrategistPhaseGateCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probeEntry of contract.probes) {
+    if (!probeEntry.id.startsWith("spg.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probeEntry.id,
+        detail: `${probeEntry.id} missing spg. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export function validateStrategistPhaseGateAgainstContract(
