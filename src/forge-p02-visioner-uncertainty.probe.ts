@@ -5,6 +5,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import visionerUncertaintyBaseline from "./fixtures/forge-visioner-uncertainty-v1.json" with { type: "json" };
@@ -36,15 +38,24 @@ import {
   VISIONER_UNCERTAINTY_VISION_MAX_LENGTH,
   FORGE_VISIONER_UNCERTAINTY_VERSION,
   EXPECTED_P02_B05_SEALED_ATOM_COUNT,
+  buildVisionerUncertaintyProbeEvidence,
+  buildVisionerUncertaintyProbeTelemetry,
+  buildVisionerUncertaintyProvenance,
+  buildVisionerUncertaintyRunRecord,
+  validateVisionerUncertaintyRunRecord,
+  validateVisionerUncertaintyFailureRecoveryRunRecord,
   type VisionerUncertaintyBaseline,
   type VisionerUncertaintyCategory,
+  type VisionerUncertaintyProbeDisposition,
   type VisionerUncertaintyProbeResult,
+  type VisionerUncertaintyRunRecord,
 } from "./forge-p02-visioner-uncertainty.js";
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 
 export type {
   VisionerUncertaintyBaseline,
   VisionerUncertaintyProbeResult,
+  VisionerUncertaintyRunRecord,
 } from "./forge-p02-visioner-uncertainty.js";
 export {
   validateVisionerUncertaintyBaseline,
@@ -70,6 +81,12 @@ export {
   VISIONER_UNCERTAINTY_VISION_MAX_LENGTH,
   FORGE_VISIONER_UNCERTAINTY_VERSION,
   EXPECTED_P02_B05_SEALED_ATOM_COUNT,
+  buildVisionerUncertaintyProbeEvidence,
+  buildVisionerUncertaintyProbeTelemetry,
+  buildVisionerUncertaintyProvenance,
+  buildVisionerUncertaintyRunRecord,
+  validateVisionerUncertaintyRunRecord,
+  validateVisionerUncertaintyFailureRecoveryRunRecord,
 } from "./forge-p02-visioner-uncertainty.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -619,4 +636,116 @@ export function runVisionerUncertaintyFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerUncertaintyProbeWithTiming(
+  entry: VisionerUncertaintyBaseline["probes"][number],
+  fixture: VisionerUncertaintyBaseline,
+  contractProbe:
+    | { criterion: string; disposition: VisionerUncertaintyProbeDisposition }
+    | undefined,
+): {
+  result: VisionerUncertaintyProbeResult;
+  durationMs: number;
+  disposition: VisionerUncertaintyProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerUncertaintyRecordFromEntries(
+  entries: VisionerUncertaintyBaseline["probes"],
+  fixture: VisionerUncertaintyBaseline,
+  contract: ReturnType<typeof getActiveVisionerUncertaintyContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerUncertaintyCategory[];
+  },
+): VisionerUncertaintyRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerUncertaintyProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerUncertaintyProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerUncertaintyProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerUncertaintyProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerUncertaintyProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerUncertaintyProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerUncertaintyRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner uncertainty probes and emit auditable evidence, telemetry and provenance (P02-B06-A06). */
+export function runVisionerUncertaintyProbesWithRecord(
+  fixture: VisionerUncertaintyBaseline = loadVisionerUncertaintyBaseline(),
+): VisionerUncertaintyRunRecord {
+  const contract = getActiveVisionerUncertaintyContract();
+  return buildVisionerUncertaintyRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B06-A06). */
+export function runVisionerUncertaintyFailureRecoverySliceWithRecord(
+  fixture: VisionerUncertaintyBaseline = loadVisionerUncertaintyBaseline(),
+): VisionerUncertaintyRunRecord {
+  const contract = getActiveVisionerUncertaintyContract();
+  const failureRecoveryIds = new Set(listVisionerUncertaintyFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerUncertaintyRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B06-A06",
+    sliceCategories: VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES,
+  });
 }

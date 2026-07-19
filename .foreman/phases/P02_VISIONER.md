@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 54
+completed_atoms: 55
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -85,7 +85,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B06-A03 — Uncertainty ve clarification policy: en küçük üretim dikey dilimini uygula
 - [x] P02-B06-A04 — Uncertainty ve clarification policy: boundary ve edge-case davranışlarını tamamla
 - [x] P02-B06-A05 — Uncertainty ve clarification policy: failure, recovery ve NO-GO yollarını uygula
-- [ ] P02-B06-A06 — Uncertainty ve clarification policy: evidence, telemetry ve provenance kaydını ekle
+- [x] P02-B06-A06 — Uncertainty ve clarification policy: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B06-A07 — Uncertainty ve clarification policy: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B06-A08 — Uncertainty ve clarification policy: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B06-A09 — Uncertainty ve clarification policy: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B06-A05
-last_commit: 08ef6ed
-tests: PASS — forge-p02-visioner-uncertainty.test.ts (21/21); baseline (3/3)
-evidence: validateVisionerUncertaintyFailureRecoveryProbeMatrix + runVisionerUncertaintyFailureRecoverySlice exported; 6 failure/recovery/NO-GO probes all PASS; probe matrix zero unexpected mismatches; documented FAIL gaps preserved
-next: P02-B06-A06
+last_atom: P02-B06-A06
+last_commit: pending
+tests: PASS — forge-p02-visioner-uncertainty.test.ts (24/24); baseline (3/3)
+evidence: buildVisionerUncertaintyRunRecord + validateVisionerUncertaintyFailureRecoveryRunRecord; runVisionerUncertaintyFailureRecoverySliceWithRecord + runVisionerUncertaintyProbesWithRecord; 6 failure/recovery probes with evidence/telemetry/provenance; harness 1.0.0-a09; zero unexpected mismatches
+next: P02-B06-A07

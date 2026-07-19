@@ -12,7 +12,7 @@ import {
   summarizeVisionerResearchTriggerContractCoverage,
 } from "./forge-p02-visioner-research-trigger.js";
 
-export const FORGE_VISIONER_UNCERTAINTY_VERSION = "1.0.0-a01";
+export const FORGE_VISIONER_UNCERTAINTY_VERSION = "1.0.0-a09";
 
 /** Maximum normalized vision length before truncation (P02-B06-A01 boundary). */
 export const VISIONER_UNCERTAINTY_VISION_MAX_LENGTH = 32000;
@@ -1257,4 +1257,285 @@ export function listVisionerUncertaintyKnownGaps(
   results: VisionerUncertaintyProbeResult[],
 ): VisionerUncertaintyProbeResult[] {
   return summarizeVisionerUncertaintyMatrix(results).knownGaps;
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P02-B06-A06). */
+export interface VisionerUncertaintyProbeEvidence {
+  probeId: string;
+  category: VisionerUncertaintyCategory;
+  disposition: VisionerUncertaintyProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for visioner uncertainty runs (P02-B06-A06). */
+export interface VisionerUncertaintyProbeTelemetry {
+  probeId: string;
+  category: VisionerUncertaintyCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P02-B06-A06). */
+export interface VisionerUncertaintyProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly VisionerUncertaintyCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated visioner uncertainty run record bundling evidence, telemetry and provenance. */
+export interface VisionerUncertaintyRunRecord {
+  provenance: VisionerUncertaintyProvenance;
+  evidence: VisionerUncertaintyProbeEvidence[];
+  telemetry: VisionerUncertaintyProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<VisionerUncertaintyCategory, number>;
+    byDisposition: Record<VisionerUncertaintyProbeDisposition, number>;
+  };
+}
+
+export interface VisionerUncertaintyRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface VisionerUncertaintyRunValidationResult {
+  valid: boolean;
+  issues: VisionerUncertaintyRunValidationIssue[];
+}
+
+export function buildVisionerUncertaintyProbeEvidence(
+  probeId: string,
+  category: VisionerUncertaintyCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: VisionerUncertaintyProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): VisionerUncertaintyProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildVisionerUncertaintyProbeTelemetry(
+  probeId: string,
+  category: VisionerUncertaintyCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): VisionerUncertaintyProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildVisionerUncertaintyProvenance(
+  runId: string,
+  fixture: VisionerUncertaintyBaseline,
+  contract: VisionerUncertaintyContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerUncertaintyCategory[];
+  },
+): VisionerUncertaintyProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_VISIONER_UNCERTAINTY_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildVisionerUncertaintyRunRecord(
+  provenance: VisionerUncertaintyProvenance,
+  evidence: VisionerUncertaintyProbeEvidence[],
+  telemetry: VisionerUncertaintyProbeTelemetry[],
+): VisionerUncertaintyRunRecord {
+  const byCategory = {} as Record<VisionerUncertaintyCategory, number>;
+  const byDisposition: Record<VisionerUncertaintyProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of VISIONER_UNCERTAINTY_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateVisionerUncertaintyRunRecordAgainstProbeIds(
+  record: VisionerUncertaintyRunRecord,
+  expectedProbeIds: string[],
+  contract: VisionerUncertaintyContract,
+): VisionerUncertaintyRunValidationResult {
+  const issues: VisionerUncertaintyRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateVisionerUncertaintyRunRecord(
+  record: VisionerUncertaintyRunRecord,
+  contract: VisionerUncertaintyContract = getActiveVisionerUncertaintyContract(),
+): VisionerUncertaintyRunValidationResult {
+  return validateVisionerUncertaintyRunRecordAgainstProbeIds(
+    record,
+    listVisionerUncertaintyContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateVisionerUncertaintyFailureRecoveryRunRecord(
+  record: VisionerUncertaintyRunRecord,
+  contract: VisionerUncertaintyContract = getActiveVisionerUncertaintyContract(),
+): VisionerUncertaintyRunValidationResult {
+  const issues: VisionerUncertaintyRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P02-B06-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P02-B06-A06`,
+    });
+  }
+
+  const expectedCategories = [...VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateVisionerUncertaintyRunRecordAgainstProbeIds(
+    record,
+    listVisionerUncertaintyFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
 }

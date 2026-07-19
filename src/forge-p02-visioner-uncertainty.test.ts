@@ -6,6 +6,8 @@ import {
   runVisionerUncertaintyProductionSlice,
   runVisionerUncertaintyBoundarySlice,
   runVisionerUncertaintyFailureRecoverySlice,
+  runVisionerUncertaintyProbesWithRecord,
+  runVisionerUncertaintyFailureRecoverySliceWithRecord,
 } from "./forge-p02-visioner-uncertainty.probe.js";
 import {
   getActiveVisionerUncertaintyContract,
@@ -23,6 +25,12 @@ import {
   assessVisionerUncertaintyPresence,
   validateVisionerUncertaintyFailureRecoveryProbeMatrix,
   listVisionerUncertaintyFailureRecoveryProbeIds,
+  buildVisionerUncertaintyProbeEvidence,
+  buildVisionerUncertaintyProbeTelemetry,
+  buildVisionerUncertaintyProvenance,
+  buildVisionerUncertaintyRunRecord,
+  validateVisionerUncertaintyRunRecord,
+  validateVisionerUncertaintyFailureRecoveryRunRecord,
   VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES,
   VISIONER_UNCERTAINTY_CATEGORIES,
   VISIONER_UNCERTAINTY_VISION_MAX_LENGTH,
@@ -155,7 +163,7 @@ describe("Forge Visioner Uncertainty Contract — P02-B06-A02", () => {
   });
 
   it("exports A01 harness version for uncertainty contract gate", () => {
-    assert.equal(FORGE_VISIONER_UNCERTAINTY_VERSION, "1.0.0-a01");
+    assert.equal(FORGE_VISIONER_UNCERTAINTY_VERSION, "1.0.0-a09");
   });
 });
 
@@ -374,5 +382,121 @@ describe("Forge Visioner Uncertainty Failure/Recovery Slice — P02-B06-A05", ()
     assert.ok(confidenceNogo);
     assert.equal(confidenceNogo!.expected, "PASS");
     assert.equal(confidenceNogo!.actual, "PASS");
+  });
+});
+
+describe("Forge Visioner Uncertainty Evidence — P02-B06-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadVisionerUncertaintyBaseline();
+    const contract = getActiveVisionerUncertaintyContract();
+    const probeIds = listVisionerUncertaintyFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-19T00:00:00.000Z";
+    const completedAt = "2026-07-19T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildVisionerUncertaintyProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildVisionerUncertaintyProbeTelemetry(probeId, contractProbe.category, index, index * 0.5);
+    });
+
+    const provenance = buildVisionerUncertaintyProvenance(
+      "run-vunc-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P02-B06-A06",
+        sliceCategories: VISIONER_UNCERTAINTY_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildVisionerUncertaintyRunRecord(provenance, evidence, telemetry);
+    const validation = validateVisionerUncertaintyFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 6);
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.summary.byDisposition.gap, 0);
+    assert.ok(record.summary.byDisposition.failure >= 2);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byDisposition.nogo >= 2);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBlockGateAtom, fixture.sourceBlockGate.atom);
+  });
+
+  it("records evidence, telemetry and provenance for failure/recovery slice run", () => {
+    const contract = getActiveVisionerUncertaintyContract();
+    const record = runVisionerUncertaintyFailureRecoverySliceWithRecord();
+    const validation = validateVisionerUncertaintyFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 6);
+    assert.equal(record.telemetry.length, 6);
+    assert.equal(record.provenance.totalProbes, 6);
+    assert.equal(record.provenance.sliceAtom, "P02-B06-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, FORGE_VISIONER_UNCERTAINTY_VERSION);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a09");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.ok(item.recordedAt.length > 10);
+    }
+
+    const structuredRecovery = record.evidence.find(
+      e => e.probeId === "vunc.structured_clarification_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.aligned, true);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+    assert.equal(structuredRecovery!.disposition, "recovery");
+  });
+
+  it("records evidence, telemetry and provenance for full visioner uncertainty run", () => {
+    const contract = getActiveVisionerUncertaintyContract();
+    const record = runVisionerUncertaintyProbesWithRecord();
+    const validation = validateVisionerUncertaintyRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 23);
+    assert.equal(record.telemetry.length, 23);
+    assert.equal(record.provenance.totalProbes, 23);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a09");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.summary.aligned, 23);
   });
 });
