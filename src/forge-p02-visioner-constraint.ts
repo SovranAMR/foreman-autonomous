@@ -5,7 +5,12 @@
  * on sealed P02-B01 visioner intent block gate artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP02B01ToB02Handoff,
   getActiveVisionerIntentContract,
@@ -2398,5 +2403,188 @@ export function validateForgeVisionerConstraintGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P02-B02-A10) ─────────────────────────────────────
+
+export interface VisionerConstraintBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface VisionerConstraintBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    visionerConstraintCategories: readonly VisionerConstraintCategory[];
+    sourceVisionerIntentBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    visionerConstraintRecordRequired: true;
+  };
+}
+
+export const FORGE_P02_B02_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P02-B02-A10",
+  blockId: "P02-B02",
+  title: "Constraint ve non-goal çıkarımı",
+  requiredAtomIds: [
+    "P02-B02-A01",
+    "P02-B02-A02",
+    "P02-B02-A03",
+    "P02-B02-A04",
+    "P02-B02-A05",
+    "P02-B02-A06",
+    "P02-B02-A07",
+    "P02-B02-A08",
+    "P02-B02-A09",
+    "P02-B02-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P02-B02-A01", description: "Visioner constraint baseline aligns with typed contract and P02-B01 block gate handoff" },
+    { id: "typed_contract_coverage", atomId: "P02-B02-A02", description: "Contract declares measurable probes for all visioner constraint categories" },
+    { id: "probe_matrix_aligned", atomId: "P02-B02-A03", description: "Visioner constraint probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P02-B02-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P02-B02-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P02-B02-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P02-B02-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P02-B02-A08", description: "Regression gate passes on canonical visioner constraint matrix" },
+    { id: "guard_controls", atomId: "P02-B02-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P02-B02-A10", description: "Block gate evidence sealed with valid B03 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P02_B02_TO_B03_HANDOFF_V1: VisionerConstraintBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P02-B02-A10",
+  sourceBlock: {
+    blockId: "P02-B02",
+    title: "Constraint ve non-goal çıkarımı",
+    completedAtoms: FORGE_P02_B02_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P02-B03",
+    title: "Ürün vizyonu sentezi",
+    entryAtom: "P02-B03-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_VISIONER_CONSTRAINT_CONTRACT_V1.version,
+    harnessVersion: FORGE_VISIONER_CONSTRAINT_VERSION,
+    probeCount: summarizeVisionerConstraintContractCoverage(FORGE_VISIONER_CONSTRAINT_CONTRACT_V1).totalProbes,
+    visionerConstraintCategories: VISIONER_CONSTRAINT_CATEGORIES,
+    sourceVisionerIntentBlockGateAtom: "P02-B01-A10",
+  },
+  prerequisites: [
+    "Visioner constraint contract v1 with measurable constraint signal, non-goal and guard probes",
+    "Versioned visioner constraint baseline aligned to contract probe matrix and sealed P02-B01 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P02-B01 visioner intent block gate referenced by sourceVisionerIntentBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P02-B03-A01 formalizes product vision synthesis using sealed visioner constraint artifacts",
+    requiresBlockGatePass: true,
+    visionerConstraintRecordRequired: true,
+  },
+};
+
+export function getForgeP02B02BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P02_B02_BLOCK_GATE_V1;
+}
+
+export function getForgeP02B02ToB03Handoff(): VisionerConstraintBlockHandoffContract {
+  return FORGE_P02_B02_TO_B03_HANDOFF_V1;
+}
+
+export function validateVisionerConstraintBlockHandoffContract(
+  handoff: VisionerConstraintBlockHandoffContract,
+  evidence: Pick<VisionerConstraintBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: VisionerConstraintContract = getActiveVisionerConstraintContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeVisionerConstraintContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.visionerConstraintCategories.length !== VISIONER_CONSTRAINT_CATEGORIES.length) {
+    issues.push("handoff visionerConstraintCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P02-B03-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildVisionerConstraintBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P02_B02_BLOCK_GATE_V1.blockId,
+): VisionerConstraintBlockGateEvidence {
+  const handoff = getForgeP02B02ToB03Handoff();
+  const handoffValid = validateVisionerConstraintBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P02-B02-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }

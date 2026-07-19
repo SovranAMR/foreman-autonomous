@@ -60,6 +60,7 @@ import {
   runForgeVisionerConstraintRegressionGate,
   runVisionerConstraintProbesWithRecord,
   runVisionerConstraintRegressionIntegration,
+  runForgeVisionerConstraintBlockGate,
 } from "./forge-p02-visioner-constraint.probe.js";
 import { detectVisionerConstraintProbeRegression } from "./forge-p02-visioner-constraint.js";
 import { Orchestrator } from "./orchestrator.js";
@@ -1050,6 +1051,47 @@ describe("Forge Visioner Constraint Regression Integration — P02-B02-A08", () 
     if (verification?.type === "verification") {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("23/23 probes aligned"));
+    }
+  });
+});
+
+describe("Forge Visioner Constraint Block Gate Integration — P02-B02-A10", () => {
+  it("runForgeVisionerConstraintBlockGate seals P02-B02 with full block inventory", () => {
+    const result = runForgeVisionerConstraintBlockGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.evidence.blockId, "P02-B02");
+    assert.equal(result.atomSeals.length, 10);
+    assert.ok(result.atomSeals.every(seal => seal.passed));
+    assert.ok(result.detail.includes("handoff=PASS→P02-B03"));
+  });
+
+  it("orchestrator verifyForgeVisionerConstraintBlockGate emits visioner_constraint_block_gate verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-constraint-block-gate-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-constraint" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeVisionerConstraintBlockGate();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_constraint_block_gate",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("handoff=PASS→P02-B03"));
     }
   });
 });
