@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 1
-completed_atoms: 10
+completed_atoms: 11
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -28,7 +28,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P03-B02 — Block üretim kontratı
 
-- [ ] P03-B02-A01 — Block üretim kontratı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P03-B02-A01 — Block üretim kontratı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P03-B02-A02 — Block üretim kontratı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B02-A03 — Block üretim kontratı: en küçük üretim dikey dilimini uygula
 - [ ] P03-B02-A04 — Block üretim kontratı: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B01-A10
-last_commit: feb6006
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (34/34); forge-p03-strategist-intent-block-gate.test.ts (6/6); block gate seals 10/10; handoff→P03-B02
-evidence: runStrategistIntentBlockGate; getForgeP03B01BlockGate; getForgeP03B01ToB02Handoff
-next: P03-B02-A01
+last_atom: P03-B02-A01
+last_commit: pending
+tests: PASS — forge-p03-strategist-block-contract-baseline.test.ts (3/3); probe matrix 23/23 with 1 documented FAIL gap (sblk.structured_block_recovery); P03-B01 handoff aligned
+evidence: loadStrategistBlockContractBaseline; runStrategistBlockContractProbes; validateStrategistBlockContractBaseline
+next: P03-B02-A02

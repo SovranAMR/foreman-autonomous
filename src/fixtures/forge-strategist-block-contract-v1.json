@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P03-B02-A01",
+  "contractAtom": "P03-B02-A05",
+  "purpose": "Strategist block production contract baseline measured from sealed P03-B01 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P03-B01-A10",
+    "contractVersion": "1.0.0",
+    "strategistIntentProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "sblk.version_tagged",
+      "category": "block_versioning",
+      "description": "Strategist block contract baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.atom_tagged",
+      "category": "block_versioning",
+      "description": "Strategist block contract baseline declares P03-B02-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.harness_version_exported",
+      "category": "block_versioning",
+      "description": "FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION exported for block contract harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.prompt_output_section",
+      "category": "block_structure",
+      "description": "STRATEGIST_SYSTEM prompt declares OUTPUT section for numbered blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.prompt_block_format",
+      "category": "block_structure",
+      "description": "STRATEGIST_SYSTEM prompt declares Block N: acceptance-criteria format",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.parse_decompose_blocks",
+      "category": "block_structure",
+      "description": "parseDecomposeResponse extracts structured blocks from decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.parser_block_deps",
+      "category": "block_metadata",
+      "description": "parseDecomposeResponse exports blockDeps dependency graph from DEPENDENCIES field",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.prompt_dependencies_section",
+      "category": "block_metadata",
+      "description": "STRATEGIST_SYSTEM prompt declares DEPENDENCIES section for block ordering",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.orchestrator_wave_compute",
+      "category": "block_metadata",
+      "description": "Orchestrator computeBlockWaves derives execution waves from blockDeps graph",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.b01_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P03_B01_TO_B02_HANDOFF_V1 targets P03-B02-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.b01_sealed_intent_probes",
+      "category": "baseline_link",
+      "description": "P03-B01→B02 handoff sealed probeCount matches active strategist intent contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P03-B01 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.probe_runner_exported",
+      "category": "boundary",
+      "description": "runStrategistBlockContractProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL block contract gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.empty_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistBlockInputBoundary rejects empty decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.whitespace_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistBlockInputBoundary rejects whitespace-only decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.block_cap_boundary",
+      "category": "boundary",
+      "description": "parseDecomposeResponse enforces max 8 blocks programmatically",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateStrategistBlockContractBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.malformed_decompose_guard",
+      "category": "failure_path",
+      "description": "assessStrategistBlockInputBoundary rejects null-byte decompose output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.checkpoint_block_restore",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses checkpoint blocks from prior decompose phase",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.structured_block_recovery",
+      "category": "recovery_path",
+      "description": "recoverStrategistBlockProduction restructures failed block parse into contract-compliant plan",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sblk.strategist_empty_blocks_block",
+      "category": "nogo_path",
+      "description": "Orchestrator blocks pipeline when decompose yields zero extractable blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "sblk.worker_impossible_block",
+      "category": "nogo_path",
+      "description": "Worker prompt can BLOCK when atom is impossible under block plan",
+      "expected": "PASS"
+    }
+  ]
+}
