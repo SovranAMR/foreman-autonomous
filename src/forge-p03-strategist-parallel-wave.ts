@@ -2670,3 +2670,161 @@ export function runStrategistParallelWavePropertyFuzzSlice(
     runRecordFuzz,
   };
 }
+
+// ─── Forge regression integration (P03-B07-A08) ─────────────────────────────
+
+export interface StrategistParallelWaveProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare parallel wave run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectStrategistParallelWaveProbeRegression(
+  prior: StrategistParallelWaveRunRecord,
+  current: StrategistParallelWaveRunRecord,
+): StrategistParallelWaveProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runStrategistParallelWaveProbeRegression = detectStrategistParallelWaveProbeRegression;
+
+export interface StrategistParallelWaveProbeRegressionValidation {
+  valid: boolean;
+  report: StrategistParallelWaveProbeRegressionReport;
+}
+
+/** Validate probe alignment between prior and current parallel wave run records. */
+export function validateStrategistParallelWaveProbeRegression(
+  prior: StrategistParallelWaveRunRecord,
+  current: StrategistParallelWaveRunRecord,
+): StrategistParallelWaveProbeRegressionValidation {
+  const report = detectStrategistParallelWaveProbeRegression(prior, current);
+  return { valid: !report.hasRegression, report };
+}
+
+export interface StrategistParallelWaveForgeRegressionResult {
+  atom: "P03-B07-A08";
+  passed: boolean;
+  productionSlice: StrategistParallelWaveProductionSliceResult;
+  propertyFuzzSlice: StrategistParallelWavePropertyFuzzSliceResult;
+  record: StrategistParallelWaveRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: StrategistParallelWaveProbeRegressionReport | null;
+  detail: string;
+}
+
+/**
+ * Execute parallel wave probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P03-B07-A08).
+ */
+export function runStrategistParallelWaveForgeRegression(
+  priorRecord?: StrategistParallelWaveRunRecord,
+): StrategistParallelWaveForgeRegressionResult {
+  const fixture = loadStrategistParallelWaveBaseline();
+  const contract = getActiveStrategistParallelWaveContract();
+  const productionSlice = runStrategistParallelWaveProductionSlice(fixture);
+  const propertyFuzzSlice = runStrategistParallelWavePropertyFuzzSlice(fixture);
+  const record = runStrategistParallelWaveProbesWithRecord(fixture);
+  const validation = validateStrategistParallelWaveRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateStrategistParallelWaveRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectStrategistParallelWaveProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk && recordValid && priorRecordValid && !alignmentRegression && propertyFuzzOk;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(
+      `priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`,
+    );
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+
+  return {
+    atom: "P03-B07-A08",
+    passed,
+    productionSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    detail: detailParts.join(" | "),
+  };
+}
