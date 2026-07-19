@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B06-A03
-last_commit: pending
+last_commit: 6e9bb4b
 tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (19/19); resolveResearchContradictions + validateResearchFreshness; 23/23 probes PASS; orchestrator wired
 evidence: forge-p04-researcher-contradiction-freshness.ts production slice + runResearcherContradictionFreshnessProductionSlice + fixture nogo PASS flip
 next: P04-B06-A04
