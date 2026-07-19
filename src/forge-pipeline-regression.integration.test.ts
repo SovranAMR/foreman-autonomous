@@ -75,6 +75,12 @@ import {
   runVisionerGroundingRegressionIntegration,
 } from "./forge-p02-visioner-grounding.probe.js";
 import { detectVisionerGroundingProbeRegression } from "./forge-p02-visioner-grounding.js";
+import {
+  runForgeVisionerResearchTriggerRegressionGate,
+  runVisionerResearchTriggerProbesWithRecord,
+  runVisionerResearchTriggerRegressionIntegration,
+} from "./forge-p02-visioner-research-trigger.probe.js";
+import { detectVisionerResearchTriggerProbeRegression } from "./forge-p02-visioner-research-trigger.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -1274,6 +1280,95 @@ describe("Forge Visioner Grounding Regression Integration — P02-B04-A08", () =
     const result = await orchestrator.verifyForgeVisionerGroundingRegression();
     const verification = events.find(
       event => event.type === "verification" && event.phase === "visioner_grounding_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("23/23 probes aligned"));
+    }
+  });
+});
+
+describe("Forge Visioner Research Trigger Regression Integration — P02-B05-A08", () => {
+  it("runForgeVisionerResearchTriggerRegressionGate passes on canonical research trigger matrix", () => {
+    const result = runForgeVisionerResearchTriggerRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.propertyFuzz.passed, true);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("runVisionerResearchTriggerRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeVisionerResearchTriggerRegressionGate();
+    const integration = runVisionerResearchTriggerRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("23/23 probes aligned"));
+    assert.equal(integration.record.summary.total, 23);
+  });
+
+  it("detectVisionerResearchTriggerProbeRegression flags newly misaligned probes", () => {
+    const prior = runVisionerResearchTriggerProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectVisionerResearchTriggerProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeVisionerResearchTriggerRegressionGate compares against prior record without false regression", () => {
+    const prior = runVisionerResearchTriggerProbesWithRecord();
+    const result = runForgeVisionerResearchTriggerRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("orchestrator verifyForgeVisionerResearchTriggerRegression emits visioner_research_trigger_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-research-trigger-regression-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-research-trigger" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeVisionerResearchTriggerRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_research_trigger_regression",
     );
 
     assert.equal(result.passed, true, result.detail);

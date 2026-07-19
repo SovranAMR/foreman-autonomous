@@ -163,7 +163,7 @@ describe("Forge Visioner Research Trigger Contract — P02-B05-A02", () => {
   });
 
   it("exports A06 harness version for research trigger contract gate", () => {
-    assert.equal(FORGE_VISIONER_RESEARCH_TRIGGER_VERSION, "1.0.0-a07");
+    assert.equal(FORGE_VISIONER_RESEARCH_TRIGGER_VERSION, "1.0.0-a08");
   });
 });
 
@@ -460,7 +460,7 @@ describe("Forge Visioner Research Trigger Evidence — P02-B05-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_VISIONER_RESEARCH_TRIGGER_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
 
@@ -495,7 +495,7 @@ describe("Forge Visioner Research Trigger Evidence — P02-B05-A06", () => {
     assert.equal(record.evidence.length, 23);
     assert.equal(record.telemetry.length, 23);
     assert.equal(record.provenance.totalProbes, 23);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 23);

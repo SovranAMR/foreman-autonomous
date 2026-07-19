@@ -36,6 +36,12 @@ import {
   buildVisionerResearchTriggerProbeTelemetry,
   buildVisionerResearchTriggerProvenance,
   buildVisionerResearchTriggerRunRecord,
+  validateVisionerResearchTriggerRunRecord,
+  detectVisionerResearchTriggerProbeRegression,
+  runVisionerResearchTriggerPropertyChecks,
+  runVisionerResearchTriggerFuzzValidation,
+  runVisionerResearchTriggerRunRecordFuzzValidation,
+  validateForgeVisionerResearchTriggerGuard,
   VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
@@ -73,6 +79,11 @@ export {
   buildVisionerResearchTriggerRunRecord,
   validateVisionerResearchTriggerRunRecord,
   validateVisionerResearchTriggerFailureRecoveryRunRecord,
+  detectVisionerResearchTriggerProbeRegression,
+  runVisionerResearchTriggerPropertyChecks,
+  runVisionerResearchTriggerFuzzValidation,
+  runVisionerResearchTriggerRunRecordFuzzValidation,
+  validateForgeVisionerResearchTriggerGuard,
   VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
@@ -731,3 +742,108 @@ export function runVisionerResearchTriggerFailureRecoverySliceWithRecord(
     sliceCategories: VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES,
   });
 }
+
+export interface ForgeVisionerResearchTriggerRegressionPropertyFuzzResult {
+  passed: boolean;
+  properties: ReturnType<typeof runVisionerResearchTriggerPropertyChecks>;
+  contractFuzz: ReturnType<typeof runVisionerResearchTriggerFuzzValidation>;
+  runFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface ForgeVisionerResearchTriggerRegressionResult {
+  passed: boolean;
+  productionSlice: VisionerResearchTriggerProductionSliceResult;
+  record: VisionerResearchTriggerRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: ReturnType<typeof detectVisionerResearchTriggerProbeRegression> | null;
+  guard: ReturnType<typeof validateForgeVisionerResearchTriggerGuard>;
+  propertyFuzz: ForgeVisionerResearchTriggerRegressionPropertyFuzzResult;
+  detail: string;
+}
+
+/**
+ * Execute visioner research trigger probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P02-B05-A08).
+ */
+export function runForgeVisionerResearchTriggerRegressionGate(
+  priorRecord?: VisionerResearchTriggerRunRecord,
+): ForgeVisionerResearchTriggerRegressionResult {
+  const fixture = loadVisionerResearchTriggerBaseline();
+  const contract = getActiveVisionerResearchTriggerContract();
+  const productionSlice = runVisionerResearchTriggerProductionSlice(fixture);
+  const record = runVisionerResearchTriggerProbesWithRecord(fixture);
+  const validation = validateVisionerResearchTriggerRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectVisionerResearchTriggerProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeVisionerResearchTriggerGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
+
+  const properties = runVisionerResearchTriggerPropertyChecks(contract);
+  const contractFuzz = runVisionerResearchTriggerFuzzValidation(fixture, contract);
+  const runFuzz = runVisionerResearchTriggerRunRecordFuzzValidation(record, contract);
+  const propertyFuzzPassed =
+    properties.allPassed &&
+    contractFuzz.allMutationsRejected &&
+    runFuzz.mutationsAccepted === 0;
+  const propertyFuzz: ForgeVisionerResearchTriggerRegressionPropertyFuzzResult = {
+    passed: propertyFuzzPassed,
+    properties,
+    contractFuzz,
+    runFuzz: {
+      validBaseline: runFuzz.validBaseline,
+      mutationsRejected: runFuzz.mutationsRejected,
+      mutationsAccepted: runFuzz.mutationsAccepted,
+    },
+  };
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const passed =
+    productionSliceOk && recordValid && !alignmentRegression && guard.passed && propertyFuzzPassed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    passed,
+    productionSlice,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    guard,
+    propertyFuzz,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P02-B05-A08). */
+export const runVisionerResearchTriggerRegressionIntegration = runForgeVisionerResearchTriggerRegressionGate;

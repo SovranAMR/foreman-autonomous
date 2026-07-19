@@ -512,6 +512,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner research trigger regression gate and emit verification event (P02-B05-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeVisionerResearchTriggerRegression(
+    priorRecord?: import("./forge-p02-visioner-research-trigger.js").VisionerResearchTriggerRunRecord,
+  ): Promise<import("./forge-p02-visioner-research-trigger.probe.js").ForgeVisionerResearchTriggerRegressionResult> {
+    const { runForgeVisionerResearchTriggerRegressionGate } = await import(
+      "./forge-p02-visioner-research-trigger.probe.js"
+    );
+    const result = runForgeVisionerResearchTriggerRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "visioner_research_trigger_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B01 block gate and emit verification event with B02 handoff (P02-B01-A10).
    */
   async verifyForgeVisionerIntentBlockGate(): Promise<import("./forge-p02-visioner-intent.probe.js").ForgeVisionerIntentBlockGateResult> {
