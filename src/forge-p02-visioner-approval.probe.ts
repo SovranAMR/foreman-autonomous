@@ -21,9 +21,11 @@ import {
   validateVisionerApprovalBaseline,
   validateVisionerApprovalAgainstContract,
   validateVisionerApprovalProbeMatrix,
+  validateVisionerApprovalBoundaryProbeMatrix,
   summarizeVisionerApprovalMatrix,
   listVisionerApprovalProbesByExpected,
   listVisionerApprovalKnownGaps,
+  listVisionerApprovalContractProbesByCategory,
   getActiveVisionerApprovalContract,
   FORGE_VISIONER_APPROVAL_VERSION,
   VISIONER_APPROVAL_CATEGORIES,
@@ -508,6 +510,39 @@ export function runVisionerApprovalProductionSlice(
     matrixValid: matrixValidation.valid,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface VisionerApprovalBoundarySliceResult {
+  atom: "P02-B09-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerApprovalProbeResult[];
+  boundaryResults: VisionerApprovalProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerApprovalBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (approval input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runVisionerApprovalBoundarySlice(
+  fixture: VisionerApprovalBaseline = loadVisionerApprovalBaseline(),
+): VisionerApprovalBoundarySliceResult {
+  const contract = getActiveVisionerApprovalContract();
+  const results = runVisionerApprovalProbes(fixture);
+  const boundaryProbes = listVisionerApprovalContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateVisionerApprovalBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B09-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

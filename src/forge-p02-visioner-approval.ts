@@ -459,6 +459,28 @@ export function validateVisionerApprovalProbeMatrix(
   };
 }
 
+/**
+ * Validate boundary category probe matrix — A04 slice gate.
+ * Empty, whitespace, null-byte and max-length approval input probes must align; zero unexpected mismatches.
+ */
+export function validateVisionerApprovalBoundaryProbeMatrix(
+  results: VisionerApprovalProbeResult[],
+  contract: VisionerApprovalContract = getActiveVisionerApprovalContract(),
+): VisionerApprovalProbeMatrixValidationResult {
+  const boundaryProbes = listVisionerApprovalContractProbesByCategory("boundary", contract);
+  const boundaryContract: VisionerApprovalContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateVisionerApprovalProbeMatrix(boundaryResults, boundaryContract);
+}
+
 export interface VisionerApprovalFixtureEntry {
   id: string;
   category: VisionerApprovalCategory;

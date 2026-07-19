@@ -122,7 +122,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B09-A01 — Kullanıcı approval ve steering: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P02-B09-A02 — Kullanıcı approval ve steering: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B09-A03 — Kullanıcı approval ve steering: en küçük üretim dikey dilimini uygula
-- [ ] P02-B09-A04 — Kullanıcı approval ve steering: boundary ve edge-case davranışlarını tamamla
+- [x] P02-B09-A04 — Kullanıcı approval ve steering: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B09-A05 — Kullanıcı approval ve steering: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B09-A06 — Kullanıcı approval ve steering: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B09-A07 — Kullanıcı approval ve steering: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B09-A03
-last_commit: a4116cf
-tests: PASS — forge-p02-visioner-approval.test.ts (12/12), forge-p02-visioner-approval-baseline.test.ts (3/3)
-evidence: recoverVisionerSteering export; vapp.structured_steering_recovery PASS; matrix passAligned=23 gapAligned=0 unexpectedMismatches=0; runVisionerApprovalProductionSlice valid
-next: P02-B09-A04
+last_atom: P02-B09-A04
+last_commit: PENDING
+tests: PASS — forge-p02-visioner-approval.test.ts (18/18), forge-p02-visioner-approval-baseline.test.ts (3/3)
+evidence: validateVisionerApprovalBoundaryProbeMatrix; runVisionerApprovalBoundarySlice; boundary passAligned=6 gapAligned=0 unexpectedMismatches=0; assessVisionerApprovalInputBoundary edge probes aligned
+next: P02-B09-A05

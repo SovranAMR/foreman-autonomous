@@ -4,8 +4,11 @@ import {
   loadVisionerApprovalBaseline,
   runVisionerApprovalProbes,
   runVisionerApprovalProductionSlice,
+  runVisionerApprovalBoundarySlice,
 } from "./forge-p02-visioner-approval.probe.js";
 import {
+  assessVisionerApprovalInputBoundary,
+  assessVisionerApprovalPresence,
   getActiveVisionerApprovalContract,
   getVisionerApprovalCategoryContract,
   listVisionerApprovalContractProbeIds,
@@ -15,8 +18,10 @@ import {
   validateVisionerApprovalContractCoverage,
   validateVisionerApprovalAgainstContract,
   validateVisionerApprovalProbeMatrix,
+  validateVisionerApprovalBoundaryProbeMatrix,
   recoverVisionerSteering,
   VISIONER_APPROVAL_CATEGORIES,
+  VISIONER_APPROVAL_VISION_MAX_LENGTH,
   FORGE_VISIONER_APPROVAL_VERSION,
 } from "./forge-p02-visioner-approval.js";
 
@@ -195,5 +200,102 @@ steering: prioritize conversion metrics and reduce scope to MVP landing page`;
       assert.ok(result, `missing probe result: ${contractProbe.id}`);
       assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
     }
+  });
+});
+
+describe("Forge Visioner Approval Boundary Slice — P02-B09-A04", () => {
+  it("assessVisionerApprovalInputBoundary handles empty, whitespace-only and oversized vision output", () => {
+    const empty = assessVisionerApprovalInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerApprovalInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerApprovalInputBoundary("vision\x00output");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longVision = "x".repeat(VISIONER_APPROVAL_VISION_MAX_LENGTH + 200);
+    const truncated = assessVisionerApprovalInputBoundary(longVision);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedVision.length, VISIONER_APPROVAL_VISION_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("assessVisionerApprovalPresence returns non-approval for unacceptable boundary inputs", () => {
+    const empty = assessVisionerApprovalPresence("");
+    assert.equal(empty.hasApproval, false);
+    assert.equal(empty.hasSteering, false);
+
+    const whitespace = assessVisionerApprovalPresence("   ");
+    assert.equal(whitespace.hasApproval, false);
+    assert.equal(whitespace.hasSteering, false);
+
+    const nullByte = assessVisionerApprovalPresence("bad\0vision");
+    assert.equal(nullByte.hasApproval, false);
+    assert.equal(nullByte.hasSteering, false);
+  });
+
+  it("recoverVisionerSteering rejects whitespace-only malformed approval input", () => {
+    const whitespaceRecovery = recoverVisionerSteering("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_vision"]);
+  });
+
+  it("defines boundary category with approval input edge-case probes", () => {
+    const boundary = listVisionerApprovalContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "vapp.empty_vision_approval_boundary",
+      "vapp.known_gaps_documented",
+      "vapp.long_vision_truncation_boundary",
+      "vapp.probe_runner_exported",
+      "vapp.source_block_gate_ref",
+      "vapp.whitespace_vision_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerApprovalContract();
+    const slice = runVisionerApprovalBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B09-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerApprovalContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerApprovalBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves full probe alignment while boundary slice passes", () => {
+    const slice = runVisionerApprovalBoundarySlice();
+    const recoveryProbe = slice.results.find(r => r.id === "vapp.structured_steering_recovery");
+
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(slice.results.filter(r => !r.aligned).length, 0);
   });
 });
