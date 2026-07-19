@@ -3,6 +3,7 @@
  *
  * A01 slice: load, validate, run probes, contract alignment against sealed
  * P04-B03 web primary-source block gate artifacts.
+ * A03 slice: recoverBenchmarkPriorArtEvidence production vertical slice.
  */
 
 import { readFileSync } from "node:fs";
@@ -17,7 +18,7 @@ import {
   FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_CONTRACT_V1,
 } from "./forge-p04-researcher-web-primary-source.js";
 
-export const FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION = "1.0.0-a01";
+export const FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P04_B03_SEALED_ATOM_COUNT = 10;
 
@@ -156,6 +157,141 @@ export function validateBenchmarkPriorArtCollection(
     valid: true,
     hitCount,
     issues: [],
+  };
+}
+
+export interface BenchmarkPriorArtRecoveryHints {
+  searchQueries?: string[];
+  topic?: string;
+}
+
+export interface BenchmarkPriorArtRecoveryResult {
+  recovered: boolean;
+  evidencePlan: {
+    searchQueries: string[];
+    citationTargets: Array<{ source: string; text?: string; title?: string }>;
+  };
+  parseErrors: string[];
+  detail: string;
+}
+
+const BENCHMARK_PRIOR_ART_HTTP_URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
+const BENCHMARK_PRIOR_ART_MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/gi;
+const BENCHMARK_PRIOR_ART_BENCHMARK_LABEL_PATTERN =
+  /(?:benchmark|prior[- ]?art|baseline)\s*[:=]\s*([^\s,;]+)/gi;
+
+/**
+ * Restructure failed prior-art parse into actionable benchmark evidence plan (P04-B04-A03).
+ */
+export function recoverBenchmarkPriorArtEvidence(
+  failedParse: string,
+  hints: BenchmarkPriorArtRecoveryHints = {},
+): BenchmarkPriorArtRecoveryResult {
+  const parseErrors: string[] = [];
+  const boundary = assessBenchmarkPriorArtInputBoundary(failedParse);
+
+  if (!boundary.acceptable) {
+    return {
+      recovered: false,
+      evidencePlan: { searchQueries: [], citationTargets: [] },
+      parseErrors: [boundary.disposition],
+      detail: `cannot recover ${boundary.disposition.replace(/_/g, "-")} prior-art parse`,
+    };
+  }
+
+  const raw = boundary.normalizedTopic;
+  const citationTargets: Array<{ source: string; text?: string; title?: string }> = [];
+
+  if (raw.includes("{") || raw.includes("[")) {
+    try {
+      JSON.parse(raw);
+    } catch {
+      parseErrors.push("json_parse_failed");
+    }
+  }
+
+  for (const match of raw.matchAll(BENCHMARK_PRIOR_ART_MARKDOWN_LINK_PATTERN)) {
+    const title = match[1]?.trim();
+    const source = match[2]?.trim();
+    if (source) {
+      citationTargets.push({ source, title: title || undefined });
+    }
+  }
+
+  for (const match of raw.matchAll(BENCHMARK_PRIOR_ART_HTTP_URL_PATTERN)) {
+    const source = match[0]?.trim();
+    if (!source) continue;
+    if (!citationTargets.some(target => target.source === source)) {
+      citationTargets.push({ source });
+    }
+  }
+
+  for (const match of raw.matchAll(BENCHMARK_PRIOR_ART_BENCHMARK_LABEL_PATTERN)) {
+    const label = match[1]?.trim();
+    if (label && label.length > 2) {
+      citationTargets.push({ source: label, text: label });
+    }
+  }
+
+  const exportMatch = raw.match(/export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/);
+  if (exportMatch) {
+    const source = citationTargets[0]?.source ?? "unknown";
+    citationTargets.push({ source, text: exportMatch[1] });
+  }
+
+  const searchQueries: string[] = hints.searchQueries ? [...hints.searchQueries] : [];
+
+  for (const target of citationTargets) {
+    if (target.text) {
+      searchQueries.push(`benchmark ${target.text}`);
+      searchQueries.push(target.text);
+    } else if (target.source.startsWith("http")) {
+      searchQueries.push(target.source);
+      const hostname = target.source.match(/https?:\/\/([^/]+)/)?.[1];
+      if (hostname) {
+        searchQueries.push(`prior art ${hostname}`);
+      }
+    } else {
+      searchQueries.push(`prior art ${target.source}`);
+    }
+  }
+
+  if (hints.topic) {
+    searchQueries.push(hints.topic);
+  }
+
+  if (searchQueries.length === 0) {
+    const keywords = raw
+      .split(/\s+/)
+      .map(word => word.replace(/[^A-Za-z0-9_./:-]/g, ""))
+      .filter(word => word.length > 4)
+      .slice(0, 4);
+    if (keywords.length > 0) {
+      searchQueries.push(`benchmark ${keywords.join(" ")}`);
+    }
+  }
+
+  const uniqueQueries = [
+    ...new Set(searchQueries.map(query => query.trim()).filter(query => query.length > 3)),
+  ];
+
+  if (uniqueQueries.length === 0) {
+    return {
+      recovered: false,
+      evidencePlan: { searchQueries: [], citationTargets },
+      parseErrors,
+      detail: "no actionable search queries extracted from failed prior-art parse",
+    };
+  }
+
+  return {
+    recovered: true,
+    evidencePlan: {
+      searchQueries: uniqueQueries,
+      citationTargets,
+    },
+    parseErrors,
+    detail: `recovered ${uniqueQueries.length} search queries from failed prior-art parse`,
   };
 }
 
@@ -536,8 +672,8 @@ const RESEARCHER_BENCHMARK_PRIOR_ART_CATEGORY_CONTRACTS: Record<
         category: "recovery_path",
         description:
           "recoverBenchmarkPriorArtEvidence restructures failed prior-art parse into actionable evidence plan",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion:
           "recoverBenchmarkPriorArtEvidence restructures failed prior-art parse into actionable evidence plan",
       },
@@ -976,10 +1112,18 @@ export function validateResearcherBenchmarkPriorArtBaseline(
   }
 
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length < 1) {
+  const contract = getActiveResearcherBenchmarkPriorArtContract();
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  if (expectedFailCount > 0 && failGaps.length === 0) {
     issues.push({
       kind: "missing_category",
-      detail: "A01 fixture must document at least one known FAIL gap",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 
@@ -1027,6 +1171,144 @@ export function listResearcherBenchmarkPriorArtKnownGaps(
   results: ResearcherBenchmarkPriorArtProbeResult[],
 ): ResearcherBenchmarkPriorArtProbeResult[] {
   return summarizeResearcherBenchmarkPriorArtMatrix(results).knownGaps;
+}
+
+export interface ResearcherBenchmarkPriorArtProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherBenchmarkPriorArtProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ResearcherBenchmarkPriorArtProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateResearcherBenchmarkPriorArtProbeMatrix(
+  results: ResearcherBenchmarkPriorArtProbeResult[],
+  contract: ResearcherBenchmarkPriorArtContract = getActiveResearcherBenchmarkPriorArtContract(),
+): ResearcherBenchmarkPriorArtProbeMatrixValidationResult {
+  const issues: ResearcherBenchmarkPriorArtProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (results.length !== contract.probes.length) {
+    issues.push({
+      kind: "extra_result",
+      detail: `results=${results.length} contract=${contract.probes.length}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface ResearcherBenchmarkPriorArtProductionSliceResult {
+  atom: "P04-B04-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherBenchmarkPriorArtProbeResult[];
+  summary: ResearcherBenchmarkPriorArtProbeSummary;
+  matrixValidation: ResearcherBenchmarkPriorArtProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: recoverBenchmarkPriorArtEvidence wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runResearcherBenchmarkPriorArtProductionSlice(
+  fixture: ResearcherBenchmarkPriorArtBaseline = loadResearcherBenchmarkPriorArtBaseline(),
+): ResearcherBenchmarkPriorArtProductionSliceResult {
+  const contract = getActiveResearcherBenchmarkPriorArtContract();
+  const fixtureValidation = validateResearcherBenchmarkPriorArtBaseline(fixture);
+  const contractValidation = validateResearcherBenchmarkPriorArtAgainstContract(fixture, contract);
+  const results = runResearcherBenchmarkPriorArtProbes(fixture);
+  const summary = summarizeResearcherBenchmarkPriorArtMatrix(results);
+  const matrixValidation = validateResearcherBenchmarkPriorArtProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B04-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -1239,7 +1521,7 @@ function runResearcherBenchmarkPriorArtProbe(
       const contract = getActiveResearcherBenchmarkPriorArtContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -1316,8 +1598,24 @@ function runResearcherBenchmarkPriorArtProbe(
       return probe(id, category, expected, ok, `researchBlockNonFatal=${ok}`, criterion);
     }
     case "rbpa.structured_benchmark_prior_art_recovery": {
-      const ok = hasProductionExport("recoverBenchmarkPriorArtEvidence");
-      return probe(id, category, expected, ok, `recoverBenchmarkPriorArtEvidence=${ok}`, criterion);
+      const recovery = recoverBenchmarkPriorArtEvidence(
+        'malformed prior-art citation: https://benchmark.example.com/report export function runBenchmark {"source":"broken',
+      );
+      const ok =
+        hasProductionExport("recoverBenchmarkPriorArtEvidence") &&
+        recovery.recovered &&
+        recovery.evidencePlan.searchQueries.length >= 1 &&
+        recovery.evidencePlan.citationTargets.some(target =>
+          target.source.includes("benchmark.example.com"),
+        );
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recoverFn=${ok}, queryCount=${recovery.evidencePlan.searchQueries.length}`,
+        criterion,
+      );
     }
     case "rbpa.researcher_critical_block": {
       const ok =

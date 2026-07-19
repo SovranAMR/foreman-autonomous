@@ -135,7 +135,7 @@
       "id": "rbpa.structured_benchmark_prior_art_recovery",
       "category": "recovery_path",
       "description": "recoverBenchmarkPriorArtEvidence restructures failed prior-art parse into actionable evidence plan",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rbpa.researcher_critical_block",

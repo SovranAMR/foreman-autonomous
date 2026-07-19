@@ -59,19 +59,19 @@ describe("Forge Researcher Benchmark Prior-Art Contract — P04-B04-A02", () => 
     }
   });
 
-  it("maps 23 probes with one documented FAIL gap for recoverBenchmarkPriorArtEvidence", () => {
+  it("maps 23 probes with zero documented FAIL gaps after recoverBenchmarkPriorArtEvidence slice", () => {
     const contract = getActiveResearcherBenchmarkPriorArtContract();
     const summary = summarizeResearcherBenchmarkPriorArtContractCoverage(contract);
     const coverage = validateResearcherBenchmarkPriorArtContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 1);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 16);
-    assert.equal(summary.byDisposition.gap, 2);
+    assert.equal(summary.byDisposition.gap, 1);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 1);
+    assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.evidence_versioning.probeCount, 3);
     assert.equal(summary.byCategory.benchmark_signal.probeCount, 3);
@@ -83,16 +83,11 @@ describe("Forge Researcher Benchmark Prior-Art Contract — P04-B04-A02", () => 
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists documented gap probes including structured benchmark prior-art recovery debt", () => {
+  it("lists documented gap probes after recoverBenchmarkPriorArtEvidence production slice", () => {
     const gaps = listResearcherBenchmarkPriorArtProbesByDisposition("gap");
-    const gapIds = gaps.map(g => g.id).sort();
-    assert.deepEqual(gapIds, [
-      "rbpa.known_gaps_documented",
-      "rbpa.structured_benchmark_prior_art_recovery",
-    ]);
-    assert.equal(
-      gaps.find(g => g.id === "rbpa.structured_benchmark_prior_art_recovery")?.expected,
-      "FAIL",
+    assert.deepEqual(
+      gaps.map(g => g.id).sort(),
+      ["rbpa.known_gaps_documented"],
     );
   });
 

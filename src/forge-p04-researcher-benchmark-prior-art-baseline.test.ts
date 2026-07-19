@@ -3,12 +3,16 @@ import assert from "node:assert/strict";
 import {
   loadResearcherBenchmarkPriorArtBaseline,
   runResearcherBenchmarkPriorArtProbes,
+  runResearcherBenchmarkPriorArtProductionSlice,
   validateResearcherBenchmarkPriorArtBaseline,
+  validateResearcherBenchmarkPriorArtProbeMatrix,
   summarizeResearcherBenchmarkPriorArtMatrix,
   listResearcherBenchmarkPriorArtProbesByExpected,
   listResearcherBenchmarkPriorArtKnownGaps,
   assessBenchmarkPriorArtInputBoundary,
   validateBenchmarkPriorArtCollection,
+  recoverBenchmarkPriorArtEvidence,
+  getActiveResearcherBenchmarkPriorArtContract,
   RESEARCHER_BENCHMARK_PRIOR_ART_CATEGORIES,
   RESEARCHER_BENCHMARK_PRIOR_ART_TOPIC_MAX_LENGTH,
 } from "./forge-p04-researcher-benchmark-prior-art.js";
@@ -35,28 +39,19 @@ describe("Forge Researcher Benchmark Prior-Art — P04-B04-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures benchmark prior-art probes with documented FAIL gaps from P04-B03 sealed handoff", () => {
+  it("measures benchmark prior-art probes with zero unexpected mismatches after A03 slice", () => {
     const results = runResearcherBenchmarkPriorArtProbes();
     const summary = summarizeResearcherBenchmarkPriorArtMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listResearcherBenchmarkPriorArtProbesByExpected(
       "FAIL",
       loadResearcherBenchmarkPriorArtBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(
-      documentedFail.some(p => p.id === "rbpa.structured_benchmark_prior_art_recovery"),
-    );
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of RESEARCHER_BENCHMARK_PRIOR_ART_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -71,15 +66,9 @@ describe("Forge Researcher Benchmark Prior-Art — P04-B04-A01", () => {
     );
   });
 
-  it("documents remaining benchmark prior-art gaps as measurable baseline debt", () => {
+  it("documents no remaining benchmark prior-art FAIL gaps after production slice", () => {
     const gaps = listResearcherBenchmarkPriorArtKnownGaps(runResearcherBenchmarkPriorArtProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, ["rbpa.structured_benchmark_prior_art_recovery"]);
-    assert.ok(
-      gaps.every(g => RESEARCHER_BENCHMARK_PRIOR_ART_CATEGORIES.includes(g.category)),
-      "documented gaps are benchmark prior-art probes",
-    );
+    assert.deepEqual(gaps, []);
   });
 
   it("assessBenchmarkPriorArtInputBoundary rejects empty and null-byte topics", () => {
@@ -122,5 +111,71 @@ describe("Forge Researcher Benchmark Prior-Art — P04-B04-A01", () => {
     const validation = validateBenchmarkPriorArtCollection("valid topic", []);
     assert.equal(validation.valid, false);
     assert.ok(validation.issues.some(issue => issue.includes("zero benchmark prior-art hits")));
+  });
+});
+
+describe("Forge Researcher Benchmark Prior-Art Production Slice — P04-B04-A03", () => {
+  it("recoverBenchmarkPriorArtEvidence restructures malformed prior-art parse into actionable evidence plan", () => {
+    const recovery = recoverBenchmarkPriorArtEvidence(
+      'malformed prior-art citation: https://benchmark.example.com/report export function runBenchmark {"source":"broken',
+    );
+
+    assert.equal(recovery.recovered, true);
+    assert.ok(recovery.evidencePlan.searchQueries.length >= 1);
+    assert.ok(
+      recovery.evidencePlan.citationTargets.some(target =>
+        target.source.includes("benchmark.example.com"),
+      ),
+    );
+    assert.ok(recovery.evidencePlan.searchQueries.some(query => query.includes("runBenchmark")));
+  });
+
+  it("recoverBenchmarkPriorArtEvidence rejects null-byte and empty citation parse safely", () => {
+    const emptyRecovery = recoverBenchmarkPriorArtEvidence("");
+    assert.equal(emptyRecovery.recovered, false);
+    assert.deepEqual(emptyRecovery.parseErrors, ["empty"]);
+
+    const nullRecovery = recoverBenchmarkPriorArtEvidence("citation\0parse");
+    assert.equal(nullRecovery.recovered, false);
+    assert.deepEqual(nullRecovery.parseErrors, ["contains_null_byte"]);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveResearcherBenchmarkPriorArtContract();
+    const slice = runResearcherBenchmarkPriorArtProductionSlice();
+
+    assert.equal(slice.atom, "P04-B04-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateResearcherBenchmarkPriorArtProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const recoveryProbe = slice.results.find(
+      r => r.id === "rbpa.structured_benchmark_prior_art_recovery",
+    );
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
   });
 });

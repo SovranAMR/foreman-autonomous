@@ -56,7 +56,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P04-B04-A01 — Benchmark ve prior-art analizi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B04-A02 — Benchmark ve prior-art analizi: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P04-B04-A03 — Benchmark ve prior-art analizi: en küçük üretim dikey dilimini uygula
+- [x] P04-B04-A03 — Benchmark ve prior-art analizi: en küçük üretim dikey dilimini uygula
 - [ ] P04-B04-A04 — Benchmark ve prior-art analizi: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B04-A05 — Benchmark ve prior-art analizi: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B04-A06 — Benchmark ve prior-art analizi: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B04-A02
-last_commit: 5ff39fd
-tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (7/7); contract v1 23 probes; criterion on every probe; 1 documented FAIL gap rbpa.structured_benchmark_prior_art_recovery
-evidence: getActiveResearcherBenchmarkPriorArtContract; validateResearcherBenchmarkPriorArtAgainstContract; validateResearcherBenchmarkPriorArtContractCoverage; summarizeResearcherBenchmarkPriorArtContractCoverage
-next: P04-B04-A03
+last_atom: P04-B04-A03
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (10/10); contract v1 23 probes; zero documented FAIL gaps; recoverBenchmarkPriorArtEvidence production slice
+evidence: recoverBenchmarkPriorArtEvidence; runResearcherBenchmarkPriorArtProductionSlice; validateResearcherBenchmarkPriorArtProbeMatrix; rbpa.structured_benchmark_prior_art_recovery PASS
+next: P04-B04-A04
