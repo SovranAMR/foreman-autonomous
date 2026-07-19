@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B08
-active_atom: P03-B08-A09
+active_atom: P03-B08-A10
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 277/1000
-phase_progress: 77/100
-block_progress: 8/10
+program_progress: 278/1000
+phase_progress: 78/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B08-A09 — Replan ve plan repair: adversarial, performance, cost ve safety kontrolünü geçir.
+P03-B08-A10 — Replan ve plan repair: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P03-B08-A08 PASS; P03-B08-A09 implement adversarial guard checks for replan evidence slice.
-target: adversarial guard scenarios, performance/cost/safety validation.
-hypothesis: P03-B08-A09 extends A08 regression with guard controls rejecting tampered records.
-acceptance: Guard checks PASS; adversarial scenarios rejected.
+objective: P03-B08-A09 PASS; P03-B08-A10 seal block gate evidence and handoff to P03-B09.
+target: block gate seal, handoff contract, next block entry criteria.
+hypothesis: P03-B08-A10 seals A01–A09 artifacts and produces valid P03-B09 handoff.
+acceptance: Block gate PASS; handoff contract valid.
 commands: npx tsx --test src/forge-p03-strategist-replan*.test.ts
 blast_radius: src/forge-p03-strategist-replan.ts
-rollback: P03-B08-A09 guard değişikliklerini geri al.
+rollback: P03-B08-A10 block gate değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Guard blocked ise BLOCKED raporla.
+fallback: Block gate blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B08-A08
-last_commit: ae9701f
-tests: PASS — forge-p03-strategist-replan*.test.ts (38/38); runStrategistReplanForgeRegression; detectStrategistReplanProbeRegression; runForgeStrategistReplanRegressionGate
-evidence: runStrategistReplanForgeRegression; detectStrategistReplanProbeRegression; validateStrategistReplanProbeRegression; runForgeStrategistReplanRegressionGate
-next: P03-B08-A09
+last_atom: P03-B08-A09
+last_commit: 576c9d8
+tests: PASS — forge-p03-strategist-replan*.test.ts (44/44); runStrategistReplanAdversarialGuardChecks; validateForgeStrategistReplanGuard; runForgeStrategistReplanRegressionGate
+evidence: runStrategistReplanAdversarialGuardChecks; detectStrategistReplanFalseAlignment; detectStrategistReplanEvidenceSummaryMismatch; validateForgeStrategistReplanGuard; runForgeStrategistReplanRegressionGate
+next: P03-B08-A10

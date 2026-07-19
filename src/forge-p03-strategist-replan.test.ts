@@ -29,6 +29,15 @@ import {
   runStrategistReplanProbeRegression,
   validateStrategistReplanProbeRegression,
   runForgeStrategistReplanRegressionGate,
+  buildStrategistReplanAdversarialGuardScenarios,
+  detectStrategistReplanFalseAlignment,
+  detectStrategistReplanEvidenceSummaryMismatch,
+  runStrategistReplanAdversarialGuardChecks,
+  validateForgeStrategistReplanGuard,
+  validateStrategistReplanPerformance,
+  validateStrategistReplanCost,
+  validateStrategistReplanSafety,
+  getForgeStrategistReplanGuardControls,
   applyStrategistReplanRunRecordFuzzMutation,
   createStrategistReplanFuzzRng,
   STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES,
@@ -821,5 +830,179 @@ describe("Forge Strategist Replan Regression — P03-B08-A08", () => {
     assert.equal(gate.atom, "P03-B08-A08");
     assert.equal(gate.record.summary.mismatches, 0);
     assert.equal(gate.record.evidence.length, 28);
+    assert.equal(gate.guard.passed, true);
+    assert.ok(gate.detail.includes("guard:"));
+    assert.equal(gate.guard.metrics.adversarialScenariosRejected, 3);
+  });
+});
+
+describe("Forge Strategist Replan Guard — P03-B08-A09 adversarial", () => {
+  it("rejects tampered records via adversarial scenarios", () => {
+    const record = runStrategistReplanProbesWithRecord();
+    const contract = getActiveStrategistReplanContract();
+    const adversarial = runStrategistReplanAdversarialGuardChecks(record, contract);
+
+    assert.equal(adversarial.total, 3);
+    assert.equal(adversarial.rejected, 3, adversarial.failures.join("; "));
+    assert.deepEqual(adversarial.failures, []);
+  });
+
+  it("detects false alignment and summary/evidence mismatch", () => {
+    const falsePassEvidence = buildStrategistReplanProbeEvidence(
+      "sreplan.prompt_replan_plan",
+      "block_replan",
+      "PASS",
+      "FAIL",
+      true,
+      "test",
+      "false pass claim",
+      "observed",
+      "2026-07-19T08:00:00.000Z",
+    );
+    const fixture = loadStrategistReplanBaseline();
+    const contract = getActiveStrategistReplanContract();
+    const falsePassRecord = buildStrategistReplanRunRecord(
+      buildStrategistReplanProvenance(
+        "adv-false-pass",
+        fixture,
+        contract,
+        "2026-07-19T08:00:00.000Z",
+        "2026-07-19T08:00:01.000Z",
+        1,
+      ),
+      [falsePassEvidence],
+      [buildStrategistReplanProbeTelemetry("sreplan.prompt_replan_plan", "block_replan", 0, 1)],
+    );
+    assert.ok(detectStrategistReplanFalseAlignment(falsePassRecord).length > 0);
+
+    const summaryEvidence = buildStrategistReplanProbeEvidence(
+      "sreplan.prompt_replan_plan",
+      "block_replan",
+      "PASS",
+      "FAIL",
+      false,
+      "test",
+      "summary tamper",
+      "observed",
+      "2026-07-19T08:00:00.000Z",
+    );
+    const summaryRecord = buildStrategistReplanRunRecord(
+      buildStrategistReplanProvenance(
+        "adv-summary",
+        fixture,
+        contract,
+        "2026-07-19T08:00:00.000Z",
+        "2026-07-19T08:00:01.000Z",
+        1,
+      ),
+      [summaryEvidence],
+      [buildStrategistReplanProbeTelemetry("sreplan.prompt_replan_plan", "block_replan", 0, 1)],
+    );
+    const mismatchedSummary = {
+      ...summaryRecord,
+      summary: { ...summaryRecord.summary, mismatches: 0, aligned: 1 },
+    };
+    assert.ok(detectStrategistReplanEvidenceSummaryMismatch(mismatchedSummary));
+  });
+
+  it("buildStrategistReplanAdversarialGuardScenarios cover false PASS attack vectors", () => {
+    const scenarios = buildStrategistReplanAdversarialGuardScenarios();
+    assert.equal(scenarios.length, 3);
+    assert.ok(scenarios.some(s => s.id.includes("false_alignment")));
+    assert.ok(scenarios.some(s => s.id.includes("summary_mismatch")));
+    assert.ok(scenarios.some(s => s.id.includes("dropped_probe")));
+  });
+});
+
+describe("Forge Strategist Replan Guard — P03-B08-A09 performance, cost, safety", () => {
+  it("passes performance and zero-cost guard on canonical replan run", () => {
+    const record = runStrategistReplanProbesWithRecord();
+    const contract = getActiveStrategistReplanContract();
+    const guard = validateForgeStrategistReplanGuard(record, {
+      totalCostUsd: 0,
+      llmCalls: 0,
+      contract,
+    });
+
+    assert.equal(guard.passed, true, guard.issues.map(i => i.detail).join("; "));
+    assert.ok(guard.metrics.suiteDurationMs >= 0);
+    assert.ok(
+      guard.metrics.maxProbeDurationMs <
+        getForgeStrategistReplanGuardControls().performance.maxProbeDurationMs,
+    );
+    assert.equal(guard.metrics.totalCostUsd, 0);
+    assert.equal(guard.metrics.llmCalls, 0);
+    assert.equal(guard.metrics.adversarialScenariosRejected, 3);
+  });
+
+  it("flags cost and performance budget violations", () => {
+    const fixture = loadStrategistReplanBaseline();
+    const contract = getActiveStrategistReplanContract();
+    const probeIds = listStrategistReplanContractProbeIds(contract);
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistReplanProbeEvidence(
+        id,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "ok",
+        probe.disposition,
+      );
+    });
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistReplanProbeTelemetry(id, probe.category, index, 10_000);
+    });
+    const record = buildStrategistReplanRunRecord(
+      buildStrategistReplanProvenance(
+        "perf-test",
+        fixture,
+        contract,
+        "2026-07-19T08:00:00.000Z",
+        "2026-07-19T08:00:01.000Z",
+        probeIds.length,
+      ),
+      evidence,
+      telemetry,
+    );
+
+    const perfIssues = validateStrategistReplanPerformance(record);
+    assert.ok(perfIssues.some(i => i.domain === "performance"));
+
+    const costIssues = validateStrategistReplanCost(0.05, 2);
+    assert.ok(costIssues.some(i => i.domain === "cost"));
+  });
+
+  it("flags forbidden secret patterns in evidence detail", () => {
+    const fixture = loadStrategistReplanBaseline();
+    const contract = getActiveStrategistReplanContract();
+    const evidence = buildStrategistReplanProbeEvidence(
+      "sreplan.prompt_replan_plan",
+      "block_replan",
+      "PASS",
+      "PASS",
+      true,
+      "ok",
+      "leaked sk-abcdefghijklmnopqrstuvwxyz1234567890",
+      "observed",
+    );
+    const record = buildStrategistReplanRunRecord(
+      buildStrategistReplanProvenance(
+        "safety-test",
+        fixture,
+        contract,
+        "2026-07-19T08:00:00.000Z",
+        "2026-07-19T08:00:01.000Z",
+        1,
+      ),
+      [evidence],
+      [buildStrategistReplanProbeTelemetry("sreplan.prompt_replan_plan", "block_replan", 0, 1)],
+    );
+
+    const safetyIssues = validateStrategistReplanSafety(record);
+    assert.ok(safetyIssues.some(i => i.code === "forbidden_pattern"));
   });
 });

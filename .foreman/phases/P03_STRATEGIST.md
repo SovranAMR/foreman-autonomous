@@ -114,7 +114,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B08-A06 — Replan ve plan repair: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B08-A07 — Replan ve plan repair: unit, property ve fuzz doğrulamasını ekle
 - [x] P03-B08-A08 — Replan ve plan repair: Forge entegrasyonu ile regression testini tamamla
-- [ ] P03-B08-A09 — Replan ve plan repair: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P03-B08-A09 — Replan ve plan repair: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B08-A10 — Replan ve plan repair: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P03-B09 — Plan provenance ve drift
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B08-A08
-last_commit: ae9701f
-tests: PASS — forge-p03-strategist-replan*.test.ts (38/38); runStrategistReplanForgeRegression; detectStrategistReplanProbeRegression; runForgeStrategistReplanRegressionGate
-evidence: runStrategistReplanForgeRegression; detectStrategistReplanProbeRegression; validateStrategistReplanProbeRegression; runForgeStrategistReplanRegressionGate
-next: P03-B08-A09
+last_atom: P03-B08-A09
+last_commit: pending
+tests: PASS — forge-p03-strategist-replan*.test.ts (44/44); runStrategistReplanAdversarialGuardChecks; validateForgeStrategistReplanGuard; runForgeStrategistReplanRegressionGate
+evidence: runStrategistReplanAdversarialGuardChecks; detectStrategistReplanFalseAlignment; detectStrategistReplanEvidenceSummaryMismatch; validateForgeStrategistReplanGuard; runForgeStrategistReplanRegressionGate
+next: P03-B08-A10
