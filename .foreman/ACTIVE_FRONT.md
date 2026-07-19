@@ -44,7 +44,7 @@ fallback: A06 run record invalid ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B10-A06
-last_commit: pending
+last_commit: e2adb34
 tests: PASS — forge-integrated-baseline*.test.ts (18/18); runIntegratedBaselineFailureRecoverySliceWithRecord; validateIntegratedBaselineFailureRecoveryRunRecord; 6 failure/recovery probes with disposition, criterion and aligned outcomes
 evidence: runIntegratedBaselineFailureRecoverySliceWithRecord, validateIntegratedBaselineFailureRecoveryRunRecord, contract-wired A06 evidence/telemetry/provenance vertical slice gate
 next: P01-B10-A07

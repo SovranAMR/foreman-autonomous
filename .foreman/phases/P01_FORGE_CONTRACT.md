@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B10-A06
-last_commit: pending
+last_commit: e2adb34
 tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (18/18); runIntegratedBaselineFailureRecoverySliceWithRecord; validateIntegratedBaselineFailureRecoveryRunRecord; 6 probes with disposition, criterion and aligned outcomes
 evidence: |
   P01-B10-A06: runIntegratedBaselineFailureRecoverySliceWithRecord emits auditable evidence,
