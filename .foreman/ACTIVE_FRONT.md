@@ -44,7 +44,7 @@ fallback: Integration slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B01-A07
-last_commit: pending
+last_commit: 7470fb5
 tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5), forge-p05-worker-tool-dispatch-evidence.test.ts (5/5), forge-p05-worker-tool-dispatch-property-fuzz.test.ts (6/6)
 evidence: validateWorkerToolDispatchPropertyProbeMatrix + runWorkerToolDispatchPropertyFuzzSlice; 8/8 structural properties pass, contract fuzz 24/24 rejected, run record fuzz 5/5 rejected, zero unexpected mismatches
 next: P05-B01-A08
