@@ -44,7 +44,7 @@ fallback: regression slice requires orchestrator refactor beyond slice scope ise
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B08-A07
-last_commit: pending
+last_commit: 457686e
 tests: PASS — forge-p02-visioner-scoring.test.ts (27/27), forge-p02-visioner-scoring-baseline.test.ts (3/3), forge-p02-visioner-scoring.property-fuzz.test.ts (5/5)
 evidence: runVisionerScoringPropertyChecks 8/8; fixture fuzz 72/72 rejected; run record fuzz failure-recovery 5/5 + full 3/3 rejected
 next: P02-B08-A08
