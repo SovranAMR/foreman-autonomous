@@ -71,7 +71,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B05-A02 — Research trigger belirleme: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B05-A03 — Research trigger belirleme: en küçük üretim dikey dilimini uygula
 - [x] P02-B05-A04 — Research trigger belirleme: boundary ve edge-case davranışlarını tamamla
-- [ ] P02-B05-A05 — Research trigger belirleme: failure, recovery ve NO-GO yollarını uygula
+- [x] P02-B05-A05 — Research trigger belirleme: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B05-A06 — Research trigger belirleme: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B05-A07 — Research trigger belirleme: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B05-A08 — Research trigger belirleme: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B05-A04
+last_atom: P02-B05-A05
 last_commit: pending
-tests: PASS — forge-p02-visioner-research-trigger.test.ts (21/21); forge-p02-visioner-research-trigger-baseline.test.ts (3/3)
-evidence: validateVisionerResearchTriggerBoundaryProbeMatrix; runVisionerResearchTriggerBoundarySlice; recoverVisionerResearchTrigger empty/whitespace rejection; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a04; boundary probe matrix 6/6 passAligned
-next: P02-B05-A05
+tests: PASS — forge-p02-visioner-research-trigger.test.ts (24/24); forge-p02-visioner-research-trigger-baseline.test.ts (3/3)
+evidence: validateVisionerResearchTriggerFailureRecoveryProbeMatrix; runVisionerResearchTriggerFailureRecoverySlice; failure/recovery/NO-GO probes 6/6 passAligned; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a05
+next: P02-B05-A06

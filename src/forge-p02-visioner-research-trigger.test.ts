@@ -5,6 +5,7 @@ import {
   runVisionerResearchTriggerProbes,
   runVisionerResearchTriggerProductionSlice,
   runVisionerResearchTriggerBoundarySlice,
+  runVisionerResearchTriggerFailureRecoverySlice,
 } from "./forge-p02-visioner-research-trigger.probe.js";
 import {
   assessVisionerResearchTriggerInputBoundary,
@@ -14,13 +15,16 @@ import {
   listVisionerResearchTriggerContractProbeIds,
   listVisionerResearchTriggerContractProbesByCategory,
   listVisionerResearchTriggerProbesByDisposition,
+  listVisionerResearchTriggerFailureRecoveryProbeIds,
   summarizeVisionerResearchTriggerContractCoverage,
   validateVisionerResearchTriggerAgainstContract,
   validateVisionerResearchTriggerContractCoverage,
   validateVisionerResearchTriggerProbeMatrix,
   validateVisionerResearchTriggerBoundaryProbeMatrix,
+  validateVisionerResearchTriggerFailureRecoveryProbeMatrix,
   recoverVisionerResearchTrigger,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
+  VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES,
   VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
 } from "./forge-p02-visioner-research-trigger.js";
@@ -150,8 +154,8 @@ describe("Forge Visioner Research Trigger Contract — P02-B05-A02", () => {
     assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
   });
 
-  it("exports A04 harness version for research trigger contract gate", () => {
-    assert.equal(FORGE_VISIONER_RESEARCH_TRIGGER_VERSION, "1.0.0-a04");
+  it("exports A05 harness version for research trigger contract gate", () => {
+    assert.equal(FORGE_VISIONER_RESEARCH_TRIGGER_VERSION, "1.0.0-a05");
   });
 });
 
@@ -293,5 +297,83 @@ describe("Forge Visioner Research Trigger Boundary Slice — P02-B05-A04", () =>
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
     assert.equal(slice.results.filter(r => !r.aligned).length, 0);
+  });
+});
+
+describe("Forge Visioner Research Trigger Failure/Recovery Slice — P02-B05-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveVisionerResearchTriggerContract();
+    const failure = listVisionerResearchTriggerContractProbesByCategory("failure_path", contract);
+    const recovery = listVisionerResearchTriggerContractProbesByCategory("recovery_path", contract);
+    const nogo = listVisionerResearchTriggerContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveVisionerResearchTriggerContract();
+    const slice = runVisionerResearchTriggerFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P02-B05-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listVisionerResearchTriggerContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateVisionerResearchTriggerFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with full alignment after A03 recovery slice", () => {
+    const slice = runVisionerResearchTriggerFailureRecoverySlice();
+    const probeIds = listVisionerResearchTriggerFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "vrtr.malformed_vision_trigger_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "vrtr.structured_research_trigger_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const budgetNogo = slice.failureRecoveryResults.find(
+      r => r.id === "vrtr.visioner_research_budget_threshold",
+    );
+    assert.ok(budgetNogo);
+    assert.equal(budgetNogo!.expected, "PASS");
+    assert.equal(budgetNogo!.actual, "PASS");
   });
 });

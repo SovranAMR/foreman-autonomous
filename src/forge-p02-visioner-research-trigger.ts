@@ -12,7 +12,7 @@ import {
   summarizeVisionerGroundingContractCoverage,
 } from "./forge-p02-visioner-grounding.js";
 
-export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a04";
+export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a05";
 
 /** Maximum normalized vision length before truncation (P02-B05-A01 boundary). */
 export const VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH = 32000;
@@ -418,6 +418,46 @@ export function validateVisionerResearchTriggerBoundaryProbeMatrix(
   const boundaryIds = new Set(boundaryProbes.map(p => p.id));
   const boundaryResults = results.filter(r => boundaryIds.has(r.id));
   return validateVisionerResearchTriggerProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export const VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly VisionerResearchTriggerCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes and documented FAIL gaps must align; zero unexpected mismatches.
+ */
+export function validateVisionerResearchTriggerFailureRecoveryProbeMatrix(
+  results: VisionerResearchTriggerProbeResult[],
+  contract: VisionerResearchTriggerContract = getActiveVisionerResearchTriggerContract(),
+): VisionerResearchTriggerProbeMatrixValidationResult {
+  const failureRecoveryProbes = VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listVisionerResearchTriggerContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: VisionerResearchTriggerContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateVisionerResearchTriggerProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listVisionerResearchTriggerFailureRecoveryProbeIds(
+  contract: VisionerResearchTriggerContract = getActiveVisionerResearchTriggerContract(),
+): string[] {
+  return VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listVisionerResearchTriggerContractProbesByCategory(category, contract).map(p => p.id),
+  );
 }
 
 export interface VisionerResearchTriggerFixtureEntry {
