@@ -135,7 +135,7 @@
       "id": "vrtr.structured_research_trigger_recovery",
       "category": "recovery_path",
       "description": "recoverVisionerResearchTrigger restructures failed research trigger parse into actionable query",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "vrtr.researcher_skip_memory",

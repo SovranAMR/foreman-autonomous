@@ -32,26 +32,19 @@ describe("Forge Visioner Research Trigger — P02-B05-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures visioner research trigger probes with documented FAIL gaps from P02-B04 sealed handoff", () => {
+  it("measures visioner research trigger probes with full alignment after A03 recovery slice", () => {
     const results = runVisionerResearchTriggerProbes();
     const summary = summarizeVisionerResearchTriggerMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listVisionerResearchTriggerProbesByExpected(
       "FAIL",
       loadVisionerResearchTriggerBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(documentedFail.some(p => p.id === "vrtr.structured_research_trigger_recovery"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of VISIONER_RESEARCH_TRIGGER_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -66,14 +59,8 @@ describe("Forge Visioner Research Trigger — P02-B05-A01", () => {
     );
   });
 
-  it("documents remaining visioner research trigger gaps as measurable baseline debt", () => {
+  it("documents zero remaining visioner research trigger gaps after structured recovery slice", () => {
     const gaps = listVisionerResearchTriggerKnownGaps(runVisionerResearchTriggerProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, ["vrtr.structured_research_trigger_recovery"]);
-    assert.ok(
-      gaps.every(g => VISIONER_RESEARCH_TRIGGER_CATEGORIES.includes(g.category)),
-      "documented gaps are visioner research trigger probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });

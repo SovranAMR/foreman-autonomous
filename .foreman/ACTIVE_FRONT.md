@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P05
-active_atom: P02-B05-A03
+active_atom: P02-B05-A04
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 141/1000
-phase_progress: 41/100
-block_progress: 2/10
+program_progress: 142/1000
+phase_progress: 42/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B05-A03 — Research trigger belirleme: en küçük üretim dikey dilimini uygula.
+P02-B05-A04 — Research trigger belirleme: boundary ve edge-case davranışlarını tamamla.
 
-objective: P02-B05-A02 typed contract sealed; production slice next.
-target: Implement smallest production vertical slice for visioner research trigger determination.
-hypothesis: A02 contract and probe matrix provide stable entry for recoverVisionerResearchTrigger slice.
-acceptance: production slice; recoverVisionerResearchTrigger or equivalent; probe matrix green except documented gaps closed.
+objective: P02-B05-A03 production slice sealed; boundary slice next.
+target: Complete boundary and edge-case behavior for visioner research trigger determination.
+hypothesis: recoverVisionerResearchTrigger and probe matrix provide stable entry for boundary slice.
+acceptance: boundary probes green; input edge cases complete; probe matrix zero unexpected mismatches.
 commands: npx tsx --test src/forge-p02-visioner-research-trigger.test.ts
 blast_radius: src/forge-p02-visioner-research-trigger*
-rollback: P02-B05-A03 production slice değişikliklerini geri al.
+rollback: P02-B05-A04 boundary değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: slice requires unrelated harness refactor ise BLOCKED raporla.
+fallback: boundary slice requires unrelated harness refactor ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B05-A02
-last_commit: bf879b0
-tests: PASS — forge-p02-visioner-research-trigger.test.ts (9/9); forge-p02-visioner-research-trigger-baseline.test.ts (3/3); forge-p02-visioner-grounding*.test.ts (43/43 regression)
-evidence: FORGE_VISIONER_RESEARCH_TRIGGER_CONTRACT_V1; validateVisionerResearchTriggerContractCoverage; validateVisionerResearchTriggerProbeMatrix (22 passAligned, 1 gapAligned); probe criteria wired from contract
-next: P02-B05-A03
+last_atom: P02-B05-A03
+last_commit: pending
+tests: PASS — forge-p02-visioner-research-trigger.test.ts (12/12); forge-p02-visioner-research-trigger-baseline.test.ts (3/3); forge-p02-visioner-grounding*.test.ts regression
+evidence: recoverVisionerResearchTrigger; runVisionerResearchTriggerProductionSlice; probe matrix 23/23 passAligned; vrtr.structured_research_trigger_recovery gap closed
+next: P02-B05-A04

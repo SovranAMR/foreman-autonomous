@@ -12,7 +12,7 @@ import {
   summarizeVisionerGroundingContractCoverage,
 } from "./forge-p02-visioner-grounding.js";
 
-export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a02";
+export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a03";
 
 /** Maximum normalized vision length before truncation (P02-B05-A01 boundary). */
 export const VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH = 32000;
@@ -134,6 +134,151 @@ export function assessVisionerResearchTriggerPresence(
     detail:
       `needsResearch=${needsResearch}, hasQuery=${hasResearchQuery}` +
       (researchQuery ? `, query="${researchQuery.slice(0, 40)}"` : ""),
+  };
+}
+
+export interface VisionerResearchTriggerRecoveryHints {
+  researchQuery?: string;
+  needsResearch?: boolean;
+  reasoning?: string;
+  output?: string;
+  confidence?: number;
+}
+
+export interface VisionerResearchTriggerRecoveryResult {
+  recovered: boolean;
+  composedVision: string;
+  presence: VisionerResearchTriggerPresence;
+  parseErrors: string[];
+  detail: string;
+}
+
+/**
+ * Restructure failed research trigger parse into actionable query (P02-B05-A03).
+ */
+export function recoverVisionerResearchTrigger(
+  failedParse: string,
+  hints: VisionerResearchTriggerRecoveryHints = {},
+): VisionerResearchTriggerRecoveryResult {
+  const parseErrors: string[] = [];
+  const boundary = assessVisionerResearchTriggerInputBoundary(failedParse);
+
+  if (boundary.disposition === "contains_null_byte") {
+    return {
+      recovered: false,
+      composedVision: "",
+      presence: assessVisionerResearchTriggerPresence(""),
+      parseErrors: ["null_byte_in_vision"],
+      detail: "cannot recover null-byte vision output",
+    };
+  }
+
+  const raw = boundary.acceptable ? boundary.normalizedVision : failedParse.trim();
+  const initialPresence = assessVisionerResearchTriggerPresence(raw);
+
+  if (initialPresence.needsResearch && initialPresence.hasResearchQuery) {
+    return {
+      recovered: true,
+      composedVision: raw,
+      presence: initialPresence,
+      parseErrors,
+      detail: initialPresence.detail,
+    };
+  }
+
+  let needsResearch = hints.needsResearch ?? initialPresence.needsResearch;
+  let researchQuery = hints.researchQuery ?? initialPresence.researchQuery;
+  let reasoning = hints.reasoning;
+  let output = hints.output;
+  const confidence = hints.confidence ?? 0.7;
+
+  const informalNeedsMatch =
+    raw.match(/needs[_\s-]?research\s*[:=]\s*(true|false|yes|no)/i) ??
+    raw.match(/need(?:s)?\s+research/i);
+  if (informalNeedsMatch) {
+    const val = informalNeedsMatch[1]?.toLowerCase();
+    needsResearch = val ? val === "true" || val === "yes" : true;
+  }
+
+  const queryMatch =
+    raw.match(/RESEARCH_QUERY:\s*(.+?)(?:\n|$)/i) ??
+    raw.match(/research[_\s-]?(?:query|topic)\s*[:=]\s*(.+?)(?:\n|$)/i) ??
+    raw.match(/query:\s*(.+?)(?:\n|$)/i);
+  if (queryMatch && !researchQuery) {
+    researchQuery = queryMatch[1].trim();
+  }
+
+  const reasoningMatch = raw.match(
+    /REASONING:\s*(.+?)(?:\n(?:OUTPUT|CONFIDENCE|NEEDS_RESEARCH)|$)/is,
+  );
+  if (reasoningMatch && !reasoning) {
+    reasoning = reasoningMatch[1].trim();
+  }
+
+  const outputMatch = raw.match(
+    /OUTPUT:\s*(.+?)(?:\n(?:CONFIDENCE|NEEDS_RESEARCH|RESEARCH_QUERY)|$)/is,
+  );
+  if (outputMatch && !output) {
+    output = outputMatch[1].trim();
+  }
+
+  if (!researchQuery && needsResearch) {
+    const topicLine = raw
+      .split("\n")
+      .find(
+        line =>
+          /research|benchmark|best practice|compare|investigate/i.test(line) &&
+          !/NEEDS_RESEARCH|RESEARCH_QUERY|CONFIDENCE|REASONING|OUTPUT/i.test(line),
+      );
+    if (topicLine) {
+      researchQuery = topicLine.replace(/^[-*\s]+/, "").trim();
+    }
+  }
+
+  if (!needsResearch && researchQuery) {
+    needsResearch = true;
+  }
+
+  if (!researchQuery && needsResearch) {
+    parseErrors.push("missing_research_query");
+    researchQuery = "foreman visioner research recovery default query";
+  }
+
+  if (!reasoning) {
+    reasoning = needsResearch
+      ? "Recovered research trigger from failed parse"
+      : "Recovered vision output from failed parse";
+  }
+  if (!output) {
+    output = "**GOAL**: Recovered vision output";
+  }
+
+  if (needsResearch === undefined) {
+    needsResearch = Boolean(researchQuery);
+  }
+
+  const composedVision = [
+    `REASONING: ${reasoning}`,
+    `OUTPUT: ${output}`,
+    `CONFIDENCE: ${confidence}`,
+    `NEEDS_RESEARCH: ${needsResearch ? "true" : "false"}`,
+    needsResearch ? `RESEARCH_QUERY: ${researchQuery}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const presence = assessVisionerResearchTriggerPresence(composedVision);
+  const recovered =
+    presence.hasNeedsResearch &&
+    presence.needsResearch === needsResearch &&
+    (!needsResearch || (presence.hasResearchQuery && presence.researchQuery.length > 0));
+
+  return {
+    recovered,
+    composedVision,
+    presence,
+    parseErrors,
+    detail: presence.detail,
   };
 }
 
@@ -595,7 +740,7 @@ const VISIONER_RESEARCH_TRIGGER_CATEGORY_CONTRACTS: Record<
     category: "recovery_path",
     acceptance: {
       invariant:
-        "Checkpoint resume preserves vision research signals; structured research trigger recovery is a documented gap.",
+        "Checkpoint resume preserves vision research signals; recoverVisionerResearchTrigger restructures failed parse.",
       minProbeCount: 2,
       requireFullAlignment: true,
     },
@@ -612,8 +757,8 @@ const VISIONER_RESEARCH_TRIGGER_CATEGORY_CONTRACTS: Record<
         id: "vrtr.structured_research_trigger_recovery",
         category: "recovery_path",
         description: "recoverVisionerResearchTrigger restructures failed research trigger parse into actionable query",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion: "recoverVisionerResearchTrigger restructures failed research trigger parse into actionable query",
       },
     ],
@@ -971,10 +1116,12 @@ export function validateVisionerResearchTriggerBaseline(
   }
 
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length < 1) {
+  const contract = getActiveVisionerResearchTriggerContract();
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  if (failGaps.length !== expectedFailCount) {
     issues.push({
       kind: "missing_category",
-      detail: "A01 fixture must document at least one known FAIL gap",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 

@@ -18,12 +18,14 @@ import { parseVisionResponse } from "./parser.js";
 import {
   assessVisionerResearchTriggerInputBoundary,
   assessVisionerResearchTriggerPresence,
+  recoverVisionerResearchTrigger,
   validateVisionerResearchTriggerBaseline,
   validateVisionerResearchTriggerAgainstContract,
   summarizeVisionerResearchTriggerMatrix,
   listVisionerResearchTriggerProbesByExpected,
   listVisionerResearchTriggerKnownGaps,
   getActiveVisionerResearchTriggerContract,
+  validateVisionerResearchTriggerProbeMatrix,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
   VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH,
@@ -46,6 +48,8 @@ export {
   getActiveVisionerResearchTriggerContract,
   assessVisionerResearchTriggerInputBoundary,
   assessVisionerResearchTriggerPresence,
+  recoverVisionerResearchTrigger,
+  validateVisionerResearchTriggerProbeMatrix,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
   VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH,
@@ -286,8 +290,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "vrtr.known_gaps_documented": {
+      const contract = getActiveVisionerResearchTriggerContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      return probe(id, category, expected, failCount >= 1, `documentedFail=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "vrtr.empty_vision_trigger_presence": {
       const result = assessVisionerResearchTriggerInputBoundary("");
@@ -384,8 +397,26 @@ function probeRecoveryPath(
       return probe(id, category, expected, ok, `checkpointResearchTrigger=${ok}`);
     }
     case "vrtr.structured_research_trigger_recovery": {
-      const ok = hasProductionExport("recoverVisionerResearchTrigger");
-      return probe(id, category, expected, ok, `recoverVisionerResearchTrigger=${ok}`);
+      const malformed = `REASONING: Need benchmark data for dental landing pages
+OUTPUT: **GOAL**: Premium dental feel
+CONFIDENCE: 0.85
+needs_research: yes
+research topic: dental landing page best practices 2026`;
+      const recovery = recoverVisionerResearchTrigger(malformed);
+      const ok =
+        hasProductionExport("recoverVisionerResearchTrigger") &&
+        recovery.recovered === true &&
+        recovery.presence.hasNeedsResearch &&
+        recovery.presence.needsResearch === true &&
+        recovery.presence.hasResearchQuery &&
+        recovery.presence.researchQuery.includes("dental landing page");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recovered=${recovery.recovered}, ${recovery.detail}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown recovery_path probe");
@@ -460,4 +491,39 @@ export function runVisionerResearchTriggerProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface VisionerResearchTriggerProductionSliceResult {
+  atom: "P02-B05-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerResearchTriggerProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerResearchTriggerMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerResearchTriggerProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: recoverVisionerResearchTrigger wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runVisionerResearchTriggerProductionSlice(
+  fixture: VisionerResearchTriggerBaseline = loadVisionerResearchTriggerBaseline(),
+): VisionerResearchTriggerProductionSliceResult {
+  const contract = getActiveVisionerResearchTriggerContract();
+  const fixtureValidation = validateVisionerResearchTriggerBaseline(fixture);
+  const contractValidation = validateVisionerResearchTriggerAgainstContract(fixture, contract);
+  const results = runVisionerResearchTriggerProbes(fixture);
+  const summary = summarizeVisionerResearchTriggerMatrix(results);
+  const matrixValidation = validateVisionerResearchTriggerProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B05-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
