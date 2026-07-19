@@ -44,7 +44,7 @@ fallback: block gate requires orchestrator refactor beyond slice scope ise BLOCK
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B06-A09
-last_commit: pending
+last_commit: 8fa7b61
 tests: PASS — forge-p02-visioner-uncertainty.guard.test.ts (8/8); forge-pipeline-regression.integration.test.ts (87/87)
 evidence: validateForgeVisionerUncertaintyGuard adversarial=3/3 rejected; runForgeVisionerUncertaintyRegressionGate guard PASS with perf/cost metrics; orchestrator verifyForgeVisionerUncertaintyGuard emits visioner_uncertainty_guard verification
 next: P02-B06-A10
