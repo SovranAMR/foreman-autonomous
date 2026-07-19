@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 4
-completed_atoms: 39
+completed_atoms: 40
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -67,7 +67,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P02-B05 — Research trigger belirleme
 
-- [ ] P02-B05-A01 — Research trigger belirleme: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P02-B05-A01 — Research trigger belirleme: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P02-B05-A02 — Research trigger belirleme: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B05-A03 — Research trigger belirleme: en küçük üretim dikey dilimini uygula
 - [ ] P02-B05-A04 — Research trigger belirleme: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B04-A10
-last_commit: 9fe37ff
-tests: PASS — forge-p02-visioner-grounding-block-gate.test.ts (6/6); forge-p02-visioner-grounding*.test.ts (43/43 total)
-evidence: runVisionerGroundingBlockGate; FORGE_P02_B04_BLOCK_GATE_V1; FORGE_P02_B04_TO_B05_HANDOFF_V1; orchestrator verifyForgeVisionerGroundingBlockGate visioner_grounding_block_gate verification
-next: P02-B05-A01
+last_atom: P02-B05-A01
+last_commit: b276b74
+tests: PASS — forge-p02-visioner-research-trigger-baseline.test.ts (3/3); forge-p02-visioner-grounding*.test.ts (43/43 regression)
+evidence: runVisionerResearchTriggerProbes; FORGE_VISIONER_RESEARCH_TRIGGER_CONTRACT_V1; vrtr.structured_research_trigger_recovery documented FAIL gap; B04 handoff validated via getForgeP02B04ToB05Handoff
+next: P02-B05-A02
