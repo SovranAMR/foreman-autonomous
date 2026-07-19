@@ -4,7 +4,7 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B02
-active_atom: P02-B02-A01
+active_atom: P02-B02-A02
 phase_file: .foreman/phases/P02_VISIONER.md
 program_progress: 111/1000
 phase_progress: 11/100
