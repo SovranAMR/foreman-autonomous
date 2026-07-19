@@ -12,7 +12,7 @@ import {
   summarizeVisionerGroundingContractCoverage,
 } from "./forge-p02-visioner-grounding.js";
 
-export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a03";
+export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a04";
 
 /** Maximum normalized vision length before truncation (P02-B05-A01 boundary). */
 export const VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH = 32000;
@@ -163,13 +163,23 @@ export function recoverVisionerResearchTrigger(
   const parseErrors: string[] = [];
   const boundary = assessVisionerResearchTriggerInputBoundary(failedParse);
 
-  if (boundary.disposition === "contains_null_byte") {
+  if (
+    boundary.disposition === "contains_null_byte" ||
+    boundary.disposition === "empty" ||
+    boundary.disposition === "whitespace_only"
+  ) {
+    const parseError =
+      boundary.disposition === "contains_null_byte"
+        ? "null_byte_in_vision"
+        : boundary.disposition === "empty"
+          ? "empty_vision"
+          : "whitespace_only_vision";
     return {
       recovered: false,
       composedVision: "",
       presence: assessVisionerResearchTriggerPresence(""),
-      parseErrors: ["null_byte_in_vision"],
-      detail: "cannot recover null-byte vision output",
+      parseErrors: [parseError],
+      detail: `cannot recover ${boundary.disposition.replace(/_/g, "-")} vision output`,
     };
   }
 
@@ -386,6 +396,28 @@ export function validateVisionerResearchTriggerProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateVisionerResearchTriggerBoundaryProbeMatrix(
+  results: VisionerResearchTriggerProbeResult[],
+  contract: VisionerResearchTriggerContract = getActiveVisionerResearchTriggerContract(),
+): VisionerResearchTriggerProbeMatrixValidationResult {
+  const boundaryProbes = listVisionerResearchTriggerContractProbesByCategory("boundary", contract);
+  const boundaryContract: VisionerResearchTriggerContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateVisionerResearchTriggerProbeMatrix(boundaryResults, boundaryContract);
 }
 
 export interface VisionerResearchTriggerFixtureEntry {

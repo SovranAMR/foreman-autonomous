@@ -24,8 +24,10 @@ import {
   summarizeVisionerResearchTriggerMatrix,
   listVisionerResearchTriggerProbesByExpected,
   listVisionerResearchTriggerKnownGaps,
+  listVisionerResearchTriggerContractProbesByCategory,
   getActiveVisionerResearchTriggerContract,
   validateVisionerResearchTriggerProbeMatrix,
+  validateVisionerResearchTriggerBoundaryProbeMatrix,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
   VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH,
@@ -50,6 +52,7 @@ export {
   assessVisionerResearchTriggerPresence,
   recoverVisionerResearchTrigger,
   validateVisionerResearchTriggerProbeMatrix,
+  validateVisionerResearchTriggerBoundaryProbeMatrix,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
   VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH,
@@ -524,6 +527,39 @@ export function runVisionerResearchTriggerProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface VisionerResearchTriggerBoundarySliceResult {
+  atom: "P02-B05-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerResearchTriggerProbeResult[];
+  boundaryResults: VisionerResearchTriggerProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerResearchTriggerBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (vision input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runVisionerResearchTriggerBoundarySlice(
+  fixture: VisionerResearchTriggerBaseline = loadVisionerResearchTriggerBaseline(),
+): VisionerResearchTriggerBoundarySliceResult {
+  const contract = getActiveVisionerResearchTriggerContract();
+  const results = runVisionerResearchTriggerProbes(fixture);
+  const boundaryProbes = listVisionerResearchTriggerContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateVisionerResearchTriggerBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B05-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

@@ -4,8 +4,11 @@ import {
   loadVisionerResearchTriggerBaseline,
   runVisionerResearchTriggerProbes,
   runVisionerResearchTriggerProductionSlice,
+  runVisionerResearchTriggerBoundarySlice,
 } from "./forge-p02-visioner-research-trigger.probe.js";
 import {
+  assessVisionerResearchTriggerInputBoundary,
+  assessVisionerResearchTriggerPresence,
   getActiveVisionerResearchTriggerContract,
   getVisionerResearchTriggerCategoryContract,
   listVisionerResearchTriggerContractProbeIds,
@@ -15,8 +18,10 @@ import {
   validateVisionerResearchTriggerAgainstContract,
   validateVisionerResearchTriggerContractCoverage,
   validateVisionerResearchTriggerProbeMatrix,
+  validateVisionerResearchTriggerBoundaryProbeMatrix,
   recoverVisionerResearchTrigger,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
+  VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
 } from "./forge-p02-visioner-research-trigger.js";
 
@@ -145,8 +150,8 @@ describe("Forge Visioner Research Trigger Contract — P02-B05-A02", () => {
     assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
   });
 
-  it("exports A03 harness version for research trigger contract gate", () => {
-    assert.equal(FORGE_VISIONER_RESEARCH_TRIGGER_VERSION, "1.0.0-a03");
+  it("exports A04 harness version for research trigger contract gate", () => {
+    assert.equal(FORGE_VISIONER_RESEARCH_TRIGGER_VERSION, "1.0.0-a04");
   });
 });
 
@@ -193,5 +198,100 @@ research topic: dental landing page best practices 2026`;
       assert.ok(result, `missing probe result: ${contractProbe.id}`);
       assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
     }
+  });
+});
+
+describe("Forge Visioner Research Trigger Boundary Slice — P02-B05-A04", () => {
+  it("assessVisionerResearchTriggerInputBoundary handles empty, whitespace-only and oversized vision output", () => {
+    const empty = assessVisionerResearchTriggerInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerResearchTriggerInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerResearchTriggerInputBoundary("vision\x00output");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longVision = "x".repeat(VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH + 200);
+    const truncated = assessVisionerResearchTriggerInputBoundary(longVision);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedVision.length, VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("assessVisionerResearchTriggerPresence returns no signals for unacceptable boundary inputs", () => {
+    const presence = assessVisionerResearchTriggerPresence("   ");
+    assert.equal(presence.hasNeedsResearch, false);
+    assert.equal(presence.needsResearch, false);
+    assert.equal(presence.hasResearchQuery, false);
+    assert.equal(presence.researchQuery, "");
+  });
+
+  it("recoverVisionerResearchTrigger rejects empty and whitespace-only vision output safely", () => {
+    const emptyRecovery = recoverVisionerResearchTrigger("");
+    assert.equal(emptyRecovery.recovered, false);
+    assert.deepEqual(emptyRecovery.parseErrors, ["empty_vision"]);
+
+    const whitespaceRecovery = recoverVisionerResearchTrigger("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_vision"]);
+  });
+
+  it("defines boundary category with vision input edge-case probes", () => {
+    const boundary = listVisionerResearchTriggerContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "vrtr.empty_vision_trigger_presence",
+      "vrtr.known_gaps_documented",
+      "vrtr.long_vision_truncation_boundary",
+      "vrtr.probe_runner_exported",
+      "vrtr.source_block_gate_ref",
+      "vrtr.whitespace_vision_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerResearchTriggerContract();
+    const slice = runVisionerResearchTriggerBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B05-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerResearchTriggerContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerResearchTriggerBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves full probe alignment while boundary slice passes", () => {
+    const slice = runVisionerResearchTriggerBoundarySlice();
+    const recoveryProbe = slice.results.find(r => r.id === "vrtr.structured_research_trigger_recovery");
+
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(slice.results.filter(r => !r.aligned).length, 0);
   });
 });
