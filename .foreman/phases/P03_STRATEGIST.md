@@ -84,7 +84,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B06-A02 — Kaynak ve budget planı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P03-B06-A03 — Kaynak ve budget planı: en küçük üretim dikey dilimini uygula
 - [x] P03-B06-A04 — Kaynak ve budget planı: boundary ve edge-case davranışlarını tamamla
-- [ ] P03-B06-A05 — Kaynak ve budget planı: failure, recovery ve NO-GO yollarını uygula
+- [x] P03-B06-A05 — Kaynak ve budget planı: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B06-A06 — Kaynak ve budget planı: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B06-A07 — Kaynak ve budget planı: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B06-A08 — Kaynak ve budget planı: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B06-A04
-last_commit: c7dcfd9
-tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (13/13); boundary slice 6/6 probes; zero unexpected mismatches
-evidence: assessStrategistResourceBudgetInputBoundary; validateStrategistResourceBudgetBoundaryProbeMatrix; runStrategistResourceBudgetBoundarySlice; recovery rejects empty/whitespace at boundary
-next: P03-B06-A05
+last_atom: P03-B06-A05
+last_commit: pending
+tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (16/16); failure/recovery slice 7/7 probes; zero unexpected mismatches
+evidence: validateStrategistResourceBudgetFailureRecoveryProbeMatrix; runStrategistResourceBudgetFailureRecoverySlice; 5 PASS + 2 documented NO-GO gaps aligned
+next: P03-B06-A06

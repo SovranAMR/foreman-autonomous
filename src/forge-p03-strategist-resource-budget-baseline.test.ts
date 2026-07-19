@@ -11,10 +11,14 @@ import {
   validateStrategistResourceBudget,
   runStrategistResourceBudgetProductionSlice,
   runStrategistResourceBudgetBoundarySlice,
+  runStrategistResourceBudgetFailureRecoverySlice,
   validateStrategistResourceBudgetProbeMatrix,
   validateStrategistResourceBudgetBoundaryProbeMatrix,
+  validateStrategistResourceBudgetFailureRecoveryProbeMatrix,
+  listStrategistResourceBudgetFailureRecoveryProbeIds,
   getActiveStrategistResourceBudgetContract,
   listStrategistResourceBudgetContractProbesByCategory,
+  STRATEGIST_RESOURCE_BUDGET_FAILURE_RECOVERY_CATEGORIES,
   assessStrategistResourceBudgetInputBoundary,
   STRATEGIST_RESOURCE_BUDGET_CATEGORIES,
   STRATEGIST_RESOURCE_BUDGET_DECOMPOSE_MAX_LENGTH,
@@ -303,5 +307,115 @@ describe("Forge Strategist Resource Budget Boundary Slice — P03-B06-A04", () =
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Resource Budget Failure/Recovery Slice — P03-B06-A05", () => {
+  it("defines seven failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveStrategistResourceBudgetContract();
+    const probeIds = listStrategistResourceBudgetFailureRecoveryProbeIds(contract);
+
+    assert.equal(STRATEGIST_RESOURCE_BUDGET_FAILURE_RECOVERY_CATEGORIES.length, 3);
+    assert.equal(probeIds.length, 7);
+    assert.deepEqual(probeIds.sort(), [
+      "sbudget.exported_orchestrator_budget_validator",
+      "sbudget.invalid_version_rejected",
+      "sbudget.malformed_decompose_guard",
+      "sbudget.min_category_probes",
+      "sbudget.nogo_budget_recovery_halt",
+      "sbudget.recovery_cost_alert",
+      "sbudget.recovery_rate_limit_backoff",
+    ].sort());
+
+    assert.equal(
+      listStrategistResourceBudgetContractProbesByCategory("failure_path", contract).length,
+      3,
+    );
+    assert.equal(
+      listStrategistResourceBudgetContractProbesByCategory("recovery_path", contract).length,
+      2,
+    );
+    assert.equal(
+      listStrategistResourceBudgetContractProbesByCategory("nogo_path", contract).length,
+      2,
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistResourceBudgetContract();
+    const slice = runStrategistResourceBudgetFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B06-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 5);
+    assert.equal(slice.matrixValidation.gapAligned, 2);
+
+    for (const category of STRATEGIST_RESOURCE_BUDGET_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistResourceBudgetContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistResourceBudgetFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves NO-GO gaps while exercising failure and recovery paths", () => {
+    const slice = runStrategistResourceBudgetFailureRecoverySlice();
+    const probeIds = listStrategistResourceBudgetFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 7);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "sbudget.malformed_decompose_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const rateLimitBackoff = slice.failureRecoveryResults.find(
+      r => r.id === "sbudget.recovery_rate_limit_backoff",
+    );
+    assert.ok(rateLimitBackoff);
+    assert.equal(rateLimitBackoff!.expected, "PASS");
+    assert.equal(rateLimitBackoff!.actual, "PASS");
+
+    const costAlert = slice.failureRecoveryResults.find(r => r.id === "sbudget.recovery_cost_alert");
+    assert.ok(costAlert);
+    assert.equal(costAlert!.expected, "PASS");
+    assert.equal(costAlert!.actual, "PASS");
+
+    const nogoHalt = slice.failureRecoveryResults.find(
+      r => r.id === "sbudget.nogo_budget_recovery_halt",
+    );
+    assert.ok(nogoHalt);
+    assert.equal(nogoHalt!.expected, "FAIL");
+    assert.equal(nogoHalt!.actual, "FAIL");
+    assert.equal(nogoHalt!.aligned, true);
+
+    const budgetValidator = slice.failureRecoveryResults.find(
+      r => r.id === "sbudget.exported_orchestrator_budget_validator",
+    );
+    assert.ok(budgetValidator);
+    assert.equal(budgetValidator!.expected, "FAIL");
+    assert.equal(budgetValidator!.actual, "FAIL");
+    assert.equal(budgetValidator!.aligned, true);
   });
 });

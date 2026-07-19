@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B06
-active_atom: P03-B06-A04
+active_atom: P03-B06-A06
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 253/1000
-phase_progress: 54/100
-block_progress: 4/10
+program_progress: 254/1000
+phase_progress: 55/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B06-A05 — Kaynak ve budget planı: failure, recovery ve NO-GO yollarını uygula.
+P03-B06-A06 — Kaynak ve budget planı: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P03-B06-A04 PASS; P03-B06-A05 implement failure, recovery and NO-GO paths for resource budget.
-target: runStrategistResourceBudgetFailureRecoverySlice, validateStrategistResourceBudgetFailureRecoveryProbeMatrix.
-hypothesis: P03-B06-A05 wires failure/recovery/nogo probes with zero unexpected mismatches on documented gaps.
-acceptance: failure/recovery slice runs; failure probe matrix valid; slice test suite passes.
+objective: P03-B06-A05 PASS; P03-B06-A06 implement evidence, telemetry and provenance record for resource budget.
+target: runStrategistResourceBudgetFailureRecoverySliceWithRecord, validateStrategistResourceBudgetFailureRecoveryRunRecord.
+hypothesis: P03-B06-A06 wires failure/recovery slice run record with disposition, criterion and aligned probe outcomes.
+acceptance: evidence slice runs; run record validation passes; slice test suite passes.
 commands: npx tsx --test src/forge-p03-strategist-resource-budget*.test.ts
 blast_radius: src/forge-p03-strategist-resource-budget.ts
-rollback: P03-B06-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P03-B06-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Failure/recovery slice blocked ise BLOCKED raporla.
+fallback: Evidence slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B06-A04
-last_commit: c7dcfd9
-tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (13/13); boundary slice 6/6 probes; zero unexpected mismatches
-evidence: assessStrategistResourceBudgetInputBoundary; validateStrategistResourceBudgetBoundaryProbeMatrix; runStrategistResourceBudgetBoundarySlice; recovery rejects empty/whitespace at boundary
-next: P03-B06-A05
+last_atom: P03-B06-A05
+last_commit: pending
+tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (16/16); failure/recovery slice 7/7 probes; zero unexpected mismatches
+evidence: validateStrategistResourceBudgetFailureRecoveryProbeMatrix; runStrategistResourceBudgetFailureRecoverySlice; 5 PASS + 2 documented NO-GO gaps aligned
+next: P03-B06-A06
