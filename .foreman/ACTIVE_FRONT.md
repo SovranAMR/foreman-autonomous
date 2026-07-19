@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B09
-active_atom: P01-B09-A09
+active_atom: P01-B09-A10
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 87/1000
-phase_progress: 86/100
+program_progress: 88/1000
+phase_progress: 87/100
 block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B09-A09 — Orchestrator seam ve modülerleşme: adversarial, performance, cost ve safety kontrolünü geçir.
+P01-B09-A10 — Orchestrator seam ve modülerleşme: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: A08 regression integration sealed; forge-orchestrator-seam guard controls on production slice.
-target: validateForgeOrchestratorSeamGuard adversarial/perf/cost/safety gate wired to orchestrator verifyForgeOrchestratorSeamGuard.
-hypothesis: A08 guard foundation + sealed B08 handoff sufficient for standalone guard gate.
-acceptance: guard gate pass; adversarial scenarios rejected; perf/cost/safety within controls.
-commands: npx tsx --test src/forge-orchestrator-seam*.test.ts
+objective: A09 guard controls sealed; forge-orchestrator-seam block gate on production slice.
+target: runForgeOrchestratorSeamBlockGate + verifyForgeOrchestratorSeamBlockGate wired with sealed B09 evidence.
+hypothesis: A09 guard foundation + sealed B09 matrix sufficient for block gate handoff to B10.
+acceptance: block gate pass; sealed evidence; handoff to P01-B10 ready.
+commands: npx tsx --test src/forge-orchestrator-seam*.test.ts src/forge-orchestrator-seam-block-gate.test.ts
 blast_radius: forge-orchestrator-seam.ts, forge-orchestrator-seam.probe.ts, orchestrator.ts
-rollback: A09 guard değişikliklerini geri al.
+rollback: A10 block gate değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A08 regression invalid ise BLOCKED raporla.
+fallback: A09 guard invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B09-A08
-last_commit: 27d1d1b
-tests: PASS — forge-orchestrator-seam*.test.ts (28/28); forge-pipeline-regression.integration.test.ts (5/5 A08); productionSlice unexpected=0; propertyFuzz sealed; guard adversarial=3/3
-evidence: runForgeOrchestratorSeamRegressionGate; runOrchestratorSeamProbesWithRecord; verifyForgeOrchestratorSeamRegression in forge-orchestrator-seam.probe.ts + orchestrator.ts
-next: P01-B09-A09
+last_atom: P01-B09-A09
+last_commit: PENDING
+tests: PASS — forge-orchestrator-seam*.test.ts (37/37); guard adversarial=3/3; perf/cost/safety within controls; verifyForgeOrchestratorSeamGuard wired
+evidence: validateForgeOrchestratorSeamGuard + verifyForgeOrchestratorSeamGuard in orchestrator.ts; forge-orchestrator-seam.guard.test.ts
+next: P01-B09-A10

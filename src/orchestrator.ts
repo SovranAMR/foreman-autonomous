@@ -320,6 +320,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge orchestrator seam guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B09-A09).
+   */
+  async verifyForgeOrchestratorSeamGuard(
+    priorRecord?: import("./forge-orchestrator-seam.js").OrchestratorSeamRunRecord,
+  ): Promise<import("./forge-orchestrator-seam.probe.js").ForgeOrchestratorSeamRegressionResult> {
+    const { runForgeOrchestratorSeamRegressionGate } = await import("./forge-orchestrator-seam.probe.js");
+    const result = runForgeOrchestratorSeamRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "orchestrator_seam_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge reproducible fixture guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B07-A09).
    */
   async verifyForgeReproducibleFixtureGuard(
