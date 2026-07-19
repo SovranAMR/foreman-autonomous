@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   loadVisionerGroundingBaseline,
   runVisionerGroundingProbes,
+  runVisionerGroundingProductionSlice,
 } from "./forge-p02-visioner-grounding.probe.js";
 import {
   getActiveVisionerGroundingContract,
@@ -13,8 +14,18 @@ import {
   summarizeVisionerGroundingContractCoverage,
   validateVisionerGroundingAgainstContract,
   validateVisionerGroundingContractCoverage,
+  validateVisionerGroundingProbeMatrix,
+  recoverVisionerGrounding,
   VISIONER_GROUNDING_CATEGORIES,
 } from "./forge-p02-visioner-grounding.js";
+
+function formatMismatchReport(
+  mismatches: { id: string; expected: string; actual: string; detail: string }[],
+): string {
+  return mismatches
+    .map(m => `  ${m.id}: expected=${m.expected} actual=${m.actual} (${m.detail})`)
+    .join("\n");
+}
 
 describe("Forge Visioner Grounding Contract — P02-B04-A02", () => {
   it("defines typed acceptance for all eight visioner grounding categories", () => {
@@ -43,19 +54,19 @@ describe("Forge Visioner Grounding Contract — P02-B04-A02", () => {
     }
   });
 
-  it("maps 23 probes with one documented gap aligned to baseline fixture", () => {
+  it("maps 23 probes with zero documented gaps after A03 recovery slice", () => {
     const contract = getActiveVisionerGroundingContract();
     const summary = summarizeVisionerGroundingContractCoverage(contract);
     const coverage = validateVisionerGroundingContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 1);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 1);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 1);
+    assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.grounding_versioning.probeCount, 3);
     assert.equal(summary.byCategory.repo_signal.probeCount, 3);
@@ -67,11 +78,9 @@ describe("Forge Visioner Grounding Contract — P02-B04-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists one remaining gap probe for structured grounding recovery", () => {
+  it("lists no remaining gap probes after A03 structured grounding recovery", () => {
     const gaps = listVisionerGroundingProbesByDisposition("gap");
-    const ids = gaps.map(p => p.id).sort();
-    assert.deepEqual(ids, ["vgrd.structured_grounding_recovery"]);
-    assert.ok(gaps.every(p => p.expected === "FAIL"));
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -115,5 +124,68 @@ describe("Forge Visioner Grounding Contract — P02-B04-A02", () => {
       listVisionerGroundingContractProbesByCategory(category, contract).map(p => p.id),
     );
     assert.deepEqual(categoryIds, flatIds);
+  });
+});
+
+describe("Forge Visioner Grounding Production Slice — P02-B04-A03", () => {
+  it("recoverVisionerGrounding restructures malformed context into repo/user grounding", () => {
+    const malformed = '{"project": "foreman", "user": "dev", "session": "checkpoint-42"';
+    const recovery = recoverVisionerGrounding(malformed);
+
+    assert.equal(recovery.recovered, true);
+    assert.ok(recovery.parseErrors.includes("json_parse_failed"));
+    assert.match(recovery.composedPrompt, /Project: foreman/);
+    assert.match(recovery.composedPrompt, /Project Context:/);
+    assert.match(recovery.composedPrompt, /IDENTITY CONTEXT/);
+    assert.match(recovery.composedPrompt, /SESSION CONTEXT/);
+    assert.equal(recovery.presence.hasProjectAnchor, true);
+    assert.equal(recovery.presence.hasProjectContext, true);
+    assert.equal(recovery.presence.hasIdentityContext, true);
+    assert.equal(recovery.presence.hasSessionContext, true);
+  });
+
+  it("recoverVisionerGrounding rejects null-byte context safely", () => {
+    const recovery = recoverVisionerGrounding("project\x00name");
+    assert.equal(recovery.recovered, false);
+    assert.deepEqual(recovery.parseErrors, ["null_byte_in_context"]);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after recovery slice", () => {
+    const contract = getActiveVisionerGroundingContract();
+    const slice = runVisionerGroundingProductionSlice();
+
+    assert.equal(slice.atom, "P02-B04-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateVisionerGroundingProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    const recoveryProbe = slice.results.find(r => r.id === "vgrd.structured_grounding_recovery");
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
   });
 });

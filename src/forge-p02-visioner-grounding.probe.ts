@@ -17,8 +17,10 @@ import {
 import {
   assessVisionerGroundingInputBoundary,
   assessVisionerGroundingPresence,
+  recoverVisionerGrounding,
   validateVisionerGroundingBaseline,
   validateVisionerGroundingAgainstContract,
+  validateVisionerGroundingProbeMatrix,
   summarizeVisionerGroundingMatrix,
   listVisionerGroundingProbesByExpected,
   listVisionerGroundingKnownGaps,
@@ -36,6 +38,8 @@ export type { VisionerGroundingBaseline, VisionerGroundingProbeResult } from "./
 export {
   validateVisionerGroundingBaseline,
   validateVisionerGroundingAgainstContract,
+  validateVisionerGroundingProbeMatrix,
+  recoverVisionerGrounding,
   summarizeVisionerGroundingMatrix,
   listVisionerGroundingProbesByExpected,
   listVisionerGroundingKnownGaps,
@@ -267,8 +271,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "vgrd.known_gaps_documented": {
+      const contract = getActiveVisionerGroundingContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      return probe(id, category, expected, failCount >= 1, `documentedFail=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "vgrd.empty_context_boundary": {
       const result = assessVisionerGroundingInputBoundary("");
@@ -364,8 +377,22 @@ function probeRecoveryPath(
       return probe(id, category, expected, ok, `checkpointGrounding=${ok}`);
     }
     case "vgrd.structured_grounding_recovery": {
-      const ok = hasProductionExport("recoverVisionerGrounding");
-      return probe(id, category, expected, ok, `recoverVisionerGrounding=${ok}`);
+      const malformed = '{"project": "foreman", "user": "dev", "session": "prior-work"';
+      const recovery = recoverVisionerGrounding(malformed);
+      const ok =
+        hasProductionExport("recoverVisionerGrounding") &&
+        recovery.recovered === true &&
+        recovery.presence.hasProjectAnchor &&
+        recovery.presence.hasProjectContext &&
+        recovery.presence.hasIdentityContext &&
+        recovery.presence.hasSessionContext;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recovered=${recovery.recovered}, ${recovery.detail}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown recovery_path probe");
@@ -439,4 +466,39 @@ export function runVisionerGroundingProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface VisionerGroundingProductionSliceResult {
+  atom: "P02-B04-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerGroundingProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerGroundingMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerGroundingProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: recoverVisionerGrounding wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runVisionerGroundingProductionSlice(
+  fixture: VisionerGroundingBaseline = loadVisionerGroundingBaseline(),
+): VisionerGroundingProductionSliceResult {
+  const contract = getActiveVisionerGroundingContract();
+  const fixtureValidation = validateVisionerGroundingBaseline(fixture);
+  const contractValidation = validateVisionerGroundingAgainstContract(fixture, contract);
+  const results = runVisionerGroundingProbes(fixture);
+  const summary = summarizeVisionerGroundingMatrix(results);
+  const matrixValidation = validateVisionerGroundingProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B04-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

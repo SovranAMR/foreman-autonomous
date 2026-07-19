@@ -92,7 +92,7 @@
     {
       "id": "vgrd.known_gaps_documented",
       "category": "boundary",
-      "description": "Baseline fixture documents at least one measurable FAIL grounding gap",
+      "description": "Baseline fixture grounding probe expectations align with contract FAIL gap count",
       "expected": "PASS"
     },
     {
@@ -135,7 +135,7 @@
       "id": "vgrd.structured_grounding_recovery",
       "category": "recovery_path",
       "description": "recoverVisionerGrounding restructures failed context parse into actionable repo/user grounding",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "vgrd.intent_ambiguity_nogo",

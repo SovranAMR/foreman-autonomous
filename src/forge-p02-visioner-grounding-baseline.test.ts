@@ -32,26 +32,19 @@ describe("Forge Visioner Grounding — P02-B04-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures visioner grounding probes with documented FAIL gaps from P02-B03 sealed handoff", () => {
+  it("measures visioner grounding probes with full alignment after A03 recovery slice", () => {
     const results = runVisionerGroundingProbes();
     const summary = summarizeVisionerGroundingMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listVisionerGroundingProbesByExpected(
       "FAIL",
       loadVisionerGroundingBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(documentedFail.some(p => p.id === "vgrd.structured_grounding_recovery"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of VISIONER_GROUNDING_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -66,14 +59,8 @@ describe("Forge Visioner Grounding — P02-B04-A01", () => {
     );
   });
 
-  it("documents remaining visioner grounding gaps as measurable baseline debt", () => {
+  it("documents zero remaining visioner grounding gaps after structured recovery slice", () => {
     const gaps = listVisionerGroundingKnownGaps(runVisionerGroundingProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, ["vgrd.structured_grounding_recovery"]);
-    assert.ok(
-      gaps.every(g => VISIONER_GROUNDING_CATEGORIES.includes(g.category)),
-      "documented gaps are visioner grounding probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });

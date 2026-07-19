@@ -12,7 +12,7 @@ import {
   summarizeVisionerSynthesisContractCoverage,
 } from "./forge-p02-visioner-synthesis.js";
 
-export const FORGE_VISIONER_GROUNDING_VERSION = "1.0.0-a01";
+export const FORGE_VISIONER_GROUNDING_VERSION = "1.0.0-a03";
 
 /** Maximum normalized context length before truncation (P02-B04-A01 boundary). */
 export const VISIONER_GROUNDING_CONTEXT_MAX_LENGTH = 32000;
@@ -137,6 +137,232 @@ export function assessVisionerGroundingPresence(composedPrompt: string): Visione
     detail:
       `projectAnchor=${hasProjectAnchor}, projectContext=${hasProjectContext}, ` +
       `identity=${hasIdentityContext}, session=${hasSessionContext}`,
+  };
+}
+
+export interface VisionerGroundingRecoveryHints {
+  projectName?: string;
+  language?: string;
+  sessionContext?: string;
+  identityHint?: string;
+}
+
+export interface VisionerGroundingRecoveryResult {
+  recovered: boolean;
+  composedPrompt: string;
+  presence: VisionerGroundingPresence;
+  parseErrors: string[];
+  detail: string;
+}
+
+/**
+ * Restructure failed context parse into actionable repo/user grounding (P02-B04-A03).
+ */
+export function recoverVisionerGrounding(
+  failedParse: string,
+  hints: VisionerGroundingRecoveryHints = {},
+): VisionerGroundingRecoveryResult {
+  const parseErrors: string[] = [];
+  const boundary = assessVisionerGroundingInputBoundary(failedParse);
+
+  if (boundary.disposition === "contains_null_byte") {
+    return {
+      recovered: false,
+      composedPrompt: "",
+      presence: assessVisionerGroundingPresence(""),
+      parseErrors: ["null_byte_in_context"],
+      detail: "cannot recover null-byte context",
+    };
+  }
+
+  const raw = boundary.acceptable ? boundary.normalizedContext : failedParse.trim();
+  let projectName = hints.projectName;
+  let language = hints.language ?? "unknown";
+  let sessionContext = hints.sessionContext;
+  let identityHint = hints.identityHint;
+
+  const projectMatch =
+    raw.match(/"project"\s*:\s*"([^"]+)"/i) ??
+    raw.match(/project[=:\s]+["']?([^\s"',}\]]+)/i);
+  if (projectMatch && !projectName) {
+    projectName = projectMatch[1];
+  }
+
+  const userMatch =
+    raw.match(/"user"\s*:\s*"([^"]+)"/i) ?? raw.match(/user[=:\s]+["']?([^\s"',}\]]+)/i);
+  if (userMatch && !identityHint) {
+    identityHint = userMatch[1];
+  }
+
+  const langMatch =
+    raw.match(/"language"\s*:\s*"([^"]+)"/i) ?? raw.match(/Language:\s*(\w+)/i);
+  if (langMatch) {
+    language = langMatch[1];
+  }
+
+  const sessionMatch =
+    raw.match(/"session"\s*:\s*"([^"]+)"/i) ??
+    raw.match(/session[=:\s]+["']?([^\s"',}\]]+)/i);
+  if (sessionMatch && !sessionContext) {
+    sessionContext = sessionMatch[1];
+  }
+
+  if (raw.startsWith("{") || raw.startsWith("[")) {
+    try {
+      JSON.parse(raw);
+    } catch {
+      parseErrors.push("json_parse_failed");
+    }
+  }
+
+  if (!projectName && raw.length > 0) {
+    const firstLine = raw.split("\n").find(line => line.trim().length > 0)?.trim();
+    if (firstLine && firstLine.length < 80) {
+      projectName = firstLine
+        .replace(/^[{[\s"]+|["}\]\s]+$/g, "")
+        .split(/[,:]/)[0]
+        ?.trim();
+    }
+  }
+
+  projectName = projectName ?? "unknown-project";
+
+  const parts: string[] = [
+    `Project: ${projectName}`,
+    "",
+    "Project Context:",
+    `Language: ${language}`,
+    "Health: recovered",
+    "",
+    "IDENTITY CONTEXT",
+    identityHint ? `User Profile: ${identityHint}` : "Agent Identity: Foreman recovery slice",
+    "",
+    "SESSION CONTEXT",
+    sessionContext
+      ? `Previous Context: ${sessionContext}`
+      : `Previous Context: recovered from failed parse (${parseErrors.length} errors)`,
+  ];
+
+  const composedPrompt = parts.join("\n");
+  const presence = assessVisionerGroundingPresence(composedPrompt);
+  const recovered =
+    presence.hasProjectAnchor &&
+    presence.hasProjectContext &&
+    presence.hasIdentityContext &&
+    presence.hasSessionContext;
+
+  return {
+    recovered,
+    composedPrompt,
+    presence,
+    parseErrors,
+    detail: presence.detail,
+  };
+}
+
+export interface VisionerGroundingProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface VisionerGroundingProbeMatrixValidationResult {
+  valid: boolean;
+  issues: VisionerGroundingProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateVisionerGroundingProbeMatrix(
+  results: VisionerGroundingProbeResult[],
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): VisionerGroundingProbeMatrixValidationResult {
+  const issues: VisionerGroundingProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(r => [r.id, r]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(p => p.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
   };
 }
 
@@ -431,10 +657,10 @@ const VISIONER_GROUNDING_CATEGORY_CONTRACTS: Record<
       {
         id: "vgrd.known_gaps_documented",
         category: "boundary",
-        description: "Baseline fixture documents at least one measurable FAIL grounding gap",
+        description: "Baseline fixture grounding probe expectations align with contract FAIL gap count",
         expected: "PASS",
         disposition: "observed",
-        criterion: "Baseline fixture documents at least one measurable FAIL grounding gap",
+        criterion: "Baseline fixture grounding probe expectations align with contract FAIL gap count",
       },
       {
         id: "vgrd.empty_context_boundary",
@@ -492,7 +718,7 @@ const VISIONER_GROUNDING_CATEGORY_CONTRACTS: Record<
     category: "recovery_path",
     acceptance: {
       invariant:
-        "Checkpoint resume preserves grounding wiring; structured grounding recovery is a documented gap.",
+        "Checkpoint resume preserves grounding wiring; recoverVisionerGrounding restructures failed context parse.",
       minProbeCount: 2,
       requireFullAlignment: true,
     },
@@ -509,8 +735,8 @@ const VISIONER_GROUNDING_CATEGORY_CONTRACTS: Record<
         id: "vgrd.structured_grounding_recovery",
         category: "recovery_path",
         description: "recoverVisionerGrounding restructures failed context parse into actionable repo/user grounding",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion: "recoverVisionerGrounding restructures failed context parse into actionable repo/user grounding",
       },
     ],
@@ -858,10 +1084,12 @@ export function validateVisionerGroundingBaseline(
   }
 
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length < 1) {
+  const contract = getActiveVisionerGroundingContract();
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  if (failGaps.length !== expectedFailCount) {
     issues.push({
       kind: "missing_category",
-      detail: "A01 fixture must document at least one known FAIL gap",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 
