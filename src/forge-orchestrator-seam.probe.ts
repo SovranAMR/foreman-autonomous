@@ -5,6 +5,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import orchestratorSeamBaseline from "./fixtures/forge-orchestrator-seam-v1.json" with { type: "json" };
@@ -31,11 +33,17 @@ import {
   listOrchestratorSeamContractProbesByCategory,
   listOrchestratorSeamProbesByExpected,
   listOrchestratorSeamKnownGaps,
+  buildOrchestratorSeamProbeEvidence,
+  buildOrchestratorSeamProbeTelemetry,
+  buildOrchestratorSeamProvenance,
+  buildOrchestratorSeamRunRecord,
   FORGE_ORCHESTRATOR_SEAM_VERSION,
   ORCHESTRATOR_SEAM_CATEGORIES,
   type OrchestratorSeamBaseline,
   type OrchestratorSeamCategory,
+  type OrchestratorSeamProbeDisposition,
   type OrchestratorSeamProbeResult,
+  type OrchestratorSeamRunRecord,
 } from "./forge-orchestrator-seam.js";
 
 export type { OrchestratorSeamBaseline, OrchestratorSeamProbeResult } from "./forge-orchestrator-seam.js";
@@ -64,6 +72,12 @@ export {
   ORCHESTRATOR_FORGE_GUARD_METHODS,
   ORCHESTRATOR_FORGE_BLOCK_GATE_METHODS,
   EXPECTED_ORCHESTRATOR_FORGE_GUARD_METHOD_COUNT,
+  buildOrchestratorSeamProbeEvidence,
+  buildOrchestratorSeamProbeTelemetry,
+  buildOrchestratorSeamProvenance,
+  buildOrchestratorSeamRunRecord,
+  validateOrchestratorSeamFailureRecoveryRunRecord,
+  validateOrchestratorSeamRunRecord,
 } from "./forge-orchestrator-seam.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -661,4 +675,108 @@ export function runOrchestratorSeamFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runOrchestratorSeamProbeWithTiming(
+  entry: OrchestratorSeamBaseline["probes"][number],
+  fixture: OrchestratorSeamBaseline,
+  contractProbe:
+    | { criterion: string; disposition: OrchestratorSeamProbeDisposition }
+    | undefined,
+): {
+  result: OrchestratorSeamProbeResult;
+  durationMs: number;
+  disposition: OrchestratorSeamProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildOrchestratorSeamRecordFromEntries(
+  entries: OrchestratorSeamBaseline["probes"],
+  fixture: OrchestratorSeamBaseline,
+  contract: ReturnType<typeof getActiveOrchestratorSeamContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly OrchestratorSeamCategory[];
+  },
+): OrchestratorSeamRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildOrchestratorSeamProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildOrchestratorSeamProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runOrchestratorSeamProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildOrchestratorSeamProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildOrchestratorSeamProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildOrchestratorSeamProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildOrchestratorSeamRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P01-B09-A06). */
+export function runOrchestratorSeamFailureRecoverySliceWithRecord(
+  fixture: OrchestratorSeamBaseline = loadOrchestratorSeamBaseline(),
+): OrchestratorSeamRunRecord {
+  const contract = getActiveOrchestratorSeamContract();
+  const failureRecoveryIds = new Set(listOrchestratorSeamFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildOrchestratorSeamRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P01-B09-A06",
+    sliceCategories: ORCHESTRATOR_SEAM_FAILURE_RECOVERY_CATEGORIES,
+  });
 }
