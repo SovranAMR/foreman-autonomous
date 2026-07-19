@@ -44,7 +44,7 @@ fallback: P03-B01 handoff misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B01-A10
-last_commit: PENDING
+last_commit: feb6006
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (34/34); forge-p03-strategist-intent-block-gate.test.ts (6/6); block gate seals 10/10; handoff→P03-B02
 evidence: runStrategistIntentBlockGate; getForgeP03B01BlockGate; getForgeP03B01ToB02Handoff
 next: P03-B02-A01
