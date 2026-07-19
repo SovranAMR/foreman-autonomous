@@ -44,7 +44,7 @@ fallback: Regression slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B04-A07
-last_commit: PENDING
+last_commit: ebce0de
 tests: PASS — forge-p05-worker-shell-process-property-fuzz.test.ts (7/7), forge-p05-worker-shell-process-evidence.test.ts (5/5), forge-p05-worker-shell-process-failure-recovery.test.ts (5/5), forge-p05-worker-shell-process-boundary.test.ts (6/6), forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
 evidence: validateWorkerShellProcessPropertyProbeMatrix + runWorkerShellProcessPropertyFuzzSlice + runWorkerShellProcessFuzzValidation + runWorkerShellProcessRunRecordFuzzValidation; 8/8 property checks aligned, 72/72 fuzz mutations rejected, 5/5 run record fuzz rejected
 next: P05-B04-A08
