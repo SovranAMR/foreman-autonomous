@@ -37,6 +37,15 @@ import {
   runStrategistAtomizationForgeRegression,
   detectStrategistAtomizationProbeRegression,
   applyStrategistAtomizationRunRecordFuzzMutation,
+  getForgeStrategistAtomizationGuardControls,
+  validateForgeStrategistAtomizationGuard,
+  runStrategistAtomizationAdversarialGuardChecks,
+  buildStrategistAtomizationAdversarialGuardScenarios,
+  detectStrategistAtomizationFalseAlignment,
+  detectStrategistAtomizationEvidenceSummaryMismatch,
+  validateStrategistAtomizationPerformance,
+  validateStrategistAtomizationCost,
+  validateStrategistAtomizationSafety,
   FORGE_STRATEGIST_ATOMIZATION_VERSION,
   loadStrategistAtomizationBaseline,
   STRATEGIST_ATOMIZE_MAX_LENGTH,
@@ -484,7 +493,7 @@ describe("Forge Strategist Atomization Evidence — P03-B03-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_ATOMIZATION_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a09");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -516,7 +525,7 @@ describe("Forge Strategist Atomization Evidence — P03-B03-A06", () => {
     assert.equal(record.evidence.length, 24);
     assert.equal(record.telemetry.length, 24);
     assert.equal(record.provenance.totalProbes, 24);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a09");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 24);
@@ -722,5 +731,176 @@ describe("Forge Strategist Atomization Regression — P03-B03-A08", () => {
 
     const report = detectStrategistAtomizationProbeRegression(prior, tamperedCurrent);
     assert.equal(report.hasRegression, true);
+  });
+});
+
+describe("Forge Strategist Atomization Guard — P03-B03-A09 adversarial", () => {
+  it("rejects tampered records via adversarial scenarios", () => {
+    const record = runStrategistAtomizationProbesWithRecord();
+    const contract = getActiveStrategistAtomizationContract();
+    const adversarial = runStrategistAtomizationAdversarialGuardChecks(record, contract);
+
+    assert.equal(adversarial.total, 3);
+    assert.equal(adversarial.rejected, 3, adversarial.failures.join("; "));
+    assert.deepEqual(adversarial.failures, []);
+  });
+
+  it("detects false alignment and summary/evidence mismatch", () => {
+    const falsePassEvidence = buildStrategistAtomizationProbeEvidence(
+      "satom.version_tagged",
+      "atom_versioning",
+      "PASS",
+      "FAIL",
+      true,
+      "test",
+      "false pass claim",
+      "observed",
+      "2026-07-19T06:00:00.000Z",
+    );
+    const fixture = loadStrategistAtomizationBaseline();
+    const contract = getActiveStrategistAtomizationContract();
+    const falsePassRecord = buildStrategistAtomizationRunRecord(
+      buildStrategistAtomizationProvenance(
+        "adv-false-pass",
+        fixture,
+        contract,
+        "2026-07-19T06:00:00.000Z",
+        "2026-07-19T06:00:01.000Z",
+        1,
+      ),
+      [falsePassEvidence],
+      [buildStrategistAtomizationProbeTelemetry("satom.version_tagged", "atom_versioning", 0, 1)],
+    );
+    assert.ok(detectStrategistAtomizationFalseAlignment(falsePassRecord).length > 0);
+
+    const summaryEvidence = buildStrategistAtomizationProbeEvidence(
+      "satom.version_tagged",
+      "atom_versioning",
+      "PASS",
+      "FAIL",
+      false,
+      "test",
+      "summary tamper",
+      "observed",
+      "2026-07-19T06:00:00.000Z",
+    );
+    const summaryRecord = buildStrategistAtomizationRunRecord(
+      buildStrategistAtomizationProvenance(
+        "adv-summary",
+        fixture,
+        contract,
+        "2026-07-19T06:00:00.000Z",
+        "2026-07-19T06:00:01.000Z",
+        1,
+      ),
+      [summaryEvidence],
+      [buildStrategistAtomizationProbeTelemetry("satom.version_tagged", "atom_versioning", 0, 1)],
+    );
+    const mismatchedSummary = {
+      ...summaryRecord,
+      summary: { ...summaryRecord.summary, mismatches: 0, aligned: 1 },
+    };
+    assert.ok(detectStrategistAtomizationEvidenceSummaryMismatch(mismatchedSummary));
+  });
+
+  it("buildStrategistAtomizationAdversarialGuardScenarios cover false PASS attack vectors", () => {
+    const scenarios = buildStrategistAtomizationAdversarialGuardScenarios();
+    assert.equal(scenarios.length, 3);
+    assert.ok(scenarios.some(s => s.id.includes("false_alignment")));
+    assert.ok(scenarios.some(s => s.id.includes("summary_mismatch")));
+    assert.ok(scenarios.some(s => s.id.includes("dropped_probe")));
+  });
+});
+
+describe("Forge Strategist Atomization Guard — P03-B03-A09 performance, cost, safety", () => {
+  it("passes performance and zero-cost guard on canonical atomization run", () => {
+    const record = runStrategistAtomizationProbesWithRecord();
+    const contract = getActiveStrategistAtomizationContract();
+    const guard = validateForgeStrategistAtomizationGuard(record, {
+      totalCostUsd: 0,
+      llmCalls: 0,
+      contract,
+    });
+
+    assert.equal(guard.passed, true, guard.issues.map(i => i.detail).join("; "));
+    assert.ok(guard.metrics.suiteDurationMs >= 0);
+    assert.ok(
+      guard.metrics.maxProbeDurationMs <
+        getForgeStrategistAtomizationGuardControls().performance.maxProbeDurationMs,
+    );
+    assert.equal(guard.metrics.totalCostUsd, 0);
+    assert.equal(guard.metrics.llmCalls, 0);
+    assert.equal(guard.metrics.adversarialScenariosRejected, 3);
+  });
+
+  it("flags cost and performance budget violations", () => {
+    const fixture = loadStrategistAtomizationBaseline();
+    const contract = getActiveStrategistAtomizationContract();
+    const probeIds = listStrategistAtomizationContractProbeIds(contract);
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistAtomizationProbeEvidence(
+        id,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "ok",
+        probe.disposition,
+      );
+    });
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistAtomizationProbeTelemetry(id, probe.category, index, 10_000);
+    });
+    const record = buildStrategistAtomizationRunRecord(
+      buildStrategistAtomizationProvenance(
+        "perf-test",
+        fixture,
+        contract,
+        "2026-07-19T06:00:00.000Z",
+        "2026-07-19T06:00:01.000Z",
+        probeIds.length,
+      ),
+      evidence,
+      telemetry,
+    );
+
+    const perfIssues = validateStrategistAtomizationPerformance(record);
+    assert.ok(perfIssues.some(i => i.domain === "performance"));
+
+    const costIssues = validateStrategistAtomizationCost(0.05, 2);
+    assert.ok(costIssues.some(i => i.domain === "cost"));
+  });
+
+  it("flags forbidden secret patterns in evidence detail", () => {
+    const fixture = loadStrategistAtomizationBaseline();
+    const contract = getActiveStrategistAtomizationContract();
+    const evidence = buildStrategistAtomizationProbeEvidence(
+      "satom.version_tagged",
+      "atom_versioning",
+      "PASS",
+      "PASS",
+      true,
+      "ok",
+      "leaked sk-abcdefghijklmnopqrstuvwxyz1234567890",
+      "observed",
+    );
+    const record = buildStrategistAtomizationRunRecord(
+      buildStrategistAtomizationProvenance(
+        "safety-test",
+        fixture,
+        contract,
+        "2026-07-19T06:00:00.000Z",
+        "2026-07-19T06:00:01.000Z",
+        1,
+      ),
+      [evidence],
+      [buildStrategistAtomizationProbeTelemetry("satom.version_tagged", "atom_versioning", 0, 1)],
+    );
+
+    const safetyIssues = validateStrategistAtomizationSafety(record);
+    assert.ok(safetyIssues.some(i => i.code === "forbidden_pattern"));
   });
 });
