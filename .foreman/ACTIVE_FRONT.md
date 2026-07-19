@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B02
-active_atom: P05-B02-A04
+active_atom: P05-B02-A05
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 412/1000
-phase_progress: 10/100
-block_progress: 3/10
+program_progress: 413/1000
+phase_progress: 11/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B02-A04 — Filesystem okuma ve grounding: boundary ve edge-case davranışlarını tamamla.
+P05-B02-A05 — Filesystem okuma ve grounding: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P05-B02-A03 production slice sealed; complete boundary and edge-case filesystem grounding behavior.
-target: Extend production grounding paths with boundary coverage and edge-case handling aligned to contract.
-hypothesis: Boundary slice closes remaining edge-case gaps without regressing A03 production wiring.
-acceptance: Boundary probes align with contract; zero unexpected PASS mismatches on sealed criteria.
+objective: P05-B02-A04 boundary slice sealed; implement failure, recovery and NO-GO paths aligned to contract.
+target: Extend production grounding paths with failure/recovery/NO-GO handling per contract categories.
+hypothesis: Failure/recovery slice closes remaining path gaps without regressing A04 boundary wiring.
+acceptance: Failure/recovery probes align with contract; zero unexpected PASS mismatches on sealed criteria.
 commands: npx tsx --test src/forge-p05-worker-filesystem-grounding*.test.ts
 blast_radius: src/forge-p05-worker-filesystem-grounding.ts, src/tools.ts, src/orchestrator.ts
-rollback: P05-B02-A04 boundary slice değişikliklerini geri al.
+rollback: P05-B02-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Boundary slice blocked ise BLOCKED raporla.
+fallback: Failure/recovery slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B02-A03
-last_commit: f2669ec
-tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (21/21)
-evidence: validateReadBeforeEdit + validateFilesystemGrounding + buildFilesystemGroundingTelemetry; TypedReadCall; orchestrator pre-read grounding; 27 probes, 0 FAIL gaps
-next: P05-B02-A04
+last_atom: P05-B02-A04
+last_commit: PENDING
+tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (28/28)
+evidence: assessFilesystemReadLineRangeBoundary + normalizeFilesystemGroundingPath; boundary trim/backslash/line-range; runWorkerFilesystemGroundingBoundarySlice; 7 boundary probes, 0 FAIL gaps
+next: P05-B02-A05

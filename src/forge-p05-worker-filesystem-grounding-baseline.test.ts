@@ -109,6 +109,6 @@ describe("Forge Worker Filesystem Grounding — P05-B02-A01", () => {
   });
 
   it("exports harness version for filesystem grounding baseline", () => {
-    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a03");
+    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a04");
   });
 });

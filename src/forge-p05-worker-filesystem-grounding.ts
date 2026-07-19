@@ -21,7 +21,7 @@ import { TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
-export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a03";
+export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P05_B01_SEALED_ATOM_COUNT = 10;
 
@@ -74,6 +74,13 @@ export interface FilesystemReadPathRecoveryResult {
   recovered: boolean;
   path: string;
   parseErrors: string[];
+  detail: string;
+}
+
+export interface FilesystemReadLineRangeBoundary {
+  valid: boolean;
+  startLine?: number;
+  endLine?: number;
   detail: string;
 }
 
@@ -797,7 +804,7 @@ export function assessFilesystemReadInputBoundary(
     };
   }
 
-  let normalizedPath = filePath;
+  let normalizedPath = trimmed;
   let truncated = false;
   if (normalizedPath.length > WORKER_FILESYSTEM_GROUNDING_PATH_MAX_LENGTH) {
     normalizedPath = normalizedPath.slice(0, WORKER_FILESYSTEM_GROUNDING_PATH_MAX_LENGTH);
@@ -813,6 +820,78 @@ export function assessFilesystemReadInputBoundary(
       ? `file path truncated to ${WORKER_FILESYSTEM_GROUNDING_PATH_MAX_LENGTH} characters`
       : "valid file path input",
   };
+}
+
+/**
+ * Assess read_file line-range boundary before worker grounding (P05-B02-A04).
+ */
+export function assessFilesystemReadLineRangeBoundary(
+  args: Record<string, unknown>,
+): FilesystemReadLineRangeBoundary {
+  const hasStart = "start_line" in args && args.start_line !== undefined;
+  const hasEnd = "end_line" in args && args.end_line !== undefined;
+
+  if (!hasStart && !hasEnd) {
+    return { valid: true, detail: "no line range specified" };
+  }
+
+  const startLine = args.start_line;
+  const endLine = args.end_line;
+
+  if (hasStart && (typeof startLine !== "number" || !Number.isFinite(startLine) || startLine < 1)) {
+    return {
+      valid: false,
+      detail: "start_line must be a positive finite number",
+    };
+  }
+
+  if (hasEnd && (typeof endLine !== "number" || !Number.isFinite(endLine) || endLine < 1)) {
+    return {
+      valid: false,
+      detail: "end_line must be a positive finite number",
+    };
+  }
+
+  const normalizedStart = hasStart ? (startLine as number) : undefined;
+  const normalizedEnd = hasEnd ? (endLine as number) : undefined;
+
+  if (
+    normalizedStart !== undefined &&
+    normalizedEnd !== undefined &&
+    normalizedStart > normalizedEnd
+  ) {
+    return {
+      valid: false,
+      startLine: normalizedStart,
+      endLine: normalizedEnd,
+      detail: "start_line must be less than or equal to end_line",
+    };
+  }
+
+  return {
+    valid: true,
+    startLine: normalizedStart,
+    endLine: normalizedEnd,
+    detail: "valid line range",
+  };
+}
+
+/**
+ * Normalize filesystem read path through boundary assessment and recovery (P05-B02-A04).
+ */
+export function normalizeFilesystemGroundingPath(
+  rawPath: string,
+): FilesystemReadPathRecoveryResult {
+  const boundary = assessFilesystemReadInputBoundary(rawPath);
+  if (!boundary.acceptable) {
+    return {
+      recovered: false,
+      path: rawPath,
+      parseErrors: [boundary.disposition],
+      detail: boundary.detail,
+    };
+  }
+  return recoverFilesystemReadPath(boundary.normalizedPath);
 }
 
 /**
@@ -882,11 +961,11 @@ export function validateReadBeforeEdit(
   }
 
   const pathArg = call.args.path;
-  if (typeof pathArg !== "string" || pathArg.trim().length === 0) {
+  if (typeof pathArg !== "string") {
     return { valid: false, errors: ["edit/write requires path argument"] };
   }
 
-  const recovery = recoverFilesystemReadPath(pathArg);
+  const recovery = normalizeFilesystemGroundingPath(pathArg);
   if (!recovery.recovered) {
     return { valid: false, errors: [recovery.detail], path: pathArg };
   }
@@ -914,11 +993,11 @@ export function validateFilesystemGrounding(
     if (typeof pathArg !== "string") {
       return { valid: false, errors: ["read_file requires path argument"] };
     }
-    const boundary = assessFilesystemReadInputBoundary(pathArg);
-    if (!boundary.acceptable) {
-      return { valid: false, errors: [boundary.detail] };
+    const lineRange = assessFilesystemReadLineRangeBoundary(call.args);
+    if (!lineRange.valid) {
+      return { valid: false, errors: [lineRange.detail] };
     }
-    const recovery = recoverFilesystemReadPath(boundary.normalizedPath);
+    const recovery = normalizeFilesystemGroundingPath(pathArg);
     if (!recovery.recovered) {
       return { valid: false, errors: [recovery.detail] };
     }
@@ -943,7 +1022,9 @@ export function buildFilesystemGroundingTelemetry(
   const validation = options.validation ?? validateFilesystemGrounding(call, priorReads);
   const path =
     validation.path ??
-    (typeof call.args.path === "string" ? recoverFilesystemReadPath(call.args.path).path : "");
+    (typeof call.args.path === "string"
+      ? normalizeFilesystemGroundingPath(call.args.path).path
+      : "");
 
   return {
     toolName: call.name,
@@ -1598,6 +1679,60 @@ export function validateWorkerFilesystemGroundingProbeMatrix(
     passAligned,
     gapAligned,
     unexpectedMismatches,
+  };
+}
+
+export interface WorkerFilesystemGroundingBoundarySliceResult {
+  atom: "P05-B02-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: WorkerFilesystemGroundingProbeResult[];
+  boundaryResults: WorkerFilesystemGroundingProbeResult[];
+  matrixValidation: WorkerFilesystemGroundingProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateWorkerFilesystemGroundingBoundaryProbeMatrix(
+  results: WorkerFilesystemGroundingProbeResult[],
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+): WorkerFilesystemGroundingProbeMatrixValidationResult {
+  const boundaryProbes = listWorkerFilesystemGroundingContractProbesByCategory("boundary", contract);
+  const boundaryContract: WorkerFilesystemGroundingContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateWorkerFilesystemGroundingProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (filesystem read path edge cases, probe runner,
+ * documented gaps, source block gate refs) with zero unexpected mismatches.
+ */
+export function runWorkerFilesystemGroundingBoundarySlice(
+  fixture: WorkerFilesystemGroundingBaseline = loadWorkerFilesystemGroundingBaseline(),
+): WorkerFilesystemGroundingBoundarySliceResult {
+  const contract = getActiveWorkerFilesystemGroundingContract();
+  const results = runWorkerFilesystemGroundingProbes(fixture);
+  const boundaryProbes = listWorkerFilesystemGroundingContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateWorkerFilesystemGroundingBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B02-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
   };
 }
 
