@@ -44,6 +44,10 @@ import {
   buildResearcherPhaseGateProvenance,
   buildResearcherPhaseGateRunRecord,
   validateResearcherPhaseGateEvidenceRunRecord,
+  validateResearcherPhaseGateRunRecord,
+  detectResearcherPhaseGateProbeRegression,
+  validateForgeResearcherPhaseGateGuard,
+  runResearcherPhaseGatePropertyFuzzSlice,
   loadResearcherPhaseGateBaseline,
   FORGE_RESEARCHER_PHASE_GATE_VERSION,
   RESEARCHER_PHASE_GATE_MANIFEST_MAX_LENGTH,
@@ -94,6 +98,7 @@ export {
   P04_RESEARCHER_PHASE_ATOM_COUNT,
   EXPECTED_P04_B09_SEALED_ATOM_COUNT,
   EXPECTED_P04_RESEARCHER_PRIOR_BLOCK_GATE_COUNT,
+  detectResearcherPhaseGateProbeRegression,
 } from "./forge-p04-researcher-phase-gate.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -773,3 +778,111 @@ export const runForgeResearcherPhaseGateProbesWithRecord = runResearcherPhaseGat
 export const runForgeResearcherPhaseGateFailureRecoverySliceWithRecord =
   runResearcherPhaseGateFailureRecoverySliceWithRecord;
 export const runForgeResearcherPhaseGateEvidenceSlice = runResearcherPhaseGateEvidenceSlice;
+
+export interface ForgeResearcherPhaseGateRegressionGateResult {
+  atom: "P04-B10-A08";
+  passed: boolean;
+  productionSlice: ResearcherPhaseGateProductionSliceResult;
+  propertyFuzzSlice: ReturnType<typeof runResearcherPhaseGatePropertyFuzzSlice>;
+  record: ResearcherPhaseGateRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: ReturnType<typeof detectResearcherPhaseGateProbeRegression> | null;
+  guard: ReturnType<typeof validateForgeResearcherPhaseGateGuard>;
+  detail: string;
+}
+
+/**
+ * Researcher phase gate regression gate on canonical probe matrix (P04-B10-A08).
+ * Validates production slice, property/fuzz slice, run record, guard, and optional prior regression.
+ */
+export function runForgeResearcherPhaseGateRegressionGate(
+  priorRecord?: ResearcherPhaseGateRunRecord,
+): ForgeResearcherPhaseGateRegressionGateResult {
+  const fixture = loadResearcherPhaseGateBaseline();
+  const contract = getActiveResearcherPhaseGateContract();
+  const productionSlice = runResearcherPhaseGateProductionSlice(fixture);
+  const propertyFuzzSlice = runResearcherPhaseGatePropertyFuzzSlice(fixture);
+  const record = runResearcherPhaseGateProbesWithRecord(fixture);
+  const validation = validateResearcherPhaseGateRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateResearcherPhaseGateRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectResearcherPhaseGateProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeResearcherPhaseGateGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk &&
+    recordValid &&
+    priorRecordValid &&
+    !alignmentRegression &&
+    propertyFuzzOk &&
+    guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(`priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    atom: "P04-B10-A08",
+    passed,
+    productionSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    guard,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P04-B10-A08). */
+export const runResearcherPhaseGateRegressionIntegration = runForgeResearcherPhaseGateRegressionGate;

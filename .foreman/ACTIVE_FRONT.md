@@ -6,9 +6,9 @@ active_phase: P04
 active_block: P04-B10
 active_atom: P04-B10-A08
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 397/1000
+program_progress: 398/1000
 phase_progress: 94/100
-block_progress: 7/10
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B10-A08 — Araştırmacı phase gate: Forge entegrasyonu ile regression testini tamamla.
+P04-B10-A09 — Araştırmacı phase gate: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P04-B10-A07 PASS; property/fuzz validators reject malformed records; aligned records pass.
-target: Complete Forge integration regression for researcher phase gate property/fuzz slice.
-hypothesis: Property/fuzz slice from A07 enables targeted A08 Forge regression wiring.
-acceptance: Forge integration regression passes with zero probe regressions.
+objective: P04-B10-A08 PASS; Forge regression gate passes with zero probe regressions; guard foundation wired.
+target: Validate adversarial/performance/cost/safety guard controls on researcher phase gate regression gate.
+hypothesis: A08 guard foundation enables targeted A09 guard hardening without regression drift.
+acceptance: Guard gate passes adversarial scenarios, perf/cost/safety bounds on canonical matrix.
 commands: npx tsx --test src/forge-p04-researcher-phase-gate*.test.ts
 blast_radius: src/forge-p04-researcher-phase-gate*.ts
-rollback: P04-B10-A08 Forge regression değişikliklerini geri al.
+rollback: P04-B10-A09 guard değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Forge regression blocked ise BLOCKED raporla.
+fallback: Guard blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B10-A07
-last_commit: bd64a1e
-tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (16/16); forge-p04-researcher-phase-gate.property-fuzz.test.ts (6/6)
-evidence: runResearcherPhaseGatePropertyValidation + runResearcherPhaseGateFuzzValidation + runResearcherPhaseGateRunRecordFuzzValidation + runResearcherPhaseGatePropertyFuzzSlice
-next: P04-B10-A08
+last_atom: P04-B10-A08
+last_commit: pending
+tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (16/16); forge-p04-researcher-phase-gate.property-fuzz.test.ts (6/6); forge-p04-researcher-phase-gate.regression.test.ts (7/7)
+evidence: runForgeResearcherPhaseGateRegressionGate + detectResearcherPhaseGateProbeRegression + validateForgeResearcherPhaseGateGuard + runResearcherPhaseGateRegressionIntegration
+next: P04-B10-A09

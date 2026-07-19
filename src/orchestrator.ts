@@ -2038,6 +2038,27 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher phase gate regression gate and emit verification event (P04-B10-A08).
+   */
+  async verifyForgeResearcherPhaseGateRegression(
+    priorRecord?: import("./forge-p04-researcher-phase-gate.js").ResearcherPhaseGateRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-phase-gate.probe.js").ForgeResearcherPhaseGateRegressionGateResult
+  > {
+    const { runForgeResearcherPhaseGateRegressionGate } = await import(
+      "./forge-p04-researcher-phase-gate.probe.js"
+    );
+    const result = runForgeResearcherPhaseGateRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "researcher_phase_gate_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge researcher spike falsification block gate and emit verification event (P04-B08-A10).
    */
   async verifyForgeResearcherSpikeFalsificationBlockGate(): Promise<
