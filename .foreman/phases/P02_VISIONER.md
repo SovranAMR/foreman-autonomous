@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B10-A06
-last_commit: pending
+last_commit: 4c23a35
 tests: PASS — forge-p02-visioner-phase-gate.test.ts (26/26); baseline regression (3/3)
 evidence: validateVisionerPhaseGateFailureRecoveryRunRecord; runVisionerPhaseGateFailureRecoverySliceWithRecord; runVisionerPhaseGateProbesWithRecord; 7/7 failure/recovery evidence aligned; handoff=P02-B10-A06→A07
 next: P02-B10-A07
