@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B02-A02
-last_commit: pending
+last_commit: 1e87e68
 tests: PASS — forge-p04-researcher*.test.ts (72/72); contract 23 probes; expectedFail=1; harnessVersion=1.0.0-a02
 evidence: getResearcherInRepoEvidenceCategoryContract; summarizeResearcherInRepoEvidenceContractCoverage; validateResearcherInRepoEvidenceContractCoverage; validateResearcherInRepoEvidenceAgainstContract; FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1; gap=riev.structured_repo_evidence_recovery
 next: P04-B02-A03
