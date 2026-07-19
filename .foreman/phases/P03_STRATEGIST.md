@@ -126,7 +126,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B09-A05 — Plan provenance ve drift: failure, recovery ve NO-GO yollarını uygula
 - [x] P03-B09-A06 — Plan provenance ve drift: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B09-A07 — Plan provenance ve drift: unit, property ve fuzz doğrulamasını ekle
-- [ ] P03-B09-A08 — Plan provenance ve drift: Forge entegrasyonu ile regression testini tamamla
+- [x] P03-B09-A08 — Plan provenance ve drift: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B09-A09 — Plan provenance ve drift: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B09-A10 — Plan provenance ve drift: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B09-A07
-last_commit: 094df89
-tests: PASS — forge-p03-strategist-provenance.test.ts (31/31); forge-p03-strategist-provenance-baseline.test.ts (3/3); runStrategistProvenancePropertyFuzzSlice (8 structural properties, 72 fuzz mutations rejected, 0 accepted)
-evidence: runStrategistProvenancePropertyFuzzSlice; runStrategistProvenancePropertyChecks; runStrategistProvenanceFuzzValidation; runStrategistProvenanceRunRecordFuzzValidation
-next: P03-B09-A08
+last_atom: P03-B09-A08
+last_commit: 801c14b
+tests: PASS — forge-p03-strategist-provenance.test.ts (39/39); forge-p03-strategist-provenance-baseline.test.ts (3/3); runStrategistProvenanceForgeRegression; runForgeStrategistProvenanceRegressionGate; detectStrategistProvenanceProbeRegression (28/28 probes aligned, prior/current drift rejected)
+evidence: runStrategistProvenanceForgeRegression; runStrategistProvenanceProbeRegression; validateStrategistProvenanceProbeRegression; runForgeStrategistProvenanceRegressionGate
+next: P03-B09-A09

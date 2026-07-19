@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B09
-active_atom: P03-B09-A08
+active_atom: P03-B09-A09
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 286/1000
-phase_progress: 86/100
-block_progress: 7/10
+program_progress: 287/1000
+phase_progress: 87/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B09-A08 — Plan provenance ve drift: Forge entegrasyonu ile regression testini tamamla.
+P03-B09-A09 — Plan provenance ve drift: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P03-B09-A07 PASS; P03-B09-A08 implement Forge regression integration vertical slice.
-target: forge regression harness wired to provenance run records and probe matrix.
-hypothesis: P03-B09-A08 closes Forge regression category with zero probe regressions.
-acceptance: Forge regression slice runs; prior/current record comparison rejects drift.
+objective: P03-B09-A08 PASS; P03-B09-A09 implement guard controls for provenance probe matrix.
+target: adversarial tamper rejection, performance/cost/safety guard metrics on provenance run records.
+hypothesis: P03-B09-A09 closes guard category with zero adversarial bypasses.
+acceptance: Guard checks reject tampered records; performance/cost/safety within controls.
 commands: npx tsx --test src/forge-p03-strategist-provenance*.test.ts
 blast_radius: src/forge-p03-strategist-provenance.ts
-rollback: P03-B09-A08 Forge regression slice değişikliklerini geri al.
+rollback: P03-B09-A09 guard control değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B09-A07
-last_commit: 094df89
-tests: PASS — forge-p03-strategist-provenance.test.ts (31/31); forge-p03-strategist-provenance-baseline.test.ts (3/3)
-evidence: runStrategistProvenancePropertyFuzzSlice; runStrategistProvenancePropertyChecks; runStrategistProvenanceFuzzValidation; runStrategistProvenanceRunRecordFuzzValidation (8 structural properties, 72 fuzz mutations rejected)
-next: P03-B09-A08
+last_atom: P03-B09-A08
+last_commit: 801c14b
+tests: PASS — forge-p03-strategist-provenance.test.ts (39/39); forge-p03-strategist-provenance-baseline.test.ts (3/3)
+evidence: runStrategistProvenanceForgeRegression; runForgeStrategistProvenanceRegressionGate; detectStrategistProvenanceProbeRegression (28/28 probes aligned, prior/current drift rejected)
+next: P03-B09-A09

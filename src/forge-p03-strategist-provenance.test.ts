@@ -36,6 +36,12 @@ import {
   runStrategistProvenanceFuzzValidation,
   runStrategistProvenanceRunRecordFuzzValidation,
   runStrategistProvenancePropertyFuzzSlice,
+  detectStrategistProvenanceProbeRegression,
+  runStrategistProvenanceProbeRegression,
+  validateStrategistProvenanceProbeRegression,
+  runStrategistProvenanceForgeRegression,
+  runForgeStrategistProvenanceRegressionGate,
+  applyStrategistProvenanceRunRecordFuzzMutation,
   STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_PROVENANCE_CATEGORIES,
   STRATEGIST_PROVENANCE_DECOMPOSE_MAX_LENGTH,
@@ -718,6 +724,134 @@ describe("Forge Strategist Plan Provenance Property/Fuzz — P03-B09-A07", () =>
     assert.equal(slice.contractFuzz.allMutationsRejected, true);
     assert.equal(slice.contractFuzz.accepted, 0);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
+  });
+});
+
+describe("Forge Strategist Provenance Regression — P03-B09-A08", () => {
+  it("runStrategistProvenanceForgeRegression passes on canonical provenance matrix", () => {
+    const result = runStrategistProvenanceForgeRegression();
+
+    assert.equal(result.atom, "P03-B09-A08");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 28);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.ok(result.detail.includes("28/28 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectStrategistProvenanceProbeRegression flags newly misaligned probes", () => {
+    const prior = runStrategistProvenanceProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistProvenanceProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runStrategistProvenanceProbeRegression alias matches detect helper", () => {
+    const prior = runStrategistProvenanceProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const detectReport = detectStrategistProvenanceProbeRegression(prior, current);
+    const runReport = runStrategistProvenanceProbeRegression(prior, current);
+    assert.deepEqual(runReport, detectReport);
+  });
+
+  it("validateStrategistProvenanceProbeRegression rejects probe drift", () => {
+    const prior = runStrategistProvenanceProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const validation = validateStrategistProvenanceProbeRegression(prior, current);
+    assert.equal(validation.valid, false);
+    assert.equal(validation.report.hasRegression, true);
+  });
+
+  it("runStrategistProvenanceForgeRegression compares against prior record without false regression", () => {
+    const prior = runStrategistProvenanceProbesWithRecord();
+    const result = runStrategistProvenanceForgeRegression(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runStrategistProvenanceForgeRegression rejects tampered prior records", () => {
+    const prior = runStrategistProvenanceProbesWithRecord();
+    const tamperedPrior = applyStrategistProvenanceRunRecordFuzzMutation(prior, {
+      kind: "drop_evidence",
+      probeId: prior.evidence[0]?.probeId,
+    });
+
+    assert.equal(validateStrategistProvenanceRunRecord(tamperedPrior).valid, false);
+
+    const result = runStrategistProvenanceForgeRegression(tamperedPrior);
+    assert.equal(result.priorRecordValid, false);
+    assert.equal(result.passed, false);
+    assert.ok(result.detail.includes("priorValidation:"));
+  });
+
+  it("runStrategistProvenanceForgeRegression fails when probe alignment regresses", () => {
+    const prior = runStrategistProvenanceProbesWithRecord();
+    const tamperedCurrent = structuredClone(prior);
+    const target = tamperedCurrent.evidence[0]!;
+    target.aligned = false;
+    target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+    tamperedCurrent.summary = {
+      ...tamperedCurrent.summary,
+      aligned: tamperedCurrent.summary.aligned - 1,
+      mismatches: tamperedCurrent.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistProvenanceProbeRegression(prior, tamperedCurrent);
+    assert.equal(report.hasRegression, true);
+  });
+
+  it("runForgeStrategistProvenanceRegressionGate passes on canonical provenance run", () => {
+    const gate = runForgeStrategistProvenanceRegressionGate();
+
+    assert.equal(gate.passed, true, gate.detail);
+    assert.equal(gate.atom, "P03-B09-A08");
+    assert.equal(gate.record.summary.mismatches, 0);
+    assert.equal(gate.record.evidence.length, 28);
   });
 });
 
