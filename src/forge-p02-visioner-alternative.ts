@@ -11,7 +11,7 @@ import {
   summarizeVisionerUncertaintyContractCoverage,
 } from "./forge-p02-visioner-uncertainty.js";
 
-export const FORGE_VISIONER_ALTERNATIVE_VERSION = "1.0.0-a03";
+export const FORGE_VISIONER_ALTERNATIVE_VERSION = "1.0.0-a04";
 
 /** Maximum normalized vision length before truncation (P02-B07-A01 boundary). */
 export const VISIONER_ALTERNATIVE_VISION_MAX_LENGTH = 32000;
@@ -1036,6 +1036,28 @@ export function validateVisionerAlternativeProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateVisionerAlternativeBoundaryProbeMatrix(
+  results: VisionerAlternativeProbeResult[],
+  contract: VisionerAlternativeContract = getActiveVisionerAlternativeContract(),
+): VisionerAlternativeProbeMatrixValidationResult {
+  const boundaryProbes = listVisionerAlternativeContractProbesByCategory("boundary", contract);
+  const boundaryContract: VisionerAlternativeContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateVisionerAlternativeProbeMatrix(boundaryResults, boundaryContract);
 }
 
 export function validateVisionerAlternativeAgainstContract(

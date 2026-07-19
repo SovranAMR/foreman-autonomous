@@ -4,6 +4,7 @@ import {
   loadVisionerAlternativeBaseline,
   runVisionerAlternativeProbes,
   runVisionerAlternativeProductionSlice,
+  runVisionerAlternativeBoundarySlice,
 } from "./forge-p02-visioner-alternative.probe.js";
 import {
   getActiveVisionerAlternativeContract,
@@ -15,8 +16,12 @@ import {
   validateVisionerAlternativeContractCoverage,
   validateVisionerAlternativeAgainstContract,
   validateVisionerAlternativeProbeMatrix,
+  validateVisionerAlternativeBoundaryProbeMatrix,
   recoverVisionerAlternatives,
+  assessVisionerAlternativeInputBoundary,
+  assessVisionerAlternativePresence,
   VISIONER_ALTERNATIVE_CATEGORIES,
+  VISIONER_ALTERNATIVE_VISION_MAX_LENGTH,
   FORGE_VISIONER_ALTERNATIVE_VERSION,
 } from "./forge-p02-visioner-alternative.js";
 
@@ -145,8 +150,8 @@ describe("Forge Visioner Alternative Contract — P02-B07-A02", () => {
     assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
   });
 
-  it("exports A03 harness version for alternative contract gate", () => {
-    assert.equal(FORGE_VISIONER_ALTERNATIVE_VERSION, "1.0.0-a03");
+  it("exports A04 harness version for alternative contract gate", () => {
+    assert.equal(FORGE_VISIONER_ALTERNATIVE_VERSION, "1.0.0-a04");
   });
 });
 
@@ -193,5 +198,99 @@ CONFIDENCE: 0.78`;
       assert.ok(result, `missing probe result: ${contractProbe.id}`);
       assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
     }
+  });
+});
+
+describe("Forge Visioner Alternative Boundary Slice — P02-B07-A04", () => {
+  it("assessVisionerAlternativeInputBoundary handles empty, whitespace-only and oversized vision output", () => {
+    const empty = assessVisionerAlternativeInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerAlternativeInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerAlternativeInputBoundary("vision\x00output");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longVision = "x".repeat(VISIONER_ALTERNATIVE_VISION_MAX_LENGTH + 200);
+    const truncated = assessVisionerAlternativeInputBoundary(longVision);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedVision.length, VISIONER_ALTERNATIVE_VISION_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("assessVisionerAlternativePresence returns no alternatives for unacceptable boundary inputs", () => {
+    const presence = assessVisionerAlternativePresence("   ");
+    assert.equal(presence.hasAlternatives, false);
+    assert.equal(presence.alternativeCount, 0);
+    assert.deepEqual(presence.alternatives, []);
+  });
+
+  it("recoverVisionerAlternatives rejects empty and whitespace-only vision output safely", () => {
+    const emptyRecovery = recoverVisionerAlternatives("");
+    assert.equal(emptyRecovery.recovered, false);
+    assert.deepEqual(emptyRecovery.parseErrors, ["empty_vision"]);
+
+    const whitespaceRecovery = recoverVisionerAlternatives("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_vision"]);
+  });
+
+  it("defines boundary category with vision input edge-case probes", () => {
+    const boundary = listVisionerAlternativeContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "valt.empty_vision_alternative_presence",
+      "valt.known_gaps_documented",
+      "valt.long_vision_truncation_boundary",
+      "valt.probe_runner_exported",
+      "valt.source_block_gate_ref",
+      "valt.whitespace_vision_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerAlternativeContract();
+    const slice = runVisionerAlternativeBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B07-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerAlternativeContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerAlternativeBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves full probe alignment while boundary slice passes", () => {
+    const slice = runVisionerAlternativeBoundarySlice();
+    const recoveryProbe = slice.results.find(r => r.id === "valt.structured_alternative_recovery");
+
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(slice.results.filter(r => !r.aligned).length, 0);
   });
 });

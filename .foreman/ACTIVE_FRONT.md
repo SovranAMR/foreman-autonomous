@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B07
-active_atom: P02-B07-A04
+active_atom: P02-B07-A05
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 162/1000
-phase_progress: 61/100
-block_progress: 3/10
+program_progress: 163/1000
+phase_progress: 62/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -31,20 +31,20 @@ Zaten tamamlanmışsa tekrar yapma.
 
 P02-B07-A04 — Alternative vision production slice: boundary and edge-case behavior.
 
-objective: P02-B07-A03 production slice PASS; boundary completion next.
-target: Complete boundary category edge cases for visioner alternative input and presence detection.
-hypothesis: boundary probes align with contract after A03 recovery wiring.
-acceptance: forge-p02-visioner-alternative boundary slice PASS (A04 tests when added).
+objective: P02-B07-A04 boundary slice PASS; failure/recovery next.
+target: Complete failure, recovery and NO-GO paths for alternative vision generation.
+hypothesis: failure/recovery probes align with contract after A04 boundary slice.
+acceptance: forge-p02-visioner-alternative failure/recovery slice PASS (A05 tests when added).
 commands: npx tsx --test src/forge-p02-visioner-alternative.test.ts
 blast_radius: src/forge-p02-visioner-alternative*
-rollback: P02-B07-A04 boundary değişikliklerini geri al.
+rollback: P02-B07-A05 failure/recovery değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: boundary requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
+fallback: failure/recovery requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B07-A03
+last_atom: P02-B07-A04
 last_commit: pending
-tests: PASS — forge-p02-visioner-alternative.test.ts (12/12); forge-p02-visioner-alternative-baseline.test.ts (3/3)
-evidence: recoverVisionerAlternatives production slice; valt.structured_alternative_recovery gap closed; 23/23 probes aligned
-next: P02-B07-A04
+tests: PASS — forge-p02-visioner-alternative.test.ts (18/18); forge-p02-visioner-alternative-baseline.test.ts (3/3)
+evidence: validateVisionerAlternativeBoundaryProbeMatrix + runVisionerAlternativeBoundarySlice; 6/6 boundary probes aligned; 23/23 full matrix preserved
+next: P02-B07-A05
