@@ -5,6 +5,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import visionerConstraintBaseline from "./fixtures/forge-visioner-constraint-v1.json" with { type: "json" };
@@ -34,18 +36,26 @@ import {
   VISIONER_CONSTRAINT_CATEGORIES,
   VISIONER_CONSTRAINT_VISION_MAX_LENGTH,
   EXPECTED_P02_B01_SEALED_ATOM_COUNT,
+  buildVisionerConstraintProbeEvidence,
+  buildVisionerConstraintProbeTelemetry,
+  buildVisionerConstraintProvenance,
+  buildVisionerConstraintRunRecord,
   type VisionerConstraintBaseline,
   type VisionerConstraintCategory,
   type VisionerConstraintProbeResult,
+  type VisionerConstraintProbeDisposition,
+  type VisionerConstraintRunRecord,
 } from "./forge-p02-visioner-constraint.js";
 
-export type { VisionerConstraintBaseline, VisionerConstraintProbeResult } from "./forge-p02-visioner-constraint.js";
+export type { VisionerConstraintBaseline, VisionerConstraintProbeResult, VisionerConstraintRunRecord } from "./forge-p02-visioner-constraint.js";
 export {
   validateVisionerConstraintBaseline,
   validateVisionerConstraintAgainstContract,
   validateVisionerConstraintProbeMatrix,
   validateVisionerConstraintBoundaryProbeMatrix,
   validateVisionerConstraintFailureRecoveryProbeMatrix,
+  validateVisionerConstraintRunRecord,
+  validateVisionerConstraintFailureRecoveryRunRecord,
   listVisionerConstraintFailureRecoveryProbeIds,
   VISIONER_CONSTRAINT_FAILURE_RECOVERY_CATEGORIES,
   summarizeVisionerConstraintMatrix,
@@ -56,6 +66,10 @@ export {
   assessVisionerConstraintInputBoundary,
   extractVisionerConstraints,
   buildVisionConstraintSummary,
+  buildVisionerConstraintProbeEvidence,
+  buildVisionerConstraintProbeTelemetry,
+  buildVisionerConstraintProvenance,
+  buildVisionerConstraintRunRecord,
   FORGE_VISIONER_CONSTRAINT_VERSION,
   VISIONER_CONSTRAINT_CATEGORIES,
   VISIONER_CONSTRAINT_VISION_MAX_LENGTH,
@@ -539,4 +553,116 @@ export function runVisionerConstraintFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerConstraintProbeWithTiming(
+  entry: VisionerConstraintBaseline["probes"][number],
+  fixture: VisionerConstraintBaseline,
+  contractProbe:
+    | ReturnType<typeof getActiveVisionerConstraintContract>["probes"][number]
+    | undefined,
+): {
+  result: VisionerConstraintProbeResult;
+  durationMs: number;
+  disposition: VisionerConstraintProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerConstraintRecordFromEntries(
+  entries: VisionerConstraintBaseline["probes"],
+  fixture: VisionerConstraintBaseline,
+  contract: ReturnType<typeof getActiveVisionerConstraintContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerConstraintCategory[];
+  },
+): VisionerConstraintRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerConstraintProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerConstraintProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerConstraintProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerConstraintProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerConstraintProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerConstraintProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerConstraintRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner constraint probes and emit auditable evidence, telemetry and provenance (P02-B02-A06). */
+export function runVisionerConstraintProbesWithRecord(
+  fixture: VisionerConstraintBaseline = loadVisionerConstraintBaseline(),
+): VisionerConstraintRunRecord {
+  const contract = getActiveVisionerConstraintContract();
+  return buildVisionerConstraintRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B02-A06). */
+export function runVisionerConstraintFailureRecoverySliceWithRecord(
+  fixture: VisionerConstraintBaseline = loadVisionerConstraintBaseline(),
+): VisionerConstraintRunRecord {
+  const contract = getActiveVisionerConstraintContract();
+  const failureRecoveryIds = new Set(listVisionerConstraintFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerConstraintRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B02-A06",
+    sliceCategories: VISIONER_CONSTRAINT_FAILURE_RECOVERY_CATEGORIES,
+  });
 }
