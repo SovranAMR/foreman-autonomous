@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B03-A09
-last_commit: pending
+last_commit: 920daaa
 tests: PASS — forge-p04-researcher-web-primary-source.guard.test.ts (8/8); adversarial=3/3; perf/cost/safety guard; orchestrator verifyForgeResearcherWebPrimarySourceGuard
 evidence: validateForgeResearcherWebPrimarySourceGuard; runResearcherWebPrimarySourceAdversarialGuardChecks; forge-p04-researcher-web-primary-source.guard.test.ts
 next: P04-B03-A10
