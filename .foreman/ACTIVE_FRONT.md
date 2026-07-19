@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B10-A05
-last_commit: pending
+last_commit: e0d22cb
 tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (25/25)
 evidence: runStrategistPhaseGateFailureRecoverySlice; validateStrategistPhaseGateFailureRecoveryProbeMatrix; failure/recovery/NO-GO 7/7 PASS
 next: P03-B10-A06
