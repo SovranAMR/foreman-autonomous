@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-PHASE-GATE
-last_commit: pending
+last_commit: 99bc622
 tests: PASS — forge-p03-phase-gate.test.ts (6/6); runForgeP03PhaseGate blocks=10/10 atoms=100/100; forge suite 1519/1522
 evidence: runForgeP03PhaseGate seals 10 block gates + regression; verifyForgeP03PhaseGate orchestrator; FORGE_P03_TO_P04_PHASE_HANDOFF_V1 entry=P04-B01-A01; parser blockDeps DEPENDENCIES fix
 next: P04-B01-A01

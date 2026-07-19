@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-PHASE-GATE
-last_commit: pending
+last_commit: 99bc622
 tests: PASS — forge-p03-phase-gate.test.ts (6/6); runForgeP03PhaseGate blocks=10/10 atoms=100/100; verifyForgeP03PhaseGate orchestrator wiring
 evidence: runForgeP03PhaseGate seals all ten P03 block gates; validateForgeP03StrategistPhaseGateEvidence P04-B01 entry; parser blockDeps fix; handoff=PASS→P04-B01
 next: P04-B01-A01
