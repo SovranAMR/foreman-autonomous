@@ -69,7 +69,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P03-B05-A01 — Risk ve reversibility planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P03-B05-A02 — Risk ve reversibility planı: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P03-B05-A03 — Risk ve reversibility planı: en küçük üretim dikey dilimini uygula
+- [x] P03-B05-A03 — Risk ve reversibility planı: en küçük üretim dikey dilimini uygula
 - [ ] P03-B05-A04 — Risk ve reversibility planı: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B05-A05 — Risk ve reversibility planı: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B05-A06 — Risk ve reversibility planı: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B05-A02
+last_atom: P03-B05-A03
 last_commit: pending
-tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (8/8); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); 27 probes / 6 documented FAIL gaps
-evidence: getActiveStrategistRiskReversibilityContract; validateStrategistRiskReversibilityAgainstContract; validateStrategistRiskReversibilityCoverage
-next: P03-B05-A03
+tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (13/13); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); production slice 21 pass / 6 documented FAIL gaps
+evidence: recoverStrategistRiskReversibility; runStrategistRiskReversibilityProductionSlice; validateStrategistRiskReversibilityProbeMatrix
+next: P03-B05-A04

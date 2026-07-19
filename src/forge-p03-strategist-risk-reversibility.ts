@@ -16,9 +16,13 @@ import {
   summarizeStrategistDependencyDagCoverage,
   FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION,
 } from "./forge-p03-strategist-dependency-dag.js";
+import {
+  recoverStrategistDecompose,
+  type StrategistDecomposeRecoveryHints,
+} from "./forge-p03-strategist-intent.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION = "1.0.0-a01";
+export const FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P03_B04_SEALED_ATOM_COUNT = 10;
 
@@ -80,6 +84,134 @@ export function assessStrategistRiskReversibilityInputBoundary(
     detail: truncated
       ? `decompose truncated to ${STRATEGIST_RISK_REVERSIBILITY_DECOMPOSE_MAX_LENGTH} characters`
       : "valid decompose output",
+  };
+}
+
+export interface StrategistRiskReversibilityRecoveryHints extends StrategistDecomposeRecoveryHints {
+  risks?: string;
+  rollbackPlan?: string;
+}
+
+export interface StrategistRiskReversibilityRecoveryResult {
+  recovered: boolean;
+  riskReversibilityCompliant: boolean;
+  composedDecompose: string;
+  blocks: string[];
+  blockCount: number;
+  hasRisks: boolean;
+  hasRollbackPlan: boolean;
+  parseErrors: string[];
+  detail: string;
+}
+
+const DEFAULT_STRATEGIST_RISK_PLAN =
+  "Medium: incomplete strategist risk metadata — mitigated by recovery defaults";
+const DEFAULT_STRATEGIST_ROLLBACK_PLAN =
+  "Revert last atom via RollbackEngine.rollbackLastAtom() on verification failure";
+
+function riskPlanSectionPresence(text: string): { hasRisks: boolean; hasRollbackPlan: boolean } {
+  return {
+    hasRisks: /RISKS:/i.test(text),
+    hasRollbackPlan: /ROLLBACK PLAN:/i.test(text),
+  };
+}
+
+function injectStrategistRiskPlanSections(
+  decompose: string,
+  risks: string,
+  rollbackPlan: string,
+): string {
+  const confidenceMatch = decompose.match(/\nCONFIDENCE:\s*[\d.]+/);
+  if (confidenceMatch && confidenceMatch.index !== undefined) {
+    const before = decompose.slice(0, confidenceMatch.index);
+    const after = decompose.slice(confidenceMatch.index);
+    return `${before}\nRISKS: ${risks}\nROLLBACK PLAN: ${rollbackPlan}${after}`;
+  }
+  return `${decompose}\nRISKS: ${risks}\nROLLBACK PLAN: ${rollbackPlan}`;
+}
+
+/**
+ * Restructure failed decompose parse into risk-reversibility compliant plan (P03-B05-A03).
+ */
+export function recoverStrategistRiskReversibility(
+  failedParse: string,
+  hints: StrategistRiskReversibilityRecoveryHints = {},
+): StrategistRiskReversibilityRecoveryResult {
+  const boundary = assessStrategistRiskReversibilityInputBoundary(failedParse);
+  if (!boundary.acceptable) {
+    const parseErrors =
+      boundary.disposition === "contains_null_byte"
+        ? ["null_byte_in_decompose"]
+        : boundary.disposition === "empty"
+          ? ["empty_decompose"]
+          : ["whitespace_only_decompose"];
+    return {
+      recovered: false,
+      riskReversibilityCompliant: false,
+      composedDecompose: "",
+      blocks: [],
+      blockCount: 0,
+      hasRisks: false,
+      hasRollbackPlan: false,
+      parseErrors,
+      detail: boundary.detail,
+    };
+  }
+
+  const decomposeRecovery = recoverStrategistDecompose(boundary.normalizedDecompose, hints);
+  if (!decomposeRecovery.recovered) {
+    return {
+      recovered: false,
+      riskReversibilityCompliant: false,
+      composedDecompose: decomposeRecovery.composedDecompose,
+      blocks: decomposeRecovery.blocks,
+      blockCount: decomposeRecovery.blockCount,
+      hasRisks: false,
+      hasRollbackPlan: false,
+      parseErrors: decomposeRecovery.parseErrors,
+      detail: decomposeRecovery.detail,
+    };
+  }
+
+  let composed = decomposeRecovery.composedDecompose;
+  let { hasRisks, hasRollbackPlan } = riskPlanSectionPresence(composed);
+  const parseErrors = [...decomposeRecovery.parseErrors];
+
+  if (!hasRisks || !hasRollbackPlan) {
+    composed = injectStrategistRiskPlanSections(
+      composed,
+      hints.risks ?? DEFAULT_STRATEGIST_RISK_PLAN,
+      hints.rollbackPlan ?? DEFAULT_STRATEGIST_ROLLBACK_PLAN,
+    );
+    ({ hasRisks, hasRollbackPlan } = riskPlanSectionPresence(composed));
+    if (!riskPlanSectionPresence(decomposeRecovery.composedDecompose).hasRisks) {
+      parseErrors.push("risks_injected");
+    }
+    if (!riskPlanSectionPresence(decomposeRecovery.composedDecompose).hasRollbackPlan) {
+      parseErrors.push("rollback_plan_injected");
+    }
+  }
+
+  const reparsed = parseDecomposeResponse(composed);
+  const riskReversibilityCompliant =
+    hasRisks &&
+    hasRollbackPlan &&
+    boundary.acceptable &&
+    reparsed.ok === true &&
+    reparsed.data.blocks.length >= 1;
+
+  return {
+    recovered: decomposeRecovery.recovered,
+    riskReversibilityCompliant,
+    composedDecompose: riskReversibilityCompliant ? composed : "",
+    blocks: reparsed.ok ? reparsed.data.blocks : decomposeRecovery.blocks,
+    blockCount: reparsed.ok ? reparsed.data.blocks.length : decomposeRecovery.blockCount,
+    hasRisks,
+    hasRollbackPlan,
+    parseErrors,
+    detail: riskReversibilityCompliant
+      ? `risk-reversibility compliant decompose with ${reparsed.ok ? reparsed.data.blocks.length : 0} blocks`
+      : `recovery incomplete: ${parseErrors.join(", ") || decomposeRecovery.detail}`,
   };
 }
 
@@ -1401,6 +1533,129 @@ function runSingleProbe(
     default:
       return probe(id, category, expected, false, "unknown category");
   }
+}
+
+export interface StrategistRiskReversibilityProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistRiskReversibilityProbeMatrixValidationResult {
+  valid: boolean;
+  issues: StrategistRiskReversibilityProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateStrategistRiskReversibilityProbeMatrix(
+  results: StrategistRiskReversibilityProbeResult[],
+  contract: StrategistRiskReversibilityContract = getActiveStrategistRiskReversibilityContract(),
+): StrategistRiskReversibilityProbeMatrixValidationResult {
+  const issues: StrategistRiskReversibilityProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface StrategistRiskReversibilityProductionSliceResult {
+  atom: "P03-B05-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: StrategistRiskReversibilityProbeResult[];
+  summary: StrategistRiskReversibilityProbeSummary;
+  matrixValidation: StrategistRiskReversibilityProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: recoverStrategistRiskReversibility wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runStrategistRiskReversibilityProductionSlice(
+  fixture: StrategistRiskReversibilityBaseline = loadStrategistRiskReversibilityBaseline(),
+): StrategistRiskReversibilityProductionSliceResult {
+  const contract = getActiveStrategistRiskReversibilityContract();
+  const fixtureValidation = validateStrategistRiskReversibilityBaseline(fixture);
+  const contractValidation = validateStrategistRiskReversibilityAgainstContract(fixture, contract);
+  const results = runStrategistRiskReversibilityProbes(fixture);
+  const summary = summarizeStrategistRiskReversibilityMatrix(results);
+  const matrixValidation = validateStrategistRiskReversibilityProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B05-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 export function runStrategistRiskReversibilityProbes(

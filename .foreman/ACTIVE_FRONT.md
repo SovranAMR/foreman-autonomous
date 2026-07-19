@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B05
-active_atom: P03-B05-A03
+active_atom: P03-B05-A04
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 241/1000
-phase_progress: 42/100
-block_progress: 2/10
+program_progress: 242/1000
+phase_progress: 43/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B05-A03 — Risk ve reversibility planı: en küçük üretim dikey dilimini uygula.
+P03-B05-A04 — Risk ve reversibility planı: boundary ve edge-case davranışlarını tamamla.
 
-objective: P03-B05-A02 PASS; P03-B05-A03 implement smallest production vertical slice for risk/reversibility probes.
-target: recoverStrategistRiskReversibility, runStrategistRiskReversibilityProductionSlice.
-hypothesis: P03-B05-A03 wires contract probes into a recoverable production seam aligned to sealed P03-B04 handoff.
-acceptance: production slice runs; contract-aligned probes pass; zero unexpected mismatches on PASS probes.
+objective: P03-B05-A03 PASS; P03-B05-A04 implement boundary slice for risk/reversibility edge cases.
+target: runStrategistRiskReversibilityBoundarySlice, validateStrategistRiskReversibilityBoundaryProbeMatrix.
+hypothesis: P03-B05-A04 wires boundary-category probes into recoverable production seam with zero unexpected mismatches.
+acceptance: boundary slice runs; contract-aligned boundary probes pass; zero unexpected mismatches on PASS probes.
 commands: npx tsx --test src/forge-p03-strategist-risk-reversibility*.test.ts
 blast_radius: src/forge-p03-strategist-risk-reversibility.ts
-rollback: P03-B05-A03 production slice değişikliklerini geri al.
+rollback: P03-B05-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: production slice blocked ise BLOCKED raporla.
+fallback: boundary slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B05-A02
+last_atom: P03-B05-A03
 last_commit: pending
-tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (8/8); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); 27 probes / 6 FAIL gaps
-evidence: getActiveStrategistRiskReversibilityContract; validateStrategistRiskReversibilityAgainstContract; validateStrategistRiskReversibilityCoverage
-next: P03-B05-A03
+tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (13/13); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); production slice 21 pass / 6 documented FAIL gaps
+evidence: recoverStrategistRiskReversibility; runStrategistRiskReversibilityProductionSlice; validateStrategistRiskReversibilityProbeMatrix
+next: P03-B05-A04

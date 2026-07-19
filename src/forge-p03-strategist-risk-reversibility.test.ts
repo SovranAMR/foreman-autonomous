@@ -11,9 +11,21 @@ import {
   validateStrategistRiskReversibilityCoverage,
   validateStrategistRiskReversibilityAgainstContract,
   validateStrategistRiskReversibilityBaseline,
+  recoverStrategistRiskReversibility,
+  assessStrategistRiskReversibilityInputBoundary,
+  runStrategistRiskReversibilityProductionSlice,
+  validateStrategistRiskReversibilityProbeMatrix,
   STRATEGIST_RISK_REVERSIBILITY_CATEGORIES,
   FORGE_STRATEGIST_RISK_REVERSIBILITY_CONTRACT_V1,
 } from "./forge-p03-strategist-risk-reversibility.js";
+
+function formatMismatchReport(
+  mismatches: { id: string; expected: string; actual: string; detail: string }[],
+): string {
+  return mismatches
+    .map(m => `  ${m.id}: expected=${m.expected} actual=${m.actual} (${m.detail})`)
+    .join("\n");
+}
 
 describe("Forge Strategist Risk Reversibility Contract — P03-B05-A02", () => {
   it("defines typed acceptance for all eight risk reversibility categories", () => {
@@ -124,5 +136,97 @@ describe("Forge Strategist Risk Reversibility Contract — P03-B05-A02", () => {
       listStrategistRiskReversibilityContractProbesByCategory(category, contract).map(p => p.id),
     );
     assert.deepEqual(categoryIds, flatIds);
+  });
+});
+
+describe("Forge Strategist Risk Reversibility Production Slice — P03-B05-A03", () => {
+  it("recoverStrategistRiskReversibility restructures malformed decompose into risk-reversibility plan", () => {
+    const malformed = `REASONING: Need risk-aware decomposition
+Here are the steps:
+Block 1: Setup risk baseline types
+Block 2: Wire rollback checkpoint seam
+Block 3: Add risk reversibility tests
+DEPENDENCIES: 2→1, 3→1,2
+CONFIDENCE: 0.8`;
+    const recovery = recoverStrategistRiskReversibility(malformed);
+
+    assert.equal(recovery.recovered, true);
+    assert.equal(recovery.riskReversibilityCompliant, true);
+    assert.ok(recovery.blockCount >= 3);
+    assert.match(recovery.composedDecompose, /RISKS:/i);
+    assert.match(recovery.composedDecompose, /ROLLBACK PLAN:/i);
+    assert.ok(recovery.blocks.some(block => block.includes("risk baseline types")));
+    assert.ok(recovery.blocks.some(block => block.includes("rollback checkpoint seam")));
+    assert.ok(recovery.blocks.some(block => block.includes("risk reversibility tests")));
+  });
+
+  it("recoverStrategistRiskReversibility rejects null-byte decompose output safely", () => {
+    const recovery = recoverStrategistRiskReversibility("decompose\0output");
+    assert.equal(recovery.recovered, false);
+    assert.equal(recovery.riskReversibilityCompliant, false);
+    assert.deepEqual(recovery.parseErrors, ["null_byte_in_decompose"]);
+  });
+
+  it("recoverStrategistRiskReversibility injects risk plan when strategist omits RISKS and ROLLBACK PLAN", () => {
+    const missingRiskPlan = `REASONING: Blocks without explicit risk metadata
+OUTPUT:
+Block 1: Root risk baseline block
+Block 2: Wire reversibility seam
+Block 3: Final risk integration
+DEPENDENCIES: none
+CONFIDENCE: 0.75`;
+    const recovery = recoverStrategistRiskReversibility(missingRiskPlan);
+
+    assert.equal(recovery.recovered, true);
+    assert.equal(recovery.riskReversibilityCompliant, true);
+    assert.equal(recovery.hasRisks, true);
+    assert.equal(recovery.hasRollbackPlan, true);
+    assert.ok(recovery.parseErrors.includes("risks_injected"));
+    assert.ok(recovery.parseErrors.includes("rollback_plan_injected"));
+  });
+
+  it("assessStrategistRiskReversibilityInputBoundary handles decompose edge cases", () => {
+    const empty = assessStrategistRiskReversibilityInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistRiskReversibilityInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistRiskReversibilityInputBoundary("bad\0decompose");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after recovery slice", () => {
+    const contract = getActiveStrategistRiskReversibilityContract();
+    const slice = runStrategistRiskReversibilityProductionSlice();
+
+    assert.equal(slice.atom, "P03-B05-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 27);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 21);
+    assert.equal(slice.matrixValidation.gapAligned, 6);
+    assert.equal(slice.summary.knownGaps.length, 6);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateStrategistRiskReversibilityProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });
