@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B01-A02
-last_commit: pending
+last_commit: c16279b
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (3/3); forge-p03-strategist-intent.test.ts (7/7); 23 probes; gap=sint.structured_decompose_recovery
 evidence: getActiveStrategistIntentContract; validateStrategistIntentAgainstContract; summarizeStrategistIntentContractCoverage; validateStrategistIntentContractCoverage; contractAtom=P03-B01-A05
 next: P03-B01-A03

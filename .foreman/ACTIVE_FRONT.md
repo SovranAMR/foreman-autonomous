@@ -44,7 +44,7 @@ fallback: P03-B01-A02 contract misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B01-A02
-last_commit: pending
+last_commit: e602fb1
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (3/3); forge-p03-strategist-intent.test.ts (7/7); 23 probes; 1 documented FAIL gap
 evidence: getActiveStrategistIntentContract; validateStrategistIntentAgainstContract; summarizeStrategistIntentContractCoverage; validateStrategistIntentContractCoverage; contractAtom=P03-B01-A05
 next: P03-B01-A03
