@@ -44,7 +44,7 @@ fallback: evidence requires orchestrator refactor beyond slice scope ise BLOCKED
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B06-A05
-last_commit: pending
+last_commit: 08ef6ed
 tests: PASS — forge-p02-visioner-uncertainty.test.ts (21/21); baseline (3/3)
 evidence: validateVisionerUncertaintyFailureRecoveryProbeMatrix + runVisionerUncertaintyFailureRecoverySlice exported; 6 failure/recovery/NO-GO probes all PASS; probe matrix zero unexpected mismatches; documented FAIL gaps preserved
 next: P02-B06-A06
