@@ -6,9 +6,9 @@ active_phase: P02
 active_block: P02-B09
 active_atom: P02-B09-A03
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 181/1000
-phase_progress: 80/100
-block_progress: 2/10
+program_progress: 182/1000
+phase_progress: 81/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B09-A03 — Kullanıcı approval ve steering: en küçük üretim dikey dilimini uygula.
+P02-B09-A04 — Kullanıcı approval ve steering: boundary ve edge-case davranışlarını tamamla.
 
-objective: P02-B09-A02 contract PASS; implement recoverVisionerSteering production slice closing vapp.structured_steering_recovery gap.
-target: forge-p02-visioner-approval production slice with recoverVisionerSteering export and probe alignment.
-hypothesis: recoverVisionerSteering restructures malformed steering parse into actionable approval revision, closing documented FAIL gap.
-acceptance: forge-p02-visioner-approval.test.ts production slice gates pass; vapp.structured_steering_recovery aligned PASS.
+objective: P02-B09-A03 PASS; complete boundary category edge-case behavior for visioner approval input.
+target: forge-p02-visioner-approval boundary slice with assessVisionerApprovalInputBoundary edge probes aligned PASS.
+hypothesis: boundary category probes cover empty, whitespace, null-byte and max-length vision approval inputs with zero mismatches.
+acceptance: forge-p02-visioner-approval.test.ts boundary slice gates pass; boundary probes fully aligned.
 commands: npx tsx --test src/forge-p02-visioner-approval.test.ts
 blast_radius: src/forge-p02-visioner-approval*
-rollback: P02-B09-A03 production slice değişikliklerini geri al.
+rollback: P02-B09-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: recoverVisionerSteering cannot close gap ise BLOCKED raporla.
+fallback: boundary probes cannot align ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B09-A02
-last_commit: fbc59bd
-tests: PASS — forge-p02-visioner-approval.test.ts (9/9)
-evidence: validateVisionerApprovalContractCoverage valid; 23 probes (22 PASS + 1 documented FAIL gap vapp.structured_steering_recovery); matrix passAligned=22 gapAligned=1 unexpectedMismatches=0
-next: P02-B09-A03
+last_atom: P02-B09-A03
+last_commit: pending
+tests: PASS — forge-p02-visioner-approval.test.ts (12/12), forge-p02-visioner-approval-baseline.test.ts (3/3)
+evidence: recoverVisionerSteering export; vapp.structured_steering_recovery PASS; matrix passAligned=23 gapAligned=0 unexpectedMismatches=0; runVisionerApprovalProductionSlice valid
+next: P02-B09-A04

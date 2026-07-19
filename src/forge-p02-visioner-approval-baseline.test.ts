@@ -32,26 +32,19 @@ describe("Forge Visioner Approval — P02-B09-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures visioner approval probes with documented FAIL gaps from P02-B08 sealed handoff", () => {
+  it("measures visioner approval probes with full alignment after A03 recovery slice", () => {
     const results = runVisionerApprovalProbes();
     const summary = summarizeVisionerApprovalMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listVisionerApprovalProbesByExpected(
       "FAIL",
       loadVisionerApprovalBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(documentedFail.some(p => p.id === "vapp.structured_steering_recovery"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of VISIONER_APPROVAL_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -66,14 +59,8 @@ describe("Forge Visioner Approval — P02-B09-A01", () => {
     );
   });
 
-  it("documents remaining visioner approval gaps as measurable baseline debt", () => {
+  it("documents zero remaining visioner approval gaps after structured recovery slice", () => {
     const gaps = listVisionerApprovalKnownGaps(runVisionerApprovalProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, ["vapp.structured_steering_recovery"]);
-    assert.ok(
-      gaps.every(g => VISIONER_APPROVAL_CATEGORIES.includes(g.category)),
-      "documented gaps are visioner approval probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });

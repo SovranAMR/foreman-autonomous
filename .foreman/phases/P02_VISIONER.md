@@ -121,7 +121,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P02-B09-A01 — Kullanıcı approval ve steering: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P02-B09-A02 — Kullanıcı approval ve steering: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P02-B09-A03 — Kullanıcı approval ve steering: en küçük üretim dikey dilimini uygula
+- [x] P02-B09-A03 — Kullanıcı approval ve steering: en küçük üretim dikey dilimini uygula
 - [ ] P02-B09-A04 — Kullanıcı approval ve steering: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B09-A05 — Kullanıcı approval ve steering: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B09-A06 — Kullanıcı approval ve steering: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B09-A02
-last_commit: fbc59bd
-tests: PASS — forge-p02-visioner-approval.test.ts (9/9)
-evidence: validateVisionerApprovalContractCoverage valid; 23 probes (22 PASS + 1 documented FAIL gap vapp.structured_steering_recovery disposition=gap); matrix passAligned=22 gapAligned=1 unexpectedMismatches=0; contract exports getVisionerApprovalCategoryContract/listVisionerApprovalProbesByDisposition
-next: P02-B09-A03
+last_atom: P02-B09-A03
+last_commit: pending
+tests: PASS — forge-p02-visioner-approval.test.ts (12/12), forge-p02-visioner-approval-baseline.test.ts (3/3)
+evidence: recoverVisionerSteering export; vapp.structured_steering_recovery PASS; matrix passAligned=23 gapAligned=0 unexpectedMismatches=0; runVisionerApprovalProductionSlice valid
+next: P02-B09-A04

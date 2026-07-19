@@ -135,7 +135,7 @@
       "id": "vapp.structured_steering_recovery",
       "category": "recovery_path",
       "description": "recoverVisionerSteering restructures failed steering parse into actionable approval revision",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "vapp.vision_rejection_abort",

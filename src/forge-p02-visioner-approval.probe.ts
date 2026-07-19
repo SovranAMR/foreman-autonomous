@@ -17,7 +17,10 @@ import {
 import {
   assessVisionerApprovalInputBoundary,
   assessVisionerApprovalPresence,
+  recoverVisionerSteering,
   validateVisionerApprovalBaseline,
+  validateVisionerApprovalAgainstContract,
+  validateVisionerApprovalProbeMatrix,
   summarizeVisionerApprovalMatrix,
   listVisionerApprovalProbesByExpected,
   listVisionerApprovalKnownGaps,
@@ -40,6 +43,7 @@ export {
   getActiveVisionerApprovalContract,
   assessVisionerApprovalInputBoundary,
   assessVisionerApprovalPresence,
+  recoverVisionerSteering,
   FORGE_VISIONER_APPROVAL_VERSION,
   VISIONER_APPROVAL_CATEGORIES,
   VISIONER_APPROVAL_VISION_MAX_LENGTH,
@@ -265,8 +269,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "vapp.known_gaps_documented": {
+      const contract = getActiveVisionerApprovalContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      return probe(id, category, expected, failCount >= 1, `documentedFail=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "vapp.empty_vision_approval_boundary": {
       const result = assessVisionerApprovalInputBoundary("");
@@ -363,8 +376,28 @@ function probeRecoveryPath(
       return probe(id, category, expected, ok, `checkpointApprovalSkip=${ok}`);
     }
     case "vapp.structured_steering_recovery": {
-      const ok = hasProductionExport("recoverVisionerSteering");
-      return probe(id, category, expected, ok, `recoverVisionerSteering=${ok}`);
+      const malformed = `REASONING: Vision document pending user review before decomposition
+OUTPUT: **GOAL**: Dental clinic booking platform
+user feedback: emphasize mobile-first UX and simplify onboarding flow
+modify vision: focus on speed-to-value messaging over feature breadth
+approval needed: pending user review
+steering: prioritize conversion metrics and reduce scope to MVP landing page`;
+      const recovery = recoverVisionerSteering(malformed);
+      const ok =
+        hasProductionExport("recoverVisionerSteering") &&
+        recovery.recovered === true &&
+        recovery.presence.hasApproval &&
+        recovery.presence.hasSteering &&
+        recovery.approvalRevision.includes("pending") &&
+        recovery.steeringPoints.some(point => point.includes("mobile-first")) &&
+        recovery.steeringPoints.some(point => point.includes("conversion metrics"));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recovered=${recovery.recovered}, ${recovery.detail}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown recovery_path probe");
@@ -442,4 +475,39 @@ export function runVisionerApprovalProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface VisionerApprovalProductionSliceResult {
+  atom: "P02-B09-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerApprovalProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerApprovalMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerApprovalProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: recoverVisionerSteering wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runVisionerApprovalProductionSlice(
+  fixture: VisionerApprovalBaseline = loadVisionerApprovalBaseline(),
+): VisionerApprovalProductionSliceResult {
+  const contract = getActiveVisionerApprovalContract();
+  const fixtureValidation = validateVisionerApprovalBaseline(fixture);
+  const contractValidation = validateVisionerApprovalAgainstContract(fixture, contract);
+  const results = runVisionerApprovalProbes(fixture);
+  const summary = summarizeVisionerApprovalMatrix(results);
+  const matrixValidation = validateVisionerApprovalProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B09-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

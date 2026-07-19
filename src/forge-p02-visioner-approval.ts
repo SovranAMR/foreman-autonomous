@@ -166,6 +166,193 @@ export function assessVisionerApprovalPresence(visionOutput: string): VisionerAp
   };
 }
 
+export interface VisionerSteeringRecoveryHints {
+  approvalStatus?: string;
+  steeringFeedback?: string[];
+  primaryGoal?: string;
+  reasoning?: string;
+}
+
+export interface VisionerSteeringRecoveryResult {
+  recovered: boolean;
+  composedVision: string;
+  presence: VisionerApprovalPresence;
+  approvalRevision: string;
+  steeringPoints: string[];
+  parseErrors: string[];
+  detail: string;
+}
+
+const INFORMAL_STEERING_LINE =
+  /^(?:steering|user feedback|modify vision|revision|change request)\s*[:=\-]\s*(.+)$/i;
+
+const INFORMAL_APPROVAL_LINE =
+  /^(?:approval(?: needed)?|approve|review status)\s*[:=\-]\s*(.+)$/i;
+
+/**
+ * Restructure failed steering parse into actionable approval revision (P02-B09-A03).
+ */
+export function recoverVisionerSteering(
+  failedParse: string,
+  hints: VisionerSteeringRecoveryHints = {},
+): VisionerSteeringRecoveryResult {
+  const parseErrors: string[] = [];
+  const boundary = assessVisionerApprovalInputBoundary(failedParse);
+
+  if (
+    boundary.disposition === "contains_null_byte" ||
+    boundary.disposition === "empty" ||
+    boundary.disposition === "whitespace_only"
+  ) {
+    const parseError =
+      boundary.disposition === "contains_null_byte"
+        ? "null_byte_in_vision"
+        : boundary.disposition === "empty"
+          ? "empty_vision"
+          : "whitespace_only_vision";
+    return {
+      recovered: false,
+      composedVision: "",
+      presence: assessVisionerApprovalPresence(""),
+      approvalRevision: "",
+      steeringPoints: [],
+      parseErrors: [parseError],
+      detail: `cannot recover ${boundary.disposition.replace(/_/g, "-")} vision output`,
+    };
+  }
+
+  const raw = boundary.acceptable ? boundary.normalizedVision : failedParse.trim();
+  const initialPresence = assessVisionerApprovalPresence(raw);
+  const hasStructuredSections =
+    initialPresence.hasApproval &&
+    initialPresence.hasSteering &&
+    /\*\*APPROVAL\*\*:/i.test(raw) &&
+    /\*\*STEERING\*\*:/i.test(raw);
+
+  if (hasStructuredSections) {
+    const approvalMatch = raw.match(/\*\*APPROVAL\*\*:\s*(.+?)(?:\n|$)/i);
+    const steeringPoints = initialPresence.steeringLines
+      .map(line => line.replace(/^\*?\*?\s*STEERING\s*:?\s*/i, "").trim())
+      .filter(Boolean);
+    return {
+      recovered: true,
+      composedVision: raw,
+      presence: initialPresence,
+      approvalRevision: approvalMatch?.[1]?.trim() ?? initialPresence.approvalLines.join(" "),
+      steeringPoints,
+      parseErrors,
+      detail: initialPresence.detail,
+    };
+  }
+
+  let approvalRevision = hints.approvalStatus ?? "";
+  let steeringPoints = [...(hints.steeringFeedback ?? [])];
+  let primaryGoal = hints.primaryGoal;
+  let reasoning = hints.reasoning;
+
+  const goalMatch =
+    raw.match(/\*\*GOAL\*\*:\s*(.+?)(?:\n|$)/i) ?? raw.match(/goal\s*[:=]\s*(.+?)(?:\n|$)/i);
+  if (goalMatch && !primaryGoal) {
+    primaryGoal = goalMatch[1].trim();
+  }
+
+  const reasoningMatch = raw.match(
+    /REASONING:\s*(.+?)(?:\n(?:OUTPUT|APPROVAL|STEERING|user feedback|modify vision|approval needed)|$)/is,
+  );
+  if (reasoningMatch && !reasoning) {
+    reasoning = reasoningMatch[1].trim();
+  }
+
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const steeringMatch = trimmed.match(INFORMAL_STEERING_LINE);
+    if (steeringMatch) {
+      steeringPoints.push(steeringMatch[1].trim());
+      continue;
+    }
+
+    const approvalMatch = trimmed.match(INFORMAL_APPROVAL_LINE);
+    if (approvalMatch) {
+      approvalRevision = approvalMatch[1].trim();
+    }
+  }
+
+  steeringPoints = [...new Set(steeringPoints.map(point => point.trim()).filter(Boolean))];
+
+  if (!approvalRevision) {
+    const pendingMatch = raw.match(/\b(pending(?: user review)?|awaiting approval|needs review)\b/i);
+    if (pendingMatch) {
+      approvalRevision = pendingMatch[1].trim();
+    }
+  }
+
+  if (steeringPoints.length === 0) {
+    const feedbackLines = raw
+      .split("\n")
+      .map(line => line.trim())
+      .filter(
+        line =>
+          /steer|revise|feedback|modify|change|focus on|emphasize|prioritize/i.test(line) &&
+          !/REASONING:|OUTPUT:|APPROVAL:|STEERING:/i.test(line),
+      );
+    if (feedbackLines.length > 0) {
+      steeringPoints = feedbackLines.map(line => line.replace(/^[-*\s]+/, "").trim());
+    }
+  }
+
+  if (!approvalRevision) {
+    parseErrors.push("missing_approval_status");
+    approvalRevision = "Pending user review before decomposition";
+  }
+
+  if (steeringPoints.length === 0) {
+    parseErrors.push("missing_steering_feedback");
+    steeringPoints = ["Recovered steering feedback pending user refinement"];
+  }
+
+  if (!primaryGoal) {
+    parseErrors.push("missing_primary_goal");
+    primaryGoal = "Recovered vision goal pending approval revision";
+  }
+
+  if (!reasoning) {
+    reasoning = steeringPoints.length > 1
+      ? "Recovered approval revision with structured steering feedback"
+      : "Recovered approval revision from failed steering parse";
+  }
+
+  const steeringSection = steeringPoints
+    .map(point => `**STEERING**: ${point}`)
+    .join("\n");
+
+  const composedVision = [
+    `REASONING: ${reasoning}`,
+    "OUTPUT:",
+    `**GOAL**: ${primaryGoal}`,
+    `**APPROVAL**: ${approvalRevision}`,
+    steeringSection,
+  ].join("\n");
+
+  const presence = assessVisionerApprovalPresence(composedVision);
+  const recovered =
+    presence.hasApproval &&
+    presence.hasSteering &&
+    approvalRevision.length > 0 &&
+    steeringPoints.length >= 1;
+
+  return {
+    recovered,
+    composedVision,
+    presence,
+    approvalRevision,
+    steeringPoints,
+    parseErrors,
+    detail: presence.detail,
+  };
+}
+
 export interface VisionerApprovalProbeMatrixValidationIssue {
   kind:
     | "missing_result"
@@ -627,7 +814,7 @@ const VISIONER_APPROVAL_CATEGORY_CONTRACTS: Record<
     category: "recovery_path",
     acceptance: {
       invariant:
-        "Checkpoint resume preserves vision approval; structured steering recovery is a documented gap.",
+        "Checkpoint resume preserves vision approval; recoverVisionerSteering restructures failed steering parse.",
       minProbeCount: 2,
       requireFullAlignment: true,
     },
@@ -645,8 +832,8 @@ const VISIONER_APPROVAL_CATEGORY_CONTRACTS: Record<
         category: "recovery_path",
         description:
           "recoverVisionerSteering restructures failed steering parse into actionable approval revision",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion:
           "recoverVisionerSteering restructures failed steering parse into actionable approval revision",
       },
@@ -996,10 +1183,12 @@ export function validateVisionerApprovalBaseline(
   }
 
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length < 1) {
+  const contract = getActiveVisionerApprovalContract();
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  if (failGaps.length !== expectedFailCount) {
     issues.push({
       kind: "missing_category",
-      detail: "A01 fixture must document at least one known FAIL gap",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 
