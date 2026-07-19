@@ -44,7 +44,7 @@ fallback: block gate closure blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B03-A09
-last_commit: pending
+last_commit: 503bd3b
 tests: PASS — forge-p03-strategist-atomization*.test.ts (41/41); guard adversarial 3/3 rejected; performance/cost/safety within bounds
 evidence: validateForgeStrategistAtomizationGuard; runStrategistAtomizationAdversarialGuardChecks; detectStrategistAtomizationFalseAlignment
 next: P03-B03-A10
