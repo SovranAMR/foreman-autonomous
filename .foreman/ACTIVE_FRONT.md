@@ -44,7 +44,7 @@ fallback: P03-B01-A09 guard slice misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B01-A09
-last_commit: PENDING
+last_commit: 360bf84
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (34/34); guard adversarial 3/3; performance/cost/safety bounds enforced
 evidence: validateForgeStrategistIntentGuard; runStrategistIntentAdversarialGuardChecks
 next: P03-B01-A10
