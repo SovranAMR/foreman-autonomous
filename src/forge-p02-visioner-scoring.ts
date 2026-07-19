@@ -5,7 +5,12 @@
  * alternative block gate artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   assessVisionerAlternativeInputBoundary,
   assessVisionerAlternativePresence,
@@ -2506,3 +2511,184 @@ OUTPUT:
 **ALTERNATIVE VISION B**: Self-serve patient portal
 CONFIDENCE: 0.78
 NEEDS_RESEARCH: false`;
+
+export interface VisionerScoringBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface VisionerScoringBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    visionerScoringCategories: readonly VisionerScoringCategory[];
+    sourceVisionerAlternativeBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    visionerScoringRecordRequired: true;
+  };
+}
+
+export const FORGE_P02_B08_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P02-B08-A10",
+  blockId: "P02-B08",
+  title: "Vizyon scoring ve trade-off",
+  requiredAtomIds: [
+    "P02-B08-A01",
+    "P02-B08-A02",
+    "P02-B08-A03",
+    "P02-B08-A04",
+    "P02-B08-A05",
+    "P02-B08-A06",
+    "P02-B08-A07",
+    "P02-B08-A08",
+    "P02-B08-A09",
+    "P02-B08-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P02-B08-A01", description: "Visioner scoring baseline aligns with typed contract and P02-B07 block gate handoff" },
+    { id: "typed_contract_coverage", atomId: "P02-B08-A02", description: "Contract declares measurable probes for all visioner scoring categories" },
+    { id: "probe_matrix_aligned", atomId: "P02-B08-A03", description: "Visioner scoring probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P02-B08-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P02-B08-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P02-B08-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P02-B08-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P02-B08-A08", description: "Regression gate passes on canonical visioner scoring matrix" },
+    { id: "guard_controls", atomId: "P02-B08-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P02-B08-A10", description: "Block gate evidence sealed with valid B09 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P02_B08_TO_B09_HANDOFF_V1: VisionerScoringBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P02-B08-A10",
+  sourceBlock: {
+    blockId: "P02-B08",
+    title: "Vizyon scoring ve trade-off",
+    completedAtoms: FORGE_P02_B08_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P02-B09",
+    title: "Kullanıcı approval ve steering",
+    entryAtom: "P02-B09-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_VISIONER_SCORING_CONTRACT_V1.version,
+    harnessVersion: FORGE_VISIONER_SCORING_VERSION,
+    probeCount: summarizeVisionerScoringContractCoverage(FORGE_VISIONER_SCORING_CONTRACT_V1).totalProbes,
+    visionerScoringCategories: VISIONER_SCORING_CATEGORIES,
+    sourceVisionerAlternativeBlockGateAtom: "P02-B07-A10",
+  },
+  prerequisites: [
+    "Visioner scoring contract v1 with measurable trade-off, recovery and guard probes",
+    "Versioned visioner scoring baseline aligned to contract probe matrix and sealed P02-B07 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P02-B07 visioner alternative block gate referenced by sourceVisionerAlternativeBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P02-B09-A01 formalizes user approval and steering using sealed visioner scoring artifacts",
+    requiresBlockGatePass: true,
+    visionerScoringRecordRequired: true,
+  },
+};
+
+export function getForgeP02B08BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P02_B08_BLOCK_GATE_V1;
+}
+
+export function getForgeP02B08ToB09Handoff(): VisionerScoringBlockHandoffContract {
+  return FORGE_P02_B08_TO_B09_HANDOFF_V1;
+}
+
+export function validateVisionerScoringBlockHandoffContract(
+  handoff: VisionerScoringBlockHandoffContract,
+  evidence: Pick<VisionerScoringBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeVisionerScoringContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.visionerScoringCategories.length !== VISIONER_SCORING_CATEGORIES.length) {
+    issues.push("handoff visionerScoringCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P02-B09-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildVisionerScoringBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P02_B08_BLOCK_GATE_V1.blockId,
+): VisionerScoringBlockGateEvidence {
+  const handoff = getForgeP02B08ToB09Handoff();
+  const handoffValid = validateVisionerScoringBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P02-B08-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}

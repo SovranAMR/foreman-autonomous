@@ -115,7 +115,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B08-A07 — Vizyon scoring ve trade-off: unit, property ve fuzz doğrulamasını ekle
 - [x] P02-B08-A08 — Vizyon scoring ve trade-off: Forge entegrasyonu ile regression testini tamamla
 - [x] P02-B08-A09 — Vizyon scoring ve trade-off: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P02-B08-A10 — Vizyon scoring ve trade-off: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P02-B08-A10 — Vizyon scoring ve trade-off: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P02-B09 — Kullanıcı approval ve steering
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B08-A09
-last_commit: 8f5027a
-tests: PASS — forge-p02-visioner-scoring.guard.test.ts (8/8)
-evidence: validateForgeVisionerScoringGuard adversarial=3/3; perf/cost/safety controls; orchestrator verifyForgeVisionerScoringGuard emits visioner_scoring_guard
-next: P02-B08-A10
+last_atom: P02-B08-A10
+last_commit: pending
+tests: PASS — forge-p02-visioner-scoring-block-gate.test.ts (6/6)
+evidence: runForgeVisionerScoringBlockGate seals 10/10 atom seals; handoff=PASS→P02-B09; orchestrator verifyForgeVisionerScoringBlockGate emits visioner_scoring_block_gate
+next: P02-B09-A01

@@ -49,6 +49,11 @@ import {
   runVisionerScoringPropertyChecks,
   runVisionerScoringFuzzValidation,
   runVisionerScoringRunRecordFuzzValidation,
+  getForgeP02B08BlockGate,
+  getForgeP02B08ToB09Handoff,
+  validateVisionerScoringBlockHandoffContract,
+  buildVisionerScoringBlockGateEvidence,
+  listVisionerScoringProbesByDisposition,
   FORGE_VISIONER_SCORING_VERSION,
   VISIONER_SCORING_CATEGORIES,
   VISIONER_SCORING_VISION_MAX_LENGTH,
@@ -60,7 +65,7 @@ import {
   type VisionerScoringProbeResult,
   type VisionerScoringRunRecord,
 } from "./forge-p02-visioner-scoring.js";
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 
 export type {
   VisionerScoringBaseline,
@@ -87,6 +92,11 @@ export {
   assessVisionerScoringInputBoundary,
   assessVisionerScoringPresence,
   checkVisionerScoringTieBreak,
+  getForgeP02B08BlockGate,
+  getForgeP02B08ToB09Handoff,
+  validateVisionerScoringBlockHandoffContract,
+  buildVisionerScoringBlockGateEvidence,
+  listVisionerScoringProbesByDisposition,
 } from "./forge-p02-visioner-scoring.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -857,3 +867,185 @@ export function runForgeVisionerScoringRegressionGate(
 
 /** Alias for forge-pipeline-regression integration seam (P02-B08-A08). */
 export const runVisionerScoringRegressionIntegration = runForgeVisionerScoringRegressionGate;
+
+export interface ForgeVisionerScoringBlockGateResult {
+  passed: boolean;
+  evidence: ReturnType<typeof buildVisionerScoringBlockGateEvidence>;
+  handoff: ReturnType<typeof getForgeP02B08ToB09Handoff>;
+  regression: ForgeVisionerScoringRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealVisionerScoringBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P02-B08 block gate: validate A01–A09 deliverables, regression, guard, and B09 handoff (P02-B08-A10).
+ */
+export function runVisionerScoringBlockGate(): ForgeVisionerScoringBlockGateResult {
+  const blockGate = getForgeP02B08BlockGate();
+  const handoff = getForgeP02B08ToB09Handoff();
+  const contract = getActiveVisionerScoringContract();
+  const fixture = loadVisionerScoringBaseline();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateVisionerScoringBaseline(fixture);
+  const contractValidation = validateVisionerScoringAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A01",
+      "visioner_scoring",
+      fixtureValidation.valid &&
+        contractValidation.valid &&
+        fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid && contractValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeVisionerScoringContractCoverage(contract).totalProbes} probes)`
+        : [...fixtureValidation.issues, ...contractValidation.issues].map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeVisionerScoringContractCoverage(contract);
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${VISIONER_SCORING_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runVisionerScoringProductionSlice(fixture);
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runVisionerScoringBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runVisionerScoringFailureRecoverySlice(fixture);
+  const nogoProbes = listVisionerScoringProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgeVisionerScoringRegressionGate();
+  const recordValidation = validateVisionerScoringRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const propertyFuzz = regression.propertyFuzz;
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A07",
+      "property_fuzz",
+      propertyFuzz.passed,
+      `properties=${propertyFuzz.properties.passed}/${propertyFuzz.properties.total} contractFuzz rejected=${propertyFuzz.contractFuzz.rejected}/${propertyFuzz.contractFuzz.iterations} runFuzz rejected=${propertyFuzz.runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validateVisionerScoringBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealVisionerScoringBlockAtom(
+      "P02-B08-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildVisionerScoringBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runForgeVisionerScoringBlockGate = runVisionerScoringBlockGate;

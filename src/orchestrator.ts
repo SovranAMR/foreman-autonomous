@@ -652,6 +652,23 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P02-B08 block gate and emit verification event with B09 handoff (P02-B08-A10).
+   */
+  async verifyForgeVisionerScoringBlockGate(): Promise<import("./forge-p02-visioner-scoring.probe.js").ForgeVisionerScoringBlockGateResult> {
+    const { runForgeVisionerScoringBlockGate } = await import(
+      "./forge-p02-visioner-scoring.probe.js"
+    );
+    const result = runForgeVisionerScoringBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "visioner_scoring_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge visioner scoring guard gate (adversarial/perf/cost/safety) and emit verification event (P02-B08-A09).
    */
   async verifyForgeVisionerScoringGuard(

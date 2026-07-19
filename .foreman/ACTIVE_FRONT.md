@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
-active_block: P02-B08
-active_atom: P02-B08-A10
+active_block: P02-B09
+active_atom: P02-B09-A01
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 178/1000
-phase_progress: 77/100
-block_progress: 9/10
+program_progress: 179/1000
+phase_progress: 78/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B08-A10 — Vision scoring block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P02-B09-A01 — Kullanıcı approval ve steering: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P02-B08-A09 guard PASS; seal B08 block gate with full suite and B09 handoff.
-target: runForgeVisionerScoringBlockGate and forge-p02-visioner-scoring-block-gate.test.ts.
-hypothesis: A09 guard suite enables A10 block gate seal without contract refactor.
-acceptance: forge-p02-visioner-scoring-block-gate.test.ts; orchestrator verifyForgeVisionerScoringBlockGate.
-commands: npx tsx --test src/forge-p02-visioner-scoring-block-gate.test.ts
-blast_radius: src/forge-p02-visioner-scoring*
-rollback: P02-B08-A10 block gate değişikliklerini geri al.
+objective: P02-B08 block gate PASS; measure user approval/steering wiring and establish failing baseline fixture.
+target: forge-p02-visioner-approval baseline probe harness and forge-visioner-approval-v1.json fixture.
+hypothesis: Sealed P02-B08 scoring artifacts expose measurable gaps in approval/steering before typed contract.
+acceptance: forge-p02-visioner-approval-baseline.test.ts with documented FAIL gaps from probe matrix.
+commands: npx tsx --test src/forge-p02-visioner-approval-baseline.test.ts
+blast_radius: src/forge-p02-visioner-approval*
+rollback: P02-B09-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: block gate requires scoring contract refactor beyond slice scope ise BLOCKED raporla.
+fallback: approval wiring absent beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B08-A09
-last_commit: 8f5027a
-tests: PASS — forge-p02-visioner-scoring.guard.test.ts (8/8)
-evidence: validateForgeVisionerScoringGuard adversarial=3/3; perf/cost/safety; orchestrator verifyForgeVisionerScoringGuard visioner_scoring_guard
-next: P02-B08-A10
+last_atom: P02-B08-A10
+last_commit: pending
+tests: PASS — forge-p02-visioner-scoring-block-gate.test.ts (6/6)
+evidence: runForgeVisionerScoringBlockGate seals 10/10 atom seals; handoff=PASS→P02-B09; orchestrator verifyForgeVisionerScoringBlockGate visioner_scoring_block_gate
+next: P02-B09-A01
