@@ -44,7 +44,7 @@ fallback: boundary slice requires unrelated harness refactor ise BLOCKED raporla
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B05-A03
-last_commit: pending
+last_commit: 8474ce4
 tests: PASS — forge-p02-visioner-research-trigger.test.ts (12/12); forge-p02-visioner-research-trigger-baseline.test.ts (3/3); forge-p02-visioner-grounding*.test.ts regression
 evidence: recoverVisionerResearchTrigger; runVisionerResearchTriggerProductionSlice; probe matrix 23/23 passAligned; vrtr.structured_research_trigger_recovery gap closed
 next: P02-B05-A04
