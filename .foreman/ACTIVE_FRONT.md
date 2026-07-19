@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B09
-active_atom: P04-B09-A09
+active_atom: P04-B09-A10
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 388/1000
-phase_progress: 86/100
-block_progress: 8/10
+program_progress: 389/1000
+phase_progress: 87/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B09-A09 — Research-to-worker handoff: adversarial, performance, cost ve safety kontrolünü geçir.
+P04-B09-A10 — Research-to-worker handoff: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P04-B09-A08 PASS; regression gate wired with property/fuzz and guard foundation.
-target: Extend guard controls for adversarial, performance, cost and safety on research-to-worker handoff slice.
-hypothesis: A08 guard foundation enables A09 dedicated guard verification with adversarial scenario rejection.
-acceptance: Guard passes on canonical record; adversarial tamper rejected; perf/cost/safety within bounds.
+objective: P04-B09-A09 PASS; guard verified with adversarial/perf/cost/safety bounds.
+target: Seal P04-B09 block gate evidence and wire handoff to P04-B10 baseline.
+hypothesis: A09 guard PASS enables A10 block gate sealing with orchestrator verification event.
+acceptance: Block gate passes; sealed evidence recorded; P04-B10 baseline handoff ready.
 commands: npx tsx --test src/forge-p04-researcher-research-to-worker-handoff*.test.ts
 blast_radius: src/forge-p04-researcher-research-to-worker-handoff*.ts
-rollback: P04-B09-A09 guard değişikliklerini geri al.
+rollback: P04-B09-A10 block gate değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Guard blocked ise BLOCKED raporla.
+fallback: Block gate blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B09-A08
-last_commit: 260320b
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (50/50); regression 8/8; propertyFuzz wired; guard adversarial=3/3
-evidence: runResearcherResearchToWorkerHandoffForgeRegression + runForgeResearcherResearchToWorkerHandoffRegressionGate + validateForgeResearcherResearchToWorkerHandoffGuard
-next: P04-B09-A09
+last_atom: P04-B09-A09
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (58/58); guard adversarial=3/3; perf/cost/safety bounds verified
+evidence: validateForgeResearcherResearchToWorkerHandoffGuard + runResearcherResearchToWorkerHandoffAdversarialGuardChecks + verifyForgeResearcherResearchToWorkerHandoffGuard
+next: P04-B09-A10

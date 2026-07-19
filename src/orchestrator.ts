@@ -1952,6 +1952,30 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher research-to-worker handoff guard checks and emit verification event (P04-B09-A09).
+   */
+  async verifyForgeResearcherResearchToWorkerHandoffGuard(
+    priorRecord?: import("./forge-p04-researcher-research-to-worker-handoff.js").ResearcherResearchToWorkerHandoffRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-research-to-worker-handoff.probe.js").ForgeResearcherResearchToWorkerHandoffRegressionGateResult
+  > {
+    const { runForgeResearcherResearchToWorkerHandoffRegressionGate } = await import(
+      "./forge-p04-researcher-research-to-worker-handoff.probe.js"
+    );
+    const result = runForgeResearcherResearchToWorkerHandoffRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "researcher_research_to_worker_handoff_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge researcher spike falsification guard checks and emit verification event (P04-B08-A09).
    */
   async verifyForgeResearcherSpikeFalsificationGuard(
