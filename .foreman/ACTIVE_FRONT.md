@@ -44,7 +44,7 @@ fallback: block gate blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B04-A09
-last_commit: e890608
+last_commit: 482f5cb
 tests: PASS — forge-p03-strategist-dependency-dag.test.ts; forge-p03-strategist-dependency-dag-baseline.test.ts; harness 1.0.0-a09; guard slice adversarial/performance/cost/safety within bounds
 evidence: validateForgeStrategistDependencyDagGuard; runStrategistDependencyDagAdversarialGuardChecks
 next: P03-B04-A10
