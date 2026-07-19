@@ -514,6 +514,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01-B07 block gate and emit verification event with B08 handoff (P01-B07-A10).
+   */
+  async verifyForgeReproducibleFixtureBlockGate(): Promise<import("./forge-reproducible-fixture.probe.js").ForgeReproducibleFixtureBlockGateResult> {
+    const { runReproducibleFixtureBlockGate } = await import("./forge-reproducible-fixture.probe.js");
+    const result = runReproducibleFixtureBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "reproducible_fixture_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
-active_block: P01-B07
-active_atom: P01-B07-A09
+active_block: P01-B08
+active_atom: P01-B08-A01
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 68/1000
-phase_progress: 67/100
-block_progress: 7/10
+program_progress: 69/1000
+phase_progress: 68/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B07-A10 — Reproducible fixture sistemi: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P01-B08-A01 — Evidence ve artifact şeması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: A09 guard tamamlandı; block gate suite ile B07'yi mühürle.
-target: runReproducibleFixtureBlockGate; forge-reproducible-fixture-block-gate.test.ts.
-hypothesis: Block gate PASS ile B08 handoff hazır olur.
-acceptance: block gate test PASS; 10/10 atom B07 tamamlanır.
-commands: npx tsx --test src/forge-reproducible-fixture-block-gate.test.ts
-blast_radius: forge-reproducible-fixture*.ts
-rollback: A10 block gate slice değişikliklerini geri al.
+objective: B07 block gate PASS; B08 baseline fixture ile evidence/artifact şemasını ölç.
+target: forge-evidence-artifact schema baseline; failing baseline fixture.
+hypothesis: Sealed B07 reproducible fixture handoff B08-A01 entry için yeterli.
+acceptance: baseline fixture oluşturulur; B07 handoff entryCriteria karşılanır.
+commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A01 suite)
+blast_radius: forge-evidence-artifact*.ts; src/fixtures/
+rollback: A01 baseline slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B07-A09
+last_atom: P01-B07-A10
 last_commit: pending
-tests: PASS — forge-reproducible-fixture.guard.test.ts (8/8); forge-reproducible-fixture-baseline.test.ts (27/27); forge-pipeline-regression.integration.test.ts (+5)
-evidence: validateForgeReproducibleFixtureGuard; runReproducibleFixtureAdversarialGuardChecks 3/3 rejected; verifyForgeReproducibleFixtureGuard orchestrator seam; regression gate guard metrics preserved
-next: P01-B07-A10
+tests: PASS — forge-reproducible-fixture-block-gate.test.ts (6/6); forge-reproducible-fixture-baseline.test.ts (27/27); forge-reproducible-fixture.guard.test.ts (8/8); forge-pipeline-regression.integration.test.ts
+evidence: runReproducibleFixtureBlockGate; FORGE_P01_B07_TO_B08_HANDOFF_V1; verifyForgeReproducibleFixtureBlockGate orchestrator seam; 10/10 atom B07 sealed
+next: P01-B08-A01

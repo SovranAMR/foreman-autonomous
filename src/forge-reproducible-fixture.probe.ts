@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import reproducibleFixtureBaseline from "./fixtures/forge-reproducible-fixture-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 import {
   getForgeP01B06ToB07Handoff,
   getActiveBenchmarkEvalContract,
@@ -36,6 +36,16 @@ import {
   validateReproducibleFixtureRunRecord,
   detectReproducibleFixtureProbeRegression,
   validateForgeReproducibleFixtureGuard,
+  getForgeP01B07BlockGate,
+  getForgeP01B07ToB08Handoff,
+  validateReproducibleFixtureBlockHandoffContract,
+  buildReproducibleFixtureBlockGateEvidence,
+  runReproducibleFixturePropertyChecks,
+  runReproducibleFixtureFuzzValidation,
+  runReproducibleFixtureRunRecordFuzzValidation,
+  listReproducibleFixtureProbesByDisposition,
+  REPRODUCIBLE_FIXTURE_CATEGORIES,
+  summarizeReproducibleFixtureContractCoverage,
   type ReproducibleFixtureBaseline,
   type ReproducibleFixtureCategory,
   type ReproducibleFixtureProbeResult,
@@ -80,6 +90,10 @@ export {
   runReproducibleFixtureRunRecordFuzzValidation,
   createReproducibleFixtureFuzzRng,
   detectReproducibleFixtureProbeRegression,
+  getForgeP01B07BlockGate,
+  getForgeP01B07ToB08Handoff,
+  validateReproducibleFixtureBlockHandoffContract,
+  buildReproducibleFixtureBlockGateEvidence,
 } from "./forge-reproducible-fixture.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -841,3 +855,186 @@ export function runForgeReproducibleFixtureRegressionGate(
 
 /** Alias for forge-pipeline-regression integration seam (P01-B07-A08). */
 export const runReproducibleFixtureRegressionIntegration = runForgeReproducibleFixtureRegressionGate;
+
+export interface ForgeReproducibleFixtureBlockGateResult {
+  passed: boolean;
+  evidence: import("./forge-reproducible-fixture.js").ReproducibleFixtureBlockGateEvidence;
+  handoff: import("./forge-reproducible-fixture.js").ReproducibleFixtureBlockHandoffContract;
+  regression: ForgeReproducibleFixtureRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealReproducibleFixtureBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P01-B07 block gate: validate A01–A09 deliverables, regression, guard, and B08 handoff (P01-B07-A10).
+ */
+export function runReproducibleFixtureBlockGate(): ForgeReproducibleFixtureBlockGateResult {
+  const blockGate = getForgeP01B07BlockGate();
+  const handoff = getForgeP01B07ToB08Handoff();
+  const contract = getActiveReproducibleFixtureContract();
+  const fixture = loadReproducibleFixtureBaseline();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateReproducibleFixtureBaselineAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A01",
+      "reproducible_fixture",
+      fixtureValidation.valid && fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeReproducibleFixtureContractCoverage(contract).totalProbes} probes)`
+        : fixtureValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeReproducibleFixtureContractCoverage(contract);
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${REPRODUCIBLE_FIXTURE_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runReproducibleFixtureProductionSlice(fixture);
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runReproducibleFixtureBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.gap > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runReproducibleFixtureFailureRecoverySlice(fixture);
+  const nogoProbes = listReproducibleFixtureProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgeReproducibleFixtureRegressionGate();
+  const recordValidation = validateReproducibleFixtureRunRecord(regression.record);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const properties = runReproducibleFixturePropertyChecks(contract);
+  const contractFuzz = runReproducibleFixtureFuzzValidation(fixture, contract);
+  const runFuzz = runReproducibleFixtureRunRecordFuzzValidation(regression.record, contract);
+  const fuzzOk = properties.allPassed && contractFuzz.allMutationsRejected && runFuzz.mutationsAccepted === 0;
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A07",
+      "property_fuzz",
+      fuzzOk,
+      `properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validateReproducibleFixtureBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealReproducibleFixtureBlockAtom(
+      "P01-B07-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildReproducibleFixtureBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runForgeReproducibleFixtureBlockGate = runReproducibleFixtureBlockGate;

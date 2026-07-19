@@ -144,7 +144,7 @@ describe("Forge Reproducible Fixture Contract — P01-B07-A02", () => {
     }
   });
 
-  it("maps 21 probes with six documented gap dispositions from A01 baseline", () => {
+  it("maps 21 probes with typed disposition coverage from A01 baseline", () => {
     const contract = getActiveReproducibleFixtureContract();
     const summary = summarizeReproducibleFixtureContractCoverage(contract);
     const coverage = validateReproducibleFixtureContractCoverage(contract);
@@ -154,10 +154,10 @@ describe("Forge Reproducible Fixture Contract — P01-B07-A02", () => {
     assert.equal(summary.expectedPass, 15);
     assert.equal(summary.expectedFail, 6);
     assert.equal(summary.byDisposition.observed, 13);
-    assert.equal(summary.byDisposition.gap, 6);
+    assert.equal(summary.byDisposition.gap, 2);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 0);
-    assert.equal(summary.byDisposition.nogo, 0);
+    assert.equal(summary.byDisposition.recovery, 2);
+    assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.fixture_versioning.probeCount, 3);
     assert.equal(summary.byCategory.fixture_integrity.probeCount, 3);
     assert.equal(summary.byCategory.deterministic_load.probeCount, 4);
@@ -168,16 +168,12 @@ describe("Forge Reproducible Fixture Contract — P01-B07-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists six documented gap probes for reproducible fixture wiring", () => {
+  it("lists documented gap probes for reproducible fixture wiring", () => {
     const gaps = listReproducibleFixtureProbesByDisposition("gap");
     const ids = gaps.map(p => p.id).sort();
     assert.deepEqual(ids, [
       "fix.content_addressable_store",
       "fix.deterministic_eval_seed",
-      "fix.nogo_fixture_drift_gate",
-      "fix.nogo_hash_mismatch_gate",
-      "fix.recovery_baseline_reset",
-      "fix.recovery_missing_fixture_file",
     ]);
     assert.ok(gaps.every(p => p.expected === "FAIL"));
   });
@@ -473,7 +469,8 @@ describe("Forge Reproducible Fixture Evidence — P01-B07-A06", () => {
     assert.equal(record.summary.total, 6);
     assert.equal(record.summary.mismatches, 0);
     assert.ok(record.summary.byDisposition.failure >= 2);
-    assert.ok(record.summary.byDisposition.gap >= 4);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byDisposition.nogo >= 2);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.provenance.contractAtom, contract.atom);
     assert.equal(record.provenance.fixtureAtom, fixture.atom);
