@@ -8,6 +8,8 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import researcherInRepoEvidenceBaseline from "./fixtures/forge-researcher-in-repo-evidence-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -18,7 +20,7 @@ import {
 } from "./forge-p04-researcher-question-decomposition.js";
 import { searchFiles, type FileSearchResult } from "./research-engine.js";
 
-export const FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION = "1.0.0-a05";
+export const FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P04_B01_SEALED_ATOM_COUNT = 10;
 
@@ -1353,6 +1355,460 @@ export function runResearcherInRepoEvidenceFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P04-B02-A06). */
+export interface ResearcherInRepoEvidenceProbeEvidence {
+  probeId: string;
+  category: ResearcherInRepoEvidenceCategory;
+  disposition: ResearcherInRepoEvidenceProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for in-repo evidence runs (P04-B02-A06). */
+export interface ResearcherInRepoEvidenceProbeTelemetry {
+  probeId: string;
+  category: ResearcherInRepoEvidenceCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B02-A06). */
+export interface ResearcherInRepoEvidenceProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherInRepoEvidenceCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated in-repo evidence run record bundling evidence, telemetry and provenance. */
+export interface ResearcherInRepoEvidenceRunRecord {
+  provenance: ResearcherInRepoEvidenceProvenance;
+  evidence: ResearcherInRepoEvidenceProbeEvidence[];
+  telemetry: ResearcherInRepoEvidenceProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherInRepoEvidenceCategory, number>;
+    byDisposition: Record<ResearcherInRepoEvidenceProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherInRepoEvidenceRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherInRepoEvidenceRunValidationResult {
+  valid: boolean;
+  issues: ResearcherInRepoEvidenceRunValidationIssue[];
+}
+
+export function buildResearcherInRepoEvidenceProbeEvidence(
+  probeId: string,
+  category: ResearcherInRepoEvidenceCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherInRepoEvidenceProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherInRepoEvidenceProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherInRepoEvidenceProbeTelemetry(
+  probeId: string,
+  category: ResearcherInRepoEvidenceCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherInRepoEvidenceProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherInRepoEvidenceProvenance(
+  runId: string,
+  fixture: ResearcherInRepoEvidenceBaseline,
+  contract: ResearcherInRepoEvidenceContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherInRepoEvidenceCategory[];
+  },
+): ResearcherInRepoEvidenceProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherInRepoEvidenceRunRecord(
+  provenance: ResearcherInRepoEvidenceProvenance,
+  evidence: ResearcherInRepoEvidenceProbeEvidence[],
+  telemetry: ResearcherInRepoEvidenceProbeTelemetry[],
+): ResearcherInRepoEvidenceRunRecord {
+  const byCategory = {} as Record<ResearcherInRepoEvidenceCategory, number>;
+  const byDisposition: Record<ResearcherInRepoEvidenceProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherInRepoEvidenceRunRecordAgainstProbeIds(
+  record: ResearcherInRepoEvidenceRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherInRepoEvidenceContract,
+): ResearcherInRepoEvidenceRunValidationResult {
+  const issues: ResearcherInRepoEvidenceRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherInRepoEvidenceRunRecord(
+  record: ResearcherInRepoEvidenceRunRecord,
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): ResearcherInRepoEvidenceRunValidationResult {
+  return validateResearcherInRepoEvidenceRunRecordAgainstProbeIds(
+    record,
+    listResearcherInRepoEvidenceContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherInRepoEvidenceEvidenceRunRecord(
+  record: ResearcherInRepoEvidenceRunRecord,
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): ResearcherInRepoEvidenceRunValidationResult {
+  const issues: ResearcherInRepoEvidenceRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B02-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B02-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_IN_REPO_EVIDENCE_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherInRepoEvidenceRunRecordAgainstProbeIds(
+    record,
+    listResearcherInRepoEvidenceFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherInRepoEvidenceEvidenceSliceResult {
+  atom: "P04-B02-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherInRepoEvidenceProbeResult[];
+  evidenceResults: ResearcherInRepoEvidenceProbeResult[];
+  matrixValidation: ResearcherInRepoEvidenceProbeMatrixValidationResult;
+  record: ResearcherInRepoEvidenceRunRecord;
+  recordValidation: ResearcherInRepoEvidenceRunValidationResult;
+}
+
+function resolveResearcherInRepoEvidenceGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherInRepoEvidenceProbeWithTiming(
+  entry: ResearcherInRepoEvidenceFixtureEntry,
+  fixture: ResearcherInRepoEvidenceBaseline,
+  contractProbe:
+    | { criterion: string; disposition: ResearcherInRepoEvidenceProbeDisposition }
+    | undefined,
+): {
+  result: ResearcherInRepoEvidenceProbeResult;
+  durationMs: number;
+  disposition: ResearcherInRepoEvidenceProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runResearcherInRepoEvidenceProbe(
+    entry.id,
+    entry.category,
+    entry.expected,
+    fixture,
+  );
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherInRepoEvidenceRecordFromEntries(
+  entries: ResearcherInRepoEvidenceFixtureEntry[],
+  fixture: ResearcherInRepoEvidenceBaseline,
+  contract: ResearcherInRepoEvidenceContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherInRepoEvidenceCategory[];
+  },
+): ResearcherInRepoEvidenceRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ResearcherInRepoEvidenceProbeEvidence[] = [];
+  const telemetry: ResearcherInRepoEvidenceProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherInRepoEvidenceProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherInRepoEvidenceProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherInRepoEvidenceProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherInRepoEvidenceProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherInRepoEvidenceGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherInRepoEvidenceRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all in-repo evidence probes and emit auditable evidence, telemetry and provenance (P04-B02-A06). */
+export function runResearcherInRepoEvidenceProbesWithRecord(
+  fixture: ResearcherInRepoEvidenceBaseline = loadResearcherInRepoEvidenceBaseline(),
+): ResearcherInRepoEvidenceRunRecord {
+  const contract = getActiveResearcherInRepoEvidenceContract();
+  return buildResearcherInRepoEvidenceRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B02-A06). */
+export function runResearcherInRepoEvidenceFailureRecoverySliceWithRecord(
+  fixture: ResearcherInRepoEvidenceBaseline = loadResearcherInRepoEvidenceBaseline(),
+): ResearcherInRepoEvidenceRunRecord {
+  const contract = getActiveResearcherInRepoEvidenceContract();
+  const failureRecoveryIds = new Set(listResearcherInRepoEvidenceFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherInRepoEvidenceRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B02-A06",
+    sliceCategories: RESEARCHER_IN_REPO_EVIDENCE_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherInRepoEvidenceEvidenceSlice(
+  fixture: ResearcherInRepoEvidenceBaseline = loadResearcherInRepoEvidenceBaseline(),
+): ResearcherInRepoEvidenceEvidenceSliceResult {
+  const contract = getActiveResearcherInRepoEvidenceContract();
+  const results = runResearcherInRepoEvidenceProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_IN_REPO_EVIDENCE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherInRepoEvidenceContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherInRepoEvidenceFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherInRepoEvidenceFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherInRepoEvidenceEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P04-B02-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
 
