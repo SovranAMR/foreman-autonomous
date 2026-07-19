@@ -3,7 +3,17 @@ import assert from "node:assert/strict";
 import {
   loadEvidenceArtifactBaseline,
   runEvidenceArtifactProbes,
+  runEvidenceArtifactProductionSlice,
+  validateEvidenceArtifactProbeMatrix,
 } from "./forge-evidence-artifact.probe.js";
+
+function formatMismatchReport(
+  mismatches: { id: string; expected: string; actual: string; detail: string }[],
+): string {
+  return mismatches
+    .map(m => `  ${m.id}: expected=${m.expected} actual=${m.actual} (${m.detail})`)
+    .join("\n");
+}
 import {
   getActiveEvidenceArtifactContract,
   getEvidenceArtifactCategoryContract,
@@ -112,5 +122,52 @@ describe("Forge Evidence Artifact Contract — P01-B08-A02", () => {
       assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
       assert.equal(result.criterion, contractProbe.criterion);
     }
+  });
+});
+
+describe("Forge Evidence Artifact Production Slice — P01-B08-A03", () => {
+  it("executes contract-wired probes with zero unexpected mismatches", () => {
+    const contract = getActiveEvidenceArtifactContract();
+    const slice = runEvidenceArtifactProductionSlice();
+
+    assert.equal(slice.atom, "P01-B08-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 25);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 18);
+    assert.equal(slice.matrixValidation.gapAligned, 7);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateEvidenceArtifactProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 7);
+    assert.deepEqual(
+      slice.summary.knownGaps.map(g => g.id).sort(),
+      [
+        "eva.cross_block_normalizer",
+        "eva.nogo_cross_block_mismatch_gate",
+        "eva.nogo_schema_drift_gate",
+        "eva.recovery_baseline_reset",
+        "eva.recovery_missing_schema_fallback",
+        "eva.unified_category_dimension",
+        "eva.unified_schema_type_export",
+      ],
+    );
   });
 });

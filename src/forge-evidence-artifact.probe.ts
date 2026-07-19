@@ -27,9 +27,12 @@ import {
   listEvidenceArtifactKnownGaps,
   FORGE_EVIDENCE_ARTIFACT_VERSION,
   getActiveEvidenceArtifactContract,
+  validateEvidenceArtifactBaselineAgainstContract,
+  validateEvidenceArtifactProbeMatrix,
   type EvidenceArtifactBaseline,
   type EvidenceArtifactCategory,
   type EvidenceArtifactProbeResult,
+  type EvidenceArtifactProbeMatrixValidationResult,
 } from "./forge-evidence-artifact.js";
 
 export type { EvidenceArtifactBaseline, EvidenceArtifactProbeResult } from "./forge-evidence-artifact.js";
@@ -51,7 +54,9 @@ export {
   summarizeEvidenceArtifactContractCoverage,
   validateEvidenceArtifactContractCoverage,
   validateEvidenceArtifactBaselineAgainstContract,
+  validateEvidenceArtifactProbeMatrix,
   FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1,
+  type EvidenceArtifactProbeMatrixValidationResult,
 } from "./forge-evidence-artifact.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -601,4 +606,39 @@ export function runEvidenceArtifactProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface EvidenceArtifactProductionSliceResult {
+  atom: "P01-B08-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: EvidenceArtifactProbeResult[];
+  summary: ReturnType<typeof summarizeEvidenceArtifactMatrix>;
+  matrixValidation: EvidenceArtifactProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: fixture ↔ contract validation, contract-wired probe
+ * execution, and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runEvidenceArtifactProductionSlice(
+  fixture: EvidenceArtifactBaseline = loadEvidenceArtifactBaseline(),
+): EvidenceArtifactProductionSliceResult {
+  const contract = getActiveEvidenceArtifactContract();
+  const fixtureValidation = validateEvidenceArtifactBaseline(fixture);
+  const contractValidation = validateEvidenceArtifactBaselineAgainstContract(fixture, contract);
+  const results = runEvidenceArtifactProbes(fixture);
+  const summary = summarizeEvidenceArtifactMatrix(results);
+  const matrixValidation = validateEvidenceArtifactProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B08-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

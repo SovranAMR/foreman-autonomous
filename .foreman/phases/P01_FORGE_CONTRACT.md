@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 70
+completed_atoms: 71
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -108,7 +108,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P01-B08-A01 — Evidence ve artifact şeması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B08-A02 — Evidence ve artifact şeması: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P01-B08-A03 — Evidence ve artifact şeması: en küçük üretim dikey dilimini uygula
+- [x] P01-B08-A03 — Evidence ve artifact şeması: en küçük üretim dikey dilimini uygula
 - [ ] P01-B08-A04 — Evidence ve artifact şeması: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B08-A05 — Evidence ve artifact şeması: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B08-A06 — Evidence ve artifact şeması: evidence, telemetry ve provenance kaydını ekle
@@ -156,11 +156,10 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B08-A02
+last_atom: P01-B08-A03
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (9/9); FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1 25 probes / 7 FAIL gaps
+tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (10/10); production slice 18 pass / 7 gap aligned
 evidence: |
-  P01-B08-A02 contract: FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1 with 11 category contracts, 25 probes
-  (16 observed + 3 gap + 2 failure + 2 recovery + 2 nogo); validateEvidenceArtifactBaselineAgainstContract
-  fixture↔contract aligned; runEvidenceArtifactProbes wires criteria from contract source of truth.
-next: P01-B08-A03
+  P01-B08-A03 production slice: validateEvidenceArtifactProbeMatrix gates contract-wired probe matrix;
+  runEvidenceArtifactProductionSlice validates fixture↔contract, runs 25 probes, zero unexpected mismatches.
+next: P01-B08-A04
