@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 69
+completed_atoms: 70
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -106,7 +106,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P02-B08 — Vizyon scoring ve trade-off
 
-- [ ] P02-B08-A01 — Vizyon scoring ve trade-off: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P02-B08-A01 — Vizyon scoring ve trade-off: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P02-B08-A02 — Vizyon scoring ve trade-off: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B08-A03 — Vizyon scoring ve trade-off: en küçük üretim dikey dilimini uygula
 - [ ] P02-B08-A04 — Vizyon scoring ve trade-off: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B07-A10
-last_commit: ccdaaad
-tests: PASS — forge-p02-visioner-alternative-block-gate.test.ts (6/6); forge-p02-visioner-alternative*.test.ts (46/46); forge-pipeline-regression.integration.test.ts (84/84)
-evidence: runVisionerAlternativeBlockGate seals P02-B07 with B08 handoff; verifyForgeVisionerAlternativeBlockGate emits visioner_alternative_block_gate
-next: P02-B08-A01
+last_atom: P02-B08-A01
+last_commit: 56b5857
+tests: PASS — forge-p02-visioner-scoring-baseline.test.ts (3/3)
+evidence: runVisionerScoringProbes measures 23 probes from P02-B07 handoff; documented FAIL gap vsco.structured_tradeoff_recovery (recoverVisionerTradeoff absent)
+next: P02-B08-A02

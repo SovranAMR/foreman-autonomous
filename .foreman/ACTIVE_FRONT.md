@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B08
-active_atom: P02-B08-A01
+active_atom: P02-B08-A02
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 169/1000
-phase_progress: 68/100
-block_progress: 10/10
+program_progress: 170/1000
+phase_progress: 69/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B08-A01 — Vision scoring production slice: measure current behavior and create failing baseline fixture.
+P02-B08-A02 — Vision scoring typed contract: define measurable acceptance criteria.
 
-objective: P02-B07 block gate PASS; start B08 baseline measurement.
-target: Measure vision scoring/trade-off behavior and create failing baseline fixture for P02-B08.
-hypothesis: sealed B07 handoff provides alternative artifacts for scoring baseline entry.
-acceptance: forge-p02-visioner-scoring baseline slice with failing fixture (when added).
-commands: npx tsx --test src/forge-p02-visioner-scoring-baseline.test.ts
+objective: P02-B08-A01 baseline PASS; formalize scoring contract.
+target: Typed contract with measurable probes for all visioner scoring categories.
+hypothesis: A01 baseline fixture and probe matrix provide contract entry points.
+acceptance: forge-p02-visioner-scoring contract coverage aligned with baseline fixture.
+commands: npx tsx --test src/forge-p02-visioner-scoring.test.ts
 blast_radius: src/forge-p02-visioner-scoring*
-rollback: P02-B08-A01 baseline değişikliklerini geri al.
+rollback: P02-B08-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: scoring slice requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
+fallback: contract requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B07-A10
-last_commit: ccdaaad
-tests: PASS — forge-p02-visioner-alternative-block-gate.test.ts (6/6); forge-p02-visioner-alternative*.test.ts (46/46); forge-pipeline-regression.integration.test.ts (84/84)
-evidence: runVisionerAlternativeBlockGate seals P02-B07 with B08 handoff; verifyForgeVisionerAlternativeBlockGate emits visioner_alternative_block_gate
-next: P02-B08-A01
+last_atom: P02-B08-A01
+last_commit: 56b5857
+tests: PASS — forge-p02-visioner-scoring-baseline.test.ts (3/3)
+evidence: runVisionerScoringProbes measures 23 probes from P02-B07 handoff; documented FAIL gap vsco.structured_tradeoff_recovery
+next: P02-B08-A02
