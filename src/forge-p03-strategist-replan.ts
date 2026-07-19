@@ -2501,3 +2501,170 @@ export function runStrategistReplanPropertyFuzzSlice(
     runRecordFuzz,
   };
 }
+
+// ─── Forge regression integration (P03-B08-A08) ─────────────────────────────
+
+export interface StrategistReplanProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare replan run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectStrategistReplanProbeRegression(
+  prior: StrategistReplanRunRecord,
+  current: StrategistReplanRunRecord,
+): StrategistReplanProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runStrategistReplanProbeRegression = detectStrategistReplanProbeRegression;
+
+export interface StrategistReplanProbeRegressionValidation {
+  valid: boolean;
+  report: StrategistReplanProbeRegressionReport;
+}
+
+/** Validate probe alignment between prior and current replan run records. */
+export function validateStrategistReplanProbeRegression(
+  prior: StrategistReplanRunRecord,
+  current: StrategistReplanRunRecord,
+): StrategistReplanProbeRegressionValidation {
+  const report = detectStrategistReplanProbeRegression(prior, current);
+  return { valid: !report.hasRegression, report };
+}
+
+export interface StrategistReplanForgeRegressionResult {
+  atom: "P03-B08-A08";
+  passed: boolean;
+  productionSlice: StrategistReplanProductionSliceResult;
+  propertyFuzzSlice: StrategistReplanPropertyFuzzSliceResult;
+  record: StrategistReplanRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: StrategistReplanProbeRegressionReport | null;
+  detail: string;
+}
+
+/**
+ * Execute replan probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P03-B08-A08).
+ */
+export function runStrategistReplanForgeRegression(
+  priorRecord?: StrategistReplanRunRecord,
+): StrategistReplanForgeRegressionResult {
+  const fixture = loadStrategistReplanBaseline();
+  const contract = getActiveStrategistReplanContract();
+  const productionSlice = runStrategistReplanProductionSlice(fixture);
+  const propertyFuzzSlice = runStrategistReplanPropertyFuzzSlice(fixture);
+  const record = runStrategistReplanProbesWithRecord(fixture);
+  const validation = validateStrategistReplanRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateStrategistReplanRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectStrategistReplanProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk && recordValid && priorRecordValid && !alignmentRegression && propertyFuzzOk;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(
+      `priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`,
+    );
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+
+  return {
+    atom: "P03-B08-A08",
+    passed,
+    productionSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    detail: detailParts.join(" | "),
+  };
+}
+
+export type ForgeStrategistReplanRegressionGateResult = StrategistReplanForgeRegressionResult;
+
+/** Replan regression gate for Forge pipeline integration (P03-B08-A08). */
+export function runForgeStrategistReplanRegressionGate(
+  priorRecord?: StrategistReplanRunRecord,
+): ForgeStrategistReplanRegressionGateResult {
+  return runStrategistReplanForgeRegression(priorRecord);
+}

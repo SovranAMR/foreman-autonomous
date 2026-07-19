@@ -24,6 +24,12 @@ import {
   runStrategistReplanPropertyFuzzSlice,
   runStrategistReplanFuzzValidation,
   runStrategistReplanRunRecordFuzzValidation,
+  runStrategistReplanForgeRegression,
+  detectStrategistReplanProbeRegression,
+  runStrategistReplanProbeRegression,
+  validateStrategistReplanProbeRegression,
+  runForgeStrategistReplanRegressionGate,
+  applyStrategistReplanRunRecordFuzzMutation,
   createStrategistReplanFuzzRng,
   STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES,
   assessStrategistReplanInputBoundary,
@@ -687,5 +693,133 @@ describe("Forge Strategist Replan Property/Fuzz — P03-B08-A07", () => {
     assert.equal(slice.contractFuzz.allMutationsRejected, true);
     assert.equal(slice.contractFuzz.accepted, 0);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
+  });
+});
+
+describe("Forge Strategist Replan Regression — P03-B08-A08", () => {
+  it("runStrategistReplanForgeRegression passes on canonical replan matrix", () => {
+    const result = runStrategistReplanForgeRegression();
+
+    assert.equal(result.atom, "P03-B08-A08");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 28);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.ok(result.detail.includes("28/28 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectStrategistReplanProbeRegression flags newly misaligned probes", () => {
+    const prior = runStrategistReplanProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistReplanProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runStrategistReplanProbeRegression alias matches detect helper", () => {
+    const prior = runStrategistReplanProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const detectReport = detectStrategistReplanProbeRegression(prior, current);
+    const runReport = runStrategistReplanProbeRegression(prior, current);
+    assert.deepEqual(runReport, detectReport);
+  });
+
+  it("validateStrategistReplanProbeRegression rejects probe drift", () => {
+    const prior = runStrategistReplanProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const validation = validateStrategistReplanProbeRegression(prior, current);
+    assert.equal(validation.valid, false);
+    assert.equal(validation.report.hasRegression, true);
+  });
+
+  it("runStrategistReplanForgeRegression compares against prior record without false regression", () => {
+    const prior = runStrategistReplanProbesWithRecord();
+    const result = runStrategistReplanForgeRegression(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runStrategistReplanForgeRegression rejects tampered prior records", () => {
+    const prior = runStrategistReplanProbesWithRecord();
+    const tamperedPrior = applyStrategistReplanRunRecordFuzzMutation(prior, {
+      kind: "drop_evidence",
+      probeId: prior.evidence[0]?.probeId,
+    });
+
+    assert.equal(validateStrategistReplanRunRecord(tamperedPrior).valid, false);
+
+    const result = runStrategistReplanForgeRegression(tamperedPrior);
+    assert.equal(result.priorRecordValid, false);
+    assert.equal(result.passed, false);
+    assert.ok(result.detail.includes("priorValidation:"));
+  });
+
+  it("runStrategistReplanForgeRegression fails when probe alignment regresses", () => {
+    const prior = runStrategistReplanProbesWithRecord();
+    const tamperedCurrent = structuredClone(prior);
+    const target = tamperedCurrent.evidence[0]!;
+    target.aligned = false;
+    target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+    tamperedCurrent.summary = {
+      ...tamperedCurrent.summary,
+      aligned: tamperedCurrent.summary.aligned - 1,
+      mismatches: tamperedCurrent.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistReplanProbeRegression(prior, tamperedCurrent);
+    assert.equal(report.hasRegression, true);
+  });
+
+  it("runForgeStrategistReplanRegressionGate passes on canonical replan run", () => {
+    const gate = runForgeStrategistReplanRegressionGate();
+
+    assert.equal(gate.passed, true, gate.detail);
+    assert.equal(gate.atom, "P03-B08-A08");
+    assert.equal(gate.record.summary.mismatches, 0);
+    assert.equal(gate.record.evidence.length, 28);
   });
 });
