@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B01-A07
-last_commit: 30de9f8
+last_commit: a142ca3
 tests: PASS — forge-p04-researcher*.test.ts (37/37); property 8/8; fuzz mutations 72/72 rejected; run-record fuzz 5/5 rejected; 0 unexpected mismatches
 evidence: runResearcherQuestionDecompositionPropertyFuzzSlice; runResearcherQuestionDecompositionPropertyChecks; runResearcherQuestionDecompositionFuzzValidation; runResearcherQuestionDecompositionRunRecordFuzzValidation; harnessVersion=1.0.0-a07
 next: P04-B01-A08
