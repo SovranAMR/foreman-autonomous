@@ -4,16 +4,19 @@ import {
   loadOrchestratorSeamBaseline,
   runOrchestratorSeamProbes,
   runOrchestratorSeamProductionSlice,
+  runOrchestratorSeamBoundarySlice,
 } from "./forge-orchestrator-seam.probe.js";
 import {
   getActiveOrchestratorSeamContract,
   getOrchestratorSeamCategoryContract,
   listOrchestratorSeamContractProbeIds,
+  listOrchestratorSeamContractProbesByCategory,
   listOrchestratorSeamProbesByDisposition,
   summarizeOrchestratorSeamContractCoverage,
   validateOrchestratorSeamContractCoverage,
   validateOrchestratorSeamBaselineAgainstContract,
   validateOrchestratorSeamProbeMatrix,
+  validateOrchestratorSeamBoundaryProbeMatrix,
   ORCHESTRATOR_SEAM_CATEGORIES,
 } from "./forge-orchestrator-seam.js";
 
@@ -167,5 +170,70 @@ describe("Forge Orchestrator Seam Production Slice — P01-B09-A03", () => {
         "oseam.unified_lazy_import_registry",
       ],
     );
+  });
+});
+
+describe("Forge Orchestrator Seam Boundary Slice — P01-B09-A04", () => {
+  it("defines three boundary probes wired to sealed B08 sourceEvidenceArtifact", () => {
+    const boundary = listOrchestratorSeamContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 3);
+    assert.deepEqual(ids, [
+      "oseam.known_gaps_documented",
+      "oseam.probe_runner_exported",
+      "oseam.source_evidence_artifact_ref",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+    assert.ok(boundary.every(p => p.disposition === "observed"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveOrchestratorSeamContract();
+    const slice = runOrchestratorSeamBoundarySlice();
+
+    assert.equal(slice.atom, "P01-B09-A04");
+    assert.equal(slice.boundaryProbeCount, 3);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 3);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 3);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listOrchestratorSeamContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateOrchestratorSeamBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("confirms boundary probes validate sealed B08 handoff and documented FAIL gaps", () => {
+    const slice = runOrchestratorSeamBoundarySlice();
+    const sourceRef = slice.boundaryResults.find(r => r.id === "oseam.source_evidence_artifact_ref");
+    const probeRunner = slice.boundaryResults.find(r => r.id === "oseam.probe_runner_exported");
+    const knownGaps = slice.boundaryResults.find(r => r.id === "oseam.known_gaps_documented");
+
+    assert.ok(sourceRef);
+    assert.equal(sourceRef!.expected, "PASS");
+    assert.equal(sourceRef!.actual, "PASS");
+    assert.match(sourceRef!.detail, /probes=25/);
+
+    assert.ok(probeRunner);
+    assert.equal(probeRunner!.expected, "PASS");
+    assert.equal(probeRunner!.actual, "PASS");
+
+    assert.ok(knownGaps);
+    assert.equal(knownGaps!.expected, "PASS");
+    assert.equal(knownGaps!.actual, "PASS");
+    assert.match(knownGaps!.detail, /documentedFail=7/);
   });
 });

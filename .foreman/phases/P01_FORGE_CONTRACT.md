@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 79
+completed_atoms: 80
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -122,7 +122,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B09-A01 — Orchestrator seam ve modülerleşme: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B09-A02 — Orchestrator seam ve modülerleşme: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B09-A03 — Orchestrator seam ve modülerleşme: en küçük üretim dikey dilimini uygula
-- [ ] P01-B09-A04 — Orchestrator seam ve modülerleşme: boundary ve edge-case davranışlarını tamamla
+- [x] P01-B09-A04 — Orchestrator seam ve modülerleşme: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B09-A05 — Orchestrator seam ve modülerleşme: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B09-A06 — Orchestrator seam ve modülerleşme: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B09-A07 — Orchestrator seam ve modülerleşme: unit, property ve fuzz doğrulamasını ekle
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B09-A03
+last_atom: P01-B09-A04
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (10/10); 23 probes; gapAligned=7; unexpectedMismatches=0
+tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (13/13); boundary=3; passAligned=3; unexpectedMismatches=0
 evidence: |
-  P01-B09-A03: runOrchestratorSeamProductionSlice in forge-orchestrator-seam.probe.ts;
-  validateOrchestratorSeamProbeMatrix in forge-orchestrator-seam.ts;
-  passAligned=16 gapAligned=7; 7 documented FAIL gaps preserved.
-next: P01-B09-A04
+  P01-B09-A04: runOrchestratorSeamBoundarySlice in forge-orchestrator-seam.probe.ts;
+  validateOrchestratorSeamBoundaryProbeMatrix in forge-orchestrator-seam.ts;
+  B08 sourceEvidenceArtifact ref, probe runner, known gaps validated; documentedFail=7 preserved.
+next: P01-B09-A05

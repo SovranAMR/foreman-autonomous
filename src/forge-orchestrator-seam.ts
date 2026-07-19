@@ -955,3 +955,25 @@ export function validateOrchestratorSeamProbeMatrix(
     unexpectedMismatches,
   };
 }
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * PASS boundary probes must align; documented FAIL gaps in boundary category preserved.
+ */
+export function validateOrchestratorSeamBoundaryProbeMatrix(
+  results: OrchestratorSeamProbeResult[],
+  contract: OrchestratorSeamContract = getActiveOrchestratorSeamContract(),
+): OrchestratorSeamProbeMatrixValidationResult {
+  const boundaryProbes = listOrchestratorSeamContractProbesByCategory("boundary", contract);
+  const boundaryContract: OrchestratorSeamContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateOrchestratorSeamProbeMatrix(boundaryResults, boundaryContract);
+}

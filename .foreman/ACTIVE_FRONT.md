@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B09
-active_atom: P01-B09-A04
+active_atom: P01-B09-A05
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 82/1000
-phase_progress: 81/100
-block_progress: 3/10
+program_progress: 83/1000
+phase_progress: 82/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B09-A04 — Orchestrator seam ve modülerleşme: boundary ve edge-case davranışlarını tamamla.
+P01-B09-A05 — Orchestrator seam ve modülerleşme: failure, recovery ve NO-GO yollarını uygula.
 
-objective: A03 production slice sealed; boundary category probes with zero unexpected mismatches.
-target: forge-orchestrator-seam.ts boundary slice; edge probes wired to typed contract.
-hypothesis: A03 matrix gate + boundary category contract yeterli A04 boundary slice sağlar.
-acceptance: boundary slice executes 3 boundary probes; zero unexpected mismatches; documented FAIL gaps preserved.
-commands: npx tsx --test src/forge-orchestrator-seam*.test.ts (A04 suite when present)
+objective: A04 boundary slice sealed; failure/recovery/NO-GO category probes with zero unexpected mismatches.
+target: forge-orchestrator-seam.ts failure/recovery slice; edge probes wired to typed contract.
+hypothesis: A04 boundary gate + failure/recovery category contract yeterli A05 slice sağlar.
+acceptance: failure/recovery slice executes 6 probes; zero unexpected mismatches; documented FAIL gaps preserved.
+commands: npx tsx --test src/forge-orchestrator-seam*.test.ts (A05 suite when present)
 blast_radius: forge-orchestrator-seam*.ts
-rollback: A04 boundary slice değişikliklerini geri al.
+rollback: A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A03 production slice invalid ise BLOCKED raporla.
+fallback: A04 boundary slice invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B09-A03
+last_atom: P01-B09-A04
 last_commit: pending
-tests: PASS — forge-orchestrator-seam*.test.ts (10/10); 23 probes; gapAligned=7; unexpectedMismatches=0
-evidence: runOrchestratorSeamProductionSlice; validateOrchestratorSeamProbeMatrix; passAligned=16 gapAligned=7
-next: P01-B09-A04
+tests: PASS — forge-orchestrator-seam*.test.ts (13/13); boundary=3; passAligned=3; unexpectedMismatches=0
+evidence: runOrchestratorSeamBoundarySlice; validateOrchestratorSeamBoundaryProbeMatrix; B08 sourceEvidenceArtifact ref validated
+next: P01-B09-A05

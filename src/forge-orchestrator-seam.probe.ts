@@ -23,7 +23,9 @@ import {
   validateOrchestratorSeamBaseline,
   validateOrchestratorSeamBaselineAgainstContract,
   validateOrchestratorSeamProbeMatrix,
+  validateOrchestratorSeamBoundaryProbeMatrix,
   summarizeOrchestratorSeamMatrix,
+  listOrchestratorSeamContractProbesByCategory,
   listOrchestratorSeamProbesByExpected,
   listOrchestratorSeamKnownGaps,
   FORGE_ORCHESTRATOR_SEAM_VERSION,
@@ -49,6 +51,7 @@ export {
   validateOrchestratorSeamContractCoverage,
   validateOrchestratorSeamBaselineAgainstContract,
   validateOrchestratorSeamProbeMatrix,
+  validateOrchestratorSeamBoundaryProbeMatrix,
   FORGE_ORCHESTRATOR_SEAM_VERSION,
   ORCHESTRATOR_SEAM_CATEGORIES,
   ORCHESTRATOR_FORGE_REGRESSION_METHODS,
@@ -582,6 +585,39 @@ export function runOrchestratorSeamProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface OrchestratorSeamBoundarySliceResult {
+  atom: "P01-B09-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: OrchestratorSeamProbeResult[];
+  boundaryResults: OrchestratorSeamProbeResult[];
+  matrixValidation: ReturnType<typeof validateOrchestratorSeamBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (sourceEvidenceArtifact ref,
+ * probe runner, known gaps) with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runOrchestratorSeamBoundarySlice(
+  fixture: OrchestratorSeamBaseline = loadOrchestratorSeamBaseline(),
+): OrchestratorSeamBoundarySliceResult {
+  const contract = getActiveOrchestratorSeamContract();
+  const results = runOrchestratorSeamProbes(fixture);
+  const boundaryProbes = listOrchestratorSeamContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateOrchestratorSeamBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B09-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }
