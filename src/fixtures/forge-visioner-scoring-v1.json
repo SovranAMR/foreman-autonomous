@@ -135,7 +135,7 @@
       "id": "vsco.structured_tradeoff_recovery",
       "category": "recovery_path",
       "description": "recoverVisionerTradeoff restructures failed trade-off parse into actionable scoring input",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "vsco.scoring_tiebreak_nogo",

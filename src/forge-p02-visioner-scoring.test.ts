@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   loadVisionerScoringBaseline,
   runVisionerScoringProbes,
+  runVisionerScoringProductionSlice,
 } from "./forge-p02-visioner-scoring.probe.js";
 import {
   getActiveVisionerScoringContract,
@@ -14,6 +15,7 @@ import {
   validateVisionerScoringContractCoverage,
   validateVisionerScoringAgainstContract,
   validateVisionerScoringProbeMatrix,
+  recoverVisionerTradeoff,
   VISIONER_SCORING_CATEGORIES,
   FORGE_VISIONER_SCORING_VERSION,
 } from "./forge-p02-visioner-scoring.js";
@@ -53,19 +55,19 @@ describe("Forge Visioner Scoring Contract — P02-B08-A02", () => {
     }
   });
 
-  it("maps 23 probes with one documented gap from P02-B08-A01 baseline", () => {
+  it("maps 23 probes with full alignment after A03 recovery slice", () => {
     const contract = getActiveVisionerScoringContract();
     const summary = summarizeVisionerScoringContractCoverage(contract);
     const coverage = validateVisionerScoringContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 1);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 1);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 1);
+    assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.scoring_versioning.probeCount, 3);
     assert.equal(summary.byCategory.scoring_signal.probeCount, 3);
@@ -77,11 +79,9 @@ describe("Forge Visioner Scoring Contract — P02-B08-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists one remaining gap probe after A01 baseline fixture", () => {
+  it("lists zero remaining gap probes after A03 recovery slice", () => {
     const gaps = listVisionerScoringProbesByDisposition("gap");
-    const ids = gaps.map(p => p.id).sort();
-    assert.deepEqual(ids, ["vsco.structured_tradeoff_recovery"]);
-    assert.ok(gaps.every(p => p.expected === "FAIL"));
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -127,7 +127,7 @@ describe("Forge Visioner Scoring Contract — P02-B08-A02", () => {
     assert.deepEqual(categoryIds, flatIds);
   });
 
-  it("validates probe matrix with full alignment and one documented gap", () => {
+  it("validates probe matrix with full alignment after A03 recovery slice", () => {
     const contract = getActiveVisionerScoringContract();
     const results = runVisionerScoringProbes();
     const matrixValidation = validateVisionerScoringProbeMatrix(results, contract);
@@ -137,8 +137,8 @@ describe("Forge Visioner Scoring Contract — P02-B08-A02", () => {
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
-    assert.equal(matrixValidation.passAligned, 22);
-    assert.equal(matrixValidation.gapAligned, 1);
+    assert.equal(matrixValidation.passAligned, 23);
+    assert.equal(matrixValidation.gapAligned, 0);
     assert.equal(matrixValidation.unexpectedMismatches, 0);
 
     const passMismatches = results.filter(r => r.expected === "PASS" && !r.aligned);
@@ -147,5 +147,54 @@ describe("Forge Visioner Scoring Contract — P02-B08-A02", () => {
 
   it("exports B07 harness version for scoring baseline handoff", () => {
     assert.equal(FORGE_VISIONER_SCORING_VERSION, "1.0.0-b07");
+  });
+});
+
+describe("Forge Visioner Scoring Production Slice — P02-B08-A03", () => {
+  it("recoverVisionerTradeoff restructures malformed vision into actionable scoring input", () => {
+    const malformed = `REASONING: Two product directions with trade-off analysis needed
+OUTPUT: **GOAL**: Dental clinic platform
+option A (speed): Rapid MVP launch
+option B (cost): Lean self-serve portal
+tradeoff: speed vs implementation cost
+CONFIDENCE: 0.78`;
+    const recovery = recoverVisionerTradeoff(malformed);
+
+    assert.equal(recovery.recovered, true);
+    assert.match(recovery.composedVision, /\*\*ALTERNATIVE VISION A\*\*:/);
+    assert.match(recovery.composedVision, /\*\*ALTERNATIVE VISION B\*\*:/);
+    assert.match(recovery.composedVision, /\*\*TRADE-OFF\*\*:/);
+    assert.equal(recovery.presence.scoreable, true);
+    assert.ok(recovery.presence.alternativeCount >= 2);
+    assert.ok(recovery.tradeoffs.some(t => t.includes("speed")));
+    assert.ok(recovery.alternatives.some(alt => alt.includes("MVP launch")));
+    assert.ok(recovery.alternatives.some(alt => alt.includes("self-serve portal")));
+  });
+
+  it("recoverVisionerTradeoff rejects null-byte vision output safely", () => {
+    const recovery = recoverVisionerTradeoff("vision\0output");
+    assert.equal(recovery.recovered, false);
+    assert.deepEqual(recovery.parseErrors, ["null_byte_in_vision"]);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after recovery slice", () => {
+    const contract = getActiveVisionerScoringContract();
+    const slice = runVisionerScoringProductionSlice();
+
+    assert.equal(slice.atom, "P02-B08-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
   });
 });

@@ -33,26 +33,19 @@ describe("Forge Visioner Scoring — P02-B08-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures visioner scoring probes with documented FAIL gaps from P02-B07 sealed handoff", () => {
+  it("measures visioner scoring probes with full alignment after A03 recovery slice", () => {
     const results = runVisionerScoringProbes();
     const summary = summarizeVisionerScoringMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listVisionerScoringProbesByExpected(
       "FAIL",
       loadVisionerScoringBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(documentedFail.some(p => p.id === "vsco.structured_tradeoff_recovery"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of VISIONER_SCORING_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -67,14 +60,8 @@ describe("Forge Visioner Scoring — P02-B08-A01", () => {
     );
   });
 
-  it("documents remaining visioner scoring gaps as measurable baseline debt", () => {
+  it("documents zero remaining visioner scoring gaps after structured recovery slice", () => {
     const gaps = listVisionerScoringKnownGaps(runVisionerScoringProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, ["vsco.structured_tradeoff_recovery"]);
-    assert.ok(
-      gaps.every(g => VISIONER_SCORING_CATEGORIES.includes(g.category)),
-      "documented gaps are visioner scoring probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });

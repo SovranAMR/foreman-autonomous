@@ -22,7 +22,10 @@ import {
   assessVisionerScoringInputBoundary,
   assessVisionerScoringPresence,
   checkVisionerScoringTieBreak,
+  recoverVisionerTradeoff,
   validateVisionerScoringBaseline,
+  validateVisionerScoringAgainstContract,
+  validateVisionerScoringProbeMatrix,
   summarizeVisionerScoringMatrix,
   listVisionerScoringProbesByExpected,
   listVisionerScoringKnownGaps,
@@ -392,13 +395,27 @@ function probeRecoveryPath(
       return probe(id, category, expected, ok, `checkpointScoring=${ok}`);
     }
     case "vsco.structured_tradeoff_recovery": {
-      const ok = hasProductionExport("recoverVisionerTradeoff");
+      const malformed = `REASONING: Two product directions with trade-off analysis needed
+OUTPUT: **GOAL**: Dental clinic platform
+option A (speed): Rapid MVP launch
+option B (cost): Lean self-serve portal
+tradeoff: speed vs implementation cost
+CONFIDENCE: 0.78`;
+      const recovery = recoverVisionerTradeoff(malformed);
+      const ok =
+        hasProductionExport("recoverVisionerTradeoff") &&
+        recovery.recovered === true &&
+        recovery.presence.scoreable &&
+        recovery.presence.alternativeCount >= 2 &&
+        recovery.tradeoffs.some(t => t.includes("speed")) &&
+        recovery.alternatives.some(alt => alt.includes("MVP launch")) &&
+        recovery.alternatives.some(alt => alt.includes("self-serve portal"));
       return probe(
         id,
         category,
         expected,
         ok,
-        `recoverVisionerTradeoff exported=${ok}`,
+        `recovered=${recovery.recovered}, ${recovery.detail}`,
       );
     }
     default:
@@ -489,4 +506,39 @@ export function runVisionerScoringProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface VisionerScoringProductionSliceResult {
+  atom: "P02-B08-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerScoringProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerScoringMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerScoringProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: recoverVisionerTradeoff wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runVisionerScoringProductionSlice(
+  fixture: VisionerScoringBaseline = loadVisionerScoringBaseline(),
+): VisionerScoringProductionSliceResult {
+  const contract = getActiveVisionerScoringContract();
+  const fixtureValidation = validateVisionerScoringBaseline(fixture);
+  const contractValidation = validateVisionerScoringAgainstContract(fixture, contract);
+  const results = runVisionerScoringProbes(fixture);
+  const summary = summarizeVisionerScoringMatrix(results);
+  const matrixValidation = validateVisionerScoringProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B08-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
