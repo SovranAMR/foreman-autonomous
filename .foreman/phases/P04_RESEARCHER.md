@@ -102,7 +102,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B07-A07 — Risk ve trade-off araştırması: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B07-A08 — Risk ve trade-off araştırması: Forge entegrasyonu ile regression testini tamamla
 - [x] P04-B07-A09 — Risk ve trade-off araştırması: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P04-B07-A10 — Risk ve trade-off araştırması: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P04-B07-A10 — Risk ve trade-off araştırması: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B08 — Spike ve falsification deneyi
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B07-A09
-last_commit: e7efc42
-tests: PASS — forge-p04-researcher-risk-tradeoff.guard.test.ts (8/8); regression gate guard adversarial=3/3; validateForgeResearcherRiskTradeoffGuard canonical PASS
-evidence: runResearcherRiskTradeoffAdversarialGuardChecks + validateForgeResearcherRiskTradeoffGuard + verifyForgeResearcherRiskTradeoffGuard; harnessVersion 1.0.0-a09
-next: P04-B07-A10
+last_atom: P04-B07-A10
+last_commit: pending
+tests: PASS — forge-p04-researcher-risk-tradeoff-block-gate.test.ts (7/7); risk-tradeoff suite 61/61; block gate seals=10/10 handoff→P04-B08
+evidence: runResearcherRiskTradeoffBlockGate + verifyForgeResearcherRiskTradeoffBlockGate + FORGE_P04_B07_TO_B08_HANDOFF_V1
+next: P04-B08-A01

@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
-active_block: P04-B07
-active_atom: P04-B07-A10
+active_block: P04-B08
+active_atom: P04-B08-A01
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 369/1000
-phase_progress: 68/100
-block_progress: 9/10
+program_progress: 370/1000
+phase_progress: 69/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B07-A10 — Risk ve trade-off araştırması: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P04-B08-A01 — Spike ve falsification deneyi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P04-B07-A09 PASS; guard suite 8/8; adversarial=3/3; orchestrator verifyForgeResearcherRiskTradeoffGuard wired.
-target: Block gate test suite sealing risk trade-off matrix with guard + regression + property/fuzz evidence.
-hypothesis: Block gate PASS aggregates canonical probes, guard controls and sealed handoff contract.
-acceptance: Block gate suite validates; handoff fixture ready for P04-B08.
-commands: npx tsx --test src/forge-p04-researcher-risk-tradeoff-block-gate.test.ts
-blast_radius: src/forge-p04-researcher-risk-tradeoff*.ts
-rollback: P04-B07-A10 block gate slice değişikliklerini geri al.
+objective: P04-B07-A10 PASS; block gate 10/10 seals; handoff→P04-B08 sealed.
+target: Versioned spike/falsification baseline fixture aligned to P04-B07 block gate handoff with measurable failing probes.
+hypothesis: Baseline probes document current spike/falsification behavior gaps against sealed risk trade-off artifacts.
+acceptance: Baseline loads; validate passes; probe matrix runs with documented FAIL gaps only.
+commands: npx tsx --test src/forge-p04-researcher-spike-falsification-baseline.test.ts
+blast_radius: src/forge-p04-researcher-spike-falsification*.ts; src/fixtures/forge-researcher-spike-falsification-v1.json
+rollback: P04-B08-A01 baseline slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B07-A09
-last_commit: e7efc42
-tests: PASS — forge-p04-researcher-risk-tradeoff.guard.test.ts (8/8); guard adversarial=3/3; orchestrator researcher_risk_tradeoff_guard verification
-evidence: validateForgeResearcherRiskTradeoffGuard + runResearcherRiskTradeoffAdversarialGuardChecks + verifyForgeResearcherRiskTradeoffGuard; harnessVersion 1.0.0-a09
-next: P04-B07-A10
+last_atom: P04-B07-A10
+last_commit: pending
+tests: PASS — forge-p04-researcher-risk-tradeoff-block-gate.test.ts (7/7); risk-tradeoff suite 61/61; block gate seals=10/10 handoff→P04-B08
+evidence: runResearcherRiskTradeoffBlockGate + verifyForgeResearcherRiskTradeoffBlockGate + FORGE_P04_B07_TO_B08_HANDOFF_V1
+next: P04-B08-A01
