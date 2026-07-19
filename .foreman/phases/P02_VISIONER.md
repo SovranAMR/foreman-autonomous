@@ -1,7 +1,7 @@
 # P02 — Vizyoner — Neden, Amaç ve Ürün Yönü
 
 phase_id: P02
-phase_status: QUEUED
+phase_status: ACTIVE
 completed_blocks: 0
 completed_atoms: 0
 total_blocks: 10

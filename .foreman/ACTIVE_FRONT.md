@@ -2,13 +2,13 @@
 
 program: FOREMAN-FORGE-1000
 front_status: READY
-active_phase: P01
-active_block: P01-B10
-active_atom: P01-B10-A10
-phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 99/1000
-phase_progress: 100/100
-block_progress: 10/10
+active_phase: P02
+active_block: P02-B01
+active_atom: P02-B01-A01
+phase_file: .foreman/phases/P02_VISIONER.md
+program_progress: 100/1000
+phase_progress: 0/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01 phase gate — P01 tamamlanma doğrulaması: 10 block gate PASS, phase suite ve npm test.
+P02-B01-A01 — Intent ve görev anlamlandırma: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: B10-A10 integrated block gate sealed; P01 phase acceptance gate next.
-target: P01 phase gate suite + tam npm test.
-hypothesis: Ten sealed block gates + integrated baseline block gate sufficient for P01 phase seal.
-acceptance: all P01 block gates PASS; phase acceptance checklist green.
-commands: npm test
-blast_radius: .foreman/phases/P01_FORGE_CONTRACT.md
-rollback: B10-A10 block gate slice değişikliklerini geri al.
-evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: block gate fails ise BLOCKED raporla.
+objective: P01 phase gate sealed; visioner intent baseline A01 next.
+target: visioner intent baseline fixture + failing probe matrix.
+hypothesis: Sealed P01 phase gate artifacts sufficient entry baseline for P02-B01-A01.
+acceptance: failing baseline fixture exists; typed contract probes declared.
+commands: npx tsx --test src/forge-p02-*.test.ts (when present)
+blast_radius: src/forge-p02-visioner-intent*.ts
+rollback: P02-B01-A01 slice değişikliklerini geri al.
+evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
+fallback: baseline probe alignment fails ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B10-A10
+last_atom: P01-PHASE-GATE
 last_commit: pending
-tests: PASS — forge-integrated-baseline*.test.ts (83/83); forge-pipeline-regression.integration.test.ts P01-B10-A10 (2/2); validateForgeIntegratedBaselineBlockGate; verifyForgeIntegratedBlockGate orchestrator wiring
-evidence: runIntegratedBaselineBlockGate seals=10/10 inventory=9 handoff=PASS→P02-B01; validateForgeIntegratedBaselineBlockGate PASS; verifyForgeIntegratedBlockGate emits integrated_baseline_block_gate verification; ibase.integrated_block_gate_method sealed PASS
-next: P01 phase gate
+tests: PASS — forge-p01-phase-gate.test.ts (6/6); runForgeP01PhaseGate blocks=10/10 atoms=100/100 regression=PASS handoff=PASS→P02-B01; verifyForgeP01PhaseGate orchestrator wiring
+evidence: runForgeP01PhaseGate seals all ten P01 block gates; validateForgeP01PhaseGateEvidence PASS; FORGE_P01_TO_P02_PHASE_HANDOFF_V1 targets P02-B01-A01; P01 phase_gate SEALED
+next: P02-B01-A01

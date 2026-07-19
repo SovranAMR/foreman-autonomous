@@ -668,6 +668,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01 phase gate and emit verification event with P02 phase handoff.
+   */
+  async verifyForgeP01PhaseGate(): Promise<import("./forge-p01-phase-gate.probe.js").ForgeP01PhaseGateResult> {
+    const { runForgeP01PhaseGate } = await import("./forge-p01-phase-gate.probe.js");
+    const result = await runForgeP01PhaseGate();
+    this.emit({
+      type: "verification",
+      phase: "p01_phase_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */
