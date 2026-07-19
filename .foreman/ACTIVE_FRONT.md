@@ -44,7 +44,7 @@ fallback: Evidence slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B10-A05
-last_commit: pending
+last_commit: 1189a11
 tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (13/13); failure/recovery probes=7/7
 evidence: validateResearcherPhaseGateFailureRecoveryProbeMatrix + runResearcherPhaseGateFailureRecoverySlice + failure_path/recovery_path/nogo_path guard-path probes
 next: P04-B10-A06
