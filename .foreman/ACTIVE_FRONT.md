@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B05
-active_atom: P03-B05-A07
+active_atom: P03-B05-A10
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 247/1000
-phase_progress: 48/100
-block_progress: 8/10
+program_progress: 248/1000
+phase_progress: 49/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B05-A09 — Risk ve reversibility planı: adversarial, performance, cost ve safety kontrolünü geçir.
+P03-B05-A10 — Risk ve reversibility planı: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P03-B05-A08 PASS; P03-B05-A09 implement adversarial/performance/cost/safety guard controls for risk/reversibility run records.
-target: validateForgeStrategistRiskReversibilityGuard, runStrategistRiskReversibilityAdversarialGuardChecks.
-hypothesis: P03-B05-A09 rejects tampered records, enforces zero-cost deterministic execution, and flags forbidden secret patterns.
-acceptance: guard slice passes; adversarial scenarios rejected; performance/cost/safety budgets enforced; canonical run passes.
+objective: P03-B05-A09 PASS; P03-B05-A10 seal risk/reversibility block gate and prepare P03-B06 handoff contract.
+target: runStrategistRiskReversibilityBlockGate, getForgeP03B05BlockGate, buildStrategistRiskReversibilityBlockGateEvidence.
+hypothesis: P03-B05-A10 seals all 10 B05 atoms, validates regression+guard gates, and emits B06 entry handoff.
+acceptance: block gate suite passes; handoff contract valid; orchestrator verification hook wired.
 commands: npx tsx --test src/forge-p03-strategist-risk-reversibility*.test.ts
 blast_radius: src/forge-p03-strategist-risk-reversibility.ts
-rollback: P03-B05-A09 guard slice değişikliklerini geri al.
+rollback: P03-B05-A10 block gate değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Guard slice blocked ise BLOCKED raporla.
+fallback: Block gate blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B05-A08
-last_commit: pending
-tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (34/34); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); regression slice 5/5
-evidence: runStrategistRiskReversibilityForgeRegression; detectStrategistRiskReversibilityProbeRegression
-next: P03-B05-A09
+last_atom: P03-B05-A09
+last_commit: a876a74
+tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (40/40); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); guard slice 6/6
+evidence: validateForgeStrategistRiskReversibilityGuard; runStrategistRiskReversibilityAdversarialGuardChecks
+next: P03-B05-A10

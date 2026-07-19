@@ -75,7 +75,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B05-A06 — Risk ve reversibility planı: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B05-A07 — Risk ve reversibility planı: unit, property ve fuzz doğrulamasını ekle
 - [x] P03-B05-A08 — Risk ve reversibility planı: Forge entegrasyonu ile regression testini tamamla
-- [ ] P03-B05-A09 — Risk ve reversibility planı: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P03-B05-A09 — Risk ve reversibility planı: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B05-A10 — Risk ve reversibility planı: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P03-B06 — Kaynak ve budget planı
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B05-A08
-last_commit: pending
-tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (34/34); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); regression slice 5/5
-evidence: runStrategistRiskReversibilityForgeRegression; detectStrategistRiskReversibilityProbeRegression
-next: P03-B05-A09
+last_atom: P03-B05-A09
+last_commit: a876a74
+tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (40/40); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); guard slice 6/6
+evidence: validateForgeStrategistRiskReversibilityGuard; runStrategistRiskReversibilityAdversarialGuardChecks
+next: P03-B05-A10
