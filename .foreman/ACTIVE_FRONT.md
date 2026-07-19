@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B01
-active_atom: P05-B01-A03
+active_atom: P05-B01-A04
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 402/1000
-phase_progress: 2/100
-block_progress: 2/10
+program_progress: 403/1000
+phase_progress: 3/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B01-A03 — Typed tool interface ve dispatch: en küçük üretim dikey dilimini uygula.
+P05-B01-A04 — Typed tool interface ve dispatch: boundary ve edge-case davranışlarını tamamla.
 
-objective: P05-B01-A02 contract sealed; implement smallest production vertical slice.
-target: Wire typed tool dispatch contract probes to production code paths.
-hypothesis: Six documented A02 gap probes map to minimal TypedToolCall + validator exports.
-acceptance: Gap probes flip PASS with zero unexpected mismatches against contract matrix.
+objective: P05-B01-A03 production slice sealed; complete boundary and edge-case behavior.
+target: Extend typed tool dispatch boundary probes with full edge-case coverage.
+hypothesis: Boundary category probes map to assessWorkerToolCallInputBoundary + schema edge cases.
+acceptance: Boundary slice PASS with zero unexpected mismatches against contract matrix.
 commands: npx tsx --test src/forge-p05-worker-tool-dispatch*.test.ts
-blast_radius: src/tools.ts, src/prompts.ts, src/orchestrator.ts, src/forge-p05-worker-tool-dispatch*.ts
-rollback: P05-B01-A03 production slice değişikliklerini geri al.
+blast_radius: src/forge-p05-worker-tool-dispatch.ts, src/tools.ts, src/orchestrator.ts
+rollback: P05-B01-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Production slice blocked ise BLOCKED raporla.
+fallback: Boundary slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B01-A02
+last_atom: P05-B01-A03
 last_commit: pending
-tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8)
-evidence: FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1 with 27 typed probes (21 PASS, 6 gap) aligned to A01 baseline matrix; validateWorkerToolDispatchAgainstContract + criterion wiring
-next: P05-B01-A03
+tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5)
+evidence: TypedToolCall + validateWorkerToolCall + orchestrator pre-dispatch + telemetry; 27/27 probes aligned, 6 A02 gaps closed
+next: P05-B01-A04

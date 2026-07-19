@@ -41,28 +41,19 @@ describe("Forge Worker Tool Dispatch — P05-B01-A01", () => {
     assert.equal(handoff.targetBlock.entryAtom, "P05-B01-A01");
   });
 
-  it("measures worker tool dispatch probes with documented FAIL gaps from P04-B10 sealed handoff", () => {
+  it("measures worker tool dispatch probes with zero unexpected mismatches after A03 slice", () => {
     const results = runWorkerToolDispatchProbes();
     const summary = summarizeWorkerToolDispatchMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 27);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listWorkerToolDispatchProbesByExpected(
       "FAIL",
       loadWorkerToolDispatchBaseline(),
     );
-    assert.equal(documentedFail.length, 6);
-    assert.ok(documentedFail.some(p => p.id === "wtd.typed_tool_call_union"));
-    assert.ok(documentedFail.some(p => p.id === "wtd.schema_validation_before_dispatch"));
-    assert.ok(documentedFail.some(p => p.id === "wtd.exported_dispatch_validator"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of WORKER_TOOL_DISPATCH_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -77,22 +68,9 @@ describe("Forge Worker Tool Dispatch — P05-B01-A01", () => {
     );
   });
 
-  it("documents worker tool dispatch gaps as measurable baseline debt", () => {
+  it("documents zero remaining worker tool dispatch gaps after production slice", () => {
     const gaps = listWorkerToolDispatchKnownGaps(runWorkerToolDispatchProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "wtd.dispatch_telemetry_record",
-      "wtd.exported_dispatch_validator",
-      "wtd.orchestrator_pre_dispatch_check",
-      "wtd.schema_validation_before_dispatch",
-      "wtd.typed_tool_call_union",
-      "wtd.worker_prompt_typed_contract",
-    ]);
-    assert.ok(
-      gaps.every(g => WORKER_TOOL_DISPATCH_CATEGORIES.includes(g.category)),
-      "documented gaps are worker tool dispatch probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 
   it("assessWorkerToolCallInputBoundary rejects empty and null-byte tool names", () => {
@@ -134,6 +112,6 @@ describe("Forge Worker Tool Dispatch — P05-B01-A01", () => {
   });
 
   it("exports harness version for worker tool dispatch baseline", () => {
-    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a03");
   });
 });

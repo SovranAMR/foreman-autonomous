@@ -45,13 +45,13 @@
       "id": "wtd.typed_tool_call_union",
       "category": "tool_interface",
       "description": "TypedToolCall discriminated union narrows args per tool name before dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wtd.worker_prompt_typed_contract",
       "category": "tool_interface",
       "description": "WORKER_SYSTEM prompt declares typed tool dispatch contract for worker execution",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wtd.create_tool_executor_exported",
@@ -75,7 +75,7 @@
       "id": "wtd.orchestrator_pre_dispatch_check",
       "category": "dispatch_routing",
       "description": "Orchestrator validates worker tool calls against typed contract before executor dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wtd.b10_handoff_entry",
@@ -159,19 +159,19 @@
       "id": "wtd.schema_validation_before_dispatch",
       "category": "nogo_path",
       "description": "validateWorkerToolCallAgainstSchema rejects args missing required tool parameters before dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wtd.exported_dispatch_validator",
       "category": "nogo_path",
       "description": "validateWorkerToolCall exported for orchestrator pre-dispatch typed contract checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wtd.dispatch_telemetry_record",
       "category": "nogo_path",
       "description": "buildWorkerToolDispatchTelemetry records dispatch provenance for worker tool loop",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

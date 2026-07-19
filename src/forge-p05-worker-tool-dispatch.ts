@@ -25,7 +25,7 @@ import {
   type ToolCall,
 } from "./tools.js";
 
-export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a02";
+export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a03";
 
 export const WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH = 16_384;
 
@@ -247,16 +247,16 @@ const WORKER_TOOL_DISPATCH_CATEGORY_CONTRACTS: Record<
         id: "wtd.typed_tool_call_union",
         category: "tool_interface",
         description: "TypedToolCall discriminated union narrows args per tool name before dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "TypedToolCall discriminated union narrows args per tool name before dispatch",
       },
       {
         id: "wtd.worker_prompt_typed_contract",
         category: "tool_interface",
         description: "WORKER_SYSTEM prompt declares typed tool dispatch contract for worker execution",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "WORKER_SYSTEM prompt declares typed tool dispatch contract for worker execution",
       },
     ],
@@ -298,8 +298,8 @@ const WORKER_TOOL_DISPATCH_CATEGORY_CONTRACTS: Record<
         id: "wtd.orchestrator_pre_dispatch_check",
         category: "dispatch_routing",
         description: "Orchestrator validates worker tool calls against typed contract before executor dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion:
           "Orchestrator validates worker tool calls against typed contract before executor dispatch",
       },
@@ -471,8 +471,8 @@ const WORKER_TOOL_DISPATCH_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description:
           "validateWorkerToolCallAgainstSchema rejects args missing required tool parameters before dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "nogo",
         criterion:
           "validateWorkerToolCallAgainstSchema rejects args missing required tool parameters before dispatch",
       },
@@ -480,16 +480,16 @@ const WORKER_TOOL_DISPATCH_CATEGORY_CONTRACTS: Record<
         id: "wtd.exported_dispatch_validator",
         category: "nogo_path",
         description: "validateWorkerToolCall exported for orchestrator pre-dispatch typed contract checks",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "nogo",
         criterion: "validateWorkerToolCall exported for orchestrator pre-dispatch typed contract checks",
       },
       {
         id: "wtd.dispatch_telemetry_record",
         category: "nogo_path",
         description: "buildWorkerToolDispatchTelemetry records dispatch provenance for worker tool loop",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "nogo",
         criterion: "buildWorkerToolDispatchTelemetry records dispatch provenance for worker tool loop",
       },
     ],
@@ -923,6 +923,95 @@ export function recoverWorkerToolCall(
   };
 }
 
+export interface WorkerToolCallValidationResult {
+  valid: boolean;
+  errors: string[];
+  call?: ToolCall;
+}
+
+export interface WorkerToolDispatchTelemetry {
+  toolName: string;
+  sequenceIndex: number;
+  validated: boolean;
+  validatedAt: string;
+  contractVersion: string;
+  harnessVersion: string;
+  errors: string[];
+}
+
+/**
+ * Validate worker tool call args against TOOL_DEFINITIONS schema (P05-B01-A03).
+ */
+export function validateWorkerToolCallAgainstSchema(
+  name: string,
+  args: Record<string, unknown> = {},
+): WorkerToolCallValidationResult {
+  const definition = TOOL_DEFINITIONS.find(def => def.name === name);
+  if (!definition) {
+    return { valid: false, errors: [`unknown tool: ${name}`] };
+  }
+
+  const parameters = definition.parameters as {
+    required?: string[];
+  };
+  const required = parameters.required ?? [];
+  const errors: string[] = [];
+
+  for (const field of required) {
+    if (!(field in args) || args[field] === undefined || args[field] === null) {
+      errors.push(`missing required parameter: ${field}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    return { valid: false, errors };
+  }
+
+  return {
+    valid: true,
+    errors: [],
+    call: { name, args },
+  };
+}
+
+/**
+ * Validate worker tool call boundary + schema before orchestrator dispatch (P05-B01-A03).
+ */
+export function validateWorkerToolCall(call: ToolCall): WorkerToolCallValidationResult {
+  const boundary = assessWorkerToolCallInputBoundary(call.name, call.args);
+  if (!boundary.acceptable) {
+    return { valid: false, errors: [boundary.detail] };
+  }
+
+  return validateWorkerToolCallAgainstSchema(
+    boundary.normalizedName,
+    boundary.normalizedArgs,
+  );
+}
+
+/**
+ * Record worker tool dispatch provenance for tool loop telemetry (P05-B01-A03).
+ */
+export function buildWorkerToolDispatchTelemetry(
+  call: ToolCall,
+  options: {
+    sequenceIndex?: number;
+    validation?: WorkerToolCallValidationResult;
+  } = {},
+): WorkerToolDispatchTelemetry {
+  const validation = options.validation ?? validateWorkerToolCall(call);
+
+  return {
+    toolName: call.name,
+    sequenceIndex: options.sequenceIndex ?? 0,
+    validated: validation.valid,
+    validatedAt: new Date().toISOString(),
+    contractVersion: FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.version,
+    harnessVersion: FORGE_WORKER_TOOL_DISPATCH_VERSION,
+    errors: validation.errors,
+  };
+}
+
 export const FORGE_WORKER_TOOL_DISPATCH_A01_PROBE_MATRIX: readonly WorkerToolDispatchFixtureEntry[] =
   workerToolDispatchBaseline.probes as WorkerToolDispatchFixtureEntry[];
 
@@ -1004,11 +1093,19 @@ export function validateWorkerToolDispatchBaseline(
     }
   }
 
+  const contract = getActiveWorkerToolDispatchContract();
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length === 0) {
+  if (expectedFailCount > 0 && failGaps.length === 0) {
     issues.push({
       kind: "missing_category",
-      detail: "fixture must document at least one measurable FAIL gap",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 
@@ -1272,9 +1369,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "wtd.known_gaps_documented": {
+      const contract = getActiveWorkerToolDispatchContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount >= 1;
-      return probe(id, category, expected, ok, `documentedFailGaps=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "wtd.empty_tool_name_boundary": {
       const result = assessWorkerToolCallInputBoundary("");
@@ -1365,15 +1470,32 @@ function probeNogoPath(
 ): WorkerToolDispatchProbeResult {
   switch (id) {
     case "wtd.schema_validation_before_dispatch": {
-      const ok = hasProductionExport("validateWorkerToolCallAgainstSchema");
-      return probe(id, category, expected, ok, `schemaValidator=${ok}`);
+      const missingRequired = validateWorkerToolCallAgainstSchema("read_file", {});
+      const ok =
+        hasProductionExport("validateWorkerToolCallAgainstSchema") && !missingRequired.valid;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `schemaValidator=${ok}, errors=${missingRequired.errors.join(",")}`,
+      );
     }
     case "wtd.exported_dispatch_validator": {
-      const ok = hasProductionExport("validateWorkerToolCall");
+      const invalidName = validateWorkerToolCall({ name: "", args: {} });
+      const ok = hasProductionExport("validateWorkerToolCall") && !invalidName.valid;
       return probe(id, category, expected, ok, `dispatchValidator=${ok}`);
     }
     case "wtd.dispatch_telemetry_record": {
-      const ok = hasProductionExport("buildWorkerToolDispatchTelemetry");
+      const telemetry = buildWorkerToolDispatchTelemetry(
+        { name: "read_file", args: { explanation: "probe", path: "src/tools.ts" } },
+        { sequenceIndex: 1 },
+      );
+      const ok =
+        hasProductionExport("buildWorkerToolDispatchTelemetry") &&
+        telemetry.toolName === "read_file" &&
+        telemetry.sequenceIndex === 1 &&
+        telemetry.validated === true;
       return probe(id, category, expected, ok, `dispatchTelemetry=${ok}`);
     }
     default:
@@ -1462,6 +1584,121 @@ export function listWorkerToolDispatchKnownGaps(
   results: WorkerToolDispatchProbeResult[] = runWorkerToolDispatchProbes(),
 ): WorkerToolDispatchProbeResult[] {
   return summarizeWorkerToolDispatchMatrix(results).knownGaps;
+}
+
+export interface WorkerToolDispatchProbeMatrixValidationIssue {
+  kind: "missing_result" | "criterion_mismatch" | "pass_mismatch" | "gap_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface WorkerToolDispatchProbeMatrixValidationResult {
+  valid: boolean;
+  issues: WorkerToolDispatchProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+export function validateWorkerToolDispatchProbeMatrix(
+  results: WorkerToolDispatchProbeResult[],
+  contract: WorkerToolDispatchContract = getActiveWorkerToolDispatchContract(),
+): WorkerToolDispatchProbeMatrixValidationResult {
+  const issues: WorkerToolDispatchProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+      continue;
+    }
+
+    if (result.aligned) {
+      gapAligned++;
+    } else {
+      issues.push({
+        kind: "gap_mismatch",
+        probeId: contractProbe.id,
+        detail: `FAIL probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface WorkerToolDispatchProductionSliceResult {
+  atom: "P05-B01-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: WorkerToolDispatchProbeResult[];
+  summary: WorkerToolDispatchProbeSummary;
+  matrixValidation: WorkerToolDispatchProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: typed tool dispatch wired to contract probes
+ * with zero unexpected mismatches against the sealed contract matrix.
+ */
+export function runWorkerToolDispatchProductionSlice(
+  fixture: WorkerToolDispatchBaseline = loadWorkerToolDispatchBaseline(),
+): WorkerToolDispatchProductionSliceResult {
+  const contract = getActiveWorkerToolDispatchContract();
+  const fixtureValidation = validateWorkerToolDispatchBaseline(fixture);
+  const contractValidation = validateWorkerToolDispatchAgainstContract(fixture, contract);
+  const results = runWorkerToolDispatchProbes(fixture);
+  const summary = summarizeWorkerToolDispatchMatrix(results);
+  const matrixValidation = validateWorkerToolDispatchProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B01-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 /** Smoke probe: unknown tool dispatch returns deterministic error (P05-B01-A01 boundary). */

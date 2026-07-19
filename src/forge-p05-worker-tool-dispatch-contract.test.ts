@@ -61,7 +61,7 @@ describe("Forge Worker Tool Dispatch Contract — P05-B01-A02", () => {
     }
   });
 
-  it("maps 27 probes with six documented FAIL gaps aligned to A01 baseline", () => {
+  it("maps 27 probes with zero documented FAIL gaps after A03 production slice", () => {
     const contract = getActiveWorkerToolDispatchContract();
     const summary = summarizeWorkerToolDispatchContractCoverage(contract);
     const coverage = validateWorkerToolDispatchContractCoverage(contract);
@@ -69,13 +69,13 @@ describe("Forge Worker Tool Dispatch Contract — P05-B01-A02", () => {
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateWorkerToolDispatchContract().valid, true);
     assert.equal(summary.totalProbes, 27);
-    assert.equal(summary.expectedPass, 21);
-    assert.equal(summary.expectedFail, 6);
-    assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 6);
+    assert.equal(summary.expectedPass, 27);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 20);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
-    assert.equal(summary.byDisposition.nogo, 0);
+    assert.equal(summary.byDisposition.nogo, 3);
     assert.equal(summary.byCategory.dispatch_versioning.probeCount, 3);
     assert.equal(summary.byCategory.tool_interface.probeCount, 4);
     assert.equal(summary.byCategory.dispatch_routing.probeCount, 4);
@@ -86,19 +86,9 @@ describe("Forge Worker Tool Dispatch Contract — P05-B01-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
 
-  it("lists six gap probes mapped from A01 documented FAIL debt", () => {
+  it("lists zero gap probes after A03 production slice", () => {
     const gaps = listWorkerToolDispatchProbesByDisposition("gap");
-    assert.deepEqual(
-      gaps.map(p => p.id).sort(),
-      [
-        "wtd.dispatch_telemetry_record",
-        "wtd.exported_dispatch_validator",
-        "wtd.orchestrator_pre_dispatch_check",
-        "wtd.schema_validation_before_dispatch",
-        "wtd.typed_tool_call_union",
-        "wtd.worker_prompt_typed_contract",
-      ],
-    );
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -151,7 +141,7 @@ describe("Forge Worker Tool Dispatch Contract — P05-B01-A02", () => {
     assert.equal(FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.atom, "P05-B01-A02");
     assert.equal(FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a03");
     assert.equal(contract.version, FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.version);
   });
 });

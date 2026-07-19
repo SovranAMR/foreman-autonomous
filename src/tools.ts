@@ -1051,6 +1051,14 @@ Returns a summary of what was done.`,
   },
 ];
 
+/** Discriminated union narrowing worker tool calls by registered tool name (P05-B01-A03). */
+export type TypedToolCall = {
+  [K in (typeof TOOL_DEFINITIONS)[number]["name"]]: {
+    name: K;
+    args: Record<string, unknown>;
+  };
+}[(typeof TOOL_DEFINITIONS)[number]["name"]];
+
 /**
  * Creates a tool executor bound to a project root via ExecutionEngine.
  * All file operations go through the engine's security checks.

@@ -23,6 +23,7 @@ import { validateWorkerOutput } from "./ground-truth-validator.js";
 import { PipelineResumeEngine } from "./pipeline-resume.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall, ToolResult } from "./tools.js";
+import { validateWorkerToolCall } from "./forge-p05-worker-tool-dispatch.js";
 import { formatProjectContext } from "./project-detector.js";
 import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
@@ -3376,6 +3377,14 @@ ${visionOutput}`,
                     phase: "tool_call",
                     detail: `${call.name}(${JSON.stringify(call.args).slice(0, 60)})`,
                   });
+                  const validation = validateWorkerToolCall(call);
+                  if (!validation.valid) {
+                    return {
+                      name: call.name,
+                      content: `Tool validation failed: ${validation.errors.join("; ")}`,
+                      isError: true,
+                    };
+                  }
                   const result = await toolExecutor(call);
                   toolResults.push({ name: call.name, success: !result.isError });
                   this.emit({
@@ -4345,6 +4354,14 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                         "worker",
                         async (call: ToolCall) => {
                           reToolCallCount++;
+                          const validation = validateWorkerToolCall(call);
+                          if (!validation.valid) {
+                            return {
+                              name: call.name,
+                              content: `Tool validation failed: ${validation.errors.join("; ")}`,
+                              isError: true,
+                            };
+                          }
                           const result = await toolExecutor(call);
                           return result;
                         },
