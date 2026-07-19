@@ -13,7 +13,7 @@ import {
   summarizeVisionerConstraintContractCoverage,
 } from "./forge-p02-visioner-constraint.js";
 
-export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a04";
+export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a05";
 
 /** Maximum normalized vision length before truncation (P02-B03-A04 boundary). */
 export const VISIONER_SYNTHESIS_VISION_MAX_LENGTH = 32000;
@@ -1143,4 +1143,44 @@ export function validateVisionerSynthesisBoundaryProbeMatrix(
   const boundaryIds = new Set(boundaryProbes.map(p => p.id));
   const boundaryResults = results.filter(r => boundaryIds.has(r.id));
   return validateVisionerSynthesisProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export const VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly VisionerSynthesisCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes and documented FAIL gaps must align; zero unexpected mismatches.
+ */
+export function validateVisionerSynthesisFailureRecoveryProbeMatrix(
+  results: VisionerSynthesisProbeResult[],
+  contract: VisionerSynthesisContract = getActiveVisionerSynthesisContract(),
+): VisionerSynthesisProbeMatrixValidationResult {
+  const failureRecoveryProbes = VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listVisionerSynthesisContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: VisionerSynthesisContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateVisionerSynthesisProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listVisionerSynthesisFailureRecoveryProbeIds(
+  contract: VisionerSynthesisContract = getActiveVisionerSynthesisContract(),
+): string[] {
+  return VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listVisionerSynthesisContractProbesByCategory(category, contract).map(p => p.id),
+  );
 }

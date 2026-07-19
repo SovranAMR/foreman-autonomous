@@ -5,6 +5,7 @@ import {
   runVisionerSynthesisProbes,
   runVisionerSynthesisProductionSlice,
   runVisionerSynthesisBoundarySlice,
+  runVisionerSynthesisFailureRecoverySlice,
 } from "./forge-p02-visioner-synthesis.probe.js";
 import {
   assessVisionerSynthesisInputBoundary,
@@ -14,13 +15,16 @@ import {
   getVisionerSynthesisCategoryContract,
   listVisionerSynthesisContractProbeIds,
   listVisionerSynthesisContractProbesByCategory,
+  listVisionerSynthesisFailureRecoveryProbeIds,
   listVisionerSynthesisProbesByDisposition,
   summarizeVisionerSynthesisContractCoverage,
   validateVisionerSynthesisAgainstContract,
   validateVisionerSynthesisContractCoverage,
   validateVisionerSynthesisProbeMatrix,
   validateVisionerSynthesisBoundaryProbeMatrix,
+  validateVisionerSynthesisFailureRecoveryProbeMatrix,
   VISIONER_SYNTHESIS_CATEGORIES,
+  VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES,
   VISIONER_SYNTHESIS_VISION_MAX_LENGTH,
 } from "./forge-p02-visioner-synthesis.js";
 
@@ -288,5 +292,81 @@ describe("Forge Visioner Synthesis Boundary Slice — P02-B03-A04", () => {
     assert.equal(recoveryGap!.expected, "FAIL");
     assert.equal(recoveryGap!.actual, "FAIL");
     assert.equal(recoveryGap!.aligned, true);
+  });
+});
+
+describe("Forge Visioner Synthesis Failure/Recovery Slice — P02-B03-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveVisionerSynthesisContract();
+    const failure = listVisionerSynthesisContractProbesByCategory("failure_path", contract);
+    const recovery = listVisionerSynthesisContractProbesByCategory("recovery_path", contract);
+    const nogo = listVisionerSynthesisContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveVisionerSynthesisContract();
+    const slice = runVisionerSynthesisFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P02-B03-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 5);
+    assert.equal(slice.matrixValidation.gapAligned, 1);
+
+    for (const category of VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listVisionerSynthesisContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateVisionerSynthesisFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves structured_synthesis_recovery gap while exercising failure/recovery/NO-GO paths", () => {
+    const slice = runVisionerSynthesisFailureRecoverySlice();
+    const probeIds = listVisionerSynthesisFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "vsyn.malformed_vision_presence_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const recoveryGap = slice.failureRecoveryResults.find(
+      r => r.id === "vsyn.structured_synthesis_recovery",
+    );
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+
+    const reviewerNogo = slice.failureRecoveryResults.find(r => r.id === "vsyn.reviewer_focal_dilution");
+    assert.ok(reviewerNogo);
+    assert.equal(reviewerNogo!.expected, "PASS");
+    assert.equal(reviewerNogo!.actual, "PASS");
   });
 });

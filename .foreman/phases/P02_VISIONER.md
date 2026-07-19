@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 23
+completed_atoms: 24
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -45,7 +45,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B03-A02 — Ürün vizyonu sentezi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B03-A03 — Ürün vizyonu sentezi: en küçük üretim dikey dilimini uygula
 - [x] P02-B03-A04 — Ürün vizyonu sentezi: boundary ve edge-case davranışlarını tamamla
-- [ ] P02-B03-A05 — Ürün vizyonu sentezi: failure, recovery ve NO-GO yollarını uygula
+- [x] P02-B03-A05 — Ürün vizyonu sentezi: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B03-A06 — Ürün vizyonu sentezi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B03-A07 — Ürün vizyonu sentezi: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B03-A08 — Ürün vizyonu sentezi: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B03-A04
-last_commit: 67f6532
-tests: PASS — forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis.test.ts (15/15); forge-p02-visioner-synthesis*.test.ts (18/18); forge-p02-*.test.ts (104/104)
-evidence: runVisionerSynthesisBoundarySlice atom=P02-B03-A04 boundaryProbeCount=6 matrixValid=true unexpectedMismatches=0 passAligned=6 gapAligned=0; validateVisionerSynthesisBoundaryProbeMatrix valid=true; knownGaps preserved vsyn.structured_synthesis_recovery
-next: P02-B03-A05
+last_atom: P02-B03-A05
+last_commit: pending
+tests: PASS — forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis.test.ts (18/18); forge-p02-visioner-synthesis*.test.ts (21/21); forge-p02-*.test.ts (107/107)
+evidence: runVisionerSynthesisFailureRecoverySlice atom=P02-B03-A05 failureRecoveryProbeCount=6 matrixValid=true unexpectedMismatches=0 passAligned=5 gapAligned=1; validateVisionerSynthesisFailureRecoveryProbeMatrix valid=true; knownGaps preserved vsyn.structured_synthesis_recovery
+next: P02-B03-A06

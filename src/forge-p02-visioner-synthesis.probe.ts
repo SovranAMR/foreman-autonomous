@@ -24,6 +24,9 @@ import {
   listVisionerSynthesisKnownGaps,
   validateVisionerSynthesisProbeMatrix,
   validateVisionerSynthesisBoundaryProbeMatrix,
+  validateVisionerSynthesisFailureRecoveryProbeMatrix,
+  listVisionerSynthesisFailureRecoveryProbeIds,
+  VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES,
   listVisionerSynthesisContractProbesByCategory,
   getActiveVisionerSynthesisContract,
   FORGE_VISIONER_SYNTHESIS_VERSION,
@@ -45,6 +48,9 @@ export {
   listVisionerSynthesisKnownGaps,
   validateVisionerSynthesisProbeMatrix,
   validateVisionerSynthesisBoundaryProbeMatrix,
+  validateVisionerSynthesisFailureRecoveryProbeMatrix,
+  listVisionerSynthesisFailureRecoveryProbeIds,
+  VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES,
   listVisionerSynthesisContractProbesByCategory,
   getActiveVisionerSynthesisContract,
   assessVisionerSynthesisPresence,
@@ -504,6 +510,41 @@ export function runVisionerSynthesisBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface VisionerSynthesisFailureRecoverySliceResult {
+  atom: "P02-B03-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerSynthesisProbeResult[];
+  failureRecoveryResults: VisionerSynthesisProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerSynthesisFailureRecoveryProbeMatrix>;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runVisionerSynthesisFailureRecoverySlice(
+  fixture: VisionerSynthesisBaseline = loadVisionerSynthesisBaseline(),
+): VisionerSynthesisFailureRecoverySliceResult {
+  const contract = getActiveVisionerSynthesisContract();
+  const results = runVisionerSynthesisProbes(fixture);
+  const failureRecoveryProbes = VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listVisionerSynthesisContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateVisionerSynthesisFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B03-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }
