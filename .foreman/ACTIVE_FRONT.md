@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B03
-active_atom: P04-B03-A02
+active_atom: P04-B03-A03
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 321/1000
-phase_progress: 21/100
-block_progress: 1/10
+program_progress: 322/1000
+phase_progress: 22/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B03-A02 — Web ve primary-source araştırma: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P04-B03-A03 — Web ve primary-source araştırma: en küçük üretim dikey dilimini uygula.
 
-objective: P04-B03-A01 PASS; define typed contract with measurable acceptance criteria for web and primary-source research.
-target: Typed contract v1, probe criteria wiring, fixture↔contract alignment gate.
-hypothesis: Documented FAIL gap (recoverWebPrimarySourceEvidence) provides stable contract entry for production slice.
-acceptance: contract loads; criteria wired; fixture aligned; A01 baseline remains valid.
+objective: P04-B03-A02 PASS; implement recoverWebPrimarySourceEvidence production slice closing documented FAIL gap.
+target: recoverWebPrimarySourceEvidence export, structured URL citation recovery, probe alignment.
+hypothesis: Typed contract gap rwps.structured_web_primary_source_recovery closes when recovery helper ships.
+acceptance: recoverWebPrimarySourceEvidence exported; probe PASS; A01/A02 baseline remains valid.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-web-primary-source*.ts
-rollback: P04-B03-A02 contract slice değişikliklerini geri al.
+rollback: P04-B03-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B03-A01
-last_commit: ef04257
-tests: PASS — forge-p04-researcher*.test.ts (120/120); baseline fixture v1; probes=23; documented FAIL gap=rwps.structured_web_primary_source_recovery
-evidence: loadResearcherWebPrimarySourceBaseline; runResearcherWebPrimarySourceProbes; validateWebPrimarySourceCollection; forge-p04-researcher-web-primary-source-baseline.test.ts
-next: P04-B03-A02
+last_atom: P04-B03-A02
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (128/128); contract v1 probes=23; expectedFail=1; gap=rwps.structured_web_primary_source_recovery
+evidence: getActiveResearcherWebPrimarySourceContract; validateResearcherWebPrimarySourceContractCoverage; validateResearcherWebPrimarySourceAgainstContract; forge-p04-researcher-web-primary-source.test.ts
+next: P04-B03-A03

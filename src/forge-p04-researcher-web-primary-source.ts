@@ -1,8 +1,8 @@
 /**
- * FOREMAN — Researcher Web & Primary-Source Research Baseline (P04-B03)
+ * FOREMAN — Researcher Web & Primary-Source Research (P04-B03)
  *
- * A01 slice: load, validate, run probes, contract alignment against sealed
- * P04-B02 in-repo evidence block gate artifacts.
+ * A01: baseline fixture, probes, boundary validators.
+ * A02: typed contract v1, probe criteria wiring, fixture↔contract alignment gate.
  */
 
 import { readFileSync } from "node:fs";
@@ -17,7 +17,7 @@ import {
   FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1,
 } from "./forge-p04-researcher-in-repo-evidence.js";
 
-export const FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_VERSION = "1.0.0-a01";
+export const FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_VERSION = "1.0.0-a02";
 
 export const EXPECTED_P04_B02_SEALED_ATOM_COUNT = 10;
 
@@ -569,7 +569,7 @@ const RESEARCHER_WEB_PRIMARY_SOURCE_CATEGORY_CONTRACTS: Record<
 export const FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_CONTRACT_V1: ResearcherWebPrimarySourceContract =
   {
     version: "1.0.0",
-    atom: "P04-B03-A02",
+    atom: "P04-B03-A06",
     purpose:
       "Typed contract for web and primary-source research probe matrix aligned to P04-B03 baseline.",
     categories: RESEARCHER_WEB_PRIMARY_SOURCE_CATEGORY_CONTRACTS,
@@ -580,40 +580,167 @@ export function getActiveResearcherWebPrimarySourceContract(): ResearcherWebPrim
   return FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_CONTRACT_V1;
 }
 
+export function getResearcherWebPrimarySourceCategoryContract(
+  category: ResearcherWebPrimarySourceCategory,
+  contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
+): ResearcherWebPrimarySourceCategoryContract {
+  return contract.categories[category];
+}
+
 export function listResearcherWebPrimarySourceContractProbeIds(
   contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
 ): string[] {
   return contract.probes.map(p => p.id);
 }
 
+export function listResearcherWebPrimarySourceProbesByDisposition(
+  disposition: ResearcherWebPrimarySourceProbeDisposition,
+  contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
+): ResearcherWebPrimarySourceProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listResearcherWebPrimarySourceContractProbesByCategory(
+  category: ResearcherWebPrimarySourceCategory,
+  contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
+): ResearcherWebPrimarySourceProbeContract[] {
+  return [...contract.categories[category].probes];
+}
+
 export function summarizeResearcherWebPrimarySourceContractCoverage(
   contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
 ): {
   totalProbes: number;
-  byCategory: Record<ResearcherWebPrimarySourceCategory, number>;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<
+    ResearcherWebPrimarySourceCategory,
+    { probeCount: number; invariant: string }
+  >;
   byDisposition: Record<ResearcherWebPrimarySourceProbeDisposition, number>;
 } {
-  const byCategory = {} as Record<ResearcherWebPrimarySourceCategory, number>;
-  const byDisposition = {
+  const byCategory = {} as Record<
+    ResearcherWebPrimarySourceCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<ResearcherWebPrimarySourceProbeDisposition, number> = {
     observed: 0,
     gap: 0,
     failure: 0,
     recovery: 0,
     nogo: 0,
-  } satisfies Record<ResearcherWebPrimarySourceProbeDisposition, number>;
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
 
   for (const category of RESEARCHER_WEB_PRIMARY_SOURCE_CATEGORIES) {
-    byCategory[category] = contract.categories[category].probes.length;
-  }
-  for (const probeEntry of contract.probes) {
-    byDisposition[probeEntry.disposition]++;
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probe of categoryContract.probes) {
+      totalProbes++;
+      if (probe.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probe.disposition]++;
+    }
   }
 
-  return {
-    totalProbes: contract.probes.length,
-    byCategory,
-    byDisposition,
-  };
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateResearcherWebPrimarySourceContractCoverage(
+  contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
+): ResearcherWebPrimarySourceContractCoverageResult {
+  const issues: ResearcherWebPrimarySourceContractCoverageIssue[] = [];
+
+  for (const category of RESEARCHER_WEB_PRIMARY_SOURCE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({
+        kind: "missing_category",
+        category,
+        detail: `missing category contract: ${category}`,
+      });
+      continue;
+    }
+    if (
+      categoryContract.acceptance.minProbeCount <
+      RESEARCHER_WEB_PRIMARY_SOURCE_A01_MIN_PROBES[category]
+    ) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${RESEARCHER_WEB_PRIMARY_SOURCE_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listResearcherWebPrimarySourceContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeResearcherWebPrimarySourceContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("rwps.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing rwps. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export interface ResearcherWebPrimarySourceContractValidationIssue {
@@ -623,63 +750,87 @@ export interface ResearcherWebPrimarySourceContractValidationIssue {
   detail: string;
 }
 
+export interface ResearcherWebPrimarySourceContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: ResearcherWebPrimarySourceCategory;
+  detail: string;
+}
+
+export interface ResearcherWebPrimarySourceContractCoverageResult {
+  valid: boolean;
+  issues: ResearcherWebPrimarySourceContractCoverageIssue[];
+}
+
 export function validateResearcherWebPrimarySourceAgainstContract(
   fixture: ResearcherWebPrimarySourceBaseline,
   contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
 ): { valid: boolean; issues: ResearcherWebPrimarySourceContractValidationIssue[] } {
   const issues: ResearcherWebPrimarySourceContractValidationIssue[] = [];
+  const fixtureIds = new Set(fixture.probes.map(p => p.id));
+  const contractIds = new Set(contract.probes.map(p => p.id));
+
+  if (fixture.contractAtom && fixture.contractAtom !== contract.atom) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `contractAtom=${fixture.contractAtom} contract=${contract.atom}`,
+    });
+  }
 
   for (const category of RESEARCHER_WEB_PRIMARY_SOURCE_CATEGORIES) {
-    const min = RESEARCHER_WEB_PRIMARY_SOURCE_A01_MIN_PROBES[category];
-    const count = contract.categories[category].probes.length;
-    if (count < min) {
+    const categoryContract = contract.categories[category];
+    const categoryProbes = fixture.probes.filter(p => p.category === category);
+    if (categoryProbes.length < categoryContract.acceptance.minProbeCount) {
       issues.push({
         kind: "underflow",
         category,
-        detail: `${category} has ${count} contract probes; requires >= ${min}`,
+        detail:
+          `${category} has ${categoryProbes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
       });
     }
   }
 
   for (const probeEntry of contract.probes) {
-    if (!probeEntry.id.startsWith("rwps.")) {
+    if (!fixtureIds.has(probeEntry.id)) {
       issues.push({
-        kind: "prefix",
+        kind: "missing_probe",
         probeId: probeEntry.id,
-        detail: `${probeEntry.id} missing rwps. prefix`,
+        detail: `fixture missing ${probeEntry.id}`,
       });
     }
   }
 
-  for (const expected of contract.probes) {
-    const entry = fixture.probes.find(p => p.id === expected.id);
-    if (!entry) {
-      issues.push({
-        kind: "missing_probe",
-        probeId: expected.id,
-        detail: `fixture missing probe ${expected.id}`,
-      });
+  for (const entry of fixture.probes) {
+    if (!contractIds.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: `fixture extra ${entry.id}` });
       continue;
     }
+    const expected = contract.probes.find(p => p.id === entry.id)!;
     if (entry.expected !== expected.expected) {
       issues.push({
         kind: "missing_probe",
-        probeId: expected.id,
+        probeId: entry.id,
         detail: `expected mismatch fixture=${entry.expected} contract=${expected.expected}`,
       });
     }
     if (entry.category !== expected.category) {
       issues.push({
         kind: "missing_probe",
-        probeId: expected.id,
+        probeId: entry.id,
         detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
       });
     }
     if (entry.description !== expected.description) {
       issues.push({
         kind: "missing_probe",
-        probeId: expected.id,
-        detail: `description mismatch for ${expected.id}`,
+        probeId: entry.id,
+        detail: `description mismatch for ${entry.id}`,
       });
     }
   }
