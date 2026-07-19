@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B09-A10
-last_commit: 4d30dc1
+last_commit: fb71a1d
 tests: PASS — forge-p02-visioner-approval-block-gate.test.ts (6/6), forge-pipeline-regression.integration.test.ts (+2 P02-B09-A10, 104 total in run)
 evidence: runForgeVisionerApprovalBlockGate; verifyForgeVisionerApprovalBlockGate; atomSeals=10/10; handoff=PASS→P02-B10
 next: P02-B10-A01
