@@ -62,7 +62,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B04-A06 — Shell ve process lifecycle: evidence, telemetry ve provenance kaydını ekle
 - [x] P05-B04-A07 — Shell ve process lifecycle: unit, property ve fuzz doğrulamasını ekle
 - [x] P05-B04-A08 — Shell ve process lifecycle: Forge entegrasyonu ile regression testini tamamla
-- [ ] P05-B04-A09 — Shell ve process lifecycle: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P05-B04-A09 — Shell ve process lifecycle: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P05-B04-A10 — Shell ve process lifecycle: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P05-B05 — Git ve worktree transaction
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B04-A08
-last_commit: ccf67c9
-tests: PASS — forge-p05-worker-shell-process-integration.test.ts (7/7), forge-p05-worker-shell-process-property-fuzz.test.ts (7/7), forge-p05-worker-shell-process-evidence.test.ts (5/5), forge-p05-worker-shell-process-failure-recovery.test.ts (5/5), forge-p05-worker-shell-process-boundary.test.ts (6/6), forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
-evidence: detectWorkerShellProcessProbeRegression + runWorkerShellProcessIntegrationSlice + validateWorkerShellProcessIntegrationProbeMatrix + runForgeWorkerShellProcessRegressionGate; 27/27 probes aligned, 6/6 sub-slices aligned, prior/current run record comparison PASS, guard integrated
-next: P05-B04-A09
+last_atom: P05-B04-A09
+last_commit: pending
+tests: PASS — forge-p05-worker-shell-process.guard.test.ts (9/9), forge-p05-worker-shell-process-integration.test.ts (7/7), forge-p05-worker-shell-process-property-fuzz.test.ts (7/7), forge-p05-worker-shell-process-evidence.test.ts (5/5), forge-p05-worker-shell-process-failure-recovery.test.ts (5/5), forge-p05-worker-shell-process-boundary.test.ts (6/6), forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
+evidence: validateForgeWorkerShellProcessGuard + runWorkerShellProcessGuardSlice + runForgeWorkerShellProcessGuardGate + detectWorkerShellProcessFalseAlignment + detectWorkerShellProcessEvidenceSummaryMismatch; adversarial 3/3 rejected, perf/cost/safety PASS, guard gate PASS
+next: P05-B04-A10
