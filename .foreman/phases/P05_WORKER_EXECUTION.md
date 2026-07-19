@@ -1,9 +1,9 @@
 # P05 — İşçi — Deterministik Tool ve Execution Kernel
 
 phase_id: P05
-phase_status: IN_PROGRESS
+phase_status: QUEUED
 completed_blocks: 0
-completed_atoms: 38
+completed_atoms: 0
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -15,63 +15,63 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P05-B01 — Typed tool interface ve dispatch
 
-- [x] P05-B01-A01 — Typed tool interface ve dispatch: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [x] P05-B01-A02 — Typed tool interface ve dispatch: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [x] P05-B01-A03 — Typed tool interface ve dispatch: en küçük üretim dikey dilimini uygula
-- [x] P05-B01-A04 — Typed tool interface ve dispatch: boundary ve edge-case davranışlarını tamamla
-- [x] P05-B01-A05 — Typed tool interface ve dispatch: failure, recovery ve NO-GO yollarını uygula
-- [x] P05-B01-A06 — Typed tool interface ve dispatch: evidence, telemetry ve provenance kaydını ekle
-- [x] P05-B01-A07 — Typed tool interface ve dispatch: unit, property ve fuzz doğrulamasını ekle
-- [x] P05-B01-A08 — Typed tool interface ve dispatch: Forge entegrasyonu ile regression testini tamamla
-- [x] P05-B01-A09 — Typed tool interface ve dispatch: adversarial, performance, cost ve safety kontrolünü geçir
-- [x] P05-B01-A10 — Typed tool interface ve dispatch: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [ ] P05-B01-A01 — Typed tool interface ve dispatch: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [ ] P05-B01-A02 — Typed tool interface ve dispatch: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [ ] P05-B01-A03 — Typed tool interface ve dispatch: en küçük üretim dikey dilimini uygula
+- [ ] P05-B01-A04 — Typed tool interface ve dispatch: boundary ve edge-case davranışlarını tamamla
+- [ ] P05-B01-A05 — Typed tool interface ve dispatch: failure, recovery ve NO-GO yollarını uygula
+- [ ] P05-B01-A06 — Typed tool interface ve dispatch: evidence, telemetry ve provenance kaydını ekle
+- [ ] P05-B01-A07 — Typed tool interface ve dispatch: unit, property ve fuzz doğrulamasını ekle
+- [ ] P05-B01-A08 — Typed tool interface ve dispatch: Forge entegrasyonu ile regression testini tamamla
+- [ ] P05-B01-A09 — Typed tool interface ve dispatch: adversarial, performance, cost ve safety kontrolünü geçir
+- [ ] P05-B01-A10 — Typed tool interface ve dispatch: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P05-B02 — Filesystem okuma ve grounding
 
-- [x] P05-B02-A01 — Filesystem okuma ve grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [x] P05-B02-A02 — Filesystem okuma ve grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [x] P05-B02-A03 — Filesystem okuma ve grounding: en küçük üretim dikey dilimini uygula
-- [x] P05-B02-A04 — Filesystem okuma ve grounding: boundary ve edge-case davranışlarını tamamla
-- [x] P05-B02-A05 — Filesystem okuma ve grounding: failure, recovery ve NO-GO yollarını uygula
-- [x] P05-B02-A06 — Filesystem okuma ve grounding: evidence, telemetry ve provenance kaydını ekle
-- [x] P05-B02-A07 — Filesystem okuma ve grounding: unit, property ve fuzz doğrulamasını ekle
-- [x] P05-B02-A08 — Filesystem okuma ve grounding: Forge entegrasyonu ile regression testini tamamla
-- [x] P05-B02-A09 — Filesystem okuma ve grounding: adversarial, performance, cost ve safety kontrolünü geçir
-- [x] P05-B02-A10 — Filesystem okuma ve grounding: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [ ] P05-B02-A01 — Filesystem okuma ve grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [ ] P05-B02-A02 — Filesystem okuma ve grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [ ] P05-B02-A03 — Filesystem okuma ve grounding: en küçük üretim dikey dilimini uygula
+- [ ] P05-B02-A04 — Filesystem okuma ve grounding: boundary ve edge-case davranışlarını tamamla
+- [ ] P05-B02-A05 — Filesystem okuma ve grounding: failure, recovery ve NO-GO yollarını uygula
+- [ ] P05-B02-A06 — Filesystem okuma ve grounding: evidence, telemetry ve provenance kaydını ekle
+- [ ] P05-B02-A07 — Filesystem okuma ve grounding: unit, property ve fuzz doğrulamasını ekle
+- [ ] P05-B02-A08 — Filesystem okuma ve grounding: Forge entegrasyonu ile regression testini tamamla
+- [ ] P05-B02-A09 — Filesystem okuma ve grounding: adversarial, performance, cost ve safety kontrolünü geçir
+- [ ] P05-B02-A10 — Filesystem okuma ve grounding: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P05-B03 — Cerrahi edit engine
 
-- [x] P05-B03-A01 — Cerrahi edit engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [x] P05-B03-A02 — Cerrahi edit engine: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [x] P05-B03-A03 — Cerrahi edit engine: en küçük üretim dikey dilimini uygula
-- [x] P05-B03-A04 — Cerrahi edit engine: boundary ve edge-case davranışlarını tamamla
-- [x] P05-B03-A05 — Cerrahi edit engine: failure, recovery ve NO-GO yollarını uygula
-- [x] P05-B03-A06 — Cerrahi edit engine: evidence, telemetry ve provenance kaydını ekle
-- [x] P05-B03-A07 — Cerrahi edit engine: unit, property ve fuzz doğrulamasını ekle
-- [x] P05-B03-A08 — Cerrahi edit engine: Forge entegrasyonu ile regression testini tamamla
-- [x] P05-B03-A09 — Cerrahi edit engine: adversarial, performance, cost ve safety kontrolünü geçir
-- [x] P05-B03-A10 — Cerrahi edit engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [ ] P05-B03-A01 — Cerrahi edit engine: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [ ] P05-B03-A02 — Cerrahi edit engine: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [ ] P05-B03-A03 — Cerrahi edit engine: en küçük üretim dikey dilimini uygula
+- [ ] P05-B03-A04 — Cerrahi edit engine: boundary ve edge-case davranışlarını tamamla
+- [ ] P05-B03-A05 — Cerrahi edit engine: failure, recovery ve NO-GO yollarını uygula
+- [ ] P05-B03-A06 — Cerrahi edit engine: evidence, telemetry ve provenance kaydını ekle
+- [ ] P05-B03-A07 — Cerrahi edit engine: unit, property ve fuzz doğrulamasını ekle
+- [ ] P05-B03-A08 — Cerrahi edit engine: Forge entegrasyonu ile regression testini tamamla
+- [ ] P05-B03-A09 — Cerrahi edit engine: adversarial, performance, cost ve safety kontrolünü geçir
+- [ ] P05-B03-A10 — Cerrahi edit engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P05-B04 — Shell ve process lifecycle
 
-- [x] P05-B04-A01 — Shell ve process lifecycle: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [x] P05-B04-A02 — Shell ve process lifecycle: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [x] P05-B04-A03 — Shell ve process lifecycle: en küçük üretim dikey dilimini uygula
-- [x] P05-B04-A04 — Shell ve process lifecycle: boundary ve edge-case davranışlarını tamamla
-- [x] P05-B04-A05 — Shell ve process lifecycle: failure, recovery ve NO-GO yollarını uygula
-- [x] P05-B04-A06 — Shell ve process lifecycle: evidence, telemetry ve provenance kaydını ekle
-- [x] P05-B04-A07 — Shell ve process lifecycle: unit, property ve fuzz doğrulamasını ekle
-- [x] P05-B04-A08 — Shell ve process lifecycle: Forge entegrasyonu ile regression testini tamamla
-- [x] P05-B04-A09 — Shell ve process lifecycle: adversarial, performance, cost ve safety kontrolünü geçir
-- [x] P05-B04-A10 — Shell ve process lifecycle: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [ ] P05-B04-A01 — Shell ve process lifecycle: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [ ] P05-B04-A02 — Shell ve process lifecycle: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [ ] P05-B04-A03 — Shell ve process lifecycle: en küçük üretim dikey dilimini uygula
+- [ ] P05-B04-A04 — Shell ve process lifecycle: boundary ve edge-case davranışlarını tamamla
+- [ ] P05-B04-A05 — Shell ve process lifecycle: failure, recovery ve NO-GO yollarını uygula
+- [ ] P05-B04-A06 — Shell ve process lifecycle: evidence, telemetry ve provenance kaydını ekle
+- [ ] P05-B04-A07 — Shell ve process lifecycle: unit, property ve fuzz doğrulamasını ekle
+- [ ] P05-B04-A08 — Shell ve process lifecycle: Forge entegrasyonu ile regression testini tamamla
+- [ ] P05-B04-A09 — Shell ve process lifecycle: adversarial, performance, cost ve safety kontrolünü geçir
+- [ ] P05-B04-A10 — Shell ve process lifecycle: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P05-B05 — Git ve worktree transaction
 
-- [x] P05-B05-A01 — Git ve worktree transaction: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [x] P05-B05-A02 — Git ve worktree transaction: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [x] P05-B05-A03 — Git ve worktree transaction: en küçük üretim dikey dilimini uygula
-- [x] P05-B05-A04 — Git ve worktree transaction: boundary ve edge-case davranışlarını tamamla
-- [x] P05-B05-A05 — Git ve worktree transaction: failure, recovery ve NO-GO yollarını uygula
+- [ ] P05-B05-A01 — Git ve worktree transaction: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [ ] P05-B05-A02 — Git ve worktree transaction: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [ ] P05-B05-A03 — Git ve worktree transaction: en küçük üretim dikey dilimini uygula
+- [ ] P05-B05-A04 — Git ve worktree transaction: boundary ve edge-case davranışlarını tamamla
+- [ ] P05-B05-A05 — Git ve worktree transaction: failure, recovery ve NO-GO yollarını uygula
 - [ ] P05-B05-A06 — Git ve worktree transaction: evidence, telemetry ve provenance kaydını ekle
 - [ ] P05-B05-A07 — Git ve worktree transaction: unit, property ve fuzz doğrulamasını ekle
 - [ ] P05-B05-A08 — Git ve worktree transaction: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B05-A05
-last_commit: c062f21
-tests: PASS — forge-p05-worker-git-worktree-failure-recovery.test.ts (5/5), boundary (5/5), production (6/6), contract (8/8), baseline (8/8)
-evidence: validateGitTransaction + runWorkerGitWorktreeFailureRecoverySlice + orchestrator pre-git validation + WORKER_SYSTEM git contract; failure/recovery matrix 7/7 PASS; 3 NO-GO gaps closed; 1 remaining FAIL gap (worktree_transaction_engine)
-next: P05-B05-A06
+last_atom: NONE
+last_commit: NONE
+tests: NOT-RUN
+evidence: Phase backlog initialized
+next: P05-B01-A01

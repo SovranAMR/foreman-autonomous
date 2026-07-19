@@ -2,16 +2,16 @@
 
 program: FOREMAN-FORGE-1000
 front_status: READY
-active_phase: P05
-active_block: P05-B05
-active_atom: P05-B05-A06
-phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 444/1000
-phase_progress: 40/100
-block_progress: 5/10
+active_phase: P01
+active_block: P01-B01
+active_atom: P01-B01-A01
+phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
+program_progress: 0/1000
+phase_progress: 0/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
-updated_at: 2026-07-19
+updated_at: 2026-07-18
 
 ## Tek seferlik bootstrap — program atomu değildir
 
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B05-A06 — Git ve worktree transaction: evidence, telemetry ve provenance kaydını ekle.
+P01-B01-A01 — Mission ve acceptance contract için mevcut davranış ve failing baseline.
 
-objective: P05-B05-A05 failure/recovery slice sealed; add evidence, telemetry and provenance recording for git/worktree runs.
-target: Worker git worktree evidence slice closing next measurable gap probes with zero unexpected mismatches.
-hypothesis: validateGitTransaction + failure/recovery baseline enables deterministic evidence validation for remaining worktree_transaction_engine gap.
-acceptance: Evidence slice loads; next gap probe flips PASS or failure matrix valid; targeted tests PASS.
-commands: npx tsx --test src/forge-p05-worker-git-worktree-evidence*.test.ts
-blast_radius: src/forge-p05-worker-git-worktree.ts, src/orchestrator.ts
-rollback: P05-B05-A06 evidence değişikliklerini geri al.
-evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Evidence blocked ise BLOCKED raporla.
+objective: Forge Pipeline'ın bugün gerçekten neyi garanti ettiğini executable baseline ile ölç.
+target: src/orchestrator.ts, mevcut orchestrator/pipeline testleri ve yeni baseline fixture.
+hypothesis: Belgelenen Forge davranışları ile testle enforce edilen davranışlar arasında boşluklar var.
+acceptance: state, tool, verification, reviewer, rollback ve resume yollarının mevcut PASS/FAIL matrisi versioned test/evidence olarak üretildi.
+commands: önce ilgili orchestrator ve pipeline testlerini çalıştır; sonra atomun eklediği hedefli testi çalıştır.
+blast_radius: yalnız test/evidence seam; üretim davranışını bu atomda değiştirme.
+rollback: atomun eklediği fixture/test/evidence dosyalarını geri al.
+evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
+fallback: baseline test seam'i mümkün değilse önce testability seam ekle ve aynı atom kimliğinde kal.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B05-A05
-last_commit: c062f21
-tests: PASS — forge-p05-worker-git-worktree-failure-recovery.test.ts (5/5), boundary (5/5), production (6/6), contract (8/8), baseline (8/8)
-evidence: validateGitTransaction + runWorkerGitWorktreeFailureRecoverySlice + orchestrator pre-git validation + WORKER_SYSTEM git contract; failure/recovery matrix 7/7 PASS; 3 NO-GO gaps closed; 1 remaining FAIL gap (worktree_transaction_engine)
-next: P05-B05-A06
+last_atom: NONE
+last_commit: NONE
+tests: NOT-RUN
+evidence: Program initialized
+next: P01-B01-A01

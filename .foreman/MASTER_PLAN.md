@@ -5,7 +5,7 @@ program_status: ACTIVE
 phases: 10
 blocks: 100
 atoms: 1000
-active_phase: P04
+active_phase: P01
 claim_level: INTERNAL-BASELINE
 
 ## Program amacı
