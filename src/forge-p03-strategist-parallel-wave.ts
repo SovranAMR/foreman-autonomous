@@ -975,6 +975,147 @@ export function listStrategistParallelWaveKnownGaps(
   return summarizeStrategistParallelWaveMatrix(results).knownGaps;
 }
 
+export interface StrategistParallelWaveProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistParallelWaveProbeMatrixValidationResult {
+  valid: boolean;
+  issues: StrategistParallelWaveProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateStrategistParallelWaveProbeMatrix(
+  results: StrategistParallelWaveProbeResult[],
+  contract: StrategistParallelWaveContract = getActiveStrategistParallelWaveContract(),
+): StrategistParallelWaveProbeMatrixValidationResult {
+  const issues: StrategistParallelWaveProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(probe => probe.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface StrategistParallelWaveProductionSliceResult {
+  atom: "P03-B07-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: StrategistParallelWaveProbeResult[];
+  summary: StrategistParallelWaveProbeSummary;
+  matrixValidation: StrategistParallelWaveProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: contract-wired probe execution and matrix alignment gate
+ * with zero unexpected mismatches while preserving documented FAIL gaps.
+ */
+export function runStrategistParallelWaveProductionSlice(
+  fixture: StrategistParallelWaveBaseline = loadStrategistParallelWaveBaseline(),
+): StrategistParallelWaveProductionSliceResult {
+  const contract = getActiveStrategistParallelWaveContract();
+  const fixtureValidation = validateStrategistParallelWaveBaseline(fixture);
+  const contractValidation = validateStrategistParallelWaveAgainstContract(fixture, contract);
+  const results = runStrategistParallelWaveProbes(fixture);
+  const summary = summarizeStrategistParallelWaveMatrix(results);
+  const matrixValidation = validateStrategistParallelWaveProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B07-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = __dirname;
 

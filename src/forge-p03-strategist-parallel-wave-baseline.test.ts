@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import {
   loadStrategistParallelWaveBaseline,
   runStrategistParallelWaveProbes,
+  runStrategistParallelWaveProductionSlice,
+  getActiveStrategistParallelWaveContract,
   validateStrategistParallelWaveBaseline,
+  validateStrategistParallelWaveProbeMatrix,
   summarizeStrategistParallelWaveMatrix,
   listStrategistParallelWaveProbesByExpected,
   listStrategistParallelWaveKnownGaps,
@@ -85,5 +88,48 @@ describe("Forge Strategist Parallel Wave — P03-B07-A01", () => {
       gaps.every(g => STRATEGIST_PARALLEL_WAVE_CATEGORIES.includes(g.category)),
       "documented gaps are parallel wave probes",
     );
+  });
+});
+
+describe("Forge Strategist Parallel Wave Production Slice — P03-B07-A03", () => {
+  it("executes contract-wired probes with zero unexpected mismatches preserving FAIL gaps", () => {
+    const contract = getActiveStrategistParallelWaveContract();
+    const slice = runStrategistParallelWaveProductionSlice();
+
+    assert.equal(slice.atom, "P03-B07-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 27);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 21);
+    assert.equal(slice.matrixValidation.gapAligned, 6);
+    assert.equal(slice.summary.knownGaps.length, 6);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateStrategistParallelWaveProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const gapIds = slice.summary.knownGaps.map(g => g.id).sort();
+    assert.deepEqual(gapIds, [
+      "swave.exported_wave_validator",
+      "swave.nogo_invalid_wave_plan",
+      "swave.orchestrator_atom_waves",
+      "swave.orchestrator_pre_exec_wave_gate",
+      "swave.parser_wave_plan_fields",
+      "swave.prompt_parallel_wave_plan",
+    ]);
   });
 });
