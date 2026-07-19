@@ -44,7 +44,7 @@ fallback: Block gate blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B04-A09
-last_commit: pending
+last_commit: cc0eddb
 tests: PASS — forge-p05-worker-shell-process.guard.test.ts (9/9), forge-p05-worker-shell-process-integration.test.ts (7/7), forge-p05-worker-shell-process-property-fuzz.test.ts (7/7), forge-p05-worker-shell-process-evidence.test.ts (5/5), forge-p05-worker-shell-process-failure-recovery.test.ts (5/5), forge-p05-worker-shell-process-boundary.test.ts (6/6), forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
 evidence: validateForgeWorkerShellProcessGuard + runWorkerShellProcessGuardSlice + runForgeWorkerShellProcessGuardGate + detectWorkerShellProcessFalseAlignment + detectWorkerShellProcessEvidenceSummaryMismatch; adversarial 3/3 rejected, perf/cost/safety PASS, guard gate PASS
 next: P05-B04-A10
