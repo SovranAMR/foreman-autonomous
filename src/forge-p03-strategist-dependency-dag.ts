@@ -5,6 +5,8 @@
  * atomization block gate artifacts.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +20,7 @@ import {
 } from "./forge-p03-strategist-atomization.js";
 import { parseDecomposeResponse, parseAtomizeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION = "1.0.0-a05";
+export const FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION = "1.0.0-a06";
 
 export const STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH = 64000;
 
@@ -1936,4 +1938,454 @@ export function runStrategistDependencyDagProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+// ─── Evidence, telemetry and provenance (P03-B04-A06) ────────────────────────
+
+export interface StrategistDependencyDagProbeEvidence {
+  probeId: string;
+  category: StrategistDependencyDagCategory;
+  disposition: StrategistDependencyDagProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+export interface StrategistDependencyDagProbeTelemetry {
+  probeId: string;
+  category: StrategistDependencyDagCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P03-B04-A06). */
+export interface StrategistDependencyDagProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  sliceAtom?: string;
+  sliceCategories?: readonly StrategistDependencyDagCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated dependency DAG run record bundling evidence, telemetry and provenance. */
+export interface StrategistDependencyDagRunRecord {
+  provenance: StrategistDependencyDagProvenance;
+  evidence: StrategistDependencyDagProbeEvidence[];
+  telemetry: StrategistDependencyDagProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<StrategistDependencyDagCategory, number>;
+    byDisposition: Record<StrategistDependencyDagProbeDisposition, number>;
+  };
+}
+
+export interface StrategistDependencyDagRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistDependencyDagRunValidationResult {
+  valid: boolean;
+  issues: StrategistDependencyDagRunValidationIssue[];
+}
+
+export function buildStrategistDependencyDagProbeEvidence(
+  probeId: string,
+  category: StrategistDependencyDagCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: StrategistDependencyDagProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): StrategistDependencyDagProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildStrategistDependencyDagProbeTelemetry(
+  probeId: string,
+  category: StrategistDependencyDagCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): StrategistDependencyDagProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildStrategistDependencyDagProvenance(
+  runId: string,
+  fixture: StrategistDependencyDagBaseline,
+  contract: StrategistDependencyDagContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistDependencyDagCategory[];
+  },
+): StrategistDependencyDagProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildStrategistDependencyDagRunRecord(
+  provenance: StrategistDependencyDagProvenance,
+  evidence: StrategistDependencyDagProbeEvidence[],
+  telemetry: StrategistDependencyDagProbeTelemetry[],
+): StrategistDependencyDagRunRecord {
+  const byCategory = {} as Record<StrategistDependencyDagCategory, number>;
+  const byDisposition: Record<StrategistDependencyDagProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of STRATEGIST_DEPENDENCY_DAG_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateStrategistDependencyDagRunRecordAgainstProbeIds(
+  record: StrategistDependencyDagRunRecord,
+  expectedProbeIds: string[],
+  contract: StrategistDependencyDagContract,
+): StrategistDependencyDagRunValidationResult {
+  const issues: StrategistDependencyDagRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateStrategistDependencyDagRunRecord(
+  record: StrategistDependencyDagRunRecord,
+  contract: StrategistDependencyDagContract = getActiveStrategistDependencyDagContract(),
+): StrategistDependencyDagRunValidationResult {
+  return validateStrategistDependencyDagRunRecordAgainstProbeIds(
+    record,
+    listStrategistDependencyDagContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateStrategistDependencyDagFailureRecoveryRunRecord(
+  record: StrategistDependencyDagRunRecord,
+  contract: StrategistDependencyDagContract = getActiveStrategistDependencyDagContract(),
+): StrategistDependencyDagRunValidationResult {
+  const issues: StrategistDependencyDagRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P03-B04-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P03-B04-A06`,
+    });
+  }
+
+  const expectedCategories = [...STRATEGIST_DEPENDENCY_DAG_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateStrategistDependencyDagRunRecordAgainstProbeIds(
+    record,
+    listStrategistDependencyDagFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface StrategistDependencyDagEvidenceSliceResult {
+  atom: "P03-B04-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: StrategistDependencyDagProbeResult[];
+  evidenceResults: StrategistDependencyDagProbeResult[];
+  matrixValidation: StrategistDependencyDagProbeMatrixValidationResult;
+  record: StrategistDependencyDagRunRecord;
+  recordValidation: StrategistDependencyDagRunValidationResult;
+}
+
+function resolveStrategistDependencyDagGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runStrategistDependencyDagProbeWithTiming(
+  entry: StrategistDependencyDagFixtureEntry,
+  fixture: StrategistDependencyDagBaseline,
+  contractProbe:
+    | { criterion: string; disposition: StrategistDependencyDagProbeDisposition }
+    | undefined,
+): {
+  result: StrategistDependencyDagProbeResult;
+  durationMs: number;
+  disposition: StrategistDependencyDagProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildStrategistDependencyDagRecordFromEntries(
+  entries: StrategistDependencyDagFixtureEntry[],
+  fixture: StrategistDependencyDagBaseline,
+  contract: StrategistDependencyDagContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistDependencyDagCategory[];
+  },
+): StrategistDependencyDagRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: StrategistDependencyDagProbeEvidence[] = [];
+  const telemetry: StrategistDependencyDagProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runStrategistDependencyDagProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildStrategistDependencyDagProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildStrategistDependencyDagProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildStrategistDependencyDagProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveStrategistDependencyDagGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildStrategistDependencyDagRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all dependency DAG probes and emit auditable evidence, telemetry and provenance (P03-B04-A06). */
+export function runStrategistDependencyDagProbesWithRecord(
+  fixture: StrategistDependencyDagBaseline = loadStrategistDependencyDagBaseline(),
+): StrategistDependencyDagRunRecord {
+  const contract = getActiveStrategistDependencyDagContract();
+  return buildStrategistDependencyDagRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P03-B04-A06). */
+export function runStrategistDependencyDagFailureRecoverySliceWithRecord(
+  fixture: StrategistDependencyDagBaseline = loadStrategistDependencyDagBaseline(),
+): StrategistDependencyDagRunRecord {
+  const contract = getActiveStrategistDependencyDagContract();
+  const failureRecoveryIds = new Set(listStrategistDependencyDagFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildStrategistDependencyDagRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P03-B04-A06",
+    sliceCategories: STRATEGIST_DEPENDENCY_DAG_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runStrategistDependencyDagEvidenceSlice(
+  fixture: StrategistDependencyDagBaseline = loadStrategistDependencyDagBaseline(),
+): StrategistDependencyDagEvidenceSliceResult {
+  const contract = getActiveStrategistDependencyDagContract();
+  const results = runStrategistDependencyDagProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_DEPENDENCY_DAG_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistDependencyDagContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistDependencyDagFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runStrategistDependencyDagFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateStrategistDependencyDagFailureRecoveryRunRecord(
+    record,
+    contract,
+  );
+
+  return {
+    atom: "P03-B04-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
+  };
 }

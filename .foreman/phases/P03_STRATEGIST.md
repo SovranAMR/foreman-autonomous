@@ -59,7 +59,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B04-A03 — Dependency DAG: en küçük üretim dikey dilimini uygula
 - [x] P03-B04-A04 — Dependency DAG: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B04-A05 — Dependency DAG: failure, recovery ve NO-GO yollarını uygula
-- [ ] P03-B04-A06 — Dependency DAG: evidence, telemetry ve provenance kaydını ekle
+- [x] P03-B04-A06 — Dependency DAG: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B04-A07 — Dependency DAG: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B04-A08 — Dependency DAG: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B04-A09 — Dependency DAG: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B04-A05
-last_commit: f2d924f
-tests: PASS — forge-p03-strategist-dependency-dag.test.ts (21/21); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 8 failure/recovery probes; 5 PASS + 3 NO-GO gaps aligned
-evidence: runStrategistDependencyDagFailureRecoverySlice; validateStrategistDependencyDagFailureRecoveryProbeMatrix; listStrategistDependencyDagFailureRecoveryProbeIds
-next: P03-B04-A06
+last_atom: P03-B04-A06
+last_commit: pending
+tests: PASS — forge-p03-strategist-dependency-dag.test.ts (25/25); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); harness 1.0.0-a06; 8 failure/recovery probes with auditable run record
+evidence: buildStrategistDependencyDagRunRecord; validateStrategistDependencyDagFailureRecoveryRunRecord; runStrategistDependencyDagFailureRecoverySliceWithRecord; runStrategistDependencyDagEvidenceSlice
+next: P03-B04-A07
