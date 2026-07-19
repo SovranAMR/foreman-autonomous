@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B09-A04
-last_commit: pending
+last_commit: c0fd449
 tests: PASS — forge-p03-strategist-provenance.test.ts (15/15); forge-p03-strategist-provenance-baseline.test.ts (3/3)
 evidence: runStrategistProvenanceBoundarySlice; validateStrategistProvenanceBoundaryProbeMatrix; assessStrategistProvenanceInputBoundary edge cases; validatePlanDrift boundary rejection
 next: P03-B09-A05

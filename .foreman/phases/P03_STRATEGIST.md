@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B09-A04
-last_commit: pending
+last_commit: c0fd449
 tests: PASS — forge-p03-strategist-provenance.test.ts (15/15); forge-p03-strategist-provenance-baseline.test.ts (3/3); runStrategistProvenanceBoundarySlice (6/6 boundary probes aligned)
 evidence: validateStrategistProvenanceBoundaryProbeMatrix; assessStrategistProvenanceInputBoundary; validatePlanDrift boundary rejection; rejectUndetectedPlanDrift threshold
 next: P03-B09-A05
