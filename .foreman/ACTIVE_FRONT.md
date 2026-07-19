@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B05
-active_atom: P04-B05-A07
+active_atom: P04-B05-A08
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 346/1000
-phase_progress: 46/100
-block_progress: 6/10
+program_progress: 347/1000
+phase_progress: 47/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B05-A07 — Citation ve provenance graph: unit, property ve fuzz doğrulamasını ekle.
+P04-B05-A08 — Citation ve provenance graph: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P04-B05-A06 PASS; evidence slice gate wired; failure/recovery run record validated; zero mismatches.
-target: Forge citation provenance graph property/fuzz validation slice extending evidence run record gate.
-hypothesis: Property and fuzz checks enforce structural invariants on evidence run records and contract probes.
-acceptance: Property/fuzz suite passes; evidence record invariants hold; regression suite stays green.
+objective: P04-B05-A07 PASS; property/fuzz suite passes; evidence record invariants hold; zero accepted mutations.
+target: Forge citation provenance graph regression integration slice extending property/fuzz gate.
+hypothesis: Regression gate wires citation provenance graph slice into orchestrator verification seam.
+acceptance: Regression integration suite passes; property/fuzz slice green; full block suite stays green.
 commands: npx tsx --test src/forge-p04-researcher-citation-provenance-graph*.test.ts
 blast_radius: src/forge-p04-researcher-citation-provenance-graph*.ts
-rollback: P04-B05-A07 property/fuzz slice değişikliklerini geri al.
+rollback: P04-B05-A08 regression slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B05-A06
-last_commit: 23508db
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (26/26); runResearcherCitationProvenanceGraphEvidenceSlice; passAligned=4 gapAligned=2
-evidence: validateResearcherCitationProvenanceGraphEvidenceRunRecord + runResearcherCitationProvenanceGraphFailureRecoverySliceWithRecord; auditable evidence/telemetry/provenance for 6 failure/recovery probes
-next: P04-B05-A07
+last_atom: P04-B05-A07
+last_commit: pending
+tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (32/32); runResearcherCitationProvenanceGraphPropertyFuzzSlice; propertyChecks=8 contractFuzzRejected=true runRecordFuzzRejected=true
+evidence: runResearcherCitationProvenanceGraphPropertyValidation + runResearcherCitationProvenanceGraphFuzzValidation + runResearcherCitationProvenanceGraphRunRecordFuzzValidation; 8 structural properties, 72 fixture mutations rejected, 5 run-record mutations rejected
+next: P04-B05-A08
