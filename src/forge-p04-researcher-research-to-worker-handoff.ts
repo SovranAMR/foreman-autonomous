@@ -1737,3 +1737,89 @@ export function runResearcherResearchToWorkerHandoffBoundarySlice(
     matrixValidation,
   };
 }
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly ResearcherResearchToWorkerHandoffCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes must align; zero unexpected mismatches.
+ */
+export function validateResearcherResearchToWorkerHandoffFailureRecoveryProbeMatrix(
+  results: ResearcherResearchToWorkerHandoffProbeResult[],
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffProbeMatrixValidationResult {
+  const failureRecoveryProbes =
+    RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+      listResearcherResearchToWorkerHandoffContractProbesByCategory(category, contract),
+    );
+  const failureRecoveryContract: ResearcherResearchToWorkerHandoffContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateResearcherResearchToWorkerHandoffProbeMatrix(
+    failureRecoveryResults,
+    failureRecoveryContract,
+  );
+}
+
+export function listResearcherResearchToWorkerHandoffFailureRecoveryProbeIds(
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): string[] {
+  return RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listResearcherResearchToWorkerHandoffContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface ResearcherResearchToWorkerHandoffFailureRecoverySliceResult {
+  atom: "P04-B09-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherResearchToWorkerHandoffProbeResult[];
+  failureRecoveryResults: ResearcherResearchToWorkerHandoffProbeResult[];
+  matrixValidation: ResearcherResearchToWorkerHandoffProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes (invalid fixture rejection, null-byte guard, recoverResearchToWorkerHandoff bundle
+ * repair, findings fallback, parseResearchToWorkerHandoff and validateResearchToWorkerHandoff
+ * orchestrator NO-GO wiring) with zero unexpected mismatches.
+ */
+export function runResearcherResearchToWorkerHandoffFailureRecoverySlice(
+  fixture: ResearcherResearchToWorkerHandoffBaseline = loadResearcherResearchToWorkerHandoffBaseline(),
+): ResearcherResearchToWorkerHandoffFailureRecoverySliceResult {
+  const contract = getActiveResearcherResearchToWorkerHandoffContract();
+  const results = runResearcherResearchToWorkerHandoffProbes(fixture);
+  const failureRecoveryProbes =
+    RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+      listResearcherResearchToWorkerHandoffContractProbesByCategory(category, contract),
+    );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherResearchToWorkerHandoffFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B09-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
+    matrixValidation,
+  };
+}

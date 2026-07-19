@@ -14,11 +14,15 @@ import {
   validateResearcherResearchToWorkerHandoffAgainstContract,
   runResearcherResearchToWorkerHandoffProductionSlice,
   runResearcherResearchToWorkerHandoffBoundarySlice,
+  runResearcherResearchToWorkerHandoffFailureRecoverySlice,
   validateResearcherResearchToWorkerHandoffProbeMatrix,
   validateResearcherResearchToWorkerHandoffBoundaryProbeMatrix,
+  validateResearcherResearchToWorkerHandoffFailureRecoveryProbeMatrix,
+  listResearcherResearchToWorkerHandoffFailureRecoveryProbeIds,
   validateResearchToWorkerHandoff,
   recoverResearchToWorkerHandoff,
   RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES,
+  RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES,
   FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CONTRACT_V1,
 } from "./forge-p04-researcher-research-to-worker-handoff.js";
 import { parseResearchToWorkerHandoff } from "./parser.js";
@@ -278,5 +282,137 @@ describe("Forge Researcher Research-to-Worker Handoff Boundary Slice — P04-B09
     const whitespaceRecovery = recoverResearchToWorkerHandoff("   \t\n  ");
     assert.equal(whitespaceRecovery.recovered, false);
     assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only"]);
+  });
+});
+
+describe("Forge Researcher Research-to-Worker Handoff Failure/Recovery Slice — P04-B09-A05", () => {
+  it("defines six failure/recovery/NO-GO probes with guard-path criteria", () => {
+    const contract = getActiveResearcherResearchToWorkerHandoffContract();
+    const failure = listResearcherResearchToWorkerHandoffContractProbesByCategory(
+      "failure_path",
+      contract,
+    );
+    const recovery = listResearcherResearchToWorkerHandoffContractProbesByCategory(
+      "recovery_path",
+      contract,
+    );
+    const nogo = listResearcherResearchToWorkerHandoffContractProbesByCategory(
+      "nogo_path",
+      contract,
+    );
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches on guard-path probes", () => {
+    const contract = getActiveResearcherResearchToWorkerHandoffContract();
+    const slice = runResearcherResearchToWorkerHandoffFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B09-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherResearchToWorkerHandoffContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherResearchToWorkerHandoffFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with handoff recovery and orchestrator wiring", () => {
+    const slice = runResearcherResearchToWorkerHandoffFailureRecoverySlice();
+    const probeIds = listResearcherResearchToWorkerHandoffFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "rtwh.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const malformedInput = slice.failureRecoveryResults.find(
+      r => r.id === "rtwh.malformed_handoff_input_guard",
+    );
+    assert.ok(malformedInput);
+    assert.equal(malformedInput!.expected, "PASS");
+    assert.equal(malformedInput!.actual, "PASS");
+
+    const bundleRepair = slice.failureRecoveryResults.find(
+      r => r.id === "rtwh.recovery_handoff_bundle_repair",
+    );
+    assert.ok(bundleRepair);
+    assert.equal(bundleRepair!.expected, "PASS");
+    assert.equal(bundleRepair!.actual, "PASS");
+
+    const findingsFallback = slice.failureRecoveryResults.find(
+      r => r.id === "rtwh.recovery_missing_findings_fallback",
+    );
+    assert.ok(findingsFallback);
+    assert.equal(findingsFallback!.expected, "PASS");
+    assert.equal(findingsFallback!.actual, "PASS");
+
+    const parserGate = slice.failureRecoveryResults.find(
+      r => r.id === "rtwh.parser_research_handoff_bundle",
+    );
+    assert.ok(parserGate);
+    assert.equal(parserGate!.expected, "PASS");
+    assert.equal(parserGate!.actual, "PASS");
+
+    const validatorExport = slice.failureRecoveryResults.find(
+      r => r.id === "rtwh.exported_handoff_validator",
+    );
+    assert.ok(validatorExport);
+    assert.equal(validatorExport!.expected, "PASS");
+    assert.equal(validatorExport!.actual, "PASS");
+  });
+
+  it("recoverResearchToWorkerHandoff and validateResearchToWorkerHandoff handle failure inputs safely", () => {
+    const unrecoverable = recoverResearchToWorkerHandoff("");
+    assert.equal(unrecoverable.recovered, false);
+    assert.ok(unrecoverable.parseErrors.includes("empty"));
+
+    const nullByteRecovery = recoverResearchToWorkerHandoff("handoff\0parse");
+    assert.equal(nullByteRecovery.recovered, false);
+    assert.equal(nullByteRecovery.parseErrors[0], "contains_null_byte");
+
+    const invalidValidation = validateResearchToWorkerHandoff("");
+    assert.equal(invalidValidation.valid, false);
+    assert.ok(invalidValidation.issues.length > 0);
+
+    const repaired = recoverResearchToWorkerHandoff(
+      "FINDINGS: async worker pool reduces tail latency\nSOURCES: https://example.com/async",
+    );
+    assert.equal(repaired.recovered, true);
+    assert.ok(repaired.bundle.findings.length > 0);
+    assert.ok(repaired.bundle.sources.length > 0);
   });
 });
