@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B03-A10
-last_commit: 59f39b1
+last_commit: 9892aa2
 tests: PASS — forge-p04-researcher-web-primary-source-block-gate.test.ts (7/7); all web-primary-source suites 58/58; seals=10/10; handoff→P04-B04
 evidence: runResearcherWebPrimarySourceBlockGate; getForgeP04B03BlockGate; getForgeP04B03ToB04Handoff; verifyForgeResearcherWebPrimarySourceBlockGate
 next: P04-B04-A01

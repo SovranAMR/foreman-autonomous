@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B03-A10
-last_commit: 59f39b1
+last_commit: 9892aa2
 tests: PASS — forge-p04-researcher-web-primary-source-block-gate.test.ts (7/7); seals=10/10; handoff→P04-B04; orchestrator verifyForgeResearcherWebPrimarySourceBlockGate
 evidence: runResearcherWebPrimarySourceBlockGate; getForgeP04B03BlockGate; getForgeP04B03ToB04Handoff; forge-p04-researcher-web-primary-source-block-gate.test.ts
 next: P04-B04-A01
