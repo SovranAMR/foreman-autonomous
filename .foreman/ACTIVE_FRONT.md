@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B01
-active_atom: P03-B01-A08
+active_atom: P03-B01-A09
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 206/1000
-phase_progress: 6/100
-block_progress: 7/10
+program_progress: 207/1000
+phase_progress: 7/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B01-A08 — Hedef decomposition: Forge entegrasyonu ile regression testini tamamla.
+P03-B01-A09 — Hedef decomposition: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P03-B01-A07 PASS; P03-B01-A08 strategist intent Forge regression slice.
-target: runStrategistIntentForgeRegression, detectStrategistIntentProbeRegression.
-hypothesis: P03-B01-A08 wires strategist intent harness into Forge pipeline regression gate.
-acceptance: regression slice passes; probe regression detection rejects tampered prior records; baseline suite green.
+objective: P03-B01-A08 PASS; P03-B01-A09 strategist intent guard controls slice.
+target: validateForgeStrategistIntentGuard, runStrategistIntentAdversarialGuardChecks.
+hypothesis: P03-B01-A09 wires adversarial/performance/cost/safety guard controls into strategist intent harness.
+acceptance: guard controls pass on canonical matrix; adversarial scenarios reject tampered records; performance/cost/safety bounds enforced.
 commands: npx tsx --test src/forge-p03-strategist-intent.test.ts
 blast_radius: src/forge-p03-strategist-intent.ts
-rollback: P03-B01-A08 Forge regression slice değişikliklerini geri al.
+rollback: P03-B01-A09 guard control değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: P03-B01-A07 property/fuzz slice misaligned ise BLOCKED raporla.
+fallback: P03-B01-A08 regression slice misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B01-A07
-last_commit: fd28444
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (23/23); property checks 8/8; contract fuzz 0 accepted; run record fuzz 0 accepted
-evidence: runStrategistIntentPropertyChecks; runStrategistIntentFuzzValidation; runStrategistIntentPropertyFuzzSlice
-next: P03-B01-A08
+last_atom: P03-B01-A08
+last_commit: pending
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (28/28); regression gate canonical PASS; probe regression detection; tampered prior rejected
+evidence: runStrategistIntentForgeRegression; detectStrategistIntentProbeRegression
+next: P03-B01-A09

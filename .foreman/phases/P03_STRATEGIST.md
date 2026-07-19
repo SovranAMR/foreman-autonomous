@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 7
+completed_atoms: 8
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -22,7 +22,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B01-A05 — Hedef decomposition: failure, recovery ve NO-GO yollarını uygula
 - [x] P03-B01-A06 — Hedef decomposition: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B01-A07 — Hedef decomposition: unit, property ve fuzz doğrulamasını ekle
-- [ ] P03-B01-A08 — Hedef decomposition: Forge entegrasyonu ile regression testini tamamla
+- [x] P03-B01-A08 — Hedef decomposition: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B01-A09 — Hedef decomposition: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B01-A10 — Hedef decomposition: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B01-A07
-last_commit: fd28444
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (23/23); property checks 8/8; contract fuzz 0 accepted; run record fuzz 0 accepted
-evidence: runStrategistIntentPropertyChecks; runStrategistIntentFuzzValidation; runStrategistIntentPropertyFuzzSlice
-next: P03-B01-A08
+last_atom: P03-B01-A08
+last_commit: pending
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (28/28); regression gate canonical PASS; probe regression detection; tampered prior rejected
+evidence: runStrategistIntentForgeRegression; detectStrategistIntentProbeRegression
+next: P03-B01-A09

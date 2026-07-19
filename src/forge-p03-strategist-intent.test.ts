@@ -36,6 +36,9 @@ import {
   runStrategistIntentPropertyFuzzSlice,
   createStrategistIntentFuzzRng,
   FORGE_STRATEGIST_INTENT_CONTRACT_V1,
+  runStrategistIntentForgeRegression,
+  detectStrategistIntentProbeRegression,
+  applyStrategistIntentRunRecordFuzzMutation,
 } from "./forge-p03-strategist-intent.js";
 
 describe("Forge Strategist Intent Contract — P03-B01-A02", () => {
@@ -371,7 +374,7 @@ describe("Forge Strategist Intent Evidence — P03-B01-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_INTENT_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -403,7 +406,7 @@ describe("Forge Strategist Intent Evidence — P03-B01-A06", () => {
     assert.equal(record.evidence.length, 23);
     assert.equal(record.telemetry.length, 23);
     assert.equal(record.provenance.totalProbes, 23);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 23);
@@ -528,5 +531,87 @@ describe("Forge Strategist Intent Property/Fuzz — P03-B01-A07", () => {
     assert.equal(slice.contractFuzz.allMutationsRejected, true);
     assert.equal(slice.contractFuzz.accepted, 0);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
+  });
+});
+
+describe("Forge Strategist Intent Regression — P03-B01-A08", () => {
+  it("runStrategistIntentForgeRegression passes on canonical strategist intent matrix", () => {
+    const result = runStrategistIntentForgeRegression();
+
+    assert.equal(result.atom, "P03-B01-A08");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectStrategistIntentProbeRegression flags newly misaligned probes", () => {
+    const prior = runStrategistIntentProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistIntentProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runStrategistIntentForgeRegression compares against prior record without false regression", () => {
+    const prior = runStrategistIntentProbesWithRecord();
+    const result = runStrategistIntentForgeRegression(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runStrategistIntentForgeRegression rejects tampered prior records", () => {
+    const prior = runStrategistIntentProbesWithRecord();
+    const tamperedPrior = applyStrategistIntentRunRecordFuzzMutation(prior, {
+      kind: "drop_evidence",
+      probeId: prior.evidence[0]?.probeId,
+    });
+
+    assert.equal(validateStrategistIntentRunRecord(tamperedPrior).valid, false);
+
+    const result = runStrategistIntentForgeRegression(tamperedPrior);
+    assert.equal(result.priorRecordValid, false);
+    assert.equal(result.passed, false);
+    assert.ok(result.detail.includes("priorValidation:"));
+  });
+
+  it("runStrategistIntentForgeRegression fails when probe alignment regresses", () => {
+    const prior = runStrategistIntentProbesWithRecord();
+    const tamperedCurrent = structuredClone(prior);
+    const target = tamperedCurrent.evidence[0]!;
+    target.aligned = false;
+    target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+    tamperedCurrent.summary = {
+      ...tamperedCurrent.summary,
+      aligned: tamperedCurrent.summary.aligned - 1,
+      mismatches: tamperedCurrent.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistIntentProbeRegression(prior, tamperedCurrent);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target.probeId]);
   });
 });
