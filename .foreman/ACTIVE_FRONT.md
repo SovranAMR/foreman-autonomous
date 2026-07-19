@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B07
-active_atom: P04-B07-A02
+active_atom: P04-B07-A03
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 361/1000
-phase_progress: 61/100
-block_progress: 1/10
+program_progress: 362/1000
+phase_progress: 62/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B07-A02 — Risk ve trade-off araştırması: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P04-B07-A03 — Risk ve trade-off araştırması: en küçük üretim dikey dilimini uygula.
 
-objective: P04-B07-A01 PASS; baseline fixture validates; B06 handoff linked; 4 documented FAIL gaps aligned.
-target: Define typed risk/trade-off contract with measurable acceptance criteria wired to A01 probe matrix.
-hypothesis: Contract v1 declares risk_signal, tradeoff_signal and nogo_path probes with documented gap dispositions.
-acceptance: Contract loads; coverage validates; fixture aligned; gap probes preserved.
+objective: P04-B07-A02 PASS; typed contract validates; 23 probes wired; 4 documented FAIL gaps preserved.
+target: Implement smallest production slice closing trade-off parser and orchestrator validator gaps where feasible.
+hypothesis: Production slice exports parseResearchTradeoffs and validateResearchRiskTradeoff with probe alignment.
+acceptance: Production slice runs; probe matrix validates; documented gaps reduced or preserved with evidence.
 commands: npx tsx --test src/forge-p04-researcher-risk-tradeoff*.test.ts
-blast_radius: src/forge-p04-researcher-risk-tradeoff*.ts
-rollback: P04-B07-A02 contract değişikliklerini geri al.
+blast_radius: src/forge-p04-researcher-risk-tradeoff*.ts, src/parser.ts, src/orchestrator.ts
+rollback: P04-B07-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B07-A01
+last_atom: P04-B07-A02
 last_commit: pending
-tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (9/9); baseline validates; probe matrix aligned; documented FAIL gaps=4
-evidence: loadResearcherRiskTradeoffBaseline + validateResearcherRiskTradeoffBaseline + runResearcherRiskTradeoffProbes + forge-p04-researcher-risk-tradeoff.test.ts; B06 handoff sealed probeCount=23
-next: P04-B07-A02
+tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (17/17); contract coverage validates; fixture aligned; documented FAIL gaps=4
+evidence: getActiveResearcherRiskTradeoffContract + validateResearcherRiskTradeoffContractCoverage + validateResearcherRiskTradeoffAgainstContract + forge-p04-researcher-risk-tradeoff.test.ts A02 suite; risk_signal/tradeoff_signal/nogo_path dispositions wired
+next: P04-B07-A03

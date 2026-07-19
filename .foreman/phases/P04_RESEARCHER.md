@@ -94,7 +94,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P04-B07 — Risk ve trade-off araştırması
 
 - [x] P04-B07-A01 — Risk ve trade-off araştırması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P04-B07-A02 — Risk ve trade-off araştırması: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P04-B07-A02 — Risk ve trade-off araştırması: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B07-A03 — Risk ve trade-off araştırması: en küçük üretim dikey dilimini uygula
 - [ ] P04-B07-A04 — Risk ve trade-off araştırması: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B07-A05 — Risk ve trade-off araştırması: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B07-A01
+last_atom: P04-B07-A02
 last_commit: pending
-tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (9/9); baseline validates; probe matrix aligned; documented FAIL gaps=4
-evidence: loadResearcherRiskTradeoffBaseline + validateResearcherRiskTradeoffBaseline + runResearcherRiskTradeoffProbes + forge-p04-researcher-risk-tradeoff.test.ts; B06 handoff sealed probeCount=23
-next: P04-B07-A02
+tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (17/17); contract coverage validates; fixture aligned; documented FAIL gaps=4
+evidence: getActiveResearcherRiskTradeoffContract + validateResearcherRiskTradeoffContractCoverage + validateResearcherRiskTradeoffAgainstContract + forge-p04-researcher-risk-tradeoff.test.ts A02 suite; risk_signal/tradeoff_signal/nogo_path dispositions wired
+next: P04-B07-A03

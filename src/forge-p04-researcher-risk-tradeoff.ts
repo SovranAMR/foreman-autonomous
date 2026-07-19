@@ -18,7 +18,7 @@ import {
 } from "./forge-p04-researcher-contradiction-freshness.js";
 import { parseResearchResponse } from "./parser.js";
 
-export const FORGE_RESEARCHER_RISK_TRADEOFF_VERSION = "1.0.0-a01";
+export const FORGE_RESEARCHER_RISK_TRADEOFF_VERSION = "1.0.0-a02";
 
 export const EXPECTED_P04_B06_SEALED_ATOM_COUNT = 10;
 
@@ -607,7 +607,7 @@ const RESEARCHER_RISK_TRADEOFF_CATEGORY_CONTRACTS: Record<
         description:
           "Orchestrator validates researcher risk and trade-off completeness before worker handoff",
         expected: "FAIL",
-        disposition: "gap",
+        disposition: "nogo",
         criterion:
           "Orchestrator validates researcher risk and trade-off completeness before worker handoff",
       },
@@ -617,7 +617,7 @@ const RESEARCHER_RISK_TRADEOFF_CATEGORY_CONTRACTS: Record<
         description:
           "validateResearchRiskTradeoff exported for orchestrator pre-worker research checks",
         expected: "FAIL",
-        disposition: "gap",
+        disposition: "nogo",
         criterion:
           "validateResearchRiskTradeoff exported for orchestrator pre-worker research checks",
       },
@@ -636,6 +636,148 @@ export const FORGE_RESEARCHER_RISK_TRADEOFF_CONTRACT_V1: ResearcherRiskTradeoffC
 
 export function getActiveResearcherRiskTradeoffContract(): ResearcherRiskTradeoffContract {
   return FORGE_RESEARCHER_RISK_TRADEOFF_CONTRACT_V1;
+}
+
+export function getResearcherRiskTradeoffCategoryContract(
+  category: ResearcherRiskTradeoffCategory,
+  contract: ResearcherRiskTradeoffContract = getActiveResearcherRiskTradeoffContract(),
+): ResearcherRiskTradeoffCategoryContract {
+  return contract.categories[category];
+}
+
+export function listResearcherRiskTradeoffContractProbeIds(
+  contract: ResearcherRiskTradeoffContract = getActiveResearcherRiskTradeoffContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listResearcherRiskTradeoffProbesByDisposition(
+  disposition: ResearcherRiskTradeoffProbeDisposition,
+  contract: ResearcherRiskTradeoffContract = getActiveResearcherRiskTradeoffContract(),
+): ResearcherRiskTradeoffProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listResearcherRiskTradeoffContractProbesByCategory(
+  category: ResearcherRiskTradeoffCategory,
+  contract: ResearcherRiskTradeoffContract = getActiveResearcherRiskTradeoffContract(),
+): readonly ResearcherRiskTradeoffProbeContract[] {
+  return [...contract.categories[category].probes];
+}
+
+export interface ResearcherRiskTradeoffContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: ResearcherRiskTradeoffCategory;
+  detail: string;
+}
+
+export interface ResearcherRiskTradeoffContractCoverageResult {
+  valid: boolean;
+  issues: ResearcherRiskTradeoffContractCoverageIssue[];
+}
+
+export function validateResearcherRiskTradeoffContractCoverage(
+  contract: ResearcherRiskTradeoffContract = getActiveResearcherRiskTradeoffContract(),
+): ResearcherRiskTradeoffContractCoverageResult {
+  const issues: ResearcherRiskTradeoffContractCoverageIssue[] = [];
+
+  for (const category of RESEARCHER_RISK_TRADEOFF_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({
+        kind: "missing_category",
+        category,
+        detail: `missing category contract: ${category}`,
+      });
+      continue;
+    }
+    if (
+      categoryContract.acceptance.minProbeCount <
+      RESEARCHER_RISK_TRADEOFF_A01_MIN_PROBES[category]
+    ) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${RESEARCHER_RISK_TRADEOFF_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listResearcherRiskTradeoffContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeResearcherRiskTradeoffContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("rrto.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing rrto. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherRiskTradeoffContract(
+  contract: ResearcherRiskTradeoffContract = getActiveResearcherRiskTradeoffContract(),
+): ResearcherRiskTradeoffContractCoverageResult {
+  return validateResearcherRiskTradeoffContractCoverage(contract);
 }
 
 export function summarizeResearcherRiskTradeoffContractCoverage(
