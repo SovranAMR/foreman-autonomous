@@ -25,7 +25,7 @@ import {
   type ToolCall,
 } from "./tools.js";
 
-export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a03";
+export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a04";
 
 export const WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH = 16_384;
 
@@ -1697,6 +1697,60 @@ export function runWorkerToolDispatchProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface WorkerToolDispatchBoundarySliceResult {
+  atom: "P05-B01-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: WorkerToolDispatchProbeResult[];
+  boundaryResults: WorkerToolDispatchProbeResult[];
+  matrixValidation: WorkerToolDispatchProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateWorkerToolDispatchBoundaryProbeMatrix(
+  results: WorkerToolDispatchProbeResult[],
+  contract: WorkerToolDispatchContract = getActiveWorkerToolDispatchContract(),
+): WorkerToolDispatchProbeMatrixValidationResult {
+  const boundaryProbes = listWorkerToolDispatchContractProbesByCategory("boundary", contract);
+  const boundaryContract: WorkerToolDispatchContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateWorkerToolDispatchProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (tool call input edge cases, probe runner,
+ * documented gaps, source block gate refs) with zero unexpected mismatches.
+ */
+export function runWorkerToolDispatchBoundarySlice(
+  fixture: WorkerToolDispatchBaseline = loadWorkerToolDispatchBaseline(),
+): WorkerToolDispatchBoundarySliceResult {
+  const contract = getActiveWorkerToolDispatchContract();
+  const results = runWorkerToolDispatchProbes(fixture);
+  const boundaryProbes = listWorkerToolDispatchContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateWorkerToolDispatchBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B01-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B01
-active_atom: P05-B01-A04
+active_atom: P05-B01-A05
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 403/1000
-phase_progress: 3/100
-block_progress: 3/10
+program_progress: 404/1000
+phase_progress: 4/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B01-A04 — Typed tool interface ve dispatch: boundary ve edge-case davranışlarını tamamla.
+P05-B01-A05 — Typed tool interface ve dispatch: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P05-B01-A03 production slice sealed; complete boundary and edge-case behavior.
-target: Extend typed tool dispatch boundary probes with full edge-case coverage.
-hypothesis: Boundary category probes map to assessWorkerToolCallInputBoundary + schema edge cases.
-acceptance: Boundary slice PASS with zero unexpected mismatches against contract matrix.
+objective: P05-B01-A04 boundary slice sealed; implement failure, recovery and NO-GO paths.
+target: Extend typed tool dispatch with failure/recovery/NO-GO slice gate.
+hypothesis: failure_path + recovery_path + nogo_path probes map to validateWorkerToolDispatchFailureRecoveryProbeMatrix.
+acceptance: Failure/recovery slice PASS with zero unexpected mismatches against contract matrix.
 commands: npx tsx --test src/forge-p05-worker-tool-dispatch*.test.ts
 blast_radius: src/forge-p05-worker-tool-dispatch.ts, src/tools.ts, src/orchestrator.ts
-rollback: P05-B01-A04 boundary slice değişikliklerini geri al.
+rollback: P05-B01-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Boundary slice blocked ise BLOCKED raporla.
+fallback: Failure/recovery slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B01-A03
+last_atom: P05-B01-A04
 last_commit: pending
-tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5)
-evidence: TypedToolCall + validateWorkerToolCall + orchestrator pre-dispatch + telemetry; 27/27 probes aligned, 6 A02 gaps closed
-next: P05-B01-A04
+tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4)
+evidence: validateWorkerToolDispatchBoundaryProbeMatrix + runWorkerToolDispatchBoundarySlice; boundary edge cases (trim, nested null-byte, exact max-length, schema gate) with 7/7 boundary probes aligned
+next: P05-B01-A05

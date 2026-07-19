@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 3
+completed_atoms: 4
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -18,7 +18,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B01-A01 — Typed tool interface ve dispatch: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P05-B01-A02 — Typed tool interface ve dispatch: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P05-B01-A03 — Typed tool interface ve dispatch: en küçük üretim dikey dilimini uygula
-- [ ] P05-B01-A04 — Typed tool interface ve dispatch: boundary ve edge-case davranışlarını tamamla
+- [x] P05-B01-A04 — Typed tool interface ve dispatch: boundary ve edge-case davranışlarını tamamla
 - [ ] P05-B01-A05 — Typed tool interface ve dispatch: failure, recovery ve NO-GO yollarını uygula
 - [ ] P05-B01-A06 — Typed tool interface ve dispatch: evidence, telemetry ve provenance kaydını ekle
 - [ ] P05-B01-A07 — Typed tool interface ve dispatch: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B01-A03
+last_atom: P05-B01-A04
 last_commit: pending
-tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5)
-evidence: TypedToolCall union + WORKER_SYSTEM typed dispatch + validateWorkerToolCall/validateWorkerToolCallAgainstSchema/buildWorkerToolDispatchTelemetry + orchestrator pre-dispatch validation; 6 A02 gap probes PASS with zero unexpected mismatches
-next: P05-B01-A04
+tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4)
+evidence: validateWorkerToolDispatchBoundaryProbeMatrix + runWorkerToolDispatchBoundarySlice; 7/7 boundary probes aligned, edge cases (name trim, nested null-byte, exact max-length, validateWorkerToolCall schema gate) with zero unexpected mismatches
+next: P05-B01-A05
