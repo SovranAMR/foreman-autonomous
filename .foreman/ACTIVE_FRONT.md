@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B02
-active_atom: P03-B02-A02
+active_atom: P03-B02-A03
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 210/1000
-phase_progress: 11/100
+program_progress: 211/1000
+phase_progress: 12/100
 block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B02-A02 — Block üretim kontratı: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P03-B02-A03 — Block üretim kontratı: en küçük üretim dikey dilimini uygula.
 
-objective: P03-B02-A01 PASS; P03-B02-A02 typed block production contract acceptance criteria.
-target: getActiveStrategistBlockContract, validateStrategistBlockContractAgainstContract.
-hypothesis: P03-B02-A02 formalizes measurable acceptance criteria from sealed A01 baseline fixture.
-acceptance: typed contract v1; category invariants; probe criteria aligned with baseline fixture.
+objective: P03-B02-A02 PASS; P03-B02-A03 recoverStrategistBlockProduction production slice.
+target: recoverStrategistBlockProduction, runStrategistBlockContractProductionSlice.
+hypothesis: P03-B02-A03 closes sblk.structured_block_recovery gap with contract-wired recovery slice.
+acceptance: recovery function exported; probe matrix gap aligned; zero unexpected mismatches on PASS probes.
 commands: npx tsx --test src/forge-p03-strategist-block-contract.test.ts
 blast_radius: src/forge-p03-strategist-block-contract.ts
-rollback: P03-B02-A02 contract değişikliklerini geri al.
+rollback: P03-B02-A03 recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: A01 baseline misaligned ise BLOCKED raporla.
+fallback: A02 contract misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B02-A01
+last_atom: P03-B02-A02
 last_commit: pending
-tests: PASS — forge-p03-strategist-block-contract-baseline.test.ts (3/3); probe matrix 23/23; 1 documented FAIL gap
-evidence: loadStrategistBlockContractBaseline; runStrategistBlockContractProbes; getForgeP03B01ToB02Handoff alignment
-next: P03-B02-A02
+tests: PASS — forge-p03-strategist-block-contract.test.ts (5/5); contract v1 23 probes; 1 documented FAIL gap preserved
+evidence: getActiveStrategistBlockContract; validateStrategistBlockContractCoverage; validateStrategistBlockContractAgainstContract
+next: P03-B02-A03

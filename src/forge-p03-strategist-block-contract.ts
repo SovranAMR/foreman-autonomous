@@ -17,7 +17,7 @@ import {
 } from "./forge-p03-strategist-intent.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION = "1.0.0-a01";
+export const FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION = "1.0.0-a02";
 
 /** Maximum normalized decompose length before truncation (P03-B02-A01 boundary). */
 export const STRATEGIST_BLOCK_DECOMPOSE_MAX_LENGTH = 64000;
@@ -486,6 +486,23 @@ const STRATEGIST_BLOCK_CONTRACT_CATEGORY_CONTRACTS: Record<
   },
 };
 
+export interface StrategistBlockContractContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: StrategistBlockContractCategory;
+  detail: string;
+}
+
+export interface StrategistBlockContractContractCoverageResult {
+  valid: boolean;
+  issues: StrategistBlockContractContractCoverageIssue[];
+}
+
 export const FORGE_STRATEGIST_BLOCK_CONTRACT_V1: StrategistBlockContractContract = {
   version: "1.0.0",
   atom: "P03-B02-A05",
@@ -497,6 +514,159 @@ export const FORGE_STRATEGIST_BLOCK_CONTRACT_V1: StrategistBlockContractContract
 
 export function getActiveStrategistBlockContract(): StrategistBlockContractContract {
   return FORGE_STRATEGIST_BLOCK_CONTRACT_V1;
+}
+
+export function getStrategistBlockContractCategoryContract(
+  category: StrategistBlockContractCategory,
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): StrategistBlockContractCategoryContract {
+  return contract.categories[category];
+}
+
+export function listStrategistBlockContractContractProbeIds(
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listStrategistBlockContractProbesByDisposition(
+  disposition: StrategistBlockContractProbeDisposition,
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): StrategistBlockContractProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listStrategistBlockContractContractProbesByCategory(
+  category: StrategistBlockContractCategory,
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): StrategistBlockContractProbeContract[] {
+  return contract.categories[category].probes;
+}
+
+export function summarizeStrategistBlockContractCoverage(
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<StrategistBlockContractCategory, { probeCount: number; invariant: string }>;
+  byDisposition: Record<StrategistBlockContractProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    StrategistBlockContractCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<StrategistBlockContractProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of STRATEGIST_BLOCK_CONTRACT_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probeEntry of categoryContract.probes) {
+      totalProbes++;
+      if (probeEntry.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probeEntry.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateStrategistBlockContractCoverage(
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): StrategistBlockContractContractCoverageResult {
+  const issues: StrategistBlockContractContractCoverageIssue[] = [];
+
+  for (const category of STRATEGIST_BLOCK_CONTRACT_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < STRATEGIST_BLOCK_CONTRACT_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${STRATEGIST_BLOCK_CONTRACT_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probeEntry of categoryContract.probes) {
+      if (probeEntry.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probeEntry.id,
+          detail: `${probeEntry.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listStrategistBlockContractContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeStrategistBlockContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probeEntry of contract.probes) {
+    if (!probeEntry.id.startsWith("sblk.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probeEntry.id,
+        detail: `${probeEntry.id} missing sblk. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export function validateStrategistBlockContractAgainstContract(
