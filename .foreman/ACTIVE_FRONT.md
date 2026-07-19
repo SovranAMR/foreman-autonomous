@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B02-A04
-last_commit: pending
+last_commit: 4ba2891
 tests: PASS — forge-p04-researcher*.test.ts (77/77); boundary 6 probes; expectedFail=0; harnessVersion=1.0.0-a04
 evidence: assessInRepoEvidenceInputBoundary; runResearcherInRepoEvidenceBoundarySlice; validateResearcherInRepoEvidenceBoundaryProbeMatrix; boundary slice PASS
 next: P04-B02-A05
