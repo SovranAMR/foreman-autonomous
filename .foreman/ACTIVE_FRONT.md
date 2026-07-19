@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
-active_block: P03-B02
-active_atom: P03-B02-A10
+active_block: P03-B03
+active_atom: P03-B03-A01
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 218/1000
-phase_progress: 19/100
-block_progress: 9/10
+program_progress: 219/1000
+phase_progress: 20/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B02-A10 — Block üretim kontratı: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P03-B03-A01 — Atomization ve atom boyutu: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P03-B02-A09 PASS; P03-B02-A10 block gate seal and P03-B03 handoff.
-target: runForgeStrategistBlockContractRegressionGate, buildStrategistBlockContractBlockGateEvidence.
-hypothesis: P03-B02-A10 seals B02 block gate with guard-integrated regression and handoff contract.
-acceptance: block gate PASS; guard integrated; handoff valid; next block entry atom wired.
-commands: npx tsx --test src/forge-p03-strategist-block-contract*.test.ts
-blast_radius: src/forge-p03-strategist-block-contract.ts, src/forge-p03-strategist-block-contract.probe.ts
-rollback: P03-B02-A10 block gate slice değişikliklerini geri al.
+objective: P03-B02-A10 PASS; P03-B03-A01 measure atomization behavior and failing baseline fixture.
+target: loadStrategistAtomizationBaseline, validateStrategistAtomizationBaseline.
+hypothesis: P03-B03-A01 establishes measurable atomization baseline wired to sealed P03-B02 block gate handoff.
+acceptance: baseline fixture loads; probes measure current behavior; B02 handoff prerequisites validated.
+commands: npx tsx --test src/forge-p03-strategist-atomization*.test.ts
+blast_radius: src/forge-p03-strategist-atomization.ts, src/fixtures/forge-strategist-atomization-v1.json
+rollback: P03-B03-A01 baseline slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: A09 guard misaligned ise BLOCKED raporla.
+fallback: B02 handoff misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B02-A09
-last_commit: f6e90ab
-tests: PASS — forge-p03-strategist-block-contract.test.ts (35/35); adversarial 3/3 rejected; guard passed
-evidence: runStrategistBlockContractAdversarialGuardChecks; validateForgeStrategistBlockContractGuard
-next: P03-B02-A10
+last_atom: P03-B02-A10
+last_commit: pending
+tests: PASS — forge-p03-strategist-block-contract*.test.ts (45/45); block gate 10/10 seals; handoff→P03-B03
+evidence: runForgeStrategistBlockContractBlockGate; buildStrategistBlockContractBlockGateEvidence
+next: P03-B03-A01
