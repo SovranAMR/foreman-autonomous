@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B02-A01
-last_commit: PENDING
+last_commit: 6218ff0
 tests: PASS — forge-p05-worker-filesystem-grounding-baseline.test.ts (8/8)
 evidence: loadWorkerFilesystemGroundingBaseline + runWorkerFilesystemGroundingProbes; 27 probes, 6 documented FAIL gaps aligned to P05-B01 handoff (entry=P05-B02-A01)
 next: P05-B02-A02
