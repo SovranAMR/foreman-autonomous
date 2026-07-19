@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B05-A07
-last_commit: pending
+last_commit: 05ee3eb
 tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (32/32); runResearcherCitationProvenanceGraphPropertyFuzzSlice; propertyChecks=8 contractFuzzRejected=true runRecordFuzzRejected=true
 evidence: runResearcherCitationProvenanceGraphPropertyValidation + runResearcherCitationProvenanceGraphFuzzValidation + runResearcherCitationProvenanceGraphRunRecordFuzzValidation; 8 structural properties, 72 fixture mutations rejected, 5 run-record mutations rejected
 next: P04-B05-A08
