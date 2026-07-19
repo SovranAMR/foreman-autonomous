@@ -135,7 +135,7 @@
       "id": "rwps.structured_web_primary_source_recovery",
       "category": "recovery_path",
       "description": "recoverWebPrimarySourceEvidence restructures failed URL citation parse into actionable fetch plan",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rwps.researcher_critical_block",

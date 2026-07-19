@@ -17,7 +17,7 @@ import {
   FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1,
 } from "./forge-p04-researcher-in-repo-evidence.js";
 
-export const FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_VERSION = "1.0.0-a02";
+export const FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P04_B02_SEALED_ATOM_COUNT = 10;
 
@@ -156,6 +156,126 @@ export function validateWebPrimarySourceCollection(
     valid: true,
     fetchHitCount,
     issues: [],
+  };
+}
+
+export interface WebPrimarySourceRecoveryHints {
+  fetchUrls?: string[];
+  topic?: string;
+}
+
+export interface WebPrimarySourceRecoveryResult {
+  recovered: boolean;
+  fetchPlan: {
+    fetchUrls: string[];
+    citationTargets: Array<{ url: string; title?: string; text?: string }>;
+  };
+  parseErrors: string[];
+  detail: string;
+}
+
+const WEB_HTTP_URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
+const MARKDOWN_LINK_URL_PATTERN = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/gi;
+
+/**
+ * Restructure failed URL citation parse into actionable fetch plan (P04-B03-A03).
+ */
+export function recoverWebPrimarySourceEvidence(
+  failedParse: string,
+  hints: WebPrimarySourceRecoveryHints = {},
+): WebPrimarySourceRecoveryResult {
+  const parseErrors: string[] = [];
+  const boundary = assessWebPrimarySourceInputBoundary(failedParse);
+
+  if (!boundary.acceptable) {
+    return {
+      recovered: false,
+      fetchPlan: { fetchUrls: [], citationTargets: [] },
+      parseErrors: [boundary.disposition],
+      detail: `cannot recover ${boundary.disposition.replace(/_/g, "-")} URL citation parse`,
+    };
+  }
+
+  const raw = boundary.normalizedUrl;
+  const citationTargets: Array<{ url: string; title?: string; text?: string }> = [];
+
+  if (raw.includes("{") || raw.includes("[")) {
+    try {
+      JSON.parse(raw);
+    } catch {
+      parseErrors.push("json_parse_failed");
+    }
+  }
+
+  for (const match of raw.matchAll(MARKDOWN_LINK_URL_PATTERN)) {
+    const title = match[1]?.trim();
+    const url = match[2]?.trim();
+    if (url) {
+      citationTargets.push({ url, title: title || undefined });
+    }
+  }
+
+  for (const match of raw.matchAll(WEB_HTTP_URL_PATTERN)) {
+    const url = match[0]?.trim();
+    if (!url) continue;
+    if (!citationTargets.some(target => target.url === url)) {
+      citationTargets.push({ url });
+    }
+  }
+
+  const exportMatch = raw.match(/export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/);
+  if (exportMatch && citationTargets.length > 0) {
+    citationTargets.push({
+      url: citationTargets[0]!.url,
+      text: exportMatch[1],
+    });
+  }
+
+  const fetchUrls: string[] = hints.fetchUrls ? [...hints.fetchUrls] : [];
+
+  for (const target of citationTargets) {
+    if (target.url) {
+      fetchUrls.push(target.url);
+    }
+    if (target.text) {
+      fetchUrls.push(`${target.url}#${target.text}`);
+    }
+  }
+
+  if (hints.topic) {
+    fetchUrls.push(hints.topic);
+  }
+
+  if (fetchUrls.length === 0) {
+    const domainMatch = raw.match(
+      /(?:^|\s)((?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s"'<>]*)?)/i,
+    );
+    if (domainMatch?.[1]) {
+      fetchUrls.push(`https://${domainMatch[1].replace(/^\/+/, "")}`);
+    }
+  }
+
+  const uniqueFetchUrls = [
+    ...new Set(fetchUrls.map(url => url.trim()).filter(url => url.length > 4)),
+  ];
+
+  if (uniqueFetchUrls.length === 0) {
+    return {
+      recovered: false,
+      fetchPlan: { fetchUrls: [], citationTargets },
+      parseErrors,
+      detail: "no actionable fetch URLs extracted from failed citation parse",
+    };
+  }
+
+  return {
+    recovered: true,
+    fetchPlan: {
+      fetchUrls: uniqueFetchUrls,
+      citationTargets,
+    },
+    parseErrors,
+    detail: `recovered ${uniqueFetchUrls.length} fetch URLs from failed citation parse`,
   };
 }
 
@@ -449,7 +569,7 @@ const RESEARCHER_WEB_PRIMARY_SOURCE_CATEGORY_CONTRACTS: Record<
         description:
           "Baseline fixture documents at least one measurable FAIL web primary-source gap",
         expected: "PASS",
-        disposition: "gap",
+        disposition: "observed",
         criterion:
           "Baseline fixture documents at least one measurable FAIL web primary-source gap",
       },
@@ -510,9 +630,9 @@ const RESEARCHER_WEB_PRIMARY_SOURCE_CATEGORY_CONTRACTS: Record<
     category: "recovery_path",
     acceptance: {
       invariant:
-        "Researcher BLOCK is non-fatal; structured URL citation recovery closes documented gap in A03.",
+        "Recovery paths tolerate non-fatal research blocks and restructure failed URL citation parses.",
       minProbeCount: 2,
-      requireFullAlignment: false,
+      requireFullAlignment: true,
     },
     probes: [
       {
@@ -528,8 +648,8 @@ const RESEARCHER_WEB_PRIMARY_SOURCE_CATEGORY_CONTRACTS: Record<
         category: "recovery_path",
         description:
           "recoverWebPrimarySourceEvidence restructures failed URL citation parse into actionable fetch plan",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion:
           "recoverWebPrimarySourceEvidence restructures failed URL citation parse into actionable fetch plan",
       },
@@ -971,10 +1091,18 @@ export function validateResearcherWebPrimarySourceBaseline(
   }
 
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length < 1) {
+  const contract = getActiveResearcherWebPrimarySourceContract();
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  if (expectedFailCount > 0 && failGaps.length === 0) {
     issues.push({
       kind: "missing_category",
-      detail: "A01 fixture must document at least one known FAIL gap",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 
@@ -982,6 +1110,144 @@ export function validateResearcherWebPrimarySourceBaseline(
   issues.push(...contractAlignment.issues);
 
   return { valid: issues.length === 0, issues };
+}
+
+export interface ResearcherWebPrimarySourceProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherWebPrimarySourceProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ResearcherWebPrimarySourceProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateResearcherWebPrimarySourceProbeMatrix(
+  results: ResearcherWebPrimarySourceProbeResult[],
+  contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
+): ResearcherWebPrimarySourceProbeMatrixValidationResult {
+  const issues: ResearcherWebPrimarySourceProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (results.length !== contract.probes.length) {
+    issues.push({
+      kind: "extra_result",
+      detail: `results=${results.length} contract=${contract.probes.length}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface ResearcherWebPrimarySourceProductionSliceResult {
+  atom: "P04-B03-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherWebPrimarySourceProbeResult[];
+  summary: ResearcherWebPrimarySourceProbeSummary;
+  matrixValidation: ResearcherWebPrimarySourceProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: recoverWebPrimarySourceEvidence wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runResearcherWebPrimarySourceProductionSlice(
+  fixture: ResearcherWebPrimarySourceBaseline = loadResearcherWebPrimarySourceBaseline(),
+): ResearcherWebPrimarySourceProductionSliceResult {
+  const contract = getActiveResearcherWebPrimarySourceContract();
+  const fixtureValidation = validateResearcherWebPrimarySourceBaseline(fixture);
+  const contractValidation = validateResearcherWebPrimarySourceAgainstContract(fixture, contract);
+  const results = runResearcherWebPrimarySourceProbes(fixture);
+  const summary = summarizeResearcherWebPrimarySourceMatrix(results);
+  const matrixValidation = validateResearcherWebPrimarySourceProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B03-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 export function summarizeResearcherWebPrimarySourceMatrix(
@@ -1225,7 +1491,7 @@ function runResearcherWebPrimarySourceProbe(
       const activeContract = getActiveResearcherWebPrimarySourceContract();
       const expectedFail = activeContract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -1309,8 +1575,24 @@ function runResearcherWebPrimarySourceProbe(
       return probe(id, category, expected, ok, `nonFatalBlock=${ok}`, criterion);
     }
     case "rwps.structured_web_primary_source_recovery": {
-      const ok = hasProductionExport("recoverWebPrimarySourceEvidence");
-      return probe(id, category, expected, ok, `recoverWebPrimarySourceEvidence=${ok}`, criterion);
+      const recovery = recoverWebPrimarySourceEvidence(
+        'malformed URL citation: https://docs.example.com/guide#section export function fetchPrimary {"url":"broken',
+      );
+      const ok =
+        hasProductionExport("recoverWebPrimarySourceEvidence") &&
+        recovery.recovered &&
+        recovery.fetchPlan.fetchUrls.length >= 1 &&
+        recovery.fetchPlan.citationTargets.some(target =>
+          target.url.includes("docs.example.com"),
+        );
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recoverFn=${ok}, fetchUrlCount=${recovery.fetchPlan.fetchUrls.length}`,
+        criterion,
+      );
     }
     case "rwps.researcher_critical_block": {
       const ok =

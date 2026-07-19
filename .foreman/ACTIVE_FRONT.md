@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B03
-active_atom: P04-B03-A03
+active_atom: P04-B03-A04
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 322/1000
-phase_progress: 22/100
-block_progress: 2/10
+program_progress: 323/1000
+phase_progress: 23/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B03-A03 — Web ve primary-source araştırma: en küçük üretim dikey dilimini uygula.
+P04-B03-A04 — Web ve primary-source araştırma: boundary ve edge-case davranışlarını tamamla.
 
-objective: P04-B03-A02 PASS; implement recoverWebPrimarySourceEvidence production slice closing documented FAIL gap.
-target: recoverWebPrimarySourceEvidence export, structured URL citation recovery, probe alignment.
-hypothesis: Typed contract gap rwps.structured_web_primary_source_recovery closes when recovery helper ships.
-acceptance: recoverWebPrimarySourceEvidence exported; probe PASS; A01/A02 baseline remains valid.
+objective: P04-B03-A03 PASS; complete boundary edge-case behavior for web primary-source research.
+target: boundary slice probes, URL input edge cases, probe matrix alignment.
+hypothesis: Boundary category probes pass with zero unexpected mismatches when edge cases ship.
+acceptance: boundary slice PASS; A01-A03 baseline remains valid.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-web-primary-source*.ts
-rollback: P04-B03-A03 production slice değişikliklerini geri al.
+rollback: P04-B03-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B03-A02
-last_commit: 8e969f5
-tests: PASS — forge-p04-researcher*.test.ts (128/128); contract v1 probes=23; expectedFail=1; gap=rwps.structured_web_primary_source_recovery
-evidence: getActiveResearcherWebPrimarySourceContract; validateResearcherWebPrimarySourceContractCoverage; validateResearcherWebPrimarySourceAgainstContract; forge-p04-researcher-web-primary-source.test.ts
-next: P04-B03-A03
+last_atom: P04-B03-A03
+last_commit: PENDING
+tests: PASS — forge-p04-researcher*.test.ts (131/131); contract v1 probes=23; expectedFail=0; recoverWebPrimarySourceEvidence exported
+evidence: recoverWebPrimarySourceEvidence; runResearcherWebPrimarySourceProductionSlice; validateResearcherWebPrimarySourceProbeMatrix; forge-p04-researcher-web-primary-source-baseline.test.ts
+next: P04-B03-A04

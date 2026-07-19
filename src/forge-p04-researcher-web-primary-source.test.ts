@@ -25,7 +25,7 @@ const REQUIRE_FULL_ALIGNMENT: Record<
   baseline_link: true,
   boundary: true,
   failure_path: true,
-  recovery_path: false,
+  recovery_path: true,
   nogo_path: true,
 };
 
@@ -59,19 +59,19 @@ describe("Forge Researcher Web Primary-Source Contract — P04-B03-A02", () => {
     }
   });
 
-  it("maps 23 probes with one documented FAIL gap for recoverWebPrimarySourceEvidence", () => {
+  it("maps 23 probes with zero documented FAIL gaps after recoverWebPrimarySourceEvidence slice", () => {
     const contract = getActiveResearcherWebPrimarySourceContract();
     const summary = summarizeResearcherWebPrimarySourceContractCoverage(contract);
     const coverage = validateResearcherWebPrimarySourceContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 1);
-    assert.equal(summary.byDisposition.observed, 16);
-    assert.equal(summary.byDisposition.gap, 2);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 17);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 1);
+    assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.evidence_versioning.probeCount, 3);
     assert.equal(summary.byCategory.web_signal.probeCount, 3);
@@ -83,17 +83,9 @@ describe("Forge Researcher Web Primary-Source Contract — P04-B03-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists documented gap probes including structured web primary-source recovery debt", () => {
+  it("lists documented gap probes after recoverWebPrimarySourceEvidence production slice", () => {
     const gaps = listResearcherWebPrimarySourceProbesByDisposition("gap");
-    assert.deepEqual(
-      gaps.map(p => p.id).sort(),
-      ["rwps.known_gaps_documented", "rwps.structured_web_primary_source_recovery"],
-    );
-    assert.equal(
-      gaps.filter(p => p.expected === "FAIL").length,
-      1,
-      "only structured recovery gap remains FAIL until A03 slice",
-    );
+    assert.deepEqual(gaps, []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
