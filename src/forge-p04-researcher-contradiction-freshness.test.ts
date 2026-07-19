@@ -19,6 +19,10 @@ import {
   validateResearcherContradictionFreshnessContract,
   validateResearcherContradictionFreshnessContractCoverage,
   validateResearcherContradictionFreshnessAgainstContract,
+  validateResearcherContradictionFreshnessProbeMatrix,
+  runResearcherContradictionFreshnessProductionSlice,
+  resolveResearchContradictions,
+  validateResearchFreshness,
   RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES,
   RESEARCHER_CONTRADICTION_FRESHNESS_INPUT_MAX_LENGTH,
   FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_CONTRACT_V1,
@@ -60,27 +64,19 @@ describe("Forge Researcher Contradiction Freshness — P04-B06-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures contradiction freshness probes with documented FAIL gaps from B05 sealed handoff", () => {
+  it("measures contradiction freshness probes with full alignment after A03 production slice", () => {
     const results = runResearcherContradictionFreshnessProbes();
     const summary = summarizeResearcherContradictionFreshnessMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listResearcherContradictionFreshnessProbesByExpected(
       "FAIL",
       loadResearcherContradictionFreshnessBaseline(),
     );
-    assert.equal(documentedFail.length, 2);
-    assert.ok(documentedFail.some(p => p.id === "rcfr.resolve_contradiction_conflicts"));
-    assert.ok(documentedFail.some(p => p.id === "rcfr.exported_freshness_validator"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -95,20 +91,11 @@ describe("Forge Researcher Contradiction Freshness — P04-B06-A01", () => {
     );
   });
 
-  it("documents contradiction freshness gaps as measurable baseline debt", () => {
+  it("documents zero remaining contradiction freshness gaps after production slice", () => {
     const gaps = listResearcherContradictionFreshnessKnownGaps(
       runResearcherContradictionFreshnessProbes(),
     );
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "rcfr.exported_freshness_validator",
-      "rcfr.resolve_contradiction_conflicts",
-    ]);
-    assert.ok(
-      gaps.every(g => RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES.includes(g.category)),
-      "documented gaps are contradiction freshness probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 
   it("assessContradictionFreshnessInputBoundary rejects empty and null-byte evidence inputs", () => {
@@ -192,7 +179,7 @@ describe("Forge Researcher Contradiction Freshness Contract — P04-B06-A02", ()
     }
   });
 
-  it("maps 23 probes with two documented FAIL nogo gaps in typed contract", () => {
+  it("maps 23 probes with zero remaining gaps after A03 production slice", () => {
     const contract = getActiveResearcherContradictionFreshnessContract();
     const summary = summarizeResearcherContradictionFreshnessContractCoverage(contract);
     const coverage = validateResearcherContradictionFreshnessContractCoverage(contract);
@@ -200,8 +187,8 @@ describe("Forge Researcher Contradiction Freshness Contract — P04-B06-A02", ()
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateResearcherContradictionFreshnessContract().valid, true);
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 21);
-    assert.equal(summary.expectedFail, 2);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 17);
     assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
@@ -217,16 +204,15 @@ describe("Forge Researcher Contradiction Freshness Contract — P04-B06-A02", ()
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists documented nogo probes as measurable baseline debt", () => {
+  it("lists zero remaining gap probes after A03 production slice", () => {
     const gaps = listResearcherContradictionFreshnessProbesByDisposition("gap");
     const nogos = listResearcherContradictionFreshnessProbesByDisposition("nogo");
-
     assert.deepEqual(gaps.map(g => g.id).sort(), []);
     assert.deepEqual(
       nogos.map(g => g.id).sort(),
       ["rcfr.exported_freshness_validator", "rcfr.resolve_contradiction_conflicts"],
     );
-    assert.ok([...nogos].every(p => p.expected === "FAIL"));
+    assert.ok([...nogos].every(p => p.expected === "PASS"));
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -277,5 +263,81 @@ describe("Forge Researcher Contradiction Freshness Contract — P04-B06-A02", ()
   it("exports stable contract v1 reference for downstream block handoff", () => {
     assert.equal(FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_CONTRACT_V1.version, "1.0.0");
     assert.equal(FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_CONTRACT_V1.probes.length, 23);
+  });
+});
+
+describe("Forge Researcher Contradiction Freshness Production Slice — P04-B06-A03", () => {
+  it("measures contradiction freshness probes with full alignment after A03 production slice", () => {
+    const results = runResearcherContradictionFreshnessProbes();
+    const summary = summarizeResearcherContradictionFreshnessMatrix(results);
+
+    assert.equal(summary.total, results.length);
+    assert.equal(summary.total, 23);
+    assert.equal(summary.knownGaps.length, 0);
+
+    const documentedFail = listResearcherContradictionFreshnessProbesByExpected(
+      "FAIL",
+      loadResearcherContradictionFreshnessBaseline(),
+    );
+    assert.equal(documentedFail.length, 0);
+
+    const passMismatches = results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(
+      passMismatches.length,
+      0,
+      formatMismatchReport(passMismatches),
+    );
+  });
+
+  it("resolveResearchContradictions exports contradiction resolution edges", () => {
+    const resolution = resolveResearchContradictions(
+      "CONTRADICTION: claim A vs claim B\nSTALE SOURCE: https://legacy.example.com/report (2020)",
+      { topic: "contradiction freshness" },
+    );
+
+    assert.equal(resolution.resolved, true);
+    assert.ok(resolution.edges.length >= 1);
+    assert.ok(resolution.contradictionCount >= 1);
+  });
+
+  it("validateResearchFreshness accepts freshness signals in researcher output", () => {
+    const validation = validateResearchFreshness(
+      "FINDINGS: benchmark supports caching\nFRESHNESS: pm\nSOURCES: https://example.com/benchmark",
+    );
+
+    assert.equal(validation.valid, true, validation.issues.join("; "));
+    assert.ok(validation.freshnessHints.includes("pm"));
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveResearcherContradictionFreshnessContract();
+    const slice = runResearcherContradictionFreshnessProductionSlice();
+
+    assert.equal(slice.atom, "P04-B06-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    const matrixValidation = validateResearcherContradictionFreshnessProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const resolveProbe = slice.results.find(r => r.id === "rcfr.resolve_contradiction_conflicts");
+    assert.ok(resolveProbe);
+    assert.equal(resolveProbe!.expected, "PASS");
+    assert.equal(resolveProbe!.actual, "PASS");
+
+    const freshnessProbe = slice.results.find(r => r.id === "rcfr.exported_freshness_validator");
+    assert.ok(freshnessProbe);
+    assert.equal(freshnessProbe!.expected, "PASS");
+    assert.equal(freshnessProbe!.actual, "PASS");
   });
 });

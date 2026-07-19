@@ -18,7 +18,7 @@ import {
   FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_CONTRACT_V1,
 } from "./forge-p04-researcher-citation-provenance-graph.js";
 
-export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION = "1.0.0-a02";
+export const FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P04_B05_SEALED_ATOM_COUNT = 10;
 
@@ -290,6 +290,125 @@ export function recoverContradictionFreshnessEvidence(
     },
     parseErrors,
     detail: `recovered ${contradictions.length} contradiction(s) and ${staleSources.length} stale source hint(s)`,
+  };
+}
+
+export interface ResearchContradictionResolutionEdge {
+  claimA: string;
+  claimB: string;
+  resolution: string;
+  source?: string;
+}
+
+export interface ResearchContradictionResolutionResult {
+  resolved: boolean;
+  edges: ResearchContradictionResolutionEdge[];
+  contradictionCount: number;
+  detail: string;
+}
+
+/**
+ * Resolve contradiction conflicts into actionable resolution edges (P04-B06-A03 production slice).
+ */
+export function resolveResearchContradictions(
+  researcherOutput: string,
+  hints: ContradictionFreshnessRecoveryHints = {},
+): ResearchContradictionResolutionResult {
+  const recovery = recoverContradictionFreshnessEvidence(researcherOutput, hints);
+  const edges: ResearchContradictionResolutionEdge[] = [];
+
+  for (const contradiction of recovery.resolutionPlan.contradictions) {
+    edges.push({
+      claimA: contradiction.claimA,
+      claimB: contradiction.claimB,
+      resolution:
+        contradiction.detail ??
+        `prefer newer evidence over conflicting claim: ${contradiction.claimB}`,
+    });
+  }
+
+  for (const stale of recovery.resolutionPlan.staleSources) {
+    edges.push({
+      claimA: stale.source,
+      claimB: "current best practice",
+      resolution: `refresh source with freshness hint ${stale.freshnessHint}`,
+      source: stale.source,
+    });
+  }
+
+  return {
+    resolved: edges.length > 0,
+    edges,
+    contradictionCount: recovery.resolutionPlan.contradictions.length,
+    detail: recovery.detail,
+  };
+}
+
+export interface ResearchFreshnessValidationOutcome {
+  valid: boolean;
+  freshnessHints: string[];
+  staleSourceCount: number;
+  issues: string[];
+}
+
+const RESEARCH_FRESHNESS_SHORTCUTS = new Set(["pd", "pw", "pm", "py"]);
+const RESEARCH_FRESHNESS_RANGE = /^(\d{4}-\d{2}-\d{2})to(\d{4}-\d{2}-\d{2})$/;
+
+function normalizeResearchFreshnessHint(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  if (RESEARCH_FRESHNESS_SHORTCUTS.has(trimmed)) return trimmed;
+  if (RESEARCH_FRESHNESS_RANGE.test(trimmed)) return trimmed;
+  return undefined;
+}
+
+/**
+ * Validate researcher output declares actionable freshness signals (P04-B06-A03 production slice).
+ */
+export function validateResearchFreshness(
+  researchOutput: string,
+): ResearchFreshnessValidationOutcome {
+  const boundary = assessContradictionFreshnessInputBoundary(researchOutput);
+  if (!boundary.acceptable) {
+    return {
+      valid: false,
+      freshnessHints: [],
+      staleSourceCount: 0,
+      issues: [boundary.detail],
+    };
+  }
+
+  const recovery = recoverContradictionFreshnessEvidence(boundary.normalizedInput);
+  const freshnessHints: string[] = [];
+  const issues: string[] = [];
+
+  if (recovery.resolutionPlan.searchFreshness) {
+    const normalized = normalizeResearchFreshnessHint(recovery.resolutionPlan.searchFreshness);
+    if (normalized) {
+      freshnessHints.push(normalized);
+    } else {
+      issues.push("invalid_freshness_hint");
+    }
+  }
+
+  for (const stale of recovery.resolutionPlan.staleSources) {
+    const normalized = normalizeResearchFreshnessHint(stale.freshnessHint);
+    if (normalized) {
+      freshnessHints.push(normalized);
+    }
+  }
+
+  const hasFindings = boundary.normalizedInput.toLowerCase().includes("findings");
+  if (freshnessHints.length === 0 && recovery.resolutionPlan.staleSources.length === 0 && hasFindings) {
+    issues.push("missing_freshness_signal");
+  }
+
+  return {
+    valid: issues.length === 0,
+    freshnessHints: [...new Set(freshnessHints)],
+    staleSourceCount: recovery.resolutionPlan.staleSources.length,
+    issues,
   };
 }
 
@@ -679,7 +798,7 @@ const RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORY_CONTRACTS: Record<
         id: "rcfr.resolve_contradiction_conflicts",
         category: "nogo_path",
         description: "resolveResearchContradictions exports contradiction→resolution edges from researcher output",
-        expected: "FAIL",
+        expected: "PASS",
         disposition: "nogo",
         criterion:
           "resolveResearchContradictions exports contradiction→resolution edges from researcher output",
@@ -688,7 +807,7 @@ const RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORY_CONTRACTS: Record<
         id: "rcfr.exported_freshness_validator",
         category: "nogo_path",
         description: "validateResearchFreshness exported for orchestrator contradiction freshness checks",
-        expected: "FAIL",
+        expected: "PASS",
         disposition: "nogo",
         criterion: "validateResearchFreshness exported for orchestrator contradiction freshness checks",
       },
@@ -1103,14 +1222,6 @@ export function validateResearcherContradictionFreshnessBaseline(
     });
   }
 
-  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length < 1) {
-    issues.push({
-      kind: "missing_category",
-      detail: "fixture must document at least one measurable FAIL gap",
-    });
-  }
-
   const contractAlignment = validateResearcherContradictionFreshnessAgainstContract(
     fixture,
     getActiveResearcherContradictionFreshnessContract(),
@@ -1158,6 +1269,144 @@ export function listResearcherContradictionFreshnessKnownGaps(
   results: ResearcherContradictionFreshnessProbeResult[],
 ): ResearcherContradictionFreshnessProbeResult[] {
   return summarizeResearcherContradictionFreshnessMatrix(results).knownGaps;
+}
+
+export interface ResearcherContradictionFreshnessProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherContradictionFreshnessProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ResearcherContradictionFreshnessProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateResearcherContradictionFreshnessProbeMatrix(
+  results: ResearcherContradictionFreshnessProbeResult[],
+  contract: ResearcherContradictionFreshnessContract = getActiveResearcherContradictionFreshnessContract(),
+): ResearcherContradictionFreshnessProbeMatrixValidationResult {
+  const issues: ResearcherContradictionFreshnessProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (results.length !== contract.probes.length) {
+    issues.push({
+      kind: "extra_result",
+      detail: `results=${results.length} contract=${contract.probes.length}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface ResearcherContradictionFreshnessProductionSliceResult {
+  atom: "P04-B06-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherContradictionFreshnessProbeResult[];
+  summary: ResearcherContradictionFreshnessProbeSummary;
+  matrixValidation: ResearcherContradictionFreshnessProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: resolveResearchContradictions and validateResearchFreshness
+ * wired to contract probe execution with zero unexpected mismatches.
+ */
+export function runResearcherContradictionFreshnessProductionSlice(
+  fixture: ResearcherContradictionFreshnessBaseline = loadResearcherContradictionFreshnessBaseline(),
+): ResearcherContradictionFreshnessProductionSliceResult {
+  const contract = getActiveResearcherContradictionFreshnessContract();
+  const fixtureValidation = validateResearcherContradictionFreshnessBaseline(fixture);
+  const contractValidation = validateResearcherContradictionFreshnessAgainstContract(fixture, contract);
+  const results = runResearcherContradictionFreshnessProbes(fixture);
+  const summary = summarizeResearcherContradictionFreshnessMatrix(results);
+  const matrixValidation = validateResearcherContradictionFreshnessProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B06-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -1349,8 +1598,14 @@ function runSingleProbe(
       const contract = getActiveResearcherContradictionFreshnessContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
-      return probe(id, category, expected, ok, `documentedFail=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, expectedFail=${expectedFail}`,
+      );
     }
     case "rcfr.empty_evidence_input_boundary": {
       const result = assessContradictionFreshnessInputBoundary("");
@@ -1444,12 +1699,27 @@ function runSingleProbe(
       );
     }
     case "rcfr.resolve_contradiction_conflicts": {
-      const ok = hasProductionExport("resolveResearchContradictions");
-      return probe(id, category, expected, ok, `resolveResearchContradictions=${ok}`);
+      const sample =
+        "CONTRADICTION: React 18 concurrent mode vs legacy class components contradicts migration plan\nFRESHNESS: pm";
+      const resolution = resolveResearchContradictions(sample, { topic: "frontend migration" });
+      const ok =
+        hasProductionExport("resolveResearchContradictions") &&
+        resolution.resolved === true &&
+        resolution.edges.length >= 1;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `edges=${resolution.edges.length}, contradictions=${resolution.contradictionCount}`,
+      );
     }
     case "rcfr.exported_freshness_validator": {
-      const ok = hasProductionExport("validateResearchFreshness");
-      return probe(id, category, expected, ok, `validateResearchFreshness=${ok}`);
+      const orchestrator = readSrc("orchestrator.ts");
+      const ok =
+        hasProductionExport("validateResearchFreshness") &&
+        orchestrator.includes("validateResearchFreshness(");
+      return probe(id, category, expected, ok, `freshnessValidator=${ok}`);
     }
     default:
       return probe(id, category, expected, false, "unknown probe id");

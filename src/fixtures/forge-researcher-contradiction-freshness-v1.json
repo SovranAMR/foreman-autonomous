@@ -141,13 +141,13 @@
       "id": "rcfr.resolve_contradiction_conflicts",
       "category": "nogo_path",
       "description": "resolveResearchContradictions exports contradiction→resolution edges from researcher output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rcfr.exported_freshness_validator",
       "category": "nogo_path",
       "description": "validateResearchFreshness exported for orchestrator contradiction freshness checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

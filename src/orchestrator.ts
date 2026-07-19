@@ -69,6 +69,9 @@ import {
   decomposeResearchQuestions,
   validateResearchQuestionDecomposition,
 } from "./forge-p04-researcher-question-decomposition.js";
+import {
+  validateResearchFreshness,
+} from "./forge-p04-researcher-contradiction-freshness.js";
 
 /** Canonical ordered pipeline phases for behavior-map probes and downstream tooling. */
 export const FORGE_PIPELINE_PHASES = FORGE_PIPELINE_CORE_PHASES;
@@ -2619,6 +2622,15 @@ ${visionOutput}`,
         if (!outputValidation.valid) {
           this.engine.streaming.warning(
             `[forge] validateResearchQuestionDecomposition: ${outputValidation.issues.join(", ")}`,
+          );
+        }
+
+        const freshnessValidation = validateResearchFreshness(
+          researchResult.thought.output ?? "",
+        );
+        if (!freshnessValidation.valid) {
+          this.engine.streaming.warning(
+            `[forge] validateResearchFreshness: ${freshnessValidation.issues.join(", ")}`,
           );
         }
 
