@@ -44,7 +44,7 @@ fallback: Baseline blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B06-A10
-last_commit: pending
+last_commit: d233a5c
 tests: PASS — forge-p03-strategist-resource-budget*.test.ts (56/56); block gate 7/7; regression+guard integrated
 evidence: sealStrategistResourceBudgetBlockGate; runForgeStrategistResourceBudgetBlockGate; verifyForgeStrategistResourceBudgetBlockGate
 next: P03-B07-A01
