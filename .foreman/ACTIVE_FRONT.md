@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B01-A02
-last_commit: PENDING
+last_commit: 301c07f
 tests: PASS — forge-p04-researcher-question-decomposition.test.ts (8/8); contract coverage 25 probes / 6 FAIL gaps documented
 evidence: FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1; validateResearcherQuestionDecompositionContractCoverage; fixture↔contract alignment valid
 next: P04-B01-A03

@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B01-A02
-last_commit: PENDING
+last_commit: 301c07f
 tests: PASS — forge-p04-researcher-question-decomposition.test.ts (8/8); validateResearcherQuestionDecompositionContractCoverage 25 probes / 6 documented FAIL gaps
 evidence: FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1; summarizeResearcherQuestionDecompositionContractCoverage; fixture↔contract probe mapping aligned
 next: P04-B01-A03
