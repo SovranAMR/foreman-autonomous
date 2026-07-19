@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B04-A02
-last_commit: pending
+last_commit: 5ff39fd
 tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (7/7); contract v1 23 probes; criterion on every probe; 1 documented FAIL gap rbpa.structured_benchmark_prior_art_recovery
 evidence: getActiveResearcherBenchmarkPriorArtContract; validateResearcherBenchmarkPriorArtAgainstContract; validateResearcherBenchmarkPriorArtContractCoverage; summarizeResearcherBenchmarkPriorArtContractCoverage
 next: P04-B04-A03
