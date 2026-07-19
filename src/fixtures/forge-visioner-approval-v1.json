@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B09-A01",
+  "contractAtom": "P02-B09-A06",
+  "purpose": "User approval and steering baseline measured from sealed P02-B08 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P02-B08-A10",
+    "contractVersion": "1.0.0",
+    "visionerScoringProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "vapp.version_tagged",
+      "category": "approval_versioning",
+      "description": "Visioner approval baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.atom_tagged",
+      "category": "approval_versioning",
+      "description": "Visioner approval baseline declares P02-B09-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.harness_version_exported",
+      "category": "approval_versioning",
+      "description": "FORGE_VISIONER_APPROVAL_VERSION exported for approval harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.orchestrator_vision_approval_gate",
+      "category": "approval_signal",
+      "description": "Orchestrator HUMAN_APPROVAL gate invokes interactive.confirm on vision document",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.interactive_confirm_engine",
+      "category": "approval_signal",
+      "description": "Engine exposes InteractiveConfirm for pipeline approval checkpoints",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.b08_handoff_prerequisite",
+      "category": "approval_signal",
+      "description": "FORGE_P02_B08_TO_B09_HANDOFF requires sealed visioner scoring block gate before approval entry",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.vision_modify_steering",
+      "category": "steering_signal",
+      "description": "Orchestrator modify approval action re-runs visioner with user steering feedback",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.resume_skips_approval",
+      "category": "steering_signal",
+      "description": "Pipeline resume skips vision approval gate when checkpoint already approved",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.provider_steering_messages",
+      "category": "steering_signal",
+      "description": "Kimi or Antigravity provider injects steering messages during multi-step tool calling",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.b08_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_B08_TO_B09_HANDOFF_V1 targets P02-B09-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.b08_sealed_scoring_probes",
+      "category": "baseline_link",
+      "description": "P02-B08→B09 handoff sealed probeCount matches active visioner scoring contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02-B08 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerApprovalProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL approval gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.empty_vision_approval_boundary",
+      "category": "boundary",
+      "description": "assessVisionerApprovalInputBoundary rejects empty vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.whitespace_vision_boundary",
+      "category": "boundary",
+      "description": "assessVisionerApprovalInputBoundary rejects whitespace-only vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.long_vision_truncation_boundary",
+      "category": "boundary",
+      "description": "assessVisionerApprovalInputBoundary truncates vision exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerApprovalBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.malformed_vision_approval_guard",
+      "category": "failure_path",
+      "description": "assessVisionerApprovalPresence rejects null-byte vision output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.vision_checkpoint_approval_skip",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses checkpoint vision output without re-prompting approval",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.structured_steering_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerSteering restructures failed steering parse into actionable approval revision",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vapp.vision_rejection_abort",
+      "category": "nogo_path",
+      "description": "Orchestrator abort or skip approval stops pipeline with vision_rejected outcome",
+      "expected": "PASS"
+    },
+    {
+      "id": "vapp.interactive_timeout_default",
+      "category": "nogo_path",
+      "description": "InteractiveConfirm declares timeout default action for non-responsive approval gates",
+      "expected": "PASS"
+    }
+  ]
+}

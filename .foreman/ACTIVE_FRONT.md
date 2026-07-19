@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B09
-active_atom: P02-B09-A01
+active_atom: P02-B09-A02
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 179/1000
-phase_progress: 78/100
-block_progress: 0/10
+program_progress: 180/1000
+phase_progress: 79/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B09-A01 — Kullanıcı approval ve steering: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P02-B09-A02 — Kullanıcı approval ve steering: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P02-B08 block gate PASS; measure user approval/steering wiring and establish failing baseline fixture.
-target: forge-p02-visioner-approval baseline probe harness and forge-visioner-approval-v1.json fixture.
-hypothesis: Sealed P02-B08 scoring artifacts expose measurable gaps in approval/steering before typed contract.
-acceptance: forge-p02-visioner-approval-baseline.test.ts with documented FAIL gaps from probe matrix.
-commands: npx tsx --test src/forge-p02-visioner-approval-baseline.test.ts
+objective: P02-B09-A01 baseline PASS; define typed approval/steering contract with measurable acceptance criteria.
+target: forge-p02-visioner-approval typed contract alignment and contract coverage validation.
+hypothesis: Documented vapp.structured_steering_recovery FAIL gap maps to typed contract disposition and criterion.
+acceptance: forge-p02-visioner-approval.test.ts contract coverage and alignment gates pass.
+commands: npx tsx --test src/forge-p02-visioner-approval.test.ts
 blast_radius: src/forge-p02-visioner-approval*
-rollback: P02-B09-A01 baseline değişikliklerini geri al.
+rollback: P02-B09-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: approval wiring absent beyond slice scope ise BLOCKED raporla.
+fallback: contract cannot express baseline gaps ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B08-A10
-last_commit: 9a0764d
-tests: PASS — forge-p02-visioner-scoring-block-gate.test.ts (6/6)
-evidence: runForgeVisionerScoringBlockGate seals 10/10 atom seals; handoff=PASS→P02-B09; orchestrator verifyForgeVisionerScoringBlockGate visioner_scoring_block_gate
-next: P02-B09-A01
+last_atom: P02-B09-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-approval-baseline.test.ts (3/3)
+evidence: runVisionerApprovalProbes 22/23 aligned; documented FAIL gap vapp.structured_steering_recovery; fixture+probe harness sealed from P02-B08 handoff
+next: P02-B09-A02

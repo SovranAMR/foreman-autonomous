@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 78
+completed_atoms: 79
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -119,7 +119,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P02-B09 — Kullanıcı approval ve steering
 
-- [ ] P02-B09-A01 — Kullanıcı approval ve steering: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P02-B09-A01 — Kullanıcı approval ve steering: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P02-B09-A02 — Kullanıcı approval ve steering: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B09-A03 — Kullanıcı approval ve steering: en küçük üretim dikey dilimini uygula
 - [ ] P02-B09-A04 — Kullanıcı approval ve steering: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B08-A10
-last_commit: 9a0764d
-tests: PASS — forge-p02-visioner-scoring-block-gate.test.ts (6/6)
-evidence: runForgeVisionerScoringBlockGate seals 10/10 atom seals; handoff=PASS→P02-B09; orchestrator verifyForgeVisionerScoringBlockGate emits visioner_scoring_block_gate
-next: P02-B09-A01
+last_atom: P02-B09-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-approval-baseline.test.ts (3/3)
+evidence: runVisionerApprovalProbes 22/23 aligned; documented FAIL gap vapp.structured_steering_recovery (recoverVisionerSteering absent); P02-B08→B09 handoff prerequisite sealed
+next: P02-B09-A02
