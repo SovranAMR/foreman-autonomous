@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B10
-active_atom: P02-B10-A01
+active_atom: P02-B10-A02
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 189/1000
-phase_progress: 88/100
-block_progress: 10/10
+program_progress: 190/1000
+phase_progress: 89/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -43,8 +43,8 @@ fallback: Baseline cannot align with sealed B09 handoff ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B09-A10
-last_commit: fb71a1d
-tests: PASS — forge-p02-visioner-approval-block-gate.test.ts (6/6), forge-pipeline-regression.integration.test.ts (+2 P02-B09-A10, 104 total in run)
-evidence: runForgeVisionerApprovalBlockGate; verifyForgeVisionerApprovalBlockGate; atomSeals=10/10; handoff=PASS→P02-B10
-next: P02-B10-A01
+last_atom: P02-B10-A01
+last_commit: 3251f28
+tests: PASS — forge-p02-visioner-phase-gate-baseline.test.ts (3/3)
+evidence: loadVisionerPhaseGateBaseline; runVisionerPhaseGateProbes; knownGap=vpg.orchestrator_phase_gate_runner; handoff=P02-B09→B10
+next: P02-B10-A02

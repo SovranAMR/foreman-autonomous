@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B10-A01",
+  "contractAtom": "P02-B10-A05",
+  "purpose": "Visioner phase gate baseline measured from sealed P02-B09 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P02-B09-A10",
+    "contractVersion": "1.0.0",
+    "visionerApprovalProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "vpg.version_tagged",
+      "category": "phase_versioning",
+      "description": "Visioner phase gate baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.atom_tagged",
+      "category": "phase_versioning",
+      "description": "Visioner phase gate baseline declares P02-B10-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.harness_version_exported",
+      "category": "phase_versioning",
+      "description": "FORGE_VISIONER_PHASE_GATE_VERSION exported for phase gate harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.orchestrator_intent_block_gate",
+      "category": "block_gate_signal",
+      "description": "Orchestrator exposes verifyForgeVisionerIntentBlockGate for P02-B01 seal",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.orchestrator_approval_block_gate",
+      "category": "block_gate_signal",
+      "description": "Orchestrator exposes verifyForgeVisionerApprovalBlockGate for P02-B09 seal",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.orchestrator_ten_block_gates",
+      "category": "block_gate_signal",
+      "description": "Orchestrator exposes verifyForgeVisioner*BlockGate for all ten P02 visioner blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.block_inventory_exported",
+      "category": "phase_inventory",
+      "description": "P02_VISIONER_PHASE_BLOCK_INVENTORY exports canonical ten-block visioner inventory",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.block_count_constant",
+      "category": "phase_inventory",
+      "description": "P02_VISIONER_PHASE_BLOCK_COUNT equals ten sealed visioner blocks",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.atom_count_constant",
+      "category": "phase_inventory",
+      "description": "P02_VISIONER_PHASE_ATOM_COUNT equals one hundred visioner atoms",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.b09_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_B09_TO_B10_HANDOFF_V1 targets P02-B10-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.b09_sealed_approval_probes",
+      "category": "baseline_link",
+      "description": "P02-B09→B10 handoff sealed probeCount matches active visioner approval contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02-B09 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerPhaseGateProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL phase gate gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.block_inventory_runners",
+      "category": "boundary",
+      "description": "Each P02 visioner block inventory entry references an exported block gate runner",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.phase_gate_checks_defined",
+      "category": "boundary",
+      "description": "P02_VISIONER_PHASE_GATE_CHECKS declares measurable phase acceptance checks",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.p03_handoff_contract_exported",
+      "category": "boundary",
+      "description": "getForgeP02ToP03PhaseHandoff exports P02→P03 strategist phase entry contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerPhaseGateBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.incomplete_block_inventory_rejected",
+      "category": "failure_path",
+      "description": "validateP02PhaseHandoffContract rejects incomplete block gate evidence",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.approval_checkpoint_resume",
+      "category": "recovery_path",
+      "description": "Pipeline resume skips vision approval gate when checkpoint already approved",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.orchestrator_phase_gate_runner",
+      "category": "recovery_path",
+      "description": "Orchestrator exposes verifyForgeP02VisionerPhaseGate for P02 phase acceptance",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vpg.vision_fact_check_block",
+      "category": "nogo_path",
+      "description": "Vision after_thought hook can BLOCK pipeline on fact-check failure",
+      "expected": "PASS"
+    },
+    {
+      "id": "vpg.phase_gate_evidence_nogo",
+      "category": "nogo_path",
+      "description": "validateForgeP02VisionerPhaseGateEvidence rejects failed block gate seals",
+      "expected": "PASS"
+    }
+  ]
+}
