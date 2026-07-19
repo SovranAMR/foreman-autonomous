@@ -5,9 +5,13 @@ import {
   runStrategistReplanProbes,
   runStrategistReplanProductionSlice,
   runStrategistReplanBoundarySlice,
+  runStrategistReplanFailureRecoverySlice,
   validateStrategistReplan,
   validateStrategistReplanProbeMatrix,
   validateStrategistReplanBoundaryProbeMatrix,
+  validateStrategistReplanFailureRecoveryProbeMatrix,
+  listStrategistReplanFailureRecoveryProbeIds,
+  STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES,
   assessStrategistReplanInputBoundary,
   getActiveStrategistReplanContract,
   getStrategistReplanCategoryContract,
@@ -296,5 +300,116 @@ describe("Forge Strategist Replan Boundary Slice — P03-B08-A04", () => {
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Replan Failure/Recovery Slice — P03-B08-A05", () => {
+  it("defines eight failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveStrategistReplanContract();
+    const probeIds = listStrategistReplanFailureRecoveryProbeIds(contract);
+
+    assert.equal(STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES.length, 3);
+    assert.equal(probeIds.length, 8);
+    assert.deepEqual(probeIds.sort(), [
+      "sreplan.exported_replan_validator",
+      "sreplan.invalid_version_rejected",
+      "sreplan.malformed_decompose_guard",
+      "sreplan.min_category_probes",
+      "sreplan.nogo_invalid_replan",
+      "sreplan.recovery_fsm_blocked_replan",
+      "sreplan.recovery_reflecting_replan",
+      "sreplan.recovery_replan_checkpoint",
+    ].sort());
+
+    assert.equal(
+      listStrategistReplanContractProbesByCategory("failure_path", contract).length,
+      3,
+    );
+    assert.equal(
+      listStrategistReplanContractProbesByCategory("recovery_path", contract).length,
+      3,
+    );
+    assert.equal(
+      listStrategistReplanContractProbesByCategory("nogo_path", contract).length,
+      2,
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistReplanContract();
+    const slice = runStrategistReplanFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B08-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 8);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 8);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 8);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistReplanContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistReplanFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure, recovery and NO-GO replan paths with all probes passing", () => {
+    const slice = runStrategistReplanFailureRecoverySlice();
+    const probeIds = listStrategistReplanFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 8);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "sreplan.malformed_decompose_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const reflectingReplan = slice.failureRecoveryResults.find(
+      r => r.id === "sreplan.recovery_reflecting_replan",
+    );
+    assert.ok(reflectingReplan);
+    assert.equal(reflectingReplan!.expected, "PASS");
+    assert.equal(reflectingReplan!.actual, "PASS");
+
+    const replanCheckpoint = slice.failureRecoveryResults.find(
+      r => r.id === "sreplan.recovery_replan_checkpoint",
+    );
+    assert.ok(replanCheckpoint);
+    assert.equal(replanCheckpoint!.expected, "PASS");
+    assert.equal(replanCheckpoint!.actual, "PASS");
+
+    const nogoInvalidReplan = slice.failureRecoveryResults.find(
+      r => r.id === "sreplan.nogo_invalid_replan",
+    );
+    assert.ok(nogoInvalidReplan);
+    assert.equal(nogoInvalidReplan!.expected, "PASS");
+    assert.equal(nogoInvalidReplan!.actual, "PASS");
+
+    const exportedValidator = slice.failureRecoveryResults.find(
+      r => r.id === "sreplan.exported_replan_validator",
+    );
+    assert.ok(exportedValidator);
+    assert.equal(exportedValidator!.expected, "PASS");
+    assert.equal(exportedValidator!.actual, "PASS");
   });
 });

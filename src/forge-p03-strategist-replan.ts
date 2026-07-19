@@ -1407,6 +1407,85 @@ export function runStrategistReplanBoundarySlice(
   };
 }
 
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly StrategistReplanCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes must align; zero unexpected mismatches required.
+ */
+export function validateStrategistReplanFailureRecoveryProbeMatrix(
+  results: StrategistReplanProbeResult[],
+  contract: StrategistReplanContract = getActiveStrategistReplanContract(),
+): StrategistReplanProbeMatrixValidationResult {
+  const failureRecoveryProbes = STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistReplanContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: StrategistReplanContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateStrategistReplanProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listStrategistReplanFailureRecoveryProbeIds(
+  contract: StrategistReplanContract = getActiveStrategistReplanContract(),
+): string[] {
+  return STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listStrategistReplanContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface StrategistReplanFailureRecoverySliceResult {
+  atom: "P03-B08-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistReplanProbeResult[];
+  failureRecoveryResults: StrategistReplanProbeResult[];
+  matrixValidation: StrategistReplanProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches.
+ */
+export function runStrategistReplanFailureRecoverySlice(
+  fixture: StrategistReplanBaseline = loadStrategistReplanBaseline(),
+): StrategistReplanFailureRecoverySliceResult {
+  const contract = getActiveStrategistReplanContract();
+  const results = runStrategistReplanProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistReplanContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistReplanFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P03-B08-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
+    matrixValidation,
+  };
+}
+
 function runSingleProbe(
   id: string,
   category: StrategistReplanCategory,

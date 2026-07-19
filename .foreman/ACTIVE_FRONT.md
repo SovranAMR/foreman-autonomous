@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B08
-active_atom: P03-B08-A05
+active_atom: P03-B08-A06
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 273/1000
-phase_progress: 74/100
-block_progress: 4/10
+program_progress: 274/1000
+phase_progress: 75/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B08-A05 — Replan ve plan repair: failure, recovery ve NO-GO yollarını uygula.
+P03-B08-A06 — Replan ve plan repair: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P03-B08-A04 PASS; P03-B08-A05 implement failure/recovery/NO-GO replan paths.
-target: failure_path, recovery_path, nogo_path probes, replan failure-recovery slice.
-hypothesis: P03-B08-A05 extends A04 boundary slice with full failure/recovery category coverage.
-acceptance: failure-recovery probe matrix PASS; regression suite green.
+objective: P03-B08-A05 PASS; P03-B08-A06 implement evidence/telemetry/provenance for replan failure-recovery slice.
+target: failure-recovery run record, validateStrategistReplanFailureRecoveryRunRecord, evidence slice.
+hypothesis: P03-B08-A06 extends A05 failure-recovery slice with run record and provenance gate.
+acceptance: failure-recovery run record validation PASS; regression suite green.
 commands: npx tsx --test src/forge-p03-strategist-replan*.test.ts
 blast_radius: src/forge-p03-strategist-replan.ts
-rollback: P03-B08-A05 failure-recovery slice değişikliklerini geri al.
+rollback: P03-B08-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Failure-recovery slice blocked ise BLOCKED raporla.
+fallback: Evidence slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B08-A04
-last_commit: 59448d1
-tests: PASS — forge-p03-strategist-replan.test.ts (17/17); forge-p03-strategist-replan-baseline.test.ts (3/3); assessStrategistReplanInputBoundary edge cases; runStrategistReplanBoundarySlice; 6/6 boundary probes aligned
-evidence: validateStrategistReplanBoundaryProbeMatrix; runStrategistReplanBoundarySlice; assessStrategistReplanInputBoundary empty/whitespace/null-byte/truncation
-next: P03-B08-A05
+last_atom: P03-B08-A05
+last_commit: pending
+tests: PASS — forge-p03-strategist-replan*.test.ts (20/20); runStrategistReplanFailureRecoverySlice; 8/8 failure-recovery probes aligned
+evidence: validateStrategistReplanFailureRecoveryProbeMatrix; runStrategistReplanFailureRecoverySlice; listStrategistReplanFailureRecoveryProbeIds
+next: P03-B08-A06
