@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P04-B04-A01",
+  "contractAtom": "P04-B04-A06",
+  "purpose": "Researcher benchmark and prior-art analysis baseline measured from sealed P04-B03 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P04-B03-A10",
+    "contractVersion": "1.0.0",
+    "webPrimarySourceProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "rbpa.version_tagged",
+      "category": "evidence_versioning",
+      "description": "Benchmark prior-art baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.atom_tagged",
+      "category": "evidence_versioning",
+      "description": "Benchmark prior-art baseline declares P04-B04-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.harness_version_exported",
+      "category": "evidence_versioning",
+      "description": "FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION exported for benchmark prior-art harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.benchmark_eval_harness_export",
+      "category": "benchmark_signal",
+      "description": "forge-benchmark-eval-harness exports versioned benchmark eval contract for regression gates",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.orchestrator_benchmark_regression",
+      "category": "benchmark_signal",
+      "description": "Orchestrator verifyForgeBenchmarkEvalRegression runs benchmark eval harness regression gate",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.researcher_best_practices_prompt",
+      "category": "benchmark_signal",
+      "description": "RESEARCHER_SYSTEM prompt requires best practices and industry standards research",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.web_search_prior_art",
+      "category": "prior_art_signal",
+      "description": "research-engine webSearch queries external sources for prior-art evidence",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.link_intelligence_classify",
+      "category": "prior_art_signal",
+      "description": "LinkIntelligence classifyUrl categorizes URLs before prior-art extraction",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.visioner_reference_benchmarks",
+      "category": "prior_art_signal",
+      "description": "VISIONER_SYSTEM prompt requires REFERENCE BENCHMARKS for complex tasks",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.b03_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P04_B03_TO_B04_HANDOFF_V1 targets P04-B04-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.b03_sealed_web_primary_probes",
+      "category": "baseline_link",
+      "description": "P04-B03→B04 handoff sealed probeCount matches active web primary-source contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P04-B03 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.probe_runner_exported",
+      "category": "boundary",
+      "description": "runResearcherBenchmarkPriorArtProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL benchmark prior-art gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.empty_topic_boundary",
+      "category": "boundary",
+      "description": "assessBenchmarkPriorArtInputBoundary rejects empty topic input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.whitespace_topic_boundary",
+      "category": "boundary",
+      "description": "assessBenchmarkPriorArtInputBoundary rejects whitespace-only topic input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.long_topic_truncation_boundary",
+      "category": "boundary",
+      "description": "assessBenchmarkPriorArtInputBoundary truncates topic exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateResearcherBenchmarkPriorArtBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.malformed_topic_guard",
+      "category": "failure_path",
+      "description": "assessBenchmarkPriorArtInputBoundary rejects null-byte topic safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.research_block_non_fatal",
+      "category": "recovery_path",
+      "description": "Orchestrator treats researcher BLOCK as non-fatal and continues pipeline",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.structured_benchmark_prior_art_recovery",
+      "category": "recovery_path",
+      "description": "recoverBenchmarkPriorArtEvidence restructures failed prior-art parse into actionable evidence plan",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rbpa.researcher_critical_block",
+      "category": "nogo_path",
+      "description": "RESEARCHER_SYSTEM prompt can BLOCK on critical infeasibility findings",
+      "expected": "PASS"
+    },
+    {
+      "id": "rbpa.exported_benchmark_prior_art_validator",
+      "category": "nogo_path",
+      "description": "validateBenchmarkPriorArtCollection exported for orchestrator pre-research wiring",
+      "expected": "PASS"
+    }
+  ]
+}
