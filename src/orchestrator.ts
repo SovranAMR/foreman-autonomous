@@ -362,6 +362,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner intent guard gate (adversarial/perf/cost/safety) and emit verification event (P02-B01-A09).
+   */
+  async verifyForgeVisionerIntentGuard(
+    priorRecord?: import("./forge-p02-visioner-intent.js").VisionerIntentRunRecord,
+  ): Promise<import("./forge-p02-visioner-intent.probe.js").ForgeVisionerIntentRegressionResult> {
+    const { runForgeVisionerIntentRegressionGate } = await import("./forge-p02-visioner-intent.probe.js");
+    const result = runForgeVisionerIntentRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "visioner_intent_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge integrated baseline guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B10-A09).
    */
   async verifyForgeIntegratedGuard(
