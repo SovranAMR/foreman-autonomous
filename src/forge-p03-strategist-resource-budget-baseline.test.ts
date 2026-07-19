@@ -38,6 +38,11 @@ import {
   runStrategistResourceBudgetFuzzValidation,
   runStrategistResourceBudgetRunRecordFuzzValidation,
   runStrategistResourceBudgetPropertyFuzzSlice,
+  runStrategistResourceBudgetForgeRegression,
+  detectStrategistResourceBudgetProbeRegression,
+  runStrategistResourceBudgetProbeRegression,
+  validateStrategistResourceBudgetProbeRegression,
+  applyStrategistResourceBudgetRunRecordFuzzMutation,
   createStrategistResourceBudgetFuzzRng,
 } from "./forge-p03-strategist-resource-budget.js";
 
@@ -700,5 +705,124 @@ describe("Forge Strategist Resource Budget Property/Fuzz — P03-B06-A07", () =>
     assert.equal(slice.contractFuzz.allMutationsRejected, true);
     assert.equal(slice.contractFuzz.accepted, 0);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
+  });
+});
+
+describe("Forge Strategist Resource Budget Regression — P03-B06-A08", () => {
+  it("runStrategistResourceBudgetForgeRegression passes on canonical resource budget matrix", () => {
+    const result = runStrategistResourceBudgetForgeRegression();
+
+    assert.equal(result.atom, "P03-B06-A08");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 27);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.ok(result.detail.includes("27/27 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectStrategistResourceBudgetProbeRegression flags newly misaligned probes", () => {
+    const prior = runStrategistResourceBudgetProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistResourceBudgetProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runStrategistResourceBudgetProbeRegression alias matches detect helper", () => {
+    const prior = runStrategistResourceBudgetProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const detectReport = detectStrategistResourceBudgetProbeRegression(prior, current);
+    const runReport = runStrategistResourceBudgetProbeRegression(prior, current);
+    assert.deepEqual(runReport, detectReport);
+  });
+
+  it("validateStrategistResourceBudgetProbeRegression rejects probe drift", () => {
+    const prior = runStrategistResourceBudgetProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const validation = validateStrategistResourceBudgetProbeRegression(prior, current);
+    assert.equal(validation.valid, false);
+    assert.equal(validation.report.hasRegression, true);
+  });
+
+  it("runStrategistResourceBudgetForgeRegression compares against prior record without false regression", () => {
+    const prior = runStrategistResourceBudgetProbesWithRecord();
+    const result = runStrategistResourceBudgetForgeRegression(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runStrategistResourceBudgetForgeRegression rejects tampered prior records", () => {
+    const prior = runStrategistResourceBudgetProbesWithRecord();
+    const tamperedPrior = applyStrategistResourceBudgetRunRecordFuzzMutation(prior, {
+      kind: "drop_evidence",
+      probeId: prior.evidence[0]?.probeId,
+    });
+
+    assert.equal(validateStrategistResourceBudgetRunRecord(tamperedPrior).valid, false);
+
+    const result = runStrategistResourceBudgetForgeRegression(tamperedPrior);
+    assert.equal(result.priorRecordValid, false);
+    assert.equal(result.passed, false);
+    assert.ok(result.detail.includes("priorValidation:"));
+  });
+
+  it("runStrategistResourceBudgetForgeRegression fails when probe alignment regresses", () => {
+    const prior = runStrategistResourceBudgetProbesWithRecord();
+    const tamperedCurrent = structuredClone(prior);
+    const target = tamperedCurrent.evidence[0]!;
+    target.aligned = false;
+    target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+    tamperedCurrent.summary = {
+      ...tamperedCurrent.summary,
+      aligned: tamperedCurrent.summary.aligned - 1,
+      mismatches: tamperedCurrent.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistResourceBudgetProbeRegression(prior, tamperedCurrent);
+    assert.equal(report.hasRegression, true);
   });
 });

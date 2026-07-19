@@ -2840,3 +2840,161 @@ export function runStrategistResourceBudgetPropertyFuzzSlice(
     runRecordFuzz,
   };
 }
+
+// ─── Probe regression detection (P03-B06-A08) ────────────────────────────────
+
+export interface StrategistResourceBudgetProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare resource budget run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectStrategistResourceBudgetProbeRegression(
+  prior: StrategistResourceBudgetRunRecord,
+  current: StrategistResourceBudgetRunRecord,
+): StrategistResourceBudgetProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runStrategistResourceBudgetProbeRegression = detectStrategistResourceBudgetProbeRegression;
+
+export interface StrategistResourceBudgetProbeRegressionValidation {
+  valid: boolean;
+  report: StrategistResourceBudgetProbeRegressionReport;
+}
+
+/** Validate probe alignment between prior and current resource budget run records. */
+export function validateStrategistResourceBudgetProbeRegression(
+  prior: StrategistResourceBudgetRunRecord,
+  current: StrategistResourceBudgetRunRecord,
+): StrategistResourceBudgetProbeRegressionValidation {
+  const report = detectStrategistResourceBudgetProbeRegression(prior, current);
+  return { valid: !report.hasRegression, report };
+}
+
+export interface StrategistResourceBudgetForgeRegressionResult {
+  atom: "P03-B06-A08";
+  passed: boolean;
+  productionSlice: StrategistResourceBudgetProductionSliceResult;
+  propertyFuzzSlice: StrategistResourceBudgetPropertyFuzzSliceResult;
+  record: StrategistResourceBudgetRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: StrategistResourceBudgetProbeRegressionReport | null;
+  detail: string;
+}
+
+/**
+ * Execute resource budget probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P03-B06-A08).
+ */
+export function runStrategistResourceBudgetForgeRegression(
+  priorRecord?: StrategistResourceBudgetRunRecord,
+): StrategistResourceBudgetForgeRegressionResult {
+  const fixture = loadStrategistResourceBudgetBaseline();
+  const contract = getActiveStrategistResourceBudgetContract();
+  const productionSlice = runStrategistResourceBudgetProductionSlice(fixture);
+  const propertyFuzzSlice = runStrategistResourceBudgetPropertyFuzzSlice(fixture);
+  const record = runStrategistResourceBudgetProbesWithRecord(fixture);
+  const validation = validateStrategistResourceBudgetRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateStrategistResourceBudgetRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectStrategistResourceBudgetProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk && recordValid && priorRecordValid && !alignmentRegression && propertyFuzzOk;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(
+      `priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`,
+    );
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+
+  return {
+    atom: "P03-B06-A08",
+    passed,
+    productionSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    detail: detailParts.join(" | "),
+  };
+}

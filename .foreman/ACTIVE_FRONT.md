@@ -6,9 +6,9 @@ active_phase: P03
 active_block: P03-B06
 active_atom: P03-B06-A08
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 256/1000
-phase_progress: 57/100
-block_progress: 7/10
+program_progress: 257/1000
+phase_progress: 58/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B06-A08 — Kaynak ve budget planı: Forge entegrasyonu ile regression testini tamamla.
+P03-B06-A09 — Kaynak ve budget planı: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P03-B06-A07 PASS; P03-B06-A08 implement Forge integration regression test for resource budget contract.
-target: runStrategistResourceBudgetProbeRegression, validateStrategistResourceBudgetProbeRegression.
-hypothesis: P03-B06-A08 wires resource budget probe regression detection into Forge pipeline integration gate.
-acceptance: regression detects probe drift; integration slice passes; slice test suite passes.
+objective: P03-B06-A08 PASS; P03-B06-A09 implement adversarial/performance/cost/safety guard controls for resource budget contract.
+target: validateForgeStrategistResourceBudgetGuard, runStrategistResourceBudgetAdversarialGuardChecks.
+hypothesis: P03-B06-A09 wires resource budget guard controls into Forge pipeline integration gate.
+acceptance: guard rejects tampered records; performance/cost/safety bounds enforced; slice test suite passes.
 commands: npx tsx --test src/forge-p03-strategist-resource-budget*.test.ts
 blast_radius: src/forge-p03-strategist-resource-budget.ts
-rollback: P03-B06-A08 regression integration değişikliklerini geri al.
+rollback: P03-B06-A09 guard control değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Regression blocked ise BLOCKED raporla.
+fallback: Guard blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B06-A07
-last_commit: 5ff7dae
-tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (26/26); property 8/8; fuzz 72/72 mutations rejected; run record fuzz 5/5 rejected
-evidence: runStrategistResourceBudgetPropertyChecks; runStrategistResourceBudgetFuzzValidation; runStrategistResourceBudgetRunRecordFuzzValidation; runStrategistResourceBudgetPropertyFuzzSlice
-next: P03-B06-A08
+last_atom: P03-B06-A08
+last_commit: pending
+tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (33/33); regression 7/7; forge integration gate PASS
+evidence: runStrategistResourceBudgetForgeRegression; detectStrategistResourceBudgetProbeRegression; validateStrategistResourceBudgetProbeRegression; runStrategistResourceBudgetProbeRegression
+next: P03-B06-A09
