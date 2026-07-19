@@ -6,11 +6,14 @@
  * A03: recoverWebPrimarySourceEvidence production slice and probe matrix gate.
  * A04: boundary-category slice gate for URL input edge cases and probe matrix alignment.
  * A05: failure/recovery/NO-GO category slice gate for invalid fixture, URL guard, BLOCK and recovery paths.
+ * A06: evidence, telemetry and provenance run record for failure/recovery/NO-GO slice probes.
  */
 
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import researcherWebPrimarySourceBaseline from "./fixtures/forge-researcher-web-primary-source-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -20,7 +23,7 @@ import {
   FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1,
 } from "./forge-p04-researcher-in-repo-evidence.js";
 
-export const FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_VERSION = "1.0.0-a05";
+export const FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P04_B02_SEALED_ATOM_COUNT = 10;
 
@@ -1398,6 +1401,460 @@ export function runResearcherWebPrimarySourceFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P04-B03-A06). */
+export interface ResearcherWebPrimarySourceProbeEvidence {
+  probeId: string;
+  category: ResearcherWebPrimarySourceCategory;
+  disposition: ResearcherWebPrimarySourceProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for web primary-source runs (P04-B03-A06). */
+export interface ResearcherWebPrimarySourceProbeTelemetry {
+  probeId: string;
+  category: ResearcherWebPrimarySourceCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B03-A06). */
+export interface ResearcherWebPrimarySourceProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherWebPrimarySourceCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated web primary-source run record bundling evidence, telemetry and provenance. */
+export interface ResearcherWebPrimarySourceRunRecord {
+  provenance: ResearcherWebPrimarySourceProvenance;
+  evidence: ResearcherWebPrimarySourceProbeEvidence[];
+  telemetry: ResearcherWebPrimarySourceProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherWebPrimarySourceCategory, number>;
+    byDisposition: Record<ResearcherWebPrimarySourceProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherWebPrimarySourceRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherWebPrimarySourceRunValidationResult {
+  valid: boolean;
+  issues: ResearcherWebPrimarySourceRunValidationIssue[];
+}
+
+export function buildResearcherWebPrimarySourceProbeEvidence(
+  probeId: string,
+  category: ResearcherWebPrimarySourceCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherWebPrimarySourceProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherWebPrimarySourceProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherWebPrimarySourceProbeTelemetry(
+  probeId: string,
+  category: ResearcherWebPrimarySourceCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherWebPrimarySourceProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherWebPrimarySourceProvenance(
+  runId: string,
+  fixture: ResearcherWebPrimarySourceBaseline,
+  contract: ResearcherWebPrimarySourceContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherWebPrimarySourceCategory[];
+  },
+): ResearcherWebPrimarySourceProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherWebPrimarySourceRunRecord(
+  provenance: ResearcherWebPrimarySourceProvenance,
+  evidence: ResearcherWebPrimarySourceProbeEvidence[],
+  telemetry: ResearcherWebPrimarySourceProbeTelemetry[],
+): ResearcherWebPrimarySourceRunRecord {
+  const byCategory = {} as Record<ResearcherWebPrimarySourceCategory, number>;
+  const byDisposition: Record<ResearcherWebPrimarySourceProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_WEB_PRIMARY_SOURCE_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherWebPrimarySourceRunRecordAgainstProbeIds(
+  record: ResearcherWebPrimarySourceRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherWebPrimarySourceContract,
+): ResearcherWebPrimarySourceRunValidationResult {
+  const issues: ResearcherWebPrimarySourceRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherWebPrimarySourceRunRecord(
+  record: ResearcherWebPrimarySourceRunRecord,
+  contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
+): ResearcherWebPrimarySourceRunValidationResult {
+  return validateResearcherWebPrimarySourceRunRecordAgainstProbeIds(
+    record,
+    listResearcherWebPrimarySourceContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherWebPrimarySourceEvidenceRunRecord(
+  record: ResearcherWebPrimarySourceRunRecord,
+  contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
+): ResearcherWebPrimarySourceRunValidationResult {
+  const issues: ResearcherWebPrimarySourceRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B03-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B03-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_WEB_PRIMARY_SOURCE_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherWebPrimarySourceRunRecordAgainstProbeIds(
+    record,
+    listResearcherWebPrimarySourceFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherWebPrimarySourceEvidenceSliceResult {
+  atom: "P04-B03-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherWebPrimarySourceProbeResult[];
+  evidenceResults: ResearcherWebPrimarySourceProbeResult[];
+  matrixValidation: ResearcherWebPrimarySourceProbeMatrixValidationResult;
+  record: ResearcherWebPrimarySourceRunRecord;
+  recordValidation: ResearcherWebPrimarySourceRunValidationResult;
+}
+
+function resolveResearcherWebPrimarySourceGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherWebPrimarySourceProbeWithTiming(
+  entry: ResearcherWebPrimarySourceFixtureEntry,
+  fixture: ResearcherWebPrimarySourceBaseline,
+  contractProbe:
+    | { criterion: string; disposition: ResearcherWebPrimarySourceProbeDisposition }
+    | undefined,
+): {
+  result: ResearcherWebPrimarySourceProbeResult;
+  durationMs: number;
+  disposition: ResearcherWebPrimarySourceProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runResearcherWebPrimarySourceProbe(
+    entry.id,
+    entry.category,
+    entry.expected,
+    fixture,
+  );
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherWebPrimarySourceRecordFromEntries(
+  entries: ResearcherWebPrimarySourceFixtureEntry[],
+  fixture: ResearcherWebPrimarySourceBaseline,
+  contract: ResearcherWebPrimarySourceContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherWebPrimarySourceCategory[];
+  },
+): ResearcherWebPrimarySourceRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ResearcherWebPrimarySourceProbeEvidence[] = [];
+  const telemetry: ResearcherWebPrimarySourceProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherWebPrimarySourceProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherWebPrimarySourceProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherWebPrimarySourceProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherWebPrimarySourceProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherWebPrimarySourceGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherWebPrimarySourceRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all web primary-source probes and emit auditable evidence, telemetry and provenance (P04-B03-A06). */
+export function runResearcherWebPrimarySourceProbesWithRecord(
+  fixture: ResearcherWebPrimarySourceBaseline = loadResearcherWebPrimarySourceBaseline(),
+): ResearcherWebPrimarySourceRunRecord {
+  const contract = getActiveResearcherWebPrimarySourceContract();
+  return buildResearcherWebPrimarySourceRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B03-A06). */
+export function runResearcherWebPrimarySourceFailureRecoverySliceWithRecord(
+  fixture: ResearcherWebPrimarySourceBaseline = loadResearcherWebPrimarySourceBaseline(),
+): ResearcherWebPrimarySourceRunRecord {
+  const contract = getActiveResearcherWebPrimarySourceContract();
+  const failureRecoveryIds = new Set(listResearcherWebPrimarySourceFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherWebPrimarySourceRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B03-A06",
+    sliceCategories: RESEARCHER_WEB_PRIMARY_SOURCE_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherWebPrimarySourceEvidenceSlice(
+  fixture: ResearcherWebPrimarySourceBaseline = loadResearcherWebPrimarySourceBaseline(),
+): ResearcherWebPrimarySourceEvidenceSliceResult {
+  const contract = getActiveResearcherWebPrimarySourceContract();
+  const results = runResearcherWebPrimarySourceProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_WEB_PRIMARY_SOURCE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherWebPrimarySourceContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherWebPrimarySourceFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherWebPrimarySourceFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherWebPrimarySourceEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P04-B03-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
 
