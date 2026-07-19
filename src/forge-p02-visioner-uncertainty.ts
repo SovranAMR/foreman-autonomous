@@ -56,6 +56,22 @@ export interface VisionerUncertaintyPresence {
   detail: string;
 }
 
+export interface VisionerUncertaintyClarificationRecoveryHints {
+  confidence?: number;
+  reasoning?: string;
+  output?: string;
+  clarificationRequest?: string;
+}
+
+export interface VisionerUncertaintyClarificationRecoveryResult {
+  recovered: boolean;
+  composedVision: string;
+  presence: VisionerUncertaintyPresence;
+  clarificationRequest: string;
+  parseErrors: string[];
+  detail: string;
+}
+
 /**
  * Assess vision output boundary conditions — empty, whitespace-only, null bytes, max length (P02-B06-A01).
  */
@@ -135,6 +151,153 @@ export function assessVisionerUncertaintyPresence(
     detail:
       `confidence=${confidence.toFixed(2)}, needsClarification=${needsClarification}` +
       (hasConfidence ? "" : " (defaulted)"),
+  };
+}
+
+/**
+ * Restructure failed clarification parse into actionable request (P02-B06-A03).
+ */
+export function recoverVisionerUncertaintyClarification(
+  failedParse: string,
+  hints: VisionerUncertaintyClarificationRecoveryHints = {},
+): VisionerUncertaintyClarificationRecoveryResult {
+  const parseErrors: string[] = [];
+  const boundary = assessVisionerUncertaintyInputBoundary(failedParse);
+
+  if (
+    boundary.disposition === "contains_null_byte" ||
+    boundary.disposition === "empty" ||
+    boundary.disposition === "whitespace_only"
+  ) {
+    const parseError =
+      boundary.disposition === "contains_null_byte"
+        ? "null_byte_in_vision"
+        : boundary.disposition === "empty"
+          ? "empty_vision"
+          : "whitespace_only_vision";
+    return {
+      recovered: false,
+      composedVision: "",
+      presence: assessVisionerUncertaintyPresence(""),
+      clarificationRequest: "",
+      parseErrors: [parseError],
+      detail: `cannot recover ${boundary.disposition.replace(/_/g, "-")} vision output`,
+    };
+  }
+
+  const raw = boundary.acceptable ? boundary.normalizedVision : failedParse.trim();
+  const initialPresence = assessVisionerUncertaintyPresence(raw);
+
+  if (
+    initialPresence.hasConfidence &&
+    initialPresence.needsClarification &&
+    /CLARIFICATION REQUEST/i.test(raw)
+  ) {
+    const clarificationMatch = raw.match(
+      /\*\*CLARIFICATION REQUEST\*\*:\s*(.+?)(?:\n(?:CONFIDENCE|NEEDS_RESEARCH)|$)/is,
+    );
+    return {
+      recovered: true,
+      composedVision: raw,
+      presence: initialPresence,
+      clarificationRequest: clarificationMatch?.[1]?.trim() ?? "",
+      parseErrors,
+      detail: initialPresence.detail,
+    };
+  }
+
+  let confidence = hints.confidence ?? initialPresence.confidence;
+  let reasoning = hints.reasoning;
+  let output = hints.output;
+  let clarificationRequest = hints.clarificationRequest ?? "";
+
+  const informalConfidenceMatch =
+    raw.match(/CONFIDENCE:\s*([0-9]*\.?[0-9]+)/i) ??
+    raw.match(/confidence\s*[:=]\s*([0-9]*\.?[0-9]+)/i);
+  if (informalConfidenceMatch) {
+    confidence = Number.parseFloat(informalConfidenceMatch[1]);
+  }
+
+  const reasoningMatch = raw.match(
+    /REASONING:\s*(.+?)(?:\n(?:OUTPUT|CONFIDENCE|NEEDS_RESEARCH)|$)/is,
+  );
+  if (reasoningMatch && !reasoning) {
+    reasoning = reasoningMatch[1].trim();
+  }
+
+  const outputMatch = raw.match(
+    /OUTPUT:\s*(.+?)(?:\n(?:CONFIDENCE|NEEDS_RESEARCH|need clarification|uncertain)|$)/is,
+  );
+  if (outputMatch && !output) {
+    output = outputMatch[1].trim();
+  }
+
+  const clarificationMatch =
+    raw.match(/\*\*CLARIFICATION REQUEST\*\*:\s*(.+?)(?:\n|$)/is) ??
+    raw.match(/clarification[_\s-]?(?:request|needed|question)\s*[:=]\s*(.+?)(?:\n|$)/i) ??
+    raw.match(/need(?:s)?\s+clarification\s*[:=]\s*(.+?)(?:\n|$)/i);
+  if (clarificationMatch && !clarificationRequest) {
+    clarificationRequest = clarificationMatch[1].trim();
+  }
+
+  if (!clarificationRequest) {
+    const uncertainLines = raw
+      .split("\n")
+      .map(line => line.trim())
+      .filter(
+        line =>
+          /uncertain|unclear|ambiguous|need(?:s)? clarification|what (?:is|are)|which /i.test(
+            line,
+          ) &&
+          !/REASONING:|OUTPUT:|CONFIDENCE:|NEEDS_RESEARCH:/i.test(line),
+      );
+    if (uncertainLines.length > 0) {
+      clarificationRequest = uncertainLines
+        .map(line => line.replace(/^[-*\s]+/, "").trim())
+        .join("; ");
+    }
+  }
+
+  if (confidence >= VISIONER_UNCERTAINTY_CLARIFICATION_THRESHOLD && !clarificationRequest) {
+    confidence = VISIONER_UNCERTAINTY_CLARIFICATION_THRESHOLD - 0.05;
+    parseErrors.push("missing_clarification_request");
+  }
+
+  if (!clarificationRequest) {
+    parseErrors.push("missing_clarification_request");
+    clarificationRequest = "Specify scope, success metrics, and constraints before vision proceeds";
+  }
+
+  if (!reasoning) {
+    reasoning = clarificationRequest
+      ? "Recovered clarification request from failed parse"
+      : "Recovered vision output from failed parse";
+  }
+  if (!output) {
+    output = "**GOAL**: Recovered vision output pending clarification";
+  }
+
+  const composedVision = [
+    `REASONING: ${reasoning}`,
+    `OUTPUT:\n${output}`,
+    `**CLARIFICATION REQUEST**: ${clarificationRequest}`,
+    `CONFIDENCE: ${confidence}`,
+  ].join("\n");
+
+  const presence = assessVisionerUncertaintyPresence(composedVision);
+  const recovered =
+    presence.hasConfidence &&
+    presence.needsClarification &&
+    presence.confidence < VISIONER_UNCERTAINTY_CLARIFICATION_THRESHOLD &&
+    clarificationRequest.length > 0;
+
+  return {
+    recovered,
+    composedVision,
+    presence,
+    clarificationRequest,
+    parseErrors,
+    detail: presence.detail,
   };
 }
 
@@ -620,8 +783,8 @@ const VISIONER_UNCERTAINTY_CATEGORY_CONTRACTS: Record<
         category: "recovery_path",
         description:
           "recoverVisionerUncertaintyClarification restructures failed clarification parse into actionable request",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion:
           "recoverVisionerUncertaintyClarification restructures failed clarification parse into actionable request",
       },

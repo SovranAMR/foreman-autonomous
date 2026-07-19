@@ -32,26 +32,19 @@ describe("Forge Visioner Uncertainty — P02-B06-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures visioner uncertainty probes with documented FAIL gaps from P02-B05 sealed handoff", () => {
+  it("measures visioner uncertainty probes with full alignment after A03 recovery slice", () => {
     const results = runVisionerUncertaintyProbes();
     const summary = summarizeVisionerUncertaintyMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listVisionerUncertaintyProbesByExpected(
       "FAIL",
       loadVisionerUncertaintyBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(documentedFail.some(p => p.id === "vunc.structured_clarification_recovery"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of VISIONER_UNCERTAINTY_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -66,14 +59,8 @@ describe("Forge Visioner Uncertainty — P02-B06-A01", () => {
     );
   });
 
-  it("documents remaining visioner uncertainty gaps as measurable baseline debt", () => {
+  it("documents zero remaining visioner uncertainty gaps after structured clarification slice", () => {
     const gaps = listVisionerUncertaintyKnownGaps(runVisionerUncertaintyProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, ["vunc.structured_clarification_recovery"]);
-    assert.ok(
-      gaps.every(g => VISIONER_UNCERTAINTY_CATEGORIES.includes(g.category)),
-      "documented gaps are visioner uncertainty probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });

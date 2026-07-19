@@ -135,7 +135,7 @@
       "id": "vunc.structured_clarification_recovery",
       "category": "recovery_path",
       "description": "recoverVisionerUncertaintyClarification restructures failed clarification parse into actionable request",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "vunc.visioner_confidence_block_gate",

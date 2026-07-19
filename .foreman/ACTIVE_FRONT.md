@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B06
-active_atom: P02-B06-A03
+active_atom: P02-B06-A04
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 151/1000
+program_progress: 152/1000
 phase_progress: 51/100
-block_progress: 2/10
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B06-A03 — Uncertainty ve clarification policy: en küçük üretim dikey dilimini uygula.
+P02-B06-A04 — Uncertainty ve clarification policy: boundary ve edge-case davranışlarını tamamla.
 
-objective: P02-B06-A02 contract sealed; production recovery slice next.
-target: Implement recoverVisionerUncertaintyClarification production slice to close vunc.structured_clarification_recovery gap.
-hypothesis: Typed contract from B06-A02 provides stable probe wiring for clarification recovery implementation.
-acceptance: recoverVisionerUncertaintyClarification exported; gap probe PASS; zero unexpected mismatches.
+objective: P02-B06-A03 production slice sealed; boundary slice next.
+target: Complete boundary category edge-case probes for vision uncertainty input handling.
+hypothesis: recoverVisionerUncertaintyClarification from A03 enables boundary slice without probe regressions.
+acceptance: boundary probes PASS; zero unexpected mismatches; assessVisionerUncertaintyInputBoundary edge cases verified.
 commands: npx tsx --test src/forge-p02-visioner-uncertainty.test.ts
 blast_radius: src/forge-p02-visioner-uncertainty*, src/orchestrator.ts
-rollback: P02-B06-A03 production slice değişikliklerini geri al.
+rollback: P02-B06-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: recovery requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
+fallback: boundary requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B06-A02
-last_commit: 9cd2abb
-tests: PASS — forge-p02-visioner-uncertainty.test.ts (9/9)
-evidence: contract declares 8 categories; 23 probes (22 PASS + 1 documented FAIL gap); probe matrix zero unexpected mismatches; fixture ↔ contract aligned
-next: P02-B06-A03
+last_atom: P02-B06-A03
+last_commit: pending
+tests: PASS — forge-p02-visioner-uncertainty.test.ts (12/12); baseline (3/3)
+evidence: recoverVisionerUncertaintyClarification exported; 23 probes all PASS; gap vunc.structured_clarification_recovery closed; probe matrix zero unexpected mismatches
+next: P02-B06-A04

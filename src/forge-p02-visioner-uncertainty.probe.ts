@@ -18,6 +18,7 @@ import {
 import {
   assessVisionerUncertaintyInputBoundary,
   assessVisionerUncertaintyPresence,
+  recoverVisionerUncertaintyClarification,
   validateVisionerUncertaintyBaseline,
   validateVisionerUncertaintyAgainstContract,
   summarizeVisionerUncertaintyMatrix,
@@ -56,6 +57,7 @@ export {
   summarizeVisionerUncertaintyContractCoverage,
   assessVisionerUncertaintyInputBoundary,
   assessVisionerUncertaintyPresence,
+  recoverVisionerUncertaintyClarification,
   VISIONER_UNCERTAINTY_CATEGORIES,
   VISIONER_UNCERTAINTY_VISION_MAX_LENGTH,
   FORGE_VISIONER_UNCERTAINTY_VERSION,
@@ -300,7 +302,7 @@ function probeBoundary(
       const contract = getActiveVisionerUncertaintyContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -404,8 +406,26 @@ function probeRecoveryPath(
       return probe(id, category, expected, ok, `checkpointUncertainty=${ok}`);
     }
     case "vunc.structured_clarification_recovery": {
-      const ok = hasProductionExport("recoverVisionerUncertaintyClarification");
-      return probe(id, category, expected, ok, `recoverVisionerUncertaintyClarification=${ok}`);
+      const malformed = `REASONING: Task scope is unclear for dental product landing page
+OUTPUT: **GOAL**: Build premium landing page
+confidence: 0.45
+need clarification: what conversion metrics and brand tone?
+uncertain about target audience demographics`;
+      const recovery = recoverVisionerUncertaintyClarification(malformed);
+      const ok =
+        hasProductionExport("recoverVisionerUncertaintyClarification") &&
+        recovery.recovered === true &&
+        recovery.presence.hasConfidence &&
+        recovery.presence.needsClarification &&
+        recovery.presence.confidence < 0.7 &&
+        recovery.clarificationRequest.includes("conversion metrics");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recovered=${recovery.recovered}, ${recovery.detail}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown recovery_path probe");
@@ -488,4 +508,39 @@ export function runVisionerUncertaintyProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface VisionerUncertaintyProductionSliceResult {
+  atom: "P02-B06-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerUncertaintyProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerUncertaintyMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerUncertaintyProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: recoverVisionerUncertaintyClarification wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runVisionerUncertaintyProductionSlice(
+  fixture: VisionerUncertaintyBaseline = loadVisionerUncertaintyBaseline(),
+): VisionerUncertaintyProductionSliceResult {
+  const contract = getActiveVisionerUncertaintyContract();
+  const fixtureValidation = validateVisionerUncertaintyBaseline(fixture);
+  const contractValidation = validateVisionerUncertaintyAgainstContract(fixture, contract);
+  const results = runVisionerUncertaintyProbes(fixture);
+  const summary = summarizeVisionerUncertaintyMatrix(results);
+  const matrixValidation = validateVisionerUncertaintyProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B06-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
