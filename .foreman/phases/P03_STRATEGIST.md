@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 71
+completed_atoms: 72
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -125,7 +125,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B09-A04 — Plan provenance ve drift: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B09-A05 — Plan provenance ve drift: failure, recovery ve NO-GO yollarını uygula
 - [x] P03-B09-A06 — Plan provenance ve drift: evidence, telemetry ve provenance kaydını ekle
-- [ ] P03-B09-A07 — Plan provenance ve drift: unit, property ve fuzz doğrulamasını ekle
+- [x] P03-B09-A07 — Plan provenance ve drift: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B09-A08 — Plan provenance ve drift: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B09-A09 — Plan provenance ve drift: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B09-A10 — Plan provenance ve drift: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B09-A06
-last_commit: c06f9e1
-tests: PASS — forge-p03-strategist-provenance.test.ts (25/25); forge-p03-strategist-provenance-baseline.test.ts (3/3); runStrategistProvenanceEvidenceSlice (7/7 evidence probes aligned, record valid)
-evidence: runStrategistProvenanceEvidenceSlice; validateStrategistProvenanceFailureRecoveryRunRecord; runStrategistProvenanceFailureRecoverySliceWithRecord
-next: P03-B09-A07
+last_atom: P03-B09-A07
+last_commit: pending
+tests: PASS — forge-p03-strategist-provenance.test.ts (31/31); forge-p03-strategist-provenance-baseline.test.ts (3/3); runStrategistProvenancePropertyFuzzSlice (8 structural properties, 72 fuzz mutations rejected, 0 accepted)
+evidence: runStrategistProvenancePropertyFuzzSlice; runStrategistProvenancePropertyChecks; runStrategistProvenanceFuzzValidation; runStrategistProvenanceRunRecordFuzzValidation
+next: P03-B09-A08
