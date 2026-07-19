@@ -8,6 +8,9 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
+import { performance } from "node:perf_hooks";
 import workerShellProcessBaseline from "./fixtures/forge-worker-shell-process-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -17,7 +20,7 @@ import {
 } from "./forge-p05-worker-edit-engine.js";
 import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 
-export const FORGE_WORKER_SHELL_PROCESS_VERSION = "1.0.0-a05";
+export const FORGE_WORKER_SHELL_PROCESS_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P05_B03_SEALED_ATOM_COUNT = 10;
 
@@ -1802,5 +1805,460 @@ export function runWorkerShellProcessFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence artifact — expected vs actual with criterion provenance (P05-B04-A06). */
+export interface WorkerShellProcessProbeEvidence {
+  probeId: string;
+  category: WorkerShellProcessCategory;
+  disposition: WorkerShellProcessProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for worker shell process runs (P05-B04-A06). */
+export interface WorkerShellProcessProbeRunTelemetry {
+  probeId: string;
+  category: WorkerShellProcessCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P05-B04-A06). */
+export interface WorkerShellProcessProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  sliceAtom?: string;
+  sliceCategories?: readonly WorkerShellProcessCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated worker shell process run record bundling evidence, telemetry and provenance. */
+export interface WorkerShellProcessRunRecord {
+  provenance: WorkerShellProcessProvenance;
+  evidence: WorkerShellProcessProbeEvidence[];
+  telemetry: WorkerShellProcessProbeRunTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<WorkerShellProcessCategory, number>;
+    byDisposition: Record<WorkerShellProcessProbeDisposition, number>;
+  };
+}
+
+export interface WorkerShellProcessRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface WorkerShellProcessRunValidationResult {
+  valid: boolean;
+  issues: WorkerShellProcessRunValidationIssue[];
+}
+
+export function buildWorkerShellProcessProbeEvidence(
+  probeId: string,
+  category: WorkerShellProcessCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: WorkerShellProcessProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): WorkerShellProcessProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildWorkerShellProcessProbeRunTelemetry(
+  probeId: string,
+  category: WorkerShellProcessCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): WorkerShellProcessProbeRunTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildWorkerShellProcessProvenance(
+  runId: string,
+  fixture: WorkerShellProcessBaseline,
+  contract: WorkerShellProcessContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly WorkerShellProcessCategory[];
+  },
+): WorkerShellProcessProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_WORKER_SHELL_PROCESS_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildWorkerShellProcessRunRecord(
+  provenance: WorkerShellProcessProvenance,
+  evidence: WorkerShellProcessProbeEvidence[],
+  telemetry: WorkerShellProcessProbeRunTelemetry[],
+): WorkerShellProcessRunRecord {
+  const byCategory = {} as Record<WorkerShellProcessCategory, number>;
+  const byDisposition: Record<WorkerShellProcessProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of WORKER_SHELL_PROCESS_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateWorkerShellProcessRunRecordAgainstProbeIds(
+  record: WorkerShellProcessRunRecord,
+  expectedProbeIds: string[],
+  contract: WorkerShellProcessContract,
+): WorkerShellProcessRunValidationResult {
+  const issues: WorkerShellProcessRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateWorkerShellProcessRunRecord(
+  record: WorkerShellProcessRunRecord,
+  contract: WorkerShellProcessContract = getActiveWorkerShellProcessContract(),
+): WorkerShellProcessRunValidationResult {
+  return validateWorkerShellProcessRunRecordAgainstProbeIds(
+    record,
+    listWorkerShellProcessContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateWorkerShellProcessEvidenceRunRecord(
+  record: WorkerShellProcessRunRecord,
+  contract: WorkerShellProcessContract = getActiveWorkerShellProcessContract(),
+): WorkerShellProcessRunValidationResult {
+  const issues: WorkerShellProcessRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P05-B04-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P05-B04-A06`,
+    });
+  }
+
+  const expectedCategories = [...WORKER_SHELL_PROCESS_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateWorkerShellProcessRunRecordAgainstProbeIds(
+    record,
+    listWorkerShellProcessFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+/**
+ * Validate evidence_path + telemetry_path + provenance_path probe matrix — A06 slice gate.
+ * Contract-wired failure_path, recovery_path and nogo_path probes with zero unexpected mismatches.
+ */
+export function validateWorkerShellProcessEvidenceProbeMatrix(
+  results: WorkerShellProcessProbeResult[],
+  contract: WorkerShellProcessContract = getActiveWorkerShellProcessContract(),
+): WorkerShellProcessProbeMatrixValidationResult {
+  return validateWorkerShellProcessFailureRecoveryProbeMatrix(results, contract);
+}
+
+export interface WorkerShellProcessEvidenceSliceResult {
+  atom: "P05-B04-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: WorkerShellProcessProbeResult[];
+  evidenceResults: WorkerShellProcessProbeResult[];
+  matrixValidation: WorkerShellProcessProbeMatrixValidationResult;
+  record: WorkerShellProcessRunRecord;
+  recordValidation: WorkerShellProcessRunValidationResult;
+}
+
+function resolveWorkerShellProcessGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runWorkerShellProcessProbeWithTiming(
+  entry: WorkerShellProcessFixtureEntry,
+  fixture: WorkerShellProcessBaseline,
+  contractProbe:
+    | { criterion: string; disposition: WorkerShellProcessProbeDisposition }
+    | undefined,
+): {
+  result: WorkerShellProcessProbeResult;
+  durationMs: number;
+  disposition: WorkerShellProcessProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildWorkerShellProcessRecordFromEntries(
+  entries: WorkerShellProcessFixtureEntry[],
+  fixture: WorkerShellProcessBaseline,
+  contract: WorkerShellProcessContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly WorkerShellProcessCategory[];
+  },
+): WorkerShellProcessRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: WorkerShellProcessProbeEvidence[] = [];
+  const telemetry: WorkerShellProcessProbeRunTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runWorkerShellProcessProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildWorkerShellProcessProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildWorkerShellProcessProbeRunTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildWorkerShellProcessProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveWorkerShellProcessGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildWorkerShellProcessRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all worker shell process probes and emit auditable evidence, telemetry and provenance (P05-B04-A06). */
+export function runWorkerShellProcessProbesWithRecord(
+  fixture: WorkerShellProcessBaseline = loadWorkerShellProcessBaseline(),
+): WorkerShellProcessRunRecord {
+  const contract = getActiveWorkerShellProcessContract();
+  return buildWorkerShellProcessRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P05-B04-A06). */
+export function runWorkerShellProcessFailureRecoverySliceWithRecord(
+  fixture: WorkerShellProcessBaseline = loadWorkerShellProcessBaseline(),
+): WorkerShellProcessRunRecord {
+  const contract = getActiveWorkerShellProcessContract();
+  const failureRecoveryIds = new Set(listWorkerShellProcessFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildWorkerShellProcessRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P05-B04-A06",
+    sliceCategories: WORKER_SHELL_PROCESS_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runWorkerShellProcessEvidenceSlice(
+  fixture: WorkerShellProcessBaseline = loadWorkerShellProcessBaseline(),
+): WorkerShellProcessEvidenceSliceResult {
+  const contract = getActiveWorkerShellProcessContract();
+  const results = runWorkerShellProcessProbes(fixture);
+  const failureRecoveryProbes = WORKER_SHELL_PROCESS_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listWorkerShellProcessContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateWorkerShellProcessEvidenceProbeMatrix(results, contract);
+  const record = runWorkerShellProcessFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateWorkerShellProcessEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P05-B04-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
