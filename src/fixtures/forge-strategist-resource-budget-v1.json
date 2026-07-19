@@ -1,0 +1,177 @@
+{
+  "version": "1.0.0",
+  "atom": "P03-B06-A01",
+  "contractAtom": "P03-B06-A06",
+  "purpose": "Strategist resource and budget baseline measured from sealed P03-B05 risk reversibility block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P03-B05-A10",
+    "contractVersion": "1.0.0-a08",
+    "riskReversibilityProbeCount": 27,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "sbudget.version_tagged",
+      "category": "budget_versioning",
+      "description": "Strategist resource budget baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.atom_tagged",
+      "category": "budget_versioning",
+      "description": "Strategist resource budget baseline declares P03-B06-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.harness_version_exported",
+      "category": "budget_versioning",
+      "description": "FORGE_STRATEGIST_RESOURCE_BUDGET_VERSION exported for resource budget harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.rate_limiter_token_budget",
+      "category": "token_budget",
+      "description": "RateLimiter enforces perThought, perChain and perSession TokenBudget scopes",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.orchestrator_session_budget_gate",
+      "category": "token_budget",
+      "description": "Orchestrator MAX_TOKENS_SESSION halts pipeline when session token budget exceeded",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.orchestrator_phase_budget_caps",
+      "category": "token_budget",
+      "description": "Orchestrator PHASE_BUDGET_PCT enforces phase-level token budget caps",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.prompt_decompose_resource_plan",
+      "category": "token_budget",
+      "description": "STRATEGIST decompose format declares RESOURCE PLAN and TOKEN BUDGET sections",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sbudget.orchestrator_pre_exec_budget_gate",
+      "category": "token_budget",
+      "description": "Orchestrator validates strategist resource budget plan before atom execution",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sbudget.cost_tracker_exported",
+      "category": "cost_budget",
+      "description": "CostTracker exported with phase-level cost breakdown and budget alerts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.engine_cost_tracker_wired",
+      "category": "cost_budget",
+      "description": "Engine wires CostTracker to LLM call token accounting",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.parser_resource_plan_fields",
+      "category": "cost_budget",
+      "description": "parseDecomposeResponse exports resource plan and token budget fields",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sbudget.prompt_atom_resource_estimate",
+      "category": "cost_budget",
+      "description": "STRATEGIST atomize format declares resource_estimate per atom",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sbudget.b05_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P03_B05_TO_B06_HANDOFF_V1 targets P03-B06-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.b05_sealed_risk_reversibility_probes",
+      "category": "baseline_link",
+      "description": "P03-B05→B06 handoff sealed probeCount matches active risk reversibility contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P03-B05 risk reversibility block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.probe_runner_exported",
+      "category": "boundary",
+      "description": "runStrategistResourceBudgetProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL resource budget gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.empty_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistResourceBudgetInputBoundary rejects empty decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.whitespace_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistResourceBudgetInputBoundary rejects whitespace-only decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.long_decompose_truncation_boundary",
+      "category": "boundary",
+      "description": "assessStrategistResourceBudgetInputBoundary truncates decompose exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateStrategistResourceBudgetBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.malformed_decompose_guard",
+      "category": "failure_path",
+      "description": "assessStrategistResourceBudgetInputBoundary rejects null-byte decompose output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.min_category_probes",
+      "category": "failure_path",
+      "description": "validateStrategistResourceBudgetBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.recovery_rate_limit_backoff",
+      "category": "recovery_path",
+      "description": "RateLimiter exponential backoff on 429 enables budget recovery after burst",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.recovery_cost_alert",
+      "category": "recovery_path",
+      "description": "CostTracker fires budget alert threshold before session cost limit",
+      "expected": "PASS"
+    },
+    {
+      "id": "sbudget.nogo_budget_recovery_halt",
+      "category": "nogo_path",
+      "description": "Pipeline halts atom when resource budget exhausted without strategist recovery plan",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sbudget.exported_orchestrator_budget_validator",
+      "category": "nogo_path",
+      "description": "validateStrategistResourceBudget exported for orchestrator pre-execution checks",
+      "expected": "FAIL"
+    }
+  ]
+}

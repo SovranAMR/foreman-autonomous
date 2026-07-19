@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 45
+completed_atoms: 46
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -80,7 +80,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P03-B06 — Kaynak ve budget planı
 
-- [ ] P03-B06-A01 — Kaynak ve budget planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P03-B06-A01 — Kaynak ve budget planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P03-B06-A02 — Kaynak ve budget planı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B06-A03 — Kaynak ve budget planı: en küçük üretim dikey dilimini uygula
 - [ ] P03-B06-A04 — Kaynak ve budget planı: boundary ve edge-case davranışlarını tamamla
