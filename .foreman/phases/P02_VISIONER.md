@@ -87,7 +87,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B06-A05 — Uncertainty ve clarification policy: failure, recovery ve NO-GO yollarını uygula
 - [x] P02-B06-A06 — Uncertainty ve clarification policy: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B06-A07 — Uncertainty ve clarification policy: unit, property ve fuzz doğrulamasını ekle
-- [ ] P02-B06-A08 — Uncertainty ve clarification policy: Forge entegrasyonu ile regression testini tamamla
+- [x] P02-B06-A08 — Uncertainty ve clarification policy: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B06-A09 — Uncertainty ve clarification policy: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B06-A10 — Uncertainty ve clarification policy: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B06-A07
-last_commit: 122bc38
-tests: PASS — forge-p02-visioner-uncertainty.property-fuzz.test.ts (5/5); unit (24/24); baseline (3/3)
-evidence: runVisionerUncertaintyPropertyChecks (8 structural properties); runVisionerUncertaintyFuzzValidation (72 fixture mutations rejected); runVisionerUncertaintyRunRecordFuzzValidation (failure/recovery 5/5 + full 3/3 tamper rejections); zero unexpected mismatches preserved
-next: P02-B06-A08
+last_atom: P02-B06-A08
+last_commit: 7fb076f
+tests: PASS — forge-pipeline-regression.integration.test.ts (79/79); uncertainty unit (24/24); property-fuzz (5/5)
+evidence: detectVisionerUncertaintyProbeRegression flags aligned→misaligned probes; runForgeVisionerUncertaintyRegressionGate 23/23 aligned with productionSlice unexpected=0 and propertyFuzz PASS; prior-record comparison hasRegression=false; zero unexpected mismatches preserved
+next: P02-B06-A09
