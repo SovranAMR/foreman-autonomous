@@ -6,9 +6,9 @@ active_phase: P05
 active_block: P05-B02
 active_atom: P05-B02-A06
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 414/1000
-phase_progress: 12/100
-block_progress: 5/10
+program_progress: 415/1000
+phase_progress: 13/100
+block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B02-A06 — Filesystem okuma ve grounding: evidence, telemetry ve provenance kaydını ekle.
+P05-B02-A07 — Filesystem okuma ve grounding: unit, property ve fuzz doğrulamasını ekle.
 
-objective: P05-B02-A05 failure/recovery slice sealed; implement evidence, telemetry and provenance recording per contract.
-target: Extend production grounding paths with evidence/telemetry/provenance recording per contract categories.
-hypothesis: Evidence slice closes remaining observability gaps without regressing A05 failure/recovery wiring.
-acceptance: Evidence probes align with contract; zero unexpected PASS mismatches on sealed criteria.
+objective: P05-B02-A06 evidence slice sealed; implement unit, property and fuzz validation per contract.
+target: Extend production grounding paths with unit/property/fuzz validation per contract categories.
+hypothesis: Property/fuzz slice closes remaining validation gaps without regressing A06 evidence wiring.
+acceptance: Property/fuzz probes align with contract; zero unexpected PASS mismatches on sealed criteria.
 commands: npx tsx --test src/forge-p05-worker-filesystem-grounding*.test.ts
 blast_radius: src/forge-p05-worker-filesystem-grounding.ts, src/tools.ts, src/orchestrator.ts
-rollback: P05-B02-A06 evidence slice değişikliklerini geri al.
+rollback: P05-B02-A07 property/fuzz slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Evidence slice blocked ise BLOCKED raporla.
+fallback: Property/fuzz slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B02-A05
+last_atom: P05-B02-A06
 last_commit: pending
-tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (33/33)
-evidence: runWorkerFilesystemGroundingFailureRecoverySlice; validateWorkerFilesystemGroundingFailureRecoveryProbeMatrix; failure_path + recovery_path + nogo_path; 7 failure/recovery probes, 0 FAIL gaps
-next: P05-B02-A06
+tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (38/38)
+evidence: runWorkerFilesystemGroundingEvidenceSlice; validateWorkerFilesystemGroundingEvidenceProbeMatrix; failure_path + recovery_path + nogo_path; 7 evidence probes, 0 FAIL gaps
+next: P05-B02-A07

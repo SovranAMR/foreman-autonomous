@@ -5,6 +5,8 @@
  * P05-B01 worker tool dispatch block gate artifacts.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,7 +23,7 @@ import { TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
-export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a05";
+export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P05_B01_SEALED_ATOM_COUNT = 10;
 
@@ -1864,4 +1866,459 @@ export function probeDeniedPathReadError(): boolean {
   } finally {
     rmSync(tempRoot, { recursive: true, force: true });
   }
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P05-B02-A06). */
+export interface WorkerFilesystemGroundingProbeEvidence {
+  probeId: string;
+  category: WorkerFilesystemGroundingCategory;
+  disposition: WorkerFilesystemGroundingProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for filesystem grounding runs (P05-B02-A06). */
+export interface WorkerFilesystemGroundingProbeRunTelemetry {
+  probeId: string;
+  category: WorkerFilesystemGroundingCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P05-B02-A06). */
+export interface WorkerFilesystemGroundingProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  sliceAtom?: string;
+  sliceCategories?: readonly WorkerFilesystemGroundingCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated filesystem grounding run record bundling evidence, telemetry and provenance. */
+export interface WorkerFilesystemGroundingRunRecord {
+  provenance: WorkerFilesystemGroundingProvenance;
+  evidence: WorkerFilesystemGroundingProbeEvidence[];
+  telemetry: WorkerFilesystemGroundingProbeRunTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<WorkerFilesystemGroundingCategory, number>;
+    byDisposition: Record<WorkerFilesystemGroundingProbeDisposition, number>;
+  };
+}
+
+export interface WorkerFilesystemGroundingRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface WorkerFilesystemGroundingRunValidationResult {
+  valid: boolean;
+  issues: WorkerFilesystemGroundingRunValidationIssue[];
+}
+
+export function buildWorkerFilesystemGroundingProbeEvidence(
+  probeId: string,
+  category: WorkerFilesystemGroundingCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: WorkerFilesystemGroundingProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): WorkerFilesystemGroundingProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildWorkerFilesystemGroundingProbeRunTelemetry(
+  probeId: string,
+  category: WorkerFilesystemGroundingCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): WorkerFilesystemGroundingProbeRunTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildWorkerFilesystemGroundingProvenance(
+  runId: string,
+  fixture: WorkerFilesystemGroundingBaseline,
+  contract: WorkerFilesystemGroundingContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly WorkerFilesystemGroundingCategory[];
+  },
+): WorkerFilesystemGroundingProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildWorkerFilesystemGroundingRunRecord(
+  provenance: WorkerFilesystemGroundingProvenance,
+  evidence: WorkerFilesystemGroundingProbeEvidence[],
+  telemetry: WorkerFilesystemGroundingProbeRunTelemetry[],
+): WorkerFilesystemGroundingRunRecord {
+  const byCategory = {} as Record<WorkerFilesystemGroundingCategory, number>;
+  const byDisposition: Record<WorkerFilesystemGroundingProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of WORKER_FILESYSTEM_GROUNDING_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateWorkerFilesystemGroundingRunRecordAgainstProbeIds(
+  record: WorkerFilesystemGroundingRunRecord,
+  expectedProbeIds: string[],
+  contract: WorkerFilesystemGroundingContract,
+): WorkerFilesystemGroundingRunValidationResult {
+  const issues: WorkerFilesystemGroundingRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateWorkerFilesystemGroundingRunRecord(
+  record: WorkerFilesystemGroundingRunRecord,
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+): WorkerFilesystemGroundingRunValidationResult {
+  return validateWorkerFilesystemGroundingRunRecordAgainstProbeIds(
+    record,
+    listWorkerFilesystemGroundingContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateWorkerFilesystemGroundingEvidenceRunRecord(
+  record: WorkerFilesystemGroundingRunRecord,
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+): WorkerFilesystemGroundingRunValidationResult {
+  const issues: WorkerFilesystemGroundingRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P05-B02-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P05-B02-A06`,
+    });
+  }
+
+  const expectedCategories = [...WORKER_FILESYSTEM_GROUNDING_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateWorkerFilesystemGroundingRunRecordAgainstProbeIds(
+    record,
+    listWorkerFilesystemGroundingFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+/**
+ * Validate evidence_path + telemetry_path + provenance_path probe matrix — A06 slice gate.
+ * Contract-wired failure_path, recovery_path and nogo_path probes with zero unexpected mismatches.
+ */
+export function validateWorkerFilesystemGroundingEvidenceProbeMatrix(
+  results: WorkerFilesystemGroundingProbeResult[],
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+): WorkerFilesystemGroundingProbeMatrixValidationResult {
+  return validateWorkerFilesystemGroundingFailureRecoveryProbeMatrix(results, contract);
+}
+
+export interface WorkerFilesystemGroundingEvidenceSliceResult {
+  atom: "P05-B02-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: WorkerFilesystemGroundingProbeResult[];
+  evidenceResults: WorkerFilesystemGroundingProbeResult[];
+  matrixValidation: WorkerFilesystemGroundingProbeMatrixValidationResult;
+  record: WorkerFilesystemGroundingRunRecord;
+  recordValidation: WorkerFilesystemGroundingRunValidationResult;
+}
+
+function resolveWorkerFilesystemGroundingGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runWorkerFilesystemGroundingProbeWithTiming(
+  entry: WorkerFilesystemGroundingFixtureEntry,
+  fixture: WorkerFilesystemGroundingBaseline,
+  contractProbe:
+    | { criterion: string; disposition: WorkerFilesystemGroundingProbeDisposition }
+    | undefined,
+): {
+  result: WorkerFilesystemGroundingProbeResult;
+  durationMs: number;
+  disposition: WorkerFilesystemGroundingProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildWorkerFilesystemGroundingRecordFromEntries(
+  entries: WorkerFilesystemGroundingFixtureEntry[],
+  fixture: WorkerFilesystemGroundingBaseline,
+  contract: WorkerFilesystemGroundingContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly WorkerFilesystemGroundingCategory[];
+  },
+): WorkerFilesystemGroundingRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: WorkerFilesystemGroundingProbeEvidence[] = [];
+  const telemetry: WorkerFilesystemGroundingProbeRunTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runWorkerFilesystemGroundingProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildWorkerFilesystemGroundingProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildWorkerFilesystemGroundingProbeRunTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildWorkerFilesystemGroundingProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveWorkerFilesystemGroundingGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildWorkerFilesystemGroundingRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all filesystem grounding probes and emit auditable evidence, telemetry and provenance (P05-B02-A06). */
+export function runWorkerFilesystemGroundingProbesWithRecord(
+  fixture: WorkerFilesystemGroundingBaseline = loadWorkerFilesystemGroundingBaseline(),
+): WorkerFilesystemGroundingRunRecord {
+  const contract = getActiveWorkerFilesystemGroundingContract();
+  return buildWorkerFilesystemGroundingRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P05-B02-A06). */
+export function runWorkerFilesystemGroundingFailureRecoverySliceWithRecord(
+  fixture: WorkerFilesystemGroundingBaseline = loadWorkerFilesystemGroundingBaseline(),
+): WorkerFilesystemGroundingRunRecord {
+  const contract = getActiveWorkerFilesystemGroundingContract();
+  const failureRecoveryIds = new Set(listWorkerFilesystemGroundingFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildWorkerFilesystemGroundingRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P05-B02-A06",
+    sliceCategories: WORKER_FILESYSTEM_GROUNDING_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runWorkerFilesystemGroundingEvidenceSlice(
+  fixture: WorkerFilesystemGroundingBaseline = loadWorkerFilesystemGroundingBaseline(),
+): WorkerFilesystemGroundingEvidenceSliceResult {
+  const contract = getActiveWorkerFilesystemGroundingContract();
+  const results = runWorkerFilesystemGroundingProbes(fixture);
+  const failureRecoveryProbes = WORKER_FILESYSTEM_GROUNDING_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listWorkerFilesystemGroundingContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateWorkerFilesystemGroundingEvidenceProbeMatrix(results, contract);
+  const record = runWorkerFilesystemGroundingFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateWorkerFilesystemGroundingEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P05-B02-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
+  };
 }
