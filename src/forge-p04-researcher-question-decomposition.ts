@@ -11,7 +11,12 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import researcherQuestionDecompositionBaseline from "./fixtures/forge-researcher-question-decomposition-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP03ToP04PhaseHandoff,
   P03_STRATEGIST_PHASE_BLOCK_COUNT,
@@ -23,7 +28,7 @@ import {
 } from "./forge-p03-strategist-provenance.js";
 import { parseResearchResponse } from "./parser.js";
 
-export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a09";
+export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a10";
 
 export const EXPECTED_P03_PHASE_GATE_SEALED_BLOCK_COUNT = P03_STRATEGIST_PHASE_BLOCK_COUNT;
 
@@ -3332,5 +3337,246 @@ export function validateForgeResearcherQuestionDecompositionGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P04-B01-A10) ─────────────────────────────────────
+
+export interface ResearcherQuestionDecompositionBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface ResearcherQuestionDecompositionBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    questionDecompositionCategories: readonly ResearcherQuestionDecompositionCategory[];
+    sourcePhaseGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    questionDecompositionRecordRequired: true;
+  };
+}
+
+export const FORGE_P04_B01_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P04-B01-A10",
+  blockId: "P04-B01",
+  title: "Research question decomposition",
+  requiredAtomIds: [
+    "P04-B01-A01",
+    "P04-B01-A02",
+    "P04-B01-A03",
+    "P04-B01-A04",
+    "P04-B01-A05",
+    "P04-B01-A06",
+    "P04-B01-A07",
+    "P04-B01-A08",
+    "P04-B01-A09",
+    "P04-B01-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P04-B01-A01",
+      description:
+        "Question decomposition baseline aligns with typed contract and P03 phase gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P04-B01-A02",
+      description: "Contract declares measurable probes for all question decomposition categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P04-B01-A03",
+      description: "Question decomposition probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P04-B01-A04",
+      description:
+        "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P04-B01-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P04-B01-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P04-B01-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P04-B01-A08",
+      description: "Regression gate passes on canonical question decomposition matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P04-B01-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P04-B01-A10",
+      description: "Block gate evidence sealed with valid B02 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P04_B01_TO_B02_HANDOFF_V1: ResearcherQuestionDecompositionBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P04-B01-A10",
+  sourceBlock: {
+    blockId: "P04-B01",
+    title: "Research question decomposition",
+    completedAtoms: FORGE_P04_B01_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P04-B02",
+    title: "Repo içi kanıt toplama",
+    entryAtom: "P04-B02-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1.version,
+    harnessVersion: FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION,
+    probeCount: summarizeResearcherQuestionDecompositionContractCoverage(
+      FORGE_RESEARCHER_QUESTION_DECOMPOSITION_CONTRACT_V1,
+    ).totalProbes,
+    questionDecompositionCategories: RESEARCHER_QUESTION_DECOMPOSITION_CATEGORIES,
+    sourcePhaseGateAtom: "P03-PHASE-GATE",
+  },
+  prerequisites: [
+    "Question decomposition contract v1 with measurable versioning, signal and boundary probes",
+    "Versioned question decomposition baseline aligned to contract probe matrix and sealed P03 phase gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P03 strategist phase gate referenced by sourcePhaseGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P04-B02-A01 formalizes in-repo evidence collection using sealed question decomposition artifacts",
+    requiresBlockGatePass: true,
+    questionDecompositionRecordRequired: true,
+  },
+};
+
+export function getForgeP04B01BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P04_B01_BLOCK_GATE_V1;
+}
+
+export function getForgeP04B01ToB02Handoff(): ResearcherQuestionDecompositionBlockHandoffContract {
+  return FORGE_P04_B01_TO_B02_HANDOFF_V1;
+}
+
+export function validateResearcherQuestionDecompositionBlockHandoffContract(
+  handoff: ResearcherQuestionDecompositionBlockHandoffContract,
+  evidence: Pick<
+    ResearcherQuestionDecompositionBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: ResearcherQuestionDecompositionContract = getActiveResearcherQuestionDecompositionContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeResearcherQuestionDecompositionContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.questionDecompositionCategories.length !==
+    RESEARCHER_QUESTION_DECOMPOSITION_CATEGORIES.length
+  ) {
+    issues.push("handoff questionDecompositionCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourcePhaseGateAtom !== "P03-PHASE-GATE") {
+    issues.push(`unexpected source phase gate atom: ${handoff.sealedArtifacts.sourcePhaseGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P04-B02-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildResearcherQuestionDecompositionBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P04_B01_BLOCK_GATE_V1.blockId,
+): ResearcherQuestionDecompositionBlockGateEvidence {
+  const handoff = getForgeP04B01ToB02Handoff();
+  const handoffValid = validateResearcherQuestionDecompositionBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P04-B01-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }

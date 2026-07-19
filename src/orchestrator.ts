@@ -1594,6 +1594,25 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P04-B01 block gate and emit verification event with B02 handoff (P04-B01-A10).
+   */
+  async verifyForgeResearcherQuestionDecompositionBlockGate(): Promise<
+    import("./forge-p04-researcher-question-decomposition.probe.js").ForgeResearcherQuestionDecompositionBlockGateResult
+  > {
+    const { runForgeResearcherQuestionDecompositionBlockGate } = await import(
+      "./forge-p04-researcher-question-decomposition.probe.js"
+    );
+    const result = runForgeResearcherQuestionDecompositionBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "researcher_question_decomposition_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

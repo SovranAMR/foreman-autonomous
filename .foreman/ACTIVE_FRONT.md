@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
-active_block: P04-B01
-active_atom: P04-B01-A09
+active_block: P04-B02
+active_atom: P04-B02-A01
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 309/1000
-phase_progress: 9/100
-block_progress: 9/10
+program_progress: 310/1000
+phase_progress: 10/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B01-A10 — Research question decomposition: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P04-B02-A01 — Repo içi kanıt toplama: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P04-B01-A09 PASS; seal block gate evidence and handoff to P04-B02.
-target: Block gate evidence, atom seals, regression+guard PASS, P04-B02 entry handoff contract.
-hypothesis: A09 guard stabilizes adversarial/perf/cost/safety; A10 can seal block without reopening guard.
-acceptance: block gate PASS; handoff valid; seals cover A01–A09; next block entry atom wired.
+objective: P04-B01-A10 PASS; measure in-repo evidence collection behavior and create failing baseline fixture.
+target: Baseline fixture, probe matrix, P04-B01 block gate handoff entry contract.
+hypothesis: Sealed question decomposition block gate provides stable entry for in-repo evidence baseline.
+acceptance: baseline fixture loads; probes wired; handoff from P04-B01 validated; failing gaps documented.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-*.ts
-rollback: P04-B01-A10 block gate slice değişikliklerini geri al.
+rollback: P04-B02-A01 baseline slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B01-A09
-last_commit: 71a212c
-tests: PASS — forge-p04-researcher*.test.ts (50/50); guard PASS; adversarial=3/3 rejected; perf/cost/safety within budgets
-evidence: validateForgeResearcherQuestionDecompositionGuard; runResearcherQuestionDecompositionAdversarialGuardChecks; verifyForgeResearcherQuestionDecompositionGuard; harnessVersion=1.0.0-a09
-next: P04-B01-A10
+last_atom: P04-B01-A10
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (57/57); block gate PASS; seals=10/10; handoff→P04-B02
+evidence: runResearcherQuestionDecompositionBlockGate; verifyForgeResearcherQuestionDecompositionBlockGate; FORGE_P04_B01_BLOCK_GATE_V1; FORGE_P04_B01_TO_B02_HANDOFF_V1; harnessVersion=1.0.0-a10
+next: P04-B02-A01
