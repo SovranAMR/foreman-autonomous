@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B07-A04
-last_commit: pending
+last_commit: df405b5
 tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (16/16); boundary 6/6 pass-aligned; zero unexpected mismatches
 evidence: runStrategistParallelWaveBoundarySlice; validateStrategistParallelWaveBoundaryProbeMatrix
 next: P03-B07-A05
