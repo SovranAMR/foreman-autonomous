@@ -5,6 +5,7 @@ import {
   runResearcherPhaseGateProbes,
   runResearcherPhaseGateProductionSlice,
   runResearcherPhaseGateBoundarySlice,
+  runResearcherPhaseGateFailureRecoverySlice,
 } from "./forge-p04-researcher-phase-gate.probe.js";
 import {
   getActiveResearcherPhaseGateContract,
@@ -13,9 +14,14 @@ import {
   validateP04PhaseHandoffContract,
   validateResearcherPhaseGateProbeMatrix,
   validateResearcherPhaseGateBoundaryProbeMatrix,
+  validateResearcherPhaseGateFailureRecoveryProbeMatrix,
+  listResearcherPhaseGateFailureRecoveryProbeIds,
+  RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
   recoverResearcherPhaseGateEvidence,
   assessResearcherPhaseGateInputBoundary,
   buildP04ResearcherPhaseGateEvidence,
+  validateResearcherPhaseGateBaseline,
+  validateForgeP04ResearcherPhaseGateEvidence,
   P04_RESEARCHER_PHASE_BLOCK_COUNT,
   P04_RESEARCHER_PHASE_BLOCK_INVENTORY,
   P05_WORKER_PHASE_ID,
@@ -191,5 +197,120 @@ describe("Forge Researcher Phase Gate Boundary Slice — P04-B10-A04", () => {
     const whitespaceRecovery = recoverResearcherPhaseGateEvidence("   \t\n  ");
     assert.equal(whitespaceRecovery.recovered, false);
     assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_manifest"]);
+  });
+});
+
+describe("Forge Researcher Phase Gate Failure/Recovery Slice — P04-B10-A05", () => {
+  it("defines seven failure/recovery/NO-GO probes across guard-path categories", () => {
+    const contract = getActiveResearcherPhaseGateContract();
+    const failure = listResearcherPhaseGateContractProbesByCategory("failure_path", contract);
+    const recovery = listResearcherPhaseGateContractProbesByCategory("recovery_path", contract);
+    const nogo = listResearcherPhaseGateContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 3);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches on guard-path probes", () => {
+    const contract = getActiveResearcherPhaseGateContract();
+    const slice = runResearcherPhaseGateFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B10-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 7);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherPhaseGateContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherPhaseGateFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with evidence validators and orchestrator wiring", () => {
+    const slice = runResearcherPhaseGateFailureRecoverySlice();
+    const probeIds = listResearcherPhaseGateFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 7);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "rpg.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const incompleteEvidence = slice.failureRecoveryResults.find(
+      r => r.id === "rpg.incomplete_block_inventory_rejected",
+    );
+    assert.ok(incompleteEvidence);
+    assert.equal(incompleteEvidence!.expected, "PASS");
+    assert.equal(incompleteEvidence!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "rpg.structured_phase_gate_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const failedSeals = slice.failureRecoveryResults.find(r => r.id === "rpg.phase_gate_evidence_nogo");
+    assert.ok(failedSeals);
+    assert.equal(failedSeals!.expected, "PASS");
+    assert.equal(failedSeals!.actual, "PASS");
+
+    const invalidFixture = { ...loadResearcherPhaseGateBaseline(), version: "9.9.9" };
+    assert.equal(validateResearcherPhaseGateBaseline(invalidFixture).valid, false);
+
+    const incompleteEvidenceObj = buildP04ResearcherPhaseGateEvidence(
+      P04_RESEARCHER_PHASE_BLOCK_INVENTORY.slice(0, 9).map(block => ({
+        blockId: block.blockId,
+        title: block.title,
+        runner: block.runner,
+        passed: true,
+        atomSealCount: 10,
+        detail: "mock seal",
+      })),
+      true,
+      true,
+    );
+    assert.equal(validateForgeP04ResearcherPhaseGateEvidence(incompleteEvidenceObj).valid, false);
+
+    const malformed = `block gates incomplete
+P04-B01: PASS atoms=10
+handoff regression: pass
+handoff: valid`;
+    const recovery = recoverResearcherPhaseGateEvidence(malformed, {
+      handoffRegressionPassed: true,
+      handoffValid: true,
+    });
+    assert.equal(recovery.recovered, true);
+    assert.ok(recovery.evidence);
+    assert.equal(validateForgeP04ResearcherPhaseGateEvidence(recovery.evidence).valid, true);
+
+    const handoff = getForgeP04ToP05PhaseHandoff();
+    assert.equal(handoff.targetPhase.entryAtom, "P05-B01-A01");
   });
 });

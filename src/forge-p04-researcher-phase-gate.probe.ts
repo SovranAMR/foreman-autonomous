@@ -33,6 +33,9 @@ import {
   listResearcherPhaseGateKnownGaps,
   validateResearcherPhaseGateProbeMatrix,
   validateResearcherPhaseGateBoundaryProbeMatrix,
+  validateResearcherPhaseGateFailureRecoveryProbeMatrix,
+  listResearcherPhaseGateFailureRecoveryProbeIds,
+  RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
   loadResearcherPhaseGateBaseline,
   FORGE_RESEARCHER_PHASE_GATE_VERSION,
   RESEARCHER_PHASE_GATE_MANIFEST_MAX_LENGTH,
@@ -44,6 +47,7 @@ import {
   EXPECTED_P04_RESEARCHER_PRIOR_BLOCK_GATE_COUNT,
   type ResearcherPhaseGateBaseline,
   type ResearcherPhaseGateBoundarySliceResult,
+  type ResearcherPhaseGateFailureRecoverySliceResult,
   type ResearcherPhaseGateCategory,
   type ResearcherPhaseGateProbeResult,
 } from "./forge-p04-researcher-phase-gate.js";
@@ -65,6 +69,9 @@ export {
   validateResearcherPhaseGateAgainstContract,
   validateResearcherPhaseGateProbeMatrix,
   validateResearcherPhaseGateBoundaryProbeMatrix,
+  validateResearcherPhaseGateFailureRecoveryProbeMatrix,
+  listResearcherPhaseGateFailureRecoveryProbeIds,
+  RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
   loadResearcherPhaseGateBaseline,
   FORGE_RESEARCHER_PHASE_GATE_VERSION,
   RESEARCHER_PHASE_GATE_CATEGORIES,
@@ -558,3 +565,37 @@ export function runResearcherPhaseGateBoundarySlice(
 }
 
 export const runForgeResearcherPhaseGateBoundarySlice = runResearcherPhaseGateBoundarySlice;
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes (invalid fixture rejection, incomplete evidence guard, recoverResearcherPhaseGateEvidence
+ * manifest repair, orchestrator phase gate runner and P04→P05 handoff NO-GO wiring) with
+ * zero unexpected mismatches.
+ */
+export function runResearcherPhaseGateFailureRecoverySlice(
+  fixture: ResearcherPhaseGateBaseline = loadResearcherPhaseGateBaseline(),
+): ResearcherPhaseGateFailureRecoverySliceResult {
+  const contract = getActiveResearcherPhaseGateContract();
+  const results = runResearcherPhaseGateProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherPhaseGateContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherPhaseGateFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B10-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
+    matrixValidation,
+  };
+}
+
+export const runForgeResearcherPhaseGateFailureRecoverySlice =
+  runResearcherPhaseGateFailureRecoverySlice;

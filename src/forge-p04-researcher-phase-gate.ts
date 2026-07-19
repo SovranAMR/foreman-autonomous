@@ -1460,4 +1460,54 @@ export interface ResearcherPhaseGateBoundarySliceResult {
   matrixValidation: ResearcherPhaseGateProbeMatrixValidationResult;
 }
 
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly ResearcherPhaseGateCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes must align; zero unexpected mismatches.
+ */
+export function validateResearcherPhaseGateFailureRecoveryProbeMatrix(
+  results: ResearcherPhaseGateProbeResult[],
+  contract: ResearcherPhaseGateContract = getActiveResearcherPhaseGateContract(),
+): ResearcherPhaseGateProbeMatrixValidationResult {
+  const failureRecoveryProbes = RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherPhaseGateContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: ResearcherPhaseGateContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateResearcherPhaseGateProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listResearcherPhaseGateFailureRecoveryProbeIds(
+  contract: ResearcherPhaseGateContract = getActiveResearcherPhaseGateContract(),
+): string[] {
+  return RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listResearcherPhaseGateContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface ResearcherPhaseGateFailureRecoverySliceResult {
+  atom: "P04-B10-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherPhaseGateProbeResult[];
+  failureRecoveryResults: ResearcherPhaseGateProbeResult[];
+  matrixValidation: ResearcherPhaseGateProbeMatrixValidationResult;
+}
+
 export { FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION };
