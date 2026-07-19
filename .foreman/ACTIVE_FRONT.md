@@ -44,7 +44,7 @@ fallback: A09 guard invalid ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B09-A09
-last_commit: PENDING
+last_commit: 7d1edd6
 tests: PASS — forge-orchestrator-seam*.test.ts (37/37); guard adversarial=3/3; perf/cost/safety within controls; verifyForgeOrchestratorSeamGuard wired
 evidence: validateForgeOrchestratorSeamGuard + verifyForgeOrchestratorSeamGuard in orchestrator.ts; forge-orchestrator-seam.guard.test.ts
 next: P01-B09-A10
