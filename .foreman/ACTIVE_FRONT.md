@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
-active_block: P04-B08
-active_atom: P04-B09-A01
+active_block: P04-B09
+active_atom: P04-B09-A02
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 380/1000
-phase_progress: 79/100
-block_progress: 0/10
+program_progress: 381/1000
+phase_progress: 80/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B09-A01 — Research-to-worker handoff: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P04-B09-A02 — Research-to-worker handoff: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P04-B08-A10 PASS; baseline research-to-worker handoff from sealed spike falsification block gate.
-target: Measure current research-to-worker handoff behavior and create failing baseline fixture.
-hypothesis: Sealed P04-B08 block gate provides probe matrix and handoff contract for B09 baseline.
-acceptance: Failing baseline fixture loaded; source block gate refs validated; probe gaps documented.
+objective: P04-B09-A01 PASS; typed contract for research-to-worker handoff from sealed baseline.
+target: Define measurable acceptance criteria with typed contract for research-to-worker handoff.
+hypothesis: A01 baseline probe matrix and documented FAIL gaps provide contract wiring for B09-A02.
+acceptance: Typed contract v1 loaded; probe criteria wired; fixture↔contract alignment gate passes.
 commands: npx tsx --test src/forge-p04-researcher-research-to-worker-handoff*.test.ts
 blast_radius: src/forge-p04-researcher-research-to-worker-handoff*.ts
-rollback: P04-B09-A01 baseline değişikliklerini geri al.
+rollback: P04-B09-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Baseline blocked ise BLOCKED raporla.
+fallback: Contract blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B08-A10
-last_commit: 2a951cf
-tests: PASS — forge-p04-researcher-spike-falsification*.test.ts (65/65); block gate seals=10/10; handoff→P04-B09; orchestrator verifyForgeResearcherSpikeFalsificationBlockGate
-evidence: runResearcherSpikeFalsificationBlockGate + FORGE_P04_B08_TO_B09_HANDOFF_V1
-next: P04-B09-A01
+last_atom: P04-B09-A01
+last_commit: pending
+tests: PASS — forge-p04-researcher-research-to-worker-handoff-baseline.test.ts (10/10); probes=23; documented FAIL gaps=2 (rtwh.parser_research_handoff_bundle, rtwh.exported_handoff_validator); B08 handoff refs validated
+evidence: loadResearcherResearchToWorkerHandoffBaseline + runResearcherResearchToWorkerHandoffProbes + FORGE_P04_B08_TO_B09_HANDOFF_V1
+next: P04-B09-A02

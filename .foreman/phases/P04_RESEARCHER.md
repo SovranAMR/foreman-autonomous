@@ -119,7 +119,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P04-B09 — Research-to-worker handoff
 
-- [ ] P04-B09-A01 — Research-to-worker handoff: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P04-B09-A01 — Research-to-worker handoff: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P04-B09-A02 — Research-to-worker handoff: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B09-A03 — Research-to-worker handoff: en küçük üretim dikey dilimini uygula
 - [ ] P04-B09-A04 — Research-to-worker handoff: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B08-A10
-last_commit: 2a951cf
-tests: PASS — forge-p04-researcher-spike-falsification*.test.ts (65/65); block gate seals=10/10; handoff→P04-B09; orchestrator verifyForgeResearcherSpikeFalsificationBlockGate
-evidence: runResearcherSpikeFalsificationBlockGate + FORGE_P04_B08_TO_B09_HANDOFF_V1
-next: P04-B09-A01
+last_atom: P04-B09-A01
+last_commit: pending
+tests: PASS — forge-p04-researcher-research-to-worker-handoff-baseline.test.ts (10/10); probes=23; documented FAIL gaps=2; B08 sourceBlockGate refs validated (P04-B08-A10, spikeFalsificationProbeCount=23)
+evidence: loadResearcherResearchToWorkerHandoffBaseline + runResearcherResearchToWorkerHandoffProbes + listResearcherResearchToWorkerHandoffKnownGaps
+next: P04-B09-A02

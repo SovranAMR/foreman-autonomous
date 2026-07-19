@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P04-B09-A01",
+  "contractAtom": "P04-B09-A06",
+  "purpose": "Researcher research-to-worker handoff baseline measured from sealed P04-B08 spike falsification block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P04-B08-A10",
+    "contractVersion": "1.0.0",
+    "spikeFalsificationProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "rtwh.version_tagged",
+      "category": "evidence_versioning",
+      "description": "Research-to-worker handoff baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.atom_tagged",
+      "category": "evidence_versioning",
+      "description": "Research-to-worker handoff baseline declares P04-B09-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.harness_version_exported",
+      "category": "evidence_versioning",
+      "description": "FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION exported for handoff harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.researcher_findings_flow_to_worker",
+      "category": "handoff_signal",
+      "description": "RESEARCHER_SYSTEM prompt declares findings available to Worker for execution context",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.spike_falsification_informs_handoff",
+      "category": "handoff_signal",
+      "description": "validateSpikeFalsificationExperiment exports spike gate used before worker handoff",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.b08_handoff_research_block",
+      "category": "handoff_signal",
+      "description": "FORGE_P04_B08_TO_B09_HANDOFF_V1 targets research-to-worker handoff block entry",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.orchestrator_injects_findings",
+      "category": "worker_context_signal",
+      "description": "Orchestrator injects RESEARCH FINDINGS into worker atomContext before execution",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.orchestrator_pre_worker_validators",
+      "category": "worker_context_signal",
+      "description": "Orchestrator runs validateResearchRiskTradeoff and validateSpikeFalsificationExperiment after research",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.worker_receives_research_context",
+      "category": "worker_context_signal",
+      "description": "WORKER_SYSTEM prompt references external knowledge from Researcher layer",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.b08_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P04_B08_TO_B09_HANDOFF_V1 targets P04-B09-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.b08_sealed_spike_probes",
+      "category": "baseline_link",
+      "description": "P04-B08→B09 handoff sealed probeCount matches active spike falsification contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P04-B08 spike falsification block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.probe_runner_exported",
+      "category": "boundary",
+      "description": "runResearcherResearchToWorkerHandoffProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL research-to-worker handoff gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.empty_handoff_input_boundary",
+      "category": "boundary",
+      "description": "assessResearchToWorkerHandoffInputBoundary rejects empty handoff parse input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.whitespace_handoff_input_boundary",
+      "category": "boundary",
+      "description": "assessResearchToWorkerHandoffInputBoundary rejects whitespace-only handoff parse input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.long_handoff_input_truncation_boundary",
+      "category": "boundary",
+      "description": "assessResearchToWorkerHandoffInputBoundary truncates handoff input exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateResearcherResearchToWorkerHandoffBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.malformed_handoff_input_guard",
+      "category": "failure_path",
+      "description": "assessResearchToWorkerHandoffInputBoundary rejects null-byte handoff input safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.recovery_handoff_bundle_repair",
+      "category": "recovery_path",
+      "description": "recoverResearchToWorkerHandoff restructures malformed research parse into actionable worker bundle",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.recovery_missing_findings_fallback",
+      "category": "recovery_path",
+      "description": "Handoff recovery infers findings summary when explicit FINDINGS marker is missing",
+      "expected": "PASS"
+    },
+    {
+      "id": "rtwh.parser_research_handoff_bundle",
+      "category": "nogo_path",
+      "description": "parseResearchToWorkerHandoff exports research→worker context bundle from researcher output",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rtwh.exported_handoff_validator",
+      "category": "nogo_path",
+      "description": "validateResearchToWorkerHandoff exported for orchestrator pre-worker handoff checks",
+      "expected": "FAIL"
+    }
+  ]
+}
