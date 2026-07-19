@@ -13,7 +13,12 @@ import { fileURLToPath } from "node:url";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import workerToolDispatchBaseline from "./fixtures/forge-worker-tool-dispatch-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP04B10ToP05Handoff,
   getActiveResearcherPhaseGateContract,
@@ -27,7 +32,7 @@ import {
   type ToolCall,
 } from "./tools.js";
 
-export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a09";
+export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a10";
 
 export const WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH = 16_384;
 
@@ -3612,6 +3617,285 @@ export function runWorkerToolDispatchGuardSlice(): WorkerToolDispatchGuardSliceR
     guard,
     detail: detailParts.join(" | "),
   };
+}
+
+// ─── Block gate and handoff (P05-B01-A10) ────────────────────────────────────
+
+export interface WorkerToolDispatchBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface WorkerToolDispatchBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    workerToolDispatchCategories: readonly WorkerToolDispatchCategory[];
+    sourcePhaseGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    workerToolDispatchRecordRequired: true;
+  };
+}
+
+export const FORGE_P05_B01_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P05-B01-A10",
+  blockId: "P05-B01",
+  title: "Typed tool interface ve dispatch",
+  requiredAtomIds: [
+    "P05-B01-A01",
+    "P05-B01-A02",
+    "P05-B01-A03",
+    "P05-B01-A04",
+    "P05-B01-A05",
+    "P05-B01-A06",
+    "P05-B01-A07",
+    "P05-B01-A08",
+    "P05-B01-A09",
+    "P05-B01-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P05-B01-A01",
+      description:
+        "Worker tool dispatch baseline aligns with typed contract and P04-B10 phase gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P05-B01-A02",
+      description: "Contract declares measurable probes for all worker tool dispatch categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P05-B01-A03",
+      description: "Worker tool dispatch probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P05-B01-A04",
+      description:
+        "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P05-B01-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P05-B01-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P05-B01-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P05-B01-A08",
+      description: "Regression gate passes on canonical worker tool dispatch matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P05-B01-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P05-B01-A10",
+      description: "Block gate evidence sealed with valid B02 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P05_B01_TO_B02_HANDOFF_V1: WorkerToolDispatchBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P05-B01-A10",
+  sourceBlock: {
+    blockId: "P05-B01",
+    title: "Typed tool interface ve dispatch",
+    completedAtoms: FORGE_P05_B01_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P05-B02",
+    title: "Filesystem okuma ve grounding",
+    entryAtom: "P05-B02-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.version,
+    harnessVersion: FORGE_WORKER_TOOL_DISPATCH_VERSION,
+    probeCount: summarizeWorkerToolDispatchContractCoverage(FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1)
+      .totalProbes,
+    workerToolDispatchCategories: WORKER_TOOL_DISPATCH_CATEGORIES,
+    sourcePhaseGateAtom: "P04-B10-A10",
+  },
+  prerequisites: [
+    "Worker tool dispatch contract v1 with measurable versioning, routing and boundary probes",
+    "Versioned worker tool dispatch baseline aligned to contract probe matrix and sealed P04-B10 phase gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P04 researcher phase gate referenced by sourcePhaseGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P05-B02-A01 formalizes filesystem read and grounding using sealed worker tool dispatch artifacts",
+    requiresBlockGatePass: true,
+    workerToolDispatchRecordRequired: true,
+  },
+};
+
+export function getForgeP05B01BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P05_B01_BLOCK_GATE_V1;
+}
+
+export function getForgeP05B01ToB02Handoff(): WorkerToolDispatchBlockHandoffContract {
+  return FORGE_P05_B01_TO_B02_HANDOFF_V1;
+}
+
+export function validateWorkerToolDispatchBlockHandoffContract(
+  handoff: WorkerToolDispatchBlockHandoffContract,
+  evidence: Pick<
+    WorkerToolDispatchBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: WorkerToolDispatchContract = getActiveWorkerToolDispatchContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeWorkerToolDispatchContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_WORKER_TOOL_DISPATCH_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_WORKER_TOOL_DISPATCH_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.workerToolDispatchCategories.length !==
+    WORKER_TOOL_DISPATCH_CATEGORIES.length
+  ) {
+    issues.push("handoff workerToolDispatchCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourcePhaseGateAtom !== "P04-B10-A10") {
+    issues.push(`unexpected source phase gate atom: ${handoff.sealedArtifacts.sourcePhaseGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P05-B02-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildWorkerToolDispatchBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P05_B01_BLOCK_GATE_V1.blockId,
+): WorkerToolDispatchBlockGateEvidence {
+  const handoff = getForgeP05B01ToB02Handoff();
+  const handoffValid = validateWorkerToolDispatchBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P05-B01-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}
+
+/**
+ * Validate block gate atom seals and handoff contract — rejects incomplete or failed seals.
+ */
+export function validateForgeWorkerToolDispatchBlockGate(
+  atomSeals: ForgeBlockAtomSeal[],
+  evidence: Pick<
+    WorkerToolDispatchBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  blockGate: ForgeBlockGateDefinition = getForgeP05B01BlockGate(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+
+  if (atomSeals.length !== blockGate.requiredAtomIds.length) {
+    issues.push(
+      `atomSeals count=${atomSeals.length} expected=${blockGate.requiredAtomIds.length}`,
+    );
+  }
+
+  for (const atomId of blockGate.requiredAtomIds) {
+    const seal = atomSeals.find(item => item.atomId === atomId);
+    if (!seal) {
+      issues.push(`missing atom seal: ${atomId}`);
+    } else if (!seal.passed) {
+      issues.push(`atom seal failed: ${atomId} — ${seal.detail}`);
+    }
+  }
+
+  const handoffValidation = validateWorkerToolDispatchBlockHandoffContract(
+    getForgeP05B01ToB02Handoff(),
+    evidence,
+  );
+  if (!handoffValidation.valid) {
+    issues.push(...handoffValidation.issues);
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 /** Smoke probe: unknown tool dispatch returns deterministic error (P05-B01-A01 boundary). */

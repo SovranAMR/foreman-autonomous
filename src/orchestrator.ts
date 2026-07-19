@@ -2039,6 +2039,67 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge worker tool dispatch regression gate and emit verification event (P05-B01-A08).
+   */
+  async verifyForgeWorkerToolDispatchRegression(
+    priorRecord?: import("./forge-p05-worker-tool-dispatch.js").WorkerToolDispatchRunRecord,
+  ): Promise<
+    import("./forge-p05-worker-tool-dispatch.probe.js").ForgeWorkerToolDispatchRegressionGateResult
+  > {
+    const { runForgeWorkerToolDispatchRegressionGate } = await import(
+      "./forge-p05-worker-tool-dispatch.probe.js"
+    );
+    const result = runForgeWorkerToolDispatchRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "worker_tool_dispatch_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
+   * Run Forge worker tool dispatch guard gate (adversarial/perf/cost/safety) and emit verification event (P05-B01-A09).
+   */
+  async verifyForgeWorkerToolDispatchGuard(): Promise<
+    import("./forge-p05-worker-tool-dispatch.probe.js").ForgeWorkerToolDispatchGuardGateResult
+  > {
+    const { runForgeWorkerToolDispatchGuardGate } = await import(
+      "./forge-p05-worker-tool-dispatch.probe.js"
+    );
+    const result = runForgeWorkerToolDispatchGuardGate();
+    this.emit({
+      type: "verification",
+      phase: "worker_tool_dispatch_guard",
+      passed: result.passed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
+   * Seal P05-B01 block gate and emit verification event with B02 handoff (P05-B01-A10).
+   */
+  async verifyForgeWorkerToolDispatchBlockGate(): Promise<
+    import("./forge-p05-worker-tool-dispatch.probe.js").ForgeWorkerToolDispatchBlockGateResult
+  > {
+    const { runForgeWorkerToolDispatchBlockGate } = await import(
+      "./forge-p05-worker-tool-dispatch.probe.js"
+    );
+    const result = runForgeWorkerToolDispatchBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "worker_tool_dispatch_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run P04 researcher phase gate production slice and emit verification event (P04-B10-A03).
    */
   async verifyForgeP04ResearcherPhaseGate(): Promise<
