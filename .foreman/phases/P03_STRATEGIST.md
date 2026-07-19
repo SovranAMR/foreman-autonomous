@@ -47,7 +47,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B03-A04 — Atomization ve atom boyutu: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B03-A05 — Atomization ve atom boyutu: failure, recovery ve NO-GO yollarını uygula
 - [x] P03-B03-A06 — Atomization ve atom boyutu: evidence, telemetry ve provenance kaydını ekle
-- [ ] P03-B03-A07 — Atomization ve atom boyutu: unit, property ve fuzz doğrulamasını ekle
+- [x] P03-B03-A07 — Atomization ve atom boyutu: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B03-A08 — Atomization ve atom boyutu: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B03-A09 — Atomization ve atom boyutu: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B03-A10 — Atomization ve atom boyutu: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B03-A06
-last_commit: 8fc19b5
-tests: PASS — forge-p03-strategist-atomization*.test.ts (24/24); evidence slice 6/6; full run record 24/24
-evidence: runStrategistAtomizationEvidenceSlice; runStrategistAtomizationFailureRecoverySliceWithRecord; validateStrategistAtomizationFailureRecoveryRunRecord; satom.structured_atom_recovery; satom.malformed_atomize_guard
-next: P03-B03-A07
+last_atom: P03-B03-A07
+last_commit: pending
+tests: PASS — forge-p03-strategist-atomization*.test.ts (30/30); property checks 8/8; contract fuzz 72/72 rejected; run-record fuzz 0 accepted
+evidence: runStrategistAtomizationPropertyFuzzSlice; runStrategistAtomizationPropertyChecks; runStrategistAtomizationFuzzValidation; runStrategistAtomizationRunRecordFuzzValidation
+next: P03-B03-A08

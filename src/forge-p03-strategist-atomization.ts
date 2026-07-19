@@ -20,7 +20,7 @@ import {
 } from "./forge-p03-strategist-block-contract.js";
 import { parseAtomizeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a06";
+export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a07";
 
 /** Maximum normalized atomize length before truncation (P03-B03-A01 boundary debt). */
 export const STRATEGIST_ATOMIZE_MAX_LENGTH = 32000;
@@ -2248,4 +2248,527 @@ export function runStrategistAtomizationProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+// ─── Property and fuzz validation (P03-B03-A07) ─────────────────────────────
+
+export interface StrategistAtomizationPropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface StrategistAtomizationPropertyResult {
+  passed: number;
+  failed: StrategistAtomizationPropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type StrategistAtomizationPropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: StrategistAtomizationContract) => string | null;
+};
+
+const STRATEGIST_ATOMIZATION_STRUCTURAL_PROPERTIES: readonly StrategistAtomizationPropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All eight strategist atomization categories are declared",
+    check: contract => {
+      for (const category of STRATEGIST_ATOMIZATION_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listStrategistAtomizationContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of STRATEGIST_ATOMIZATION_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description:
+      "summarizeStrategistAtomizationCoverage totals match listStrategistAtomizationContractProbeIds",
+    check: contract => {
+      const summary = summarizeStrategistAtomizationCoverage(contract);
+      const ids = listStrategistAtomizationContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with satom. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("satom.")) {
+          return `${probe.id} missing satom. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const fixture = loadStrategistAtomizationBaseline();
+      const probeIds = listStrategistAtomizationContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildStrategistAtomizationProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildStrategistAtomizationProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildStrategistAtomizationRunRecord(
+        buildStrategistAtomizationProvenance(
+          "property-check",
+          fixture,
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "failure_recovery_run_record_gate",
+    description:
+      "Synthetic failure/recovery slice record passes validateStrategistAtomizationFailureRecoveryRunRecord",
+    check: contract => {
+      const fixture = loadStrategistAtomizationBaseline();
+      const probeIds = listStrategistAtomizationFailureRecoveryProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildStrategistAtomizationProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildStrategistAtomizationProbeTelemetry(id, probe.category, index, index * 0.5);
+      });
+      const record = buildStrategistAtomizationRunRecord(
+        buildStrategistAtomizationProvenance(
+          "property-check-failure-recovery",
+          fixture,
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+          {
+            sliceAtom: "P03-B03-A06",
+            sliceCategories: STRATEGIST_ATOMIZATION_FAILURE_RECOVERY_CATEGORIES,
+          },
+        ),
+        evidence,
+        telemetry,
+      );
+      const validation = validateStrategistAtomizationFailureRecoveryRunRecord(record, contract);
+      if (!validation.valid) {
+        return validation.issues.map(i => i.detail).join("; ");
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runStrategistAtomizationPropertyChecks(
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationPropertyResult {
+  const failed: StrategistAtomizationPropertyViolation[] = [];
+  for (const property of STRATEGIST_ATOMIZATION_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = STRATEGIST_ATOMIZATION_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type StrategistAtomizationFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface StrategistAtomizationFuzzMutationCase {
+  seed: number;
+  kind: StrategistAtomizationFuzzMutationKind;
+  probeId?: string;
+  category?: StrategistAtomizationCategory;
+}
+
+export interface StrategistAtomizationFuzzValidationCaseResult {
+  mutation: StrategistAtomizationFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface StrategistAtomizationFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: StrategistAtomizationFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createStrategistAtomizationFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneStrategistAtomizationBaseline(
+  fixture: StrategistAtomizationBaseline,
+): StrategistAtomizationBaseline {
+  return {
+    ...fixture,
+    sourceBlockGate: { ...fixture.sourceBlockGate },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickStrategistAtomizationFuzzTarget(
+  fixture: StrategistAtomizationBaseline,
+  rng: () => number,
+): { category: StrategistAtomizationCategory; index: number; entry: StrategistAtomizationFixtureEntry } {
+  const category =
+    STRATEGIST_ATOMIZATION_CATEGORIES[Math.floor(rng() * STRATEGIST_ATOMIZATION_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyStrategistAtomizationFuzzMutation(
+  fixture: StrategistAtomizationBaseline,
+  mutation: StrategistAtomizationFuzzMutationCase,
+): StrategistAtomizationBaseline {
+  const mutated = cloneStrategistAtomizationBaseline(fixture);
+  const targetCategory = mutation.category ?? STRATEGIST_ATOMIZATION_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `satom.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = STRATEGIST_ATOMIZATION_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateStrategistAtomizationFuzzMutationCases(
+  fixture: StrategistAtomizationBaseline,
+  seed: number,
+  iterations: number,
+): StrategistAtomizationFuzzMutationCase[] {
+  const rng = createStrategistAtomizationFuzzRng(seed);
+  const kinds: StrategistAtomizationFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: StrategistAtomizationFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickStrategistAtomizationFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P03-B03-A07). */
+export function runStrategistAtomizationFuzzValidation(
+  fixture: StrategistAtomizationBaseline,
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+  seed = 42,
+  iterations = 24,
+): StrategistAtomizationFuzzValidationResult {
+  const cases = generateStrategistAtomizationFuzzMutationCases(fixture, seed, iterations);
+  const results: StrategistAtomizationFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyStrategistAtomizationFuzzMutation(fixture, mutation);
+    const validation = validateStrategistAtomizationAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type StrategistAtomizationRunRecordFuzzKind =
+  | "drop_evidence"
+  | "drop_telemetry"
+  | "wrong_total"
+  | "wrong_slice_atom"
+  | "wrong_slice_categories";
+
+export interface StrategistAtomizationRunRecordFuzzCase {
+  kind: StrategistAtomizationRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyStrategistAtomizationRunRecordFuzzMutation(
+  record: StrategistAtomizationRunRecord,
+  mutation: StrategistAtomizationRunRecordFuzzCase,
+): StrategistAtomizationRunRecord {
+  const cloned: StrategistAtomizationRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+    case "wrong_slice_atom":
+      cloned.provenance = { ...cloned.provenance, sliceAtom: "P03-B03-A99" };
+      break;
+    case "wrong_slice_categories":
+      cloned.provenance = {
+        ...cloned.provenance,
+        sliceCategories: ["atom_versioning"],
+      };
+      break;
+  }
+
+  cloned.summary = buildStrategistAtomizationRunRecord(
+    cloned.provenance,
+    cloned.evidence,
+    cloned.telemetry,
+  ).summary;
+  return cloned;
+}
+
+function resolveStrategistAtomizationRunRecordValidator(
+  record: StrategistAtomizationRunRecord,
+): (
+  record: StrategistAtomizationRunRecord,
+  contract: StrategistAtomizationContract,
+) => StrategistAtomizationRunValidationResult {
+  return record.provenance.sliceAtom === "P03-B03-A06"
+    ? validateStrategistAtomizationFailureRecoveryRunRecord
+    : validateStrategistAtomizationRunRecord;
+}
+
+/** Fuzz harness: tampered run records must fail validation deterministically (P03-B03-A07). */
+export function runStrategistAtomizationRunRecordFuzzValidation(
+  record: StrategistAtomizationRunRecord,
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const validate = resolveStrategistAtomizationRunRecordValidator(record);
+  const baseline = validate(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: StrategistAtomizationRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  if (record.provenance.sliceAtom === "P03-B03-A06") {
+    mutations.push({ kind: "wrong_slice_atom" }, { kind: "wrong_slice_categories" });
+  }
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyStrategistAtomizationRunRecordFuzzMutation(record, mutation);
+    const validation = validate(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}
+
+export interface StrategistAtomizationPropertyFuzzSliceResult {
+  atom: "P03-B03-A07";
+  propertyChecksPassed: boolean;
+  contractFuzzRejected: boolean;
+  runRecordFuzzRejected: boolean;
+  propertyResult: StrategistAtomizationPropertyResult;
+  contractFuzz: StrategistAtomizationFuzzValidationResult;
+  runRecordFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+/**
+ * A07 property/fuzz slice: structural property checks and contract fuzz gates
+ * with zero accepted mutations.
+ */
+export function runStrategistAtomizationPropertyFuzzSlice(
+  fixture: StrategistAtomizationBaseline = loadStrategistAtomizationBaseline(),
+): StrategistAtomizationPropertyFuzzSliceResult {
+  const contract = getActiveStrategistAtomizationContract();
+  const propertyResult = runStrategistAtomizationPropertyChecks(contract);
+  const contractFuzz = runStrategistAtomizationFuzzValidation(fixture, contract);
+  const record = runStrategistAtomizationFailureRecoverySliceWithRecord(fixture);
+  const runRecordFuzz = runStrategistAtomizationRunRecordFuzzValidation(record, contract);
+
+  return {
+    atom: "P03-B03-A07",
+    propertyChecksPassed: propertyResult.allPassed,
+    contractFuzzRejected: contractFuzz.allMutationsRejected,
+    runRecordFuzzRejected: runRecordFuzz.mutationsAccepted === 0,
+    propertyResult,
+    contractFuzz,
+    runRecordFuzz,
+  };
 }
