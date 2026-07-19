@@ -15,7 +15,7 @@ import {
   FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION,
 } from "./forge-p04-researcher-research-to-worker-handoff.js";
 
-export const FORGE_RESEARCHER_PHASE_GATE_VERSION = "1.0.0-a02";
+export const FORGE_RESEARCHER_PHASE_GATE_VERSION = "1.0.0";
 
 export const P04_RESEARCHER_PHASE_ID = P04_FROM_P03;
 export const P05_WORKER_PHASE_ID = "P05" as const;
@@ -219,6 +219,129 @@ export interface P04ResearcherPhaseGateEvidence {
   handoffRegressionPassed: boolean;
   handoffValid: boolean;
   gitCommit?: string;
+}
+
+export interface P04PhaseHandoffContract {
+  version: string;
+  atom: "P04-PHASE-GATE";
+  sourcePhase: {
+    phaseId: typeof P04_RESEARCHER_PHASE_ID;
+    title: string;
+    completedBlocks: readonly string[];
+    completedAtoms: number;
+  };
+  targetPhase: {
+    phaseId: typeof P05_WORKER_PHASE_ID;
+    title: string;
+    entryBlock: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    researchToWorkerHandoffVersion: string;
+    researchToWorkerHandoffProbeCount: number;
+    sealedBlockInventoryCount: number;
+    blockGateMethod: string;
+    phaseGateMethod: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresPhaseGatePass: true;
+    requiresResearchToWorkerHandoffBlockGate: true;
+  };
+}
+
+export const FORGE_P04_TO_P05_PHASE_HANDOFF_V1: P04PhaseHandoffContract = {
+  version: "1.0.0",
+  atom: "P04-PHASE-GATE",
+  sourcePhase: {
+    phaseId: P04_RESEARCHER_PHASE_ID,
+    title: "Araştırmacı — Kanıt, Kaynak ve Deney",
+    completedBlocks: P04_RESEARCHER_PHASE_BLOCK_INVENTORY.map(block => block.blockId),
+    completedAtoms: P04_RESEARCHER_PHASE_ATOM_COUNT,
+  },
+  targetPhase: {
+    phaseId: P05_WORKER_PHASE_ID,
+    title: "İşçi — Deterministik Tool ve Execution Kernel",
+    entryBlock: "P05-B01",
+    entryAtom: "P05-B01-A01",
+  },
+  sealedArtifacts: {
+    researchToWorkerHandoffVersion: getActiveResearcherResearchToWorkerHandoffContract().version,
+    researchToWorkerHandoffProbeCount: summarizeResearcherResearchToWorkerHandoffContractCoverage(
+      getActiveResearcherResearchToWorkerHandoffContract(),
+    ).totalProbes,
+    sealedBlockInventoryCount: P04_RESEARCHER_PHASE_BLOCK_COUNT,
+    blockGateMethod: "verifyForgeResearcherResearchToWorkerHandoffBlockGate",
+    phaseGateMethod: "verifyForgeP04ResearcherPhaseGate",
+  },
+  prerequisites: [
+    "Ten sealed P04 researcher block gates with atom-level evidence",
+    "Research-to-worker handoff block gate PASS with P04-B10 handoff",
+    "Research-to-worker handoff regression and guard gates PASS",
+    "Orchestrator exposes verifyForgeP04ResearcherPhaseGate for phase acceptance",
+  ],
+  entryCriteria: {
+    description:
+      "P05-B01-A01 formalizes worker tool dispatch baseline using sealed P04 researcher phase gate artifacts",
+    requiresPhaseGatePass: true,
+    requiresResearchToWorkerHandoffBlockGate: true,
+  },
+};
+
+export function getForgeP04ToP05PhaseHandoff(): P04PhaseHandoffContract {
+  return FORGE_P04_TO_P05_PHASE_HANDOFF_V1;
+}
+
+export function validateP04PhaseHandoffContract(
+  handoff: P04PhaseHandoffContract,
+  evidence: Pick<
+    P04ResearcherPhaseGateEvidence,
+    "blockGatesPassed" | "atomSealsPassed" | "handoffRegressionPassed" | "handoffValid"
+  >,
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeResearcherResearchToWorkerHandoffContractCoverage(
+    getActiveResearcherResearchToWorkerHandoffContract(),
+  );
+
+  if (handoff.sourcePhase.completedBlocks.length !== P04_RESEARCHER_PHASE_BLOCK_COUNT) {
+    issues.push(
+      `handoff completedBlocks=${handoff.sourcePhase.completedBlocks.length} expected=${P04_RESEARCHER_PHASE_BLOCK_COUNT}`,
+    );
+  }
+  if (handoff.sourcePhase.completedAtoms !== P04_RESEARCHER_PHASE_ATOM_COUNT) {
+    issues.push(
+      `handoff completedAtoms=${handoff.sourcePhase.completedAtoms} expected=${P04_RESEARCHER_PHASE_ATOM_COUNT}`,
+    );
+  }
+  if (handoff.targetPhase.entryAtom !== "P05-B01-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetPhase.entryAtom}`);
+  }
+  if (handoff.sealedArtifacts.researchToWorkerHandoffProbeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.researchToWorkerHandoffProbeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.sealedBlockInventoryCount !== P04_RESEARCHER_PHASE_BLOCK_COUNT) {
+    issues.push(
+      `handoff sealedBlockInventoryCount=${handoff.sealedArtifacts.sealedBlockInventoryCount} expected=${P04_RESEARCHER_PHASE_BLOCK_COUNT}`,
+    );
+  }
+  if (evidence.blockGatesPassed !== P04_RESEARCHER_PHASE_BLOCK_COUNT) {
+    issues.push(`blockGatesPassed=${evidence.blockGatesPassed} expected=${P04_RESEARCHER_PHASE_BLOCK_COUNT}`);
+  }
+  if (evidence.atomSealsPassed !== P04_RESEARCHER_PHASE_ATOM_COUNT) {
+    issues.push(`atomSealsPassed=${evidence.atomSealsPassed} expected=${P04_RESEARCHER_PHASE_ATOM_COUNT}`);
+  }
+  if (!evidence.handoffRegressionPassed) {
+    issues.push("handoff regression gate did not pass");
+  }
+  if (!evidence.handoffValid) {
+    issues.push("handoff invalid");
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export type ResearcherPhaseGateInputDisposition =
@@ -728,7 +851,7 @@ const RESEARCHER_PHASE_GATE_CATEGORY_CONTRACTS: Record<
     category: "recovery_path",
     acceptance: {
       invariant:
-        "Research BLOCK is non-fatal; recoverResearcherPhaseGateEvidence restructures manifest; orchestrator phase gate runner pending.",
+        "Research BLOCK is non-fatal; recoverResearcherPhaseGateEvidence restructures manifest; orchestrator exposes phase gate runner.",
       minProbeCount: 3,
       requireFullAlignment: true,
     },
@@ -755,8 +878,8 @@ const RESEARCHER_PHASE_GATE_CATEGORY_CONTRACTS: Record<
         id: "rpg.orchestrator_phase_gate_runner",
         category: "recovery_path",
         description: "Orchestrator exposes verifyForgeP04ResearcherPhaseGate for P04 phase acceptance",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion: "Orchestrator exposes verifyForgeP04ResearcherPhaseGate for P04 phase acceptance",
       },
     ],
@@ -765,7 +888,7 @@ const RESEARCHER_PHASE_GATE_CATEGORY_CONTRACTS: Record<
     category: "nogo_path",
     acceptance: {
       invariant:
-        "Phase gate evidence validation rejects failed seals; P04→P05 phase handoff contract pending.",
+        "Phase gate evidence validation rejects failed seals; P04→P05 phase handoff contract sealed.",
       minProbeCount: 2,
       requireFullAlignment: true,
     },
@@ -782,8 +905,8 @@ const RESEARCHER_PHASE_GATE_CATEGORY_CONTRACTS: Record<
         id: "rpg.p04_to_p05_phase_handoff",
         category: "nogo_path",
         description: "getForgeP04ToP05PhaseHandoff exports sealed P04→P05 phase handoff contract",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "nogo",
         criterion: "getForgeP04ToP05PhaseHandoff exports sealed P04→P05 phase handoff contract",
       },
     ],
@@ -1197,6 +1320,113 @@ export function listResearcherPhaseGateKnownGaps(
   results: ResearcherPhaseGateProbeResult[],
 ): ResearcherPhaseGateProbeResult[] {
   return summarizeResearcherPhaseGateMatrix(results).knownGaps;
+}
+
+export interface ResearcherPhaseGateProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherPhaseGateProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ResearcherPhaseGateProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ * PASS probes must align; documented FAIL gaps must remain aligned (actual === FAIL).
+ */
+export function validateResearcherPhaseGateProbeMatrix(
+  results: ResearcherPhaseGateProbeResult[],
+  contract: ResearcherPhaseGateContract = getActiveResearcherPhaseGateContract(),
+): ResearcherPhaseGateProbeMatrixValidationResult {
+  const issues: ResearcherPhaseGateProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(r => [r.id, r]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(p => p.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
 }
 
 export { FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION };

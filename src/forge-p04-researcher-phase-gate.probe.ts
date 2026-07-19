@@ -31,6 +31,7 @@ import {
   summarizeResearcherPhaseGateMatrix,
   listResearcherPhaseGateProbesByExpected,
   listResearcherPhaseGateKnownGaps,
+  validateResearcherPhaseGateProbeMatrix,
   loadResearcherPhaseGateBaseline,
   FORGE_RESEARCHER_PHASE_GATE_VERSION,
   RESEARCHER_PHASE_GATE_MANIFEST_MAX_LENGTH,
@@ -60,6 +61,7 @@ export {
   validateResearcherPhaseGateContract,
   validateResearcherPhaseGateContractCoverage,
   validateResearcherPhaseGateAgainstContract,
+  validateResearcherPhaseGateProbeMatrix,
   loadResearcherPhaseGateBaseline,
   FORGE_RESEARCHER_PHASE_GATE_VERSION,
   RESEARCHER_PHASE_GATE_CATEGORIES,
@@ -275,7 +277,7 @@ function probeBoundary(
       const contract = getActiveResearcherPhaseGateContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -490,3 +492,40 @@ export function runResearcherPhaseGateProbes(
 }
 
 export const runForgeResearcherPhaseGateProbes = runResearcherPhaseGateProbes;
+
+export interface ResearcherPhaseGateProductionSliceResult {
+  atom: "P04-B10-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherPhaseGateProbeResult[];
+  summary: ReturnType<typeof summarizeResearcherPhaseGateMatrix>;
+  matrixValidation: ReturnType<typeof validateResearcherPhaseGateProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: contract-wired probe execution and matrix alignment
+ * gate with zero unexpected mismatches after orchestrator phase gate runner wiring.
+ */
+export function runResearcherPhaseGateProductionSlice(
+  fixture: ResearcherPhaseGateBaseline = loadResearcherPhaseGateBaseline(),
+): ResearcherPhaseGateProductionSliceResult {
+  const contract = getActiveResearcherPhaseGateContract();
+  const fixtureValidation = validateResearcherPhaseGateBaseline(fixture);
+  const contractValidation = validateResearcherPhaseGateAgainstContract(fixture, contract);
+  const results = runResearcherPhaseGateProbes(fixture);
+  const summary = summarizeResearcherPhaseGateMatrix(results);
+  const matrixValidation = validateResearcherPhaseGateProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B10-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
+}
+
+export const runForgeResearcherPhaseGateProductionSlice = runResearcherPhaseGateProductionSlice;

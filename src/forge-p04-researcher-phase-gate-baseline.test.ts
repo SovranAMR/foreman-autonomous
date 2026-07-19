@@ -45,27 +45,19 @@ describe("Forge Researcher Phase Gate — P04-B10-A01", () => {
     assert.equal(handoff.targetBlock.entryAtom, "P04-B10-A01");
   });
 
-  it("measures researcher phase gate probes with documented FAIL gaps from B09 sealed handoff", () => {
+  it("measures researcher phase gate probes with full alignment after A03 production slice", () => {
     const results = runResearcherPhaseGateProbes();
     const summary = summarizeResearcherPhaseGateMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 24);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listResearcherPhaseGateProbesByExpected(
       "FAIL",
       loadResearcherPhaseGateBaseline(),
     );
-    assert.equal(documentedFail.length, 2);
-    assert.ok(documentedFail.some(p => p.id === "rpg.orchestrator_phase_gate_runner"));
-    assert.ok(documentedFail.some(p => p.id === "rpg.p04_to_p05_phase_handoff"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of RESEARCHER_PHASE_GATE_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -80,18 +72,9 @@ describe("Forge Researcher Phase Gate — P04-B10-A01", () => {
     );
   });
 
-  it("documents researcher phase gate gaps as measurable baseline debt", () => {
+  it("documents zero remaining researcher phase gate gaps after A03 orchestrator wiring", () => {
     const gaps = listResearcherPhaseGateKnownGaps(runResearcherPhaseGateProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "rpg.orchestrator_phase_gate_runner",
-      "rpg.p04_to_p05_phase_handoff",
-    ]);
-    assert.ok(
-      gaps.every(g => RESEARCHER_PHASE_GATE_CATEGORIES.includes(g.category)),
-      "documented gaps are researcher phase gate probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 
   it("assessResearcherPhaseGateInputBoundary rejects empty and null-byte manifests", () => {
@@ -156,6 +139,6 @@ handoff: valid`,
   });
 
   it("exports harness version for researcher phase gate baseline", () => {
-    assert.ok(FORGE_RESEARCHER_PHASE_GATE_VERSION.startsWith("1.0.0"));
+    assert.equal(FORGE_RESEARCHER_PHASE_GATE_VERSION, "1.0.0");
   });
 });

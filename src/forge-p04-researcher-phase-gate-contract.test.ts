@@ -14,6 +14,7 @@ import {
   validateResearcherPhaseGateAgainstContract,
   RESEARCHER_PHASE_GATE_CATEGORIES,
   FORGE_RESEARCHER_PHASE_GATE_CONTRACT_V1,
+  FORGE_RESEARCHER_PHASE_GATE_VERSION,
 } from "./forge-p04-researcher-phase-gate.js";
 
 const REQUIRE_FULL_ALIGNMENT: Record<
@@ -60,7 +61,7 @@ describe("Forge Researcher Phase Gate Contract — P04-B10-A02", () => {
     }
   });
 
-  it("maps 24 probes with two documented FAIL gaps preserved until A03 production slice", () => {
+  it("maps 24 probes with full alignment after A03 production slice", () => {
     const contract = getActiveResearcherPhaseGateContract();
     const summary = summarizeResearcherPhaseGateContractCoverage(contract);
     const coverage = validateResearcherPhaseGateContractCoverage(contract);
@@ -68,13 +69,13 @@ describe("Forge Researcher Phase Gate Contract — P04-B10-A02", () => {
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateResearcherPhaseGateContract().valid, true);
     assert.equal(summary.totalProbes, 24);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 2);
+    assert.equal(summary.expectedPass, 24);
+    assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 2);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 2);
-    assert.equal(summary.byDisposition.nogo, 1);
+    assert.equal(summary.byDisposition.recovery, 3);
+    assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.phase_versioning.probeCount, 3);
     assert.equal(summary.byCategory.block_gate_signal.probeCount, 3);
     assert.equal(summary.byCategory.phase_inventory.probeCount, 3);
@@ -85,15 +86,9 @@ describe("Forge Researcher Phase Gate Contract — P04-B10-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists two gap probes documenting baseline debt from sealed P04-B09 handoff", () => {
+  it("lists zero remaining gap probes after A03 orchestrator wiring", () => {
     const gaps = listResearcherPhaseGateProbesByDisposition("gap");
-    const gapIds = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(gapIds, [
-      "rpg.orchestrator_phase_gate_runner",
-      "rpg.p04_to_p05_phase_handoff",
-    ]);
-    assert.ok(gaps.every(g => g.expected === "FAIL"));
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -141,9 +136,11 @@ describe("Forge Researcher Phase Gate Contract — P04-B10-A02", () => {
 
   it("exports stable contract v1 reference aligned with baseline probe matrix", () => {
     const fixture = loadResearcherPhaseGateBaseline();
+    const contract = getActiveResearcherPhaseGateContract();
     assert.equal(FORGE_RESEARCHER_PHASE_GATE_CONTRACT_V1.version, "1.0.0");
     assert.equal(FORGE_RESEARCHER_PHASE_GATE_CONTRACT_V1.atom, "P04-B10-A02");
     assert.equal(FORGE_RESEARCHER_PHASE_GATE_CONTRACT_V1.probes.length, 24);
     assert.equal(FORGE_RESEARCHER_PHASE_GATE_CONTRACT_V1.probes.length, fixture.probes.length);
+    assert.equal(FORGE_RESEARCHER_PHASE_GATE_VERSION, contract.version);
   });
 });

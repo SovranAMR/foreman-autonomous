@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "atom": "P04-B10-A01",
   "contractAtom": "P04-B10-A02",
-  "purpose": "Researcher phase gate baseline measured from sealed P04-B09 block gate artifacts (includes documented FAIL gaps).",
+  "purpose": "Researcher phase gate baseline measured from sealed P04-B09 block gate artifacts.",
   "sourceBlockGate": {
     "version": "1.0.0",
     "atom": "P04-B09-A10",
@@ -141,7 +141,7 @@
       "id": "rpg.orchestrator_phase_gate_runner",
       "category": "recovery_path",
       "description": "Orchestrator exposes verifyForgeP04ResearcherPhaseGate for P04 phase acceptance",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rpg.phase_gate_evidence_nogo",
@@ -153,7 +153,7 @@
       "id": "rpg.p04_to_p05_phase_handoff",
       "category": "nogo_path",
       "description": "getForgeP04ToP05PhaseHandoff exports sealed P04→P05 phase handoff contract",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

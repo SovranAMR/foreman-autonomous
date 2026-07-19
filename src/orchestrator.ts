@@ -2019,6 +2019,25 @@ export class Orchestrator {
   }
 
   /**
+   * Run P04 researcher phase gate production slice and emit verification event (P04-B10-A03).
+   */
+  async verifyForgeP04ResearcherPhaseGate(): Promise<
+    import("./forge-p04-researcher-phase-gate.probe.js").ResearcherPhaseGateProductionSliceResult
+  > {
+    const { runResearcherPhaseGateProductionSlice } = await import(
+      "./forge-p04-researcher-phase-gate.probe.js"
+    );
+    const result = runResearcherPhaseGateProductionSlice();
+    this.emit({
+      type: "verification",
+      phase: "researcher_phase_gate",
+      passed: result.matrixValid,
+      detail: `productionSlice=${result.matrixValid} aligned=${result.summary.aligned}/${result.summary.total}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge researcher spike falsification block gate and emit verification event (P04-B08-A10).
    */
   async verifyForgeResearcherSpikeFalsificationBlockGate(): Promise<
