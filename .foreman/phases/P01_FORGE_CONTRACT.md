@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 8
-completed_atoms: 94
+completed_atoms: 95
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -138,7 +138,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B10-A04 — Entegre Forge baseline gate: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B10-A05 — Entegre Forge baseline gate: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B10-A06 — Entegre Forge baseline gate: evidence, telemetry ve provenance kaydını ekle
-- [ ] P01-B10-A07 — Entegre Forge baseline gate: unit, property ve fuzz doğrulamasını ekle
+- [x] P01-B10-A07 — Entegre Forge baseline gate: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B10-A08 — Entegre Forge baseline gate: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B10-A09 — Entegre Forge baseline gate: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B10-A10 — Entegre Forge baseline gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,12 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B10-A06
-last_commit: e2adb34
-tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (18/18); runIntegratedBaselineFailureRecoverySliceWithRecord; validateIntegratedBaselineFailureRecoveryRunRecord; 6 probes with disposition, criterion and aligned outcomes
+last_atom: P01-B10-A07
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (23/23); runIntegratedBaselinePropertyChecks (8/8); runIntegratedBaselineFuzzValidation (72/72 rejected); runIntegratedBaselineRunRecordFuzzValidation (5+3 mutations rejected)
 evidence: |
-  P01-B10-A06: runIntegratedBaselineFailureRecoverySliceWithRecord emits auditable evidence,
-  telemetry and provenance for failure_path, recovery_path and nogo_path probes;
-  validateIntegratedBaselineFailureRecoveryRunRecord validates 6 probes with disposition,
-  criterion and aligned outcomes (sliceAtom=P01-B10-A06, zero mismatches).
-next: P01-B10-A07
+  P01-B10-A07: runIntegratedBaselinePropertyChecks passes 8 structural properties on canonical contract;
+  runIntegratedBaselineFuzzValidation rejects all deterministic fixture mutations across 3 seeds;
+  runIntegratedBaselineRunRecordFuzzValidation rejects tampered failure/recovery and full run records.
+next: P01-B10-A08

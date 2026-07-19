@@ -1388,3 +1388,493 @@ export function validateIntegratedBaselineFailureRecoveryRunRecord(
     issues: [...issues, ...probeValidation.issues],
   };
 }
+
+// ─── Property and fuzz validation (P01-B10-A07) ───────────────────────────────
+
+export interface IntegratedBaselinePropertyViolation {
+  propertyId: string;
+  detail: string;
+}
+
+export interface IntegratedBaselinePropertyResult {
+  passed: number;
+  failed: IntegratedBaselinePropertyViolation[];
+  total: number;
+  allPassed: boolean;
+}
+
+export type IntegratedBaselinePropertyCheck = {
+  id: string;
+  description: string;
+  check: (contract: IntegratedBaselineContract) => string | null;
+};
+
+const INTEGRATED_BASELINE_STRUCTURAL_PROPERTIES: readonly IntegratedBaselinePropertyCheck[] = [
+  {
+    id: "categories_complete",
+    description: "All ten integrated baseline categories are declared",
+    check: contract => {
+      for (const category of INTEGRATED_BASELINE_CATEGORIES) {
+        if (!contract.categories[category]) return `missing category: ${category}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_ids_unique",
+    description: "Probe ids are globally unique",
+    check: contract => {
+      const ids = listIntegratedBaselineContractProbeIds(contract);
+      if (new Set(ids).size !== ids.length) return "duplicate probe id detected";
+      return null;
+    },
+  },
+  {
+    id: "min_probe_count",
+    description: "Each category meets contract minProbeCount",
+    check: contract => {
+      for (const category of INTEGRATED_BASELINE_CATEGORIES) {
+        const categoryContract = contract.categories[category];
+        if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+          return `${category} has ${categoryContract.probes.length} probes; requires >= ${categoryContract.acceptance.minProbeCount}`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "criterion_measurable",
+    description: "Every probe declares a measurable criterion",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (probe.criterion.trim().length <= 10) {
+          return `${probe.id} criterion too short`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "coverage_consistent",
+    description: "summarizeIntegratedBaselineContractCoverage totals match listIntegratedBaselineContractProbeIds",
+    check: contract => {
+      const summary = summarizeIntegratedBaselineContractCoverage(contract);
+      const ids = listIntegratedBaselineContractProbeIds(contract);
+      if (summary.totalProbes !== ids.length) {
+        return `totalProbes=${summary.totalProbes} ids=${ids.length}`;
+      }
+      const dispositionSum =
+        summary.byDisposition.observed +
+        summary.byDisposition.gap +
+        summary.byDisposition.failure +
+        summary.byDisposition.recovery +
+        summary.byDisposition.nogo;
+      if (dispositionSum !== summary.totalProbes) {
+        return `disposition sum=${dispositionSum} total=${summary.totalProbes}`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "probe_id_prefix",
+    description: "Probe ids are namespaced with ibase. prefix",
+    check: contract => {
+      for (const probe of contract.probes) {
+        if (!probe.id.startsWith("ibase.")) {
+          return `${probe.id} missing ibase. prefix`;
+        }
+      }
+      return null;
+    },
+  },
+  {
+    id: "run_record_summary_invariant",
+    description: "Run record summary aligned + mismatches equals total",
+    check: contract => {
+      const probeIds = listIntegratedBaselineContractProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildIntegratedBaselineProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildIntegratedBaselineProbeTelemetry(id, probe.category, index, index);
+      });
+      const record = buildIntegratedBaselineRunRecord(
+        buildIntegratedBaselineProvenance(
+          "property-check",
+          {
+            version: "0",
+            atom: "x",
+            purpose: "x",
+            sourceOrchestratorSeam: buildDefaultIntegratedSourceOrchestratorSeam(),
+            probes: [],
+          },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+        ),
+        evidence,
+        telemetry,
+      );
+      if (record.summary.aligned + record.summary.mismatches !== record.summary.total) {
+        return `aligned(${record.summary.aligned}) + mismatches(${record.summary.mismatches}) != total(${record.summary.total})`;
+      }
+      return null;
+    },
+  },
+  {
+    id: "failure_recovery_run_record_gate",
+    description: "Synthetic failure/recovery slice record passes validateIntegratedBaselineFailureRecoveryRunRecord",
+    check: contract => {
+      const probeIds = listIntegratedBaselineFailureRecoveryProbeIds(contract);
+      const evidence = probeIds.map(id => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildIntegratedBaselineProbeEvidence(
+          id,
+          probe.category,
+          probe.expected,
+          probe.expected,
+          true,
+          probe.criterion,
+          "synthetic",
+          probe.disposition,
+        );
+      });
+      const telemetry = probeIds.map((id, index) => {
+        const probe = contract.probes.find(p => p.id === id)!;
+        return buildIntegratedBaselineProbeTelemetry(id, probe.category, index, index * 0.5);
+      });
+      const record = buildIntegratedBaselineRunRecord(
+        buildIntegratedBaselineProvenance(
+          "property-check-failure-recovery",
+          {
+            version: "0",
+            atom: "x",
+            purpose: "x",
+            sourceOrchestratorSeam: buildDefaultIntegratedSourceOrchestratorSeam(),
+            probes: [],
+          },
+          contract,
+          "2026-01-01T00:00:00.000Z",
+          "2026-01-01T00:00:01.000Z",
+          probeIds.length,
+          {
+            sliceAtom: "P01-B10-A06",
+            sliceCategories: INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES,
+          },
+        ),
+        evidence,
+        telemetry,
+      );
+      const validation = validateIntegratedBaselineFailureRecoveryRunRecord(record, contract);
+      if (!validation.valid) {
+        return validation.issues.map(i => i.detail).join("; ");
+      }
+      return null;
+    },
+  },
+] as const;
+
+export function runIntegratedBaselinePropertyChecks(
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): IntegratedBaselinePropertyResult {
+  const failed: IntegratedBaselinePropertyViolation[] = [];
+  for (const property of INTEGRATED_BASELINE_STRUCTURAL_PROPERTIES) {
+    const detail = property.check(contract);
+    if (detail) failed.push({ propertyId: property.id, detail });
+  }
+  const total = INTEGRATED_BASELINE_STRUCTURAL_PROPERTIES.length;
+  return {
+    passed: total - failed.length,
+    failed,
+    total,
+    allPassed: failed.length === 0,
+  };
+}
+
+export type IntegratedBaselineFuzzMutationKind =
+  | "flip_expected"
+  | "drop_probe"
+  | "extra_probe"
+  | "rename_probe"
+  | "flip_category";
+
+export interface IntegratedBaselineFuzzMutationCase {
+  seed: number;
+  kind: IntegratedBaselineFuzzMutationKind;
+  probeId?: string;
+  category?: IntegratedBaselineCategory;
+}
+
+export interface IntegratedBaselineFuzzValidationCaseResult {
+  mutation: IntegratedBaselineFuzzMutationCase;
+  valid: boolean;
+  issueKinds: string[];
+}
+
+export interface IntegratedBaselineFuzzValidationResult {
+  seed: number;
+  iterations: number;
+  rejected: number;
+  accepted: number;
+  cases: IntegratedBaselineFuzzValidationCaseResult[];
+  allMutationsRejected: boolean;
+}
+
+/** Deterministic PRNG for reproducible fuzz cases (mulberry32). */
+export function createIntegratedBaselineFuzzRng(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cloneIntegratedBaseline(fixture: IntegratedBaseline): IntegratedBaseline {
+  return {
+    ...fixture,
+    sourceOrchestratorSeam: { ...fixture.sourceOrchestratorSeam },
+    probes: fixture.probes.map(entry => ({ ...entry })),
+  };
+}
+
+function pickIntegratedBaselineFuzzTarget(
+  fixture: IntegratedBaseline,
+  rng: () => number,
+): { category: IntegratedBaselineCategory; index: number; entry: IntegratedBaselineFixtureEntry } {
+  const category = INTEGRATED_BASELINE_CATEGORIES[Math.floor(rng() * INTEGRATED_BASELINE_CATEGORIES.length)]!;
+  const entries = fixture.probes.filter(p => p.category === category);
+  const index = Math.floor(rng() * entries.length);
+  return { category, index, entry: entries[index]! };
+}
+
+export function applyIntegratedBaselineFuzzMutation(
+  fixture: IntegratedBaseline,
+  mutation: IntegratedBaselineFuzzMutationCase,
+): IntegratedBaseline {
+  const mutated = cloneIntegratedBaseline(fixture);
+  const targetCategory = mutation.category ?? INTEGRATED_BASELINE_CATEGORIES[0]!;
+  const categoryEntries = mutated.probes.filter(p => p.category === targetCategory);
+
+  switch (mutation.kind) {
+    case "flip_expected": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.expected = entry.expected === "PASS" ? "FAIL" : "PASS";
+      break;
+    }
+    case "drop_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      mutated.probes = mutated.probes.filter(e => e.id !== probeId);
+      break;
+    }
+    case "extra_probe":
+      mutated.probes = [
+        ...mutated.probes,
+        {
+          id: `ibase.fuzz.extra.${mutation.seed}`,
+          category: targetCategory,
+          description: "synthetic extra probe",
+          expected: "PASS",
+        },
+      ];
+      break;
+    case "rename_probe": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      entry.id = `${entry.id}.fuzz_${mutation.seed}`;
+      break;
+    }
+    case "flip_category": {
+      const probeId = mutation.probeId ?? categoryEntries[0]!.id;
+      const entry = mutated.probes.find(e => e.id === probeId) ?? categoryEntries[0]!;
+      const other = INTEGRATED_BASELINE_CATEGORIES.find(c => c !== entry.category)!;
+      entry.category = other;
+      break;
+    }
+  }
+
+  return mutated;
+}
+
+export function generateIntegratedBaselineFuzzMutationCases(
+  fixture: IntegratedBaseline,
+  seed: number,
+  iterations: number,
+): IntegratedBaselineFuzzMutationCase[] {
+  const rng = createIntegratedBaselineFuzzRng(seed);
+  const kinds: IntegratedBaselineFuzzMutationKind[] = [
+    "flip_expected",
+    "drop_probe",
+    "extra_probe",
+    "rename_probe",
+    "flip_category",
+  ];
+  const cases: IntegratedBaselineFuzzMutationCase[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const kind = kinds[Math.floor(rng() * kinds.length)]!;
+    const target = pickIntegratedBaselineFuzzTarget(fixture, rng);
+    cases.push({
+      seed: seed + i,
+      kind,
+      probeId: target.entry.id,
+      category: target.category,
+    });
+  }
+
+  return cases;
+}
+
+/** Fuzz harness: mutated fixtures must fail contract validation (P01-B10-A07). */
+export function runIntegratedBaselineFuzzValidation(
+  fixture: IntegratedBaseline,
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+  seed = 42,
+  iterations = 24,
+): IntegratedBaselineFuzzValidationResult {
+  const cases = generateIntegratedBaselineFuzzMutationCases(fixture, seed, iterations);
+  const results: IntegratedBaselineFuzzValidationCaseResult[] = [];
+  let rejected = 0;
+  let accepted = 0;
+
+  for (const mutation of cases) {
+    const mutated = applyIntegratedBaselineFuzzMutation(fixture, mutation);
+    const validation = validateIntegratedBaselineAgainstContract(mutated, contract);
+    if (validation.valid) accepted++;
+    else rejected++;
+    results.push({
+      mutation,
+      valid: validation.valid,
+      issueKinds: [...new Set(validation.issues.map(i => i.kind))],
+    });
+  }
+
+  return {
+    seed,
+    iterations,
+    rejected,
+    accepted,
+    cases: results,
+    allMutationsRejected: accepted === 0,
+  };
+}
+
+export type IntegratedBaselineRunRecordFuzzKind =
+  | "drop_evidence"
+  | "drop_telemetry"
+  | "wrong_total"
+  | "wrong_slice_atom"
+  | "wrong_slice_categories";
+
+export interface IntegratedBaselineRunRecordFuzzCase {
+  kind: IntegratedBaselineRunRecordFuzzKind;
+  probeId?: string;
+}
+
+export function applyIntegratedBaselineRunRecordFuzzMutation(
+  record: IntegratedBaselineRunRecord,
+  mutation: IntegratedBaselineRunRecordFuzzCase,
+): IntegratedBaselineRunRecord {
+  const cloned: IntegratedBaselineRunRecord = {
+    provenance: { ...record.provenance },
+    evidence: record.evidence.map(item => ({ ...item })),
+    telemetry: record.telemetry.map(item => ({ ...item })),
+    summary: {
+      ...record.summary,
+      byCategory: { ...record.summary.byCategory },
+      byDisposition: { ...record.summary.byDisposition },
+    },
+  };
+
+  switch (mutation.kind) {
+    case "drop_evidence": {
+      const probeId = mutation.probeId ?? cloned.evidence[0]?.probeId;
+      cloned.evidence = cloned.evidence.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "drop_telemetry": {
+      const probeId = mutation.probeId ?? cloned.telemetry[0]?.probeId;
+      cloned.telemetry = cloned.telemetry.filter(item => item.probeId !== probeId);
+      break;
+    }
+    case "wrong_total":
+      cloned.provenance = { ...cloned.provenance, totalProbes: cloned.provenance.totalProbes + 1 };
+      break;
+    case "wrong_slice_atom":
+      cloned.provenance = { ...cloned.provenance, sliceAtom: "P01-B10-A99" };
+      break;
+    case "wrong_slice_categories":
+      cloned.provenance = {
+        ...cloned.provenance,
+        sliceCategories: ["gate_versioning"],
+      };
+      break;
+  }
+
+  cloned.summary = buildIntegratedBaselineRunRecord(
+    cloned.provenance,
+    cloned.evidence,
+    cloned.telemetry,
+  ).summary;
+  return cloned;
+}
+
+function resolveIntegratedBaselineRunRecordValidator(
+  record: IntegratedBaselineRunRecord,
+): (
+  record: IntegratedBaselineRunRecord,
+  contract: IntegratedBaselineContract,
+) => IntegratedBaselineRunValidationResult {
+  return record.provenance.sliceAtom === "P01-B10-A06"
+    ? validateIntegratedBaselineFailureRecoveryRunRecord
+    : validateIntegratedBaselineRunRecord;
+}
+
+/** Fuzz harness: tampered run records must fail validation deterministically (P01-B10-A07). */
+export function runIntegratedBaselineRunRecordFuzzValidation(
+  record: IntegratedBaselineRunRecord,
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): { validBaseline: boolean; mutationsRejected: number; mutationsAccepted: number } {
+  const validate = resolveIntegratedBaselineRunRecordValidator(record);
+  const baseline = validate(record, contract);
+  const probeId = record.evidence[0]?.probeId;
+  const mutations: IntegratedBaselineRunRecordFuzzCase[] = [
+    { kind: "drop_evidence", probeId },
+    { kind: "drop_telemetry", probeId },
+    { kind: "wrong_total" },
+  ];
+
+  if (record.provenance.sliceAtom === "P01-B10-A06") {
+    mutations.push({ kind: "wrong_slice_atom" }, { kind: "wrong_slice_categories" });
+  }
+
+  let mutationsRejected = 0;
+  let mutationsAccepted = 0;
+  for (const mutation of mutations) {
+    const mutated = applyIntegratedBaselineRunRecordFuzzMutation(record, mutation);
+    const validation = validate(mutated, contract);
+    if (validation.valid) mutationsAccepted++;
+    else mutationsRejected++;
+  }
+
+  return {
+    validBaseline: baseline.valid,
+    mutationsRejected,
+    mutationsAccepted,
+  };
+}

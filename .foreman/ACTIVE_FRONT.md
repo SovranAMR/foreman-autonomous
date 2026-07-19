@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B10
-active_atom: P01-B10-A07
+active_atom: P01-B10-A08
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 95/1000
-phase_progress: 94/100
+program_progress: 96/1000
+phase_progress: 95/100
 block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B10-A07 — Entegre Forge baseline gate: unit, property ve fuzz doğrulamasını ekle.
+P01-B10-A08 — Entegre Forge baseline gate: Forge entegrasyonu ile regression testini tamamla.
 
-objective: A06 evidence slice sealed; property/fuzz validation for integrated gate run records.
-target: runIntegratedBaselineRunRecordFuzzValidation + integrated baseline structural properties.
-hypothesis: A06 run record validation + contract probes sufficient for property/fuzz slice.
-acceptance: property checks pass; fuzz mutations reject tampered integrated baseline run records.
-commands: npx tsx --test src/forge-integrated-baseline*.test.ts
-blast_radius: src/forge-integrated-baseline.ts, src/forge-integrated-baseline.probe.ts
-rollback: B10-A07 property/fuzz slice değişikliklerini geri al.
+objective: A07 property/fuzz slice sealed; Forge integration regression for integrated baseline gate.
+target: verifyForgeIntegratedBaselineRegression + orchestrator wiring.
+hypothesis: A07 property/fuzz + contract probes sufficient for integration regression slice.
+acceptance: integrated baseline regression test passes against sealed fixture and contract.
+commands: npx tsx --test src/forge-integrated-baseline*.test.ts src/forge-pipeline-regression.integration.test.ts
+blast_radius: src/forge-integrated-baseline.ts, src/orchestrator.ts
+rollback: B10-A08 integration regression slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A06 run record invalid ise BLOCKED raporla.
+fallback: A07 property checks fail ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B10-A06
-last_commit: e2adb34
-tests: PASS — forge-integrated-baseline*.test.ts (18/18); runIntegratedBaselineFailureRecoverySliceWithRecord; validateIntegratedBaselineFailureRecoveryRunRecord; 6 failure/recovery probes with disposition, criterion and aligned outcomes
-evidence: runIntegratedBaselineFailureRecoverySliceWithRecord, validateIntegratedBaselineFailureRecoveryRunRecord, contract-wired A06 evidence/telemetry/provenance vertical slice gate
-next: P01-B10-A07
+last_atom: P01-B10-A07
+last_commit: pending
+tests: PASS — forge-integrated-baseline*.test.ts (23/23); runIntegratedBaselinePropertyChecks (8/8); runIntegratedBaselineFuzzValidation; runIntegratedBaselineRunRecordFuzzValidation; tampered fixture/run record mutations rejected
+evidence: runIntegratedBaselinePropertyChecks, runIntegratedBaselineFuzzValidation, runIntegratedBaselineRunRecordFuzzValidation, contract-wired A07 property/fuzz vertical slice gate
+next: P01-B10-A08
