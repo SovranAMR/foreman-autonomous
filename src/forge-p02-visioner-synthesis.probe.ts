@@ -18,9 +18,11 @@ import {
   assessVisionerSynthesisPresence,
   assessVisionerSynthesisInputBoundary,
   validateVisionerSynthesisBaseline,
+  validateVisionerSynthesisAgainstContract,
   summarizeVisionerSynthesisMatrix,
   listVisionerSynthesisProbesByExpected,
   listVisionerSynthesisKnownGaps,
+  validateVisionerSynthesisProbeMatrix,
   getActiveVisionerSynthesisContract,
   FORGE_VISIONER_SYNTHESIS_VERSION,
   VISIONER_SYNTHESIS_CATEGORIES,
@@ -39,6 +41,7 @@ export {
   summarizeVisionerSynthesisMatrix,
   listVisionerSynthesisProbesByExpected,
   listVisionerSynthesisKnownGaps,
+  validateVisionerSynthesisProbeMatrix,
   getActiveVisionerSynthesisContract,
   assessVisionerSynthesisPresence,
   assessVisionerSynthesisInputBoundary,
@@ -431,4 +434,39 @@ export function runVisionerSynthesisProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface VisionerSynthesisProductionSliceResult {
+  atom: "P02-B03-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerSynthesisProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerSynthesisMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerSynthesisProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: structured product synthesis extraction wired to
+ * contract probe execution and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runVisionerSynthesisProductionSlice(
+  fixture: VisionerSynthesisBaseline = loadVisionerSynthesisBaseline(),
+): VisionerSynthesisProductionSliceResult {
+  const contract = getActiveVisionerSynthesisContract();
+  const fixtureValidation = validateVisionerSynthesisBaseline(fixture);
+  const contractValidation = validateVisionerSynthesisAgainstContract(fixture, contract);
+  const results = runVisionerSynthesisProbes(fixture);
+  const summary = summarizeVisionerSynthesisMatrix(results);
+  const matrixValidation = validateVisionerSynthesisProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B03-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
