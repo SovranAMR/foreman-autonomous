@@ -23,9 +23,11 @@ import {
   INTEGRATED_FORGE_REGRESSION_METHODS,
   INTEGRATED_FORGE_BLOCK_GATE_METHODS,
   getActiveIntegratedBaselineContract,
+  listIntegratedBaselineContractProbesByCategory,
   validateIntegratedBaseline,
   validateIntegratedBaselineAgainstContract,
   validateIntegratedBaselineProbeMatrix,
+  validateIntegratedBaselineBoundaryProbeMatrix,
   summarizeIntegratedBaselineMatrix,
   type IntegratedBaseline,
   type IntegratedBaselineCategory,
@@ -51,6 +53,7 @@ export {
   validateIntegratedBaselineAgainstContract,
   validateIntegratedBaseline,
   validateIntegratedBaselineProbeMatrix,
+  validateIntegratedBaselineBoundaryProbeMatrix,
   summarizeIntegratedBaselineMatrix,
   listIntegratedBaselineProbesByExpected,
   listIntegratedBaselineKnownGaps,
@@ -601,6 +604,39 @@ export function runIntegratedBaselineProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface IntegratedBaselineBoundarySliceResult {
+  atom: "P01-B10-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: IntegratedBaselineProbeResult[];
+  boundaryResults: IntegratedBaselineProbeResult[];
+  matrixValidation: ReturnType<typeof validateIntegratedBaselineBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (sourceOrchestratorSeam ref,
+ * probe runner, known gaps) with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runIntegratedBaselineBoundarySlice(
+  fixture: IntegratedBaseline = loadIntegratedBaseline(),
+): IntegratedBaselineBoundarySliceResult {
+  const contract = getActiveIntegratedBaselineContract();
+  const results = runIntegratedBaselineProbes(fixture);
+  const boundaryProbes = listIntegratedBaselineContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateIntegratedBaselineBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B10-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }
