@@ -5,6 +5,9 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import visionerAlternativeBaseline from "./fixtures/forge-visioner-alternative-v1.json" with { type: "json" };
@@ -31,6 +34,11 @@ import {
   listVisionerAlternativeKnownGaps,
   getActiveVisionerAlternativeContract,
   summarizeVisionerAlternativeContractCoverage,
+  buildVisionerAlternativeProbeEvidence,
+  buildVisionerAlternativeProbeTelemetry,
+  buildVisionerAlternativeProvenance,
+  buildVisionerAlternativeRunRecord,
+  listVisionerAlternativeFailureRecoveryProbeIds,
   FORGE_VISIONER_ALTERNATIVE_VERSION,
   VISIONER_ALTERNATIVE_CATEGORIES,
   VISIONER_ALTERNATIVE_VISION_MAX_LENGTH,
@@ -39,6 +47,8 @@ import {
   type VisionerAlternativeBaseline,
   type VisionerAlternativeCategory,
   type VisionerAlternativeProbeResult,
+  type VisionerAlternativeRunRecord,
+  type VisionerAlternativeProbeDisposition,
 } from "./forge-p02-visioner-alternative.js";
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 
@@ -601,6 +611,118 @@ export function runVisionerAlternativeFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerAlternativeProbeWithTiming(
+  entry: VisionerAlternativeBaseline["probes"][number],
+  fixture: VisionerAlternativeBaseline,
+  contractProbe:
+    | { criterion: string; disposition: VisionerAlternativeProbeDisposition }
+    | undefined,
+): {
+  result: VisionerAlternativeProbeResult;
+  durationMs: number;
+  disposition: VisionerAlternativeProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerAlternativeRecordFromEntries(
+  entries: VisionerAlternativeBaseline["probes"],
+  fixture: VisionerAlternativeBaseline,
+  contract: ReturnType<typeof getActiveVisionerAlternativeContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerAlternativeCategory[];
+  },
+): VisionerAlternativeRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerAlternativeProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerAlternativeProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerAlternativeProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerAlternativeProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerAlternativeProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerAlternativeProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerAlternativeRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner alternative probes and emit auditable evidence, telemetry and provenance (P02-B07-A06). */
+export function runVisionerAlternativeProbesWithRecord(
+  fixture: VisionerAlternativeBaseline = loadVisionerAlternativeBaseline(),
+): VisionerAlternativeRunRecord {
+  const contract = getActiveVisionerAlternativeContract();
+  return buildVisionerAlternativeRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B07-A06). */
+export function runVisionerAlternativeFailureRecoverySliceWithRecord(
+  fixture: VisionerAlternativeBaseline = loadVisionerAlternativeBaseline(),
+): VisionerAlternativeRunRecord {
+  const contract = getActiveVisionerAlternativeContract();
+  const failureRecoveryIds = new Set(listVisionerAlternativeFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerAlternativeRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B07-A06",
+    sliceCategories: VISIONER_ALTERNATIVE_FAILURE_RECOVERY_CATEGORIES,
+  });
 }
 
 export {
