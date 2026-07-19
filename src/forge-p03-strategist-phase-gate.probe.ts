@@ -42,6 +42,9 @@ import {
   buildStrategistPhaseGateRunRecord,
   validateStrategistPhaseGateFailureRecoveryRunRecord,
   validateStrategistPhaseGateRunRecord,
+  runStrategistPhaseGatePropertyChecks,
+  runStrategistPhaseGateFuzzValidation,
+  runStrategistPhaseGateRunRecordFuzzValidation,
   FORGE_STRATEGIST_PHASE_GATE_VERSION,
   STRATEGIST_PHASE_GATE_MANIFEST_MAX_LENGTH,
   STRATEGIST_PHASE_GATE_CATEGORIES,
@@ -55,6 +58,8 @@ import {
   type StrategistPhaseGateProbeResult,
   type StrategistPhaseGateRunRecord,
   type StrategistPhaseGateEvidenceSliceResult,
+  type StrategistPhaseGatePropertyResult,
+  type StrategistPhaseGateFuzzValidationResult,
 } from "./forge-p03-strategist-phase-gate.js";
 
 export type { StrategistPhaseGateBaseline, StrategistPhaseGateProbeResult } from "./forge-p03-strategist-phase-gate.js";
@@ -768,6 +773,46 @@ export function runStrategistPhaseGateEvidenceSlice(
 
 export const runForgeStrategistPhaseGateEvidenceSlice = runStrategistPhaseGateEvidenceSlice;
 
+export interface StrategistPhaseGatePropertyFuzzSliceResult {
+  atom: "P03-B10-A07";
+  propertyChecksPassed: boolean;
+  contractFuzzRejected: boolean;
+  runRecordFuzzRejected: boolean;
+  propertyResult: StrategistPhaseGatePropertyResult;
+  contractFuzz: StrategistPhaseGateFuzzValidationResult;
+  runRecordFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+/**
+ * A07 property/fuzz slice: structural property checks and contract/run-record fuzz gates
+ * with zero accepted mutations.
+ */
+export function runStrategistPhaseGatePropertyFuzzSlice(
+  fixture: StrategistPhaseGateBaseline = loadStrategistPhaseGateBaseline(),
+): StrategistPhaseGatePropertyFuzzSliceResult {
+  const contract = getActiveStrategistPhaseGateContract();
+  const propertyResult = runStrategistPhaseGatePropertyChecks(contract);
+  const contractFuzz = runStrategistPhaseGateFuzzValidation(fixture, contract);
+  const record = runStrategistPhaseGateFailureRecoverySliceWithRecord(fixture);
+  const runRecordFuzz = runStrategistPhaseGateRunRecordFuzzValidation(record, contract);
+
+  return {
+    atom: "P03-B10-A07",
+    propertyChecksPassed: propertyResult.allPassed,
+    contractFuzzRejected: contractFuzz.allMutationsRejected,
+    runRecordFuzzRejected: runRecordFuzz.mutationsAccepted === 0,
+    propertyResult,
+    contractFuzz,
+    runRecordFuzz,
+  };
+}
+
+export const runForgeStrategistPhaseGatePropertyFuzzSlice = runStrategistPhaseGatePropertyFuzzSlice;
+
 export {
   buildStrategistPhaseGateProbeEvidence,
   buildStrategistPhaseGateProbeTelemetry,
@@ -775,4 +820,10 @@ export {
   buildStrategistPhaseGateRunRecord,
   validateStrategistPhaseGateFailureRecoveryRunRecord,
   validateStrategistPhaseGateRunRecord,
+  runStrategistPhaseGatePropertyChecks,
+  runStrategistPhaseGateFuzzValidation,
+  runStrategistPhaseGateRunRecordFuzzValidation,
+  createStrategistPhaseGateFuzzRng,
+  type StrategistPhaseGatePropertyResult,
+  type StrategistPhaseGateFuzzValidationResult,
 } from "./forge-p03-strategist-phase-gate.js";

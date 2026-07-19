@@ -9,6 +9,7 @@ import {
   runStrategistPhaseGateFailureRecoverySliceWithRecord,
   runStrategistPhaseGateProbesWithRecord,
   runStrategistPhaseGateEvidenceSlice,
+  runStrategistPhaseGatePropertyFuzzSlice,
   validateStrategistPhaseGateBaseline,
   buildStrategistPhaseGateProbeEvidence,
   buildStrategistPhaseGateProbeTelemetry,
@@ -533,5 +534,23 @@ describe("Forge Strategist Phase Gate Evidence — P03-B10-A06", () => {
       "nogo_path",
     ]);
     assert.equal(record.summary.mismatches, 0);
+  });
+});
+
+describe("Forge Strategist Phase Gate Property/Fuzz — P03-B10-A07", () => {
+  it("property checks pass on canonical strategist phase gate contract", () => {
+    const slice = runStrategistPhaseGatePropertyFuzzSlice();
+    assert.equal(slice.atom, "P03-B10-A07");
+    assert.equal(slice.propertyChecksPassed, true);
+    assert.equal(slice.propertyResult.passed, 8);
+    assert.equal(slice.propertyResult.failed.length, 0);
+  });
+
+  it("rejects fixture fuzz mutations and run record tampering", () => {
+    const slice = runStrategistPhaseGatePropertyFuzzSlice();
+    assert.equal(slice.contractFuzzRejected, true);
+    assert.equal(slice.contractFuzz.accepted, 0);
+    assert.equal(slice.runRecordFuzzRejected, true);
+    assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
   });
 });
