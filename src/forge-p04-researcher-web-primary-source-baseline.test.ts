@@ -4,8 +4,11 @@ import {
   loadResearcherWebPrimarySourceBaseline,
   runResearcherWebPrimarySourceProbes,
   runResearcherWebPrimarySourceProductionSlice,
+  runResearcherWebPrimarySourceBoundarySlice,
   validateResearcherWebPrimarySourceBaseline,
   validateResearcherWebPrimarySourceProbeMatrix,
+  validateResearcherWebPrimarySourceBoundaryProbeMatrix,
+  listResearcherWebPrimarySourceContractProbesByCategory,
   summarizeResearcherWebPrimarySourceMatrix,
   listResearcherWebPrimarySourceProbesByExpected,
   listResearcherWebPrimarySourceKnownGaps,
@@ -175,5 +178,73 @@ describe("Forge Researcher Web Primary-Source Production Slice — P04-B03-A03",
     assert.equal(recoveryProbe!.expected, "PASS");
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
+  });
+});
+
+describe("Forge Researcher Web Primary-Source Boundary Slice — P04-B03-A04", () => {
+  it("defines boundary category with URL input edge-case probes", () => {
+    const boundary = listResearcherWebPrimarySourceContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "rwps.empty_url_boundary",
+      "rwps.known_gaps_documented",
+      "rwps.long_url_truncation_boundary",
+      "rwps.probe_runner_exported",
+      "rwps.source_block_gate_ref",
+      "rwps.whitespace_url_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on URL edge probes", () => {
+    const contract = getActiveResearcherWebPrimarySourceContract();
+    const slice = runResearcherWebPrimarySourceBoundarySlice();
+
+    assert.equal(slice.atom, "P04-B03-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listResearcherWebPrimarySourceContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateResearcherWebPrimarySourceBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("validateWebPrimarySourceCollection rejects whitespace-only URL before fetch", () => {
+    const validation = validateWebPrimarySourceCollection("   \t\n  ", [
+      { url: "https://example.com", text: "should not reach fetch validation" },
+    ]);
+    assert.equal(validation.valid, false);
+    assert.equal(validation.fetchHitCount, 0);
+    assert.ok(validation.issues.some(issue => issue.includes("whitespace-only")));
+  });
+
+  it("recoverWebPrimarySourceEvidence rejects whitespace-only citation parse at boundary", () => {
+    const recovery = recoverWebPrimarySourceEvidence("  \t  ");
+    assert.equal(recovery.recovered, false);
+    assert.deepEqual(recovery.parseErrors, ["whitespace_only"]);
+    assert.equal(recovery.detail, "cannot recover whitespace-only URL citation parse");
   });
 });

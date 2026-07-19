@@ -3,6 +3,8 @@
  *
  * A01: baseline fixture, probes, boundary validators.
  * A02: typed contract v1, probe criteria wiring, fixture↔contract alignment gate.
+ * A03: recoverWebPrimarySourceEvidence production slice and probe matrix gate.
+ * A04: boundary-category slice gate for URL input edge cases and probe matrix alignment.
  */
 
 import { readFileSync } from "node:fs";
@@ -17,7 +19,7 @@ import {
   FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1,
 } from "./forge-p04-researcher-in-repo-evidence.js";
 
-export const FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_VERSION = "1.0.0-a03";
+export const FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P04_B02_SEALED_ATOM_COUNT = 10;
 
@@ -1246,6 +1248,70 @@ export function runResearcherWebPrimarySourceProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherWebPrimarySourceBoundaryProbeMatrix(
+  results: ResearcherWebPrimarySourceProbeResult[],
+  contract: ResearcherWebPrimarySourceContract = getActiveResearcherWebPrimarySourceContract(),
+): ResearcherWebPrimarySourceProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherWebPrimarySourceContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryContract: ResearcherWebPrimarySourceContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherWebPrimarySourceProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherWebPrimarySourceBoundarySliceResult {
+  atom: "P04-B03-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherWebPrimarySourceProbeResult[];
+  boundaryResults: ResearcherWebPrimarySourceProbeResult[];
+  matrixValidation: ResearcherWebPrimarySourceProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (URL input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherWebPrimarySourceBoundarySlice(
+  fixture: ResearcherWebPrimarySourceBaseline = loadResearcherWebPrimarySourceBaseline(),
+): ResearcherWebPrimarySourceBoundarySliceResult {
+  const contract = getActiveResearcherWebPrimarySourceContract();
+  const results = runResearcherWebPrimarySourceProbes(fixture);
+  const boundaryProbes = listResearcherWebPrimarySourceContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherWebPrimarySourceBoundaryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B03-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }
