@@ -188,6 +188,26 @@ export interface VisionerScoringContractCoverageResult {
   issues: VisionerScoringContractCoverageIssue[];
 }
 
+export interface VisionerScoringProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface VisionerScoringProbeMatrixValidationResult {
+  valid: boolean;
+  issues: VisionerScoringProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
 export const VISIONER_SCORING_A01_MIN_PROBES: Readonly<
   Record<VisionerScoringCategory, number>
 > = {
@@ -591,6 +611,201 @@ export function summarizeVisionerScoringContractCoverage(
   }
 
   return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function getVisionerScoringCategoryContract(
+  category: VisionerScoringCategory,
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): VisionerScoringCategoryContract {
+  return contract.categories[category];
+}
+
+export function listVisionerScoringContractProbeIds(
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listVisionerScoringProbesByDisposition(
+  disposition: VisionerScoringProbeDisposition,
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): VisionerScoringProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listVisionerScoringContractProbesByCategory(
+  category: VisionerScoringCategory,
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): readonly VisionerScoringProbeContract[] {
+  return contract.categories[category].probes;
+}
+
+export function validateVisionerScoringContractCoverage(
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): VisionerScoringContractCoverageResult {
+  const issues: VisionerScoringContractCoverageIssue[] = [];
+
+  for (const category of VISIONER_SCORING_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < VISIONER_SCORING_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} below A01 baseline ${VISIONER_SCORING_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} has ${categoryContract.probes.length} probes; contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listVisionerScoringContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeVisionerScoringContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("vsco.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing vsco. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+/**
+ * Validate probe matrix against typed contract — A02 contract gate.
+ * PASS probes must align; documented FAIL gaps must remain aligned (actual === FAIL).
+ */
+export function validateVisionerScoringProbeMatrix(
+  results: VisionerScoringProbeResult[],
+  contract: VisionerScoringContract = getActiveVisionerScoringContract(),
+): VisionerScoringProbeMatrixValidationResult {
+  const issues: VisionerScoringProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(r => [r.id, r]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(p => p.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
 }
 
 export function validateVisionerScoringAgainstContract(

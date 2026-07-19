@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B08
-active_atom: P02-B08-A02
+active_atom: P02-B08-A03
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 170/1000
-phase_progress: 69/100
-block_progress: 1/10
+program_progress: 171/1000
+phase_progress: 70/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B08-A02 — Vision scoring typed contract: define measurable acceptance criteria.
+P02-B08-A03 — Vision scoring production slice: en küçük üretim dikey dilimini uygula.
 
-objective: P02-B08-A01 baseline PASS; formalize scoring contract.
-target: Typed contract with measurable probes for all visioner scoring categories.
-hypothesis: A01 baseline fixture and probe matrix provide contract entry points.
-acceptance: forge-p02-visioner-scoring contract coverage aligned with baseline fixture.
+objective: P02-B08-A02 contract PASS; implement recoverVisionerTradeoff production slice.
+target: recoverVisionerTradeoff restructures failed trade-off parse into actionable scoring input.
+hypothesis: A02 contract gap vsco.structured_tradeoff_recovery closes with minimal recovery helper.
+acceptance: forge-p02-visioner-scoring production slice; gap probe aligns PASS.
 commands: npx tsx --test src/forge-p02-visioner-scoring.test.ts
 blast_radius: src/forge-p02-visioner-scoring*
-rollback: P02-B08-A02 contract değişikliklerini geri al.
+rollback: P02-B08-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: contract requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
+fallback: recoverVisionerTradeoff requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B08-A01
-last_commit: 56b5857
-tests: PASS — forge-p02-visioner-scoring-baseline.test.ts (3/3)
-evidence: runVisionerScoringProbes measures 23 probes from P02-B07 handoff; documented FAIL gap vsco.structured_tradeoff_recovery
-next: P02-B08-A02
+last_atom: P02-B08-A02
+last_commit: 225ad13
+tests: PASS — forge-p02-visioner-scoring.test.ts (9/9)
+evidence: validateVisionerScoringContractCoverage 23 probes; 22 PASS + 1 documented gap vsco.structured_tradeoff_recovery; probe matrix 22 passAligned + 1 gapAligned
+next: P02-B08-A03
