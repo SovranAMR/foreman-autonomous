@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B07-A05
-last_commit: (pending)
+last_commit: fa3ef17
 tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (19/19); failure/recovery 7/7 aligned (5 pass, 2 NO-GO gaps); zero unexpected mismatches
 evidence: runStrategistParallelWaveFailureRecoverySlice; validateStrategistParallelWaveFailureRecoveryProbeMatrix
 next: P03-B07-A06

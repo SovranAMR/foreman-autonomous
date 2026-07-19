@@ -44,7 +44,7 @@ fallback: Evidence slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B07-A05
-last_commit: (pending)
+last_commit: fa3ef17
 tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (19/19); failure/recovery 7/7 aligned; zero unexpected mismatches
 evidence: runStrategistParallelWaveFailureRecoverySlice; validateStrategistParallelWaveFailureRecoveryProbeMatrix
 next: P03-B07-A06
