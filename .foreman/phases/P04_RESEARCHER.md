@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B05-A06
-last_commit: pending
+last_commit: 23508db
 tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (26/26); runResearcherCitationProvenanceGraphEvidenceSlice; passAligned=4 gapAligned=2 recordValid=true
 evidence: validateResearcherCitationProvenanceGraphEvidenceRunRecord + runResearcherCitationProvenanceGraphFailureRecoverySliceWithRecord; auditable evidence/telemetry/provenance for failure_path, recovery_path and nogo_path probes
 next: P04-B05-A07
