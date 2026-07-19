@@ -44,7 +44,7 @@ fallback: P03-B01-A05 failure/recovery slice misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B01-A05
-last_commit: pending
+last_commit: af96616
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (13/13); failure/recovery slice 6/6 probes; 0 unexpected mismatches
 evidence: runStrategistIntentFailureRecoverySlice; validateStrategistIntentFailureRecoveryProbeMatrix; listStrategistIntentFailureRecoveryProbeIds
 next: P03-B01-A06
