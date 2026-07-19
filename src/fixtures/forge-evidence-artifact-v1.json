@@ -1,0 +1,165 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B08-A01",
+  "contractAtom": "P01-B08-A05",
+  "purpose": "Evidence and artifact schema baseline measured from sealed B07 reproducible fixture artifacts (includes documented FAIL gaps).",
+  "sourceReproducibleFixture": {
+    "version": "1.0.0",
+    "atom": "P01-B07-A10",
+    "contractVersion": "1.0.0",
+    "probeCount": 21,
+    "reproducibleFixtureCategories": 8
+  },
+  "probes": [
+    {
+      "id": "eva.version_tagged",
+      "category": "schema_versioning",
+      "description": "Evidence artifact baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.atom_tagged",
+      "category": "schema_versioning",
+      "description": "Evidence artifact baseline declares P01-B08-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.harness_version_exported",
+      "category": "schema_versioning",
+      "description": "FORGE_EVIDENCE_ARTIFACT_VERSION exported for evidence schema harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.seven_block_evidence_exports",
+      "category": "evidence_shape",
+      "description": "All seven sealed forge blocks export typed ProbeEvidence interfaces",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.common_evidence_core_fields",
+      "category": "evidence_shape",
+      "description": "All block ProbeEvidence types share core auditable fields",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.unified_category_dimension",
+      "category": "evidence_shape",
+      "description": "Unified ForgeEvidenceArtifactProbeEvidence uses shared category dimension across blocks",
+      "expected": "FAIL"
+    },
+    {
+      "id": "eva.seven_block_telemetry_exports",
+      "category": "telemetry_shape",
+      "description": "All seven sealed forge blocks export typed ProbeTelemetry interfaces",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.common_telemetry_core_fields",
+      "category": "telemetry_shape",
+      "description": "All block ProbeTelemetry types share probeId, sequenceIndex and durationMs",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.seven_block_provenance_exports",
+      "category": "provenance_lineage",
+      "description": "All seven sealed forge blocks export typed provenance interfaces",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.source_lineage_wired",
+      "category": "provenance_lineage",
+      "description": "B02+ provenance types wire source lineage fields to upstream sealed artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.seven_block_run_record_exports",
+      "category": "run_record_bundle",
+      "description": "All seven sealed forge blocks export typed RunRecord interfaces",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.run_record_triple_bundle",
+      "category": "run_record_bundle",
+      "description": "RunRecord types bundle provenance, evidence, telemetry and summary",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.unified_schema_type_export",
+      "category": "schema_registry",
+      "description": "ForgeEvidenceArtifactSchema exports unified cross-block evidence schema type",
+      "expected": "FAIL"
+    },
+    {
+      "id": "eva.cross_block_normalizer",
+      "category": "schema_registry",
+      "description": "normalizeForgeEvidenceArtifact adapts block-specific evidence into unified schema",
+      "expected": "FAIL"
+    },
+    {
+      "id": "eva.b07_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P01_B07_TO_B08_HANDOFF_V1 targets P01-B08-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.b07_sealed_probe_count",
+      "category": "baseline_link",
+      "description": "Sealed B07 handoff probeCount matches active reproducible fixture contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.source_reproducible_fixture_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed sourceReproducibleFixture artifacts from B07-A10",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.probe_runner_exported",
+      "category": "boundary",
+      "description": "runEvidenceArtifactProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL evidence schema gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateEvidenceArtifactBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.min_category_probes",
+      "category": "failure_path",
+      "description": "validateEvidenceArtifactBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "eva.recovery_missing_schema_fallback",
+      "category": "recovery_path",
+      "description": "Recovery loader falls back when versioned evidence schema fixture file is missing",
+      "expected": "FAIL"
+    },
+    {
+      "id": "eva.recovery_baseline_reset",
+      "category": "recovery_path",
+      "description": "Evidence artifact harness resets baseline metrics on recovery transition",
+      "expected": "FAIL"
+    },
+    {
+      "id": "eva.nogo_schema_drift_gate",
+      "category": "nogo_path",
+      "description": "NO-GO gate halts eval when evidence schema drift is detected",
+      "expected": "FAIL"
+    },
+    {
+      "id": "eva.nogo_cross_block_mismatch_gate",
+      "category": "nogo_path",
+      "description": "NO-GO gate rejects run when cross-block evidence shapes mismatch unified schema",
+      "expected": "FAIL"
+    }
+  ]
+}

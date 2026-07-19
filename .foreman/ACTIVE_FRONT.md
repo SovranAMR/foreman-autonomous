@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B08
-active_atom: P01-B08-A01
+active_atom: P01-B08-A02
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 69/1000
-phase_progress: 68/100
-block_progress: 0/10
+program_progress: 70/1000
+phase_progress: 69/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B08-A01 — Evidence ve artifact şeması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P01-B08-A02 — Evidence ve artifact şeması: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: B07 block gate PASS; B08 baseline fixture ile evidence/artifact şemasını ölç.
-target: forge-evidence-artifact schema baseline; failing baseline fixture.
-hypothesis: Sealed B07 reproducible fixture handoff B08-A01 entry için yeterli.
-acceptance: baseline fixture oluşturulur; B07 handoff entryCriteria karşılanır.
-commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A01 suite)
-blast_radius: forge-evidence-artifact*.ts; src/fixtures/
-rollback: A01 baseline slice değişikliklerini geri al.
+objective: B08-A01 baseline PASS; typed contract ile evidence/artifact acceptance kriterini tanımla.
+target: FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1; measurable category contracts.
+hypothesis: A01 baseline fixture ve 7 documented FAIL gap A02 contract girişi için yeterli.
+acceptance: typed contract tanımlanır; baseline fixture contract ile hizalanır.
+commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A02 suite)
+blast_radius: forge-evidence-artifact*.ts
+rollback: A02 contract slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B07-A10
+last_atom: P01-B08-A01
 last_commit: pending
-tests: PASS — forge-reproducible-fixture-block-gate.test.ts (6/6); forge-reproducible-fixture-baseline.test.ts (27/27); forge-reproducible-fixture.guard.test.ts (8/8); forge-pipeline-regression.integration.test.ts
-evidence: runReproducibleFixtureBlockGate; FORGE_P01_B07_TO_B08_HANDOFF_V1; verifyForgeReproducibleFixtureBlockGate orchestrator seam; 10/10 atom B07 sealed
-next: P01-B08-A01
+tests: PASS — forge-evidence-artifact-baseline.test.ts (3/3); 25 probes / 7 FAIL gaps aligned
+evidence: loadEvidenceArtifactBaseline; runEvidenceArtifactProbes; validateEvidenceArtifactBaseline; B07 handoff entryCriteria
+next: P01-B08-A02

@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 68
+completed_atoms: 69
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -106,7 +106,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B08 — Evidence ve artifact şeması
 
-- [ ] P01-B08-A01 — Evidence ve artifact şeması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B08-A01 — Evidence ve artifact şeması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B08-A02 — Evidence ve artifact şeması: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B08-A03 — Evidence ve artifact şeması: en küçük üretim dikey dilimini uygula
 - [ ] P01-B08-A04 — Evidence ve artifact şeması: boundary ve edge-case davranışlarını tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B07-A10
+last_atom: P01-B08-A01
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-reproducible-fixture-block-gate.test.ts` (6/6); forge-reproducible-fixture-baseline.test.ts (27/27); forge-reproducible-fixture.guard.test.ts (8/8); forge-pipeline-regression.integration.test.ts
+tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (3/3); forge-pipeline-regression.integration.test.ts
 evidence: |
-  P01-B07-A10 block gate: runReproducibleFixtureBlockGate seals 10/10 atom seals;
-  FORGE_P01_B07_TO_B08_HANDOFF_V1→P01-B08-A01; verifyForgeReproducibleFixtureBlockGate orchestrator seam;
-  contract disposition fix (recovery/nogo typed); B07 block complete 10/10.
-next: P01-B08-A01
+  P01-B08-A01 baseline: forge-evidence-artifact-v1.json (25 probes, 7 documented FAIL gaps);
+  runEvidenceArtifactProbes measures 7 sealed block evidence/telemetry/provenance/run-record shapes;
+  B07 handoff entryCriteria satisfied; unified schema registry gaps documented as baseline debt.
+next: P01-B08-A02
