@@ -81,7 +81,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P03-B06 — Kaynak ve budget planı
 
 - [x] P03-B06-A01 — Kaynak ve budget planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P03-B06-A02 — Kaynak ve budget planı: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P03-B06-A02 — Kaynak ve budget planı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B06-A03 — Kaynak ve budget planı: en küçük üretim dikey dilimini uygula
 - [ ] P03-B06-A04 — Kaynak ve budget planı: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B06-A05 — Kaynak ve budget planı: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B06-A01
-last_commit: 33301ce
-tests: PASS — forge-p03-strategist-resource-budget-baseline.test.ts (3/3); 27 probes; 6 documented FAIL gaps; B05 handoff alignment validated
-evidence: loadStrategistResourceBudgetBaseline; validateStrategistResourceBudgetBaseline; runStrategistResourceBudgetProbes; summarizeStrategistResourceBudgetMatrix; FORGE_P03_B05_TO_B06_HANDOFF_V1
-next: P03-B06-A02
+last_atom: P03-B06-A02
+last_commit: pending
+tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (3/3); 27 probes; 6 FAIL gaps; contract↔fixture alignment validated
+evidence: getActiveStrategistResourceBudgetContract; validateStrategistResourceBudgetAgainstContract; validateStrategistResourceBudgetCoverage; summarizeStrategistResourceBudgetCoverage; listStrategistResourceBudgetContractProbeIds
+next: P03-B06-A03

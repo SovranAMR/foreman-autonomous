@@ -519,7 +519,7 @@ const STRATEGIST_RESOURCE_BUDGET_CATEGORY_CONTRACTS: Record<
 
 export const FORGE_STRATEGIST_RESOURCE_BUDGET_CONTRACT_V1: StrategistResourceBudgetContract = {
   version: "1.0.0",
-  atom: "P03-B06-A02",
+  atom: "P03-B06-A06",
   purpose:
     "Typed strategist resource and budget contract aligned to baseline probe matrix and sealed P03-B05 block gate.",
   categories: STRATEGIST_RESOURCE_BUDGET_CATEGORY_CONTRACTS,
@@ -645,6 +645,135 @@ export function validateStrategistResourceBudgetAgainstContract(
       kind: "missing_probe",
       detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export interface StrategistResourceBudgetCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: StrategistResourceBudgetCategory;
+  detail: string;
+}
+
+export interface StrategistResourceBudgetCoverageResult {
+  valid: boolean;
+  issues: StrategistResourceBudgetCoverageIssue[];
+}
+
+export function getStrategistResourceBudgetCategoryContract(
+  category: StrategistResourceBudgetCategory,
+  contract: StrategistResourceBudgetContract = getActiveStrategistResourceBudgetContract(),
+): StrategistResourceBudgetCategoryContract {
+  return contract.categories[category];
+}
+
+export function listStrategistResourceBudgetContractProbeIds(
+  contract: StrategistResourceBudgetContract = getActiveStrategistResourceBudgetContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listStrategistResourceBudgetProbesByDisposition(
+  disposition: StrategistResourceBudgetProbeDisposition,
+  contract: StrategistResourceBudgetContract = getActiveStrategistResourceBudgetContract(),
+): StrategistResourceBudgetProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listStrategistResourceBudgetContractProbesByCategory(
+  category: StrategistResourceBudgetCategory,
+  contract: StrategistResourceBudgetContract = getActiveStrategistResourceBudgetContract(),
+): StrategistResourceBudgetProbeContract[] {
+  return contract.categories[category].probes;
+}
+
+export function validateStrategistResourceBudgetCoverage(
+  contract: StrategistResourceBudgetContract = getActiveStrategistResourceBudgetContract(),
+): StrategistResourceBudgetCoverageResult {
+  const issues: StrategistResourceBudgetCoverageIssue[] = [];
+
+  for (const category of STRATEGIST_RESOURCE_BUDGET_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < STRATEGIST_RESOURCE_BUDGET_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${STRATEGIST_RESOURCE_BUDGET_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probeEntry of categoryContract.probes) {
+      if (probeEntry.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probeEntry.id,
+          detail: `${probeEntry.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listStrategistResourceBudgetContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeStrategistResourceBudgetCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probeEntry of contract.probes) {
+    if (!probeEntry.id.startsWith("sbudget.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probeEntry.id,
+        detail: `${probeEntry.id} missing sbudget. prefix`,
+      });
+    }
   }
 
   return { valid: issues.length === 0, issues };
