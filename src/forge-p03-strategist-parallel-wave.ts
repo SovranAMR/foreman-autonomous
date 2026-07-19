@@ -5,6 +5,8 @@
  * budget block gate artifacts.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1694,4 +1696,454 @@ export function runStrategistParallelWaveProbes(
     const contractProbe = contract.probes.find(p => p.id === entry.id);
     return contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
   });
+}
+
+// ─── Evidence, telemetry and provenance (P03-B07-A06) ────────────────────────
+
+export interface StrategistParallelWaveProbeEvidence {
+  probeId: string;
+  category: StrategistParallelWaveCategory;
+  disposition: StrategistParallelWaveProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+export interface StrategistParallelWaveProbeTelemetry {
+  probeId: string;
+  category: StrategistParallelWaveCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P03-B07-A06). */
+export interface StrategistParallelWaveProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  sliceAtom?: string;
+  sliceCategories?: readonly StrategistParallelWaveCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated parallel wave run record bundling evidence, telemetry and provenance. */
+export interface StrategistParallelWaveRunRecord {
+  provenance: StrategistParallelWaveProvenance;
+  evidence: StrategistParallelWaveProbeEvidence[];
+  telemetry: StrategistParallelWaveProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<StrategistParallelWaveCategory, number>;
+    byDisposition: Record<StrategistParallelWaveProbeDisposition, number>;
+  };
+}
+
+export interface StrategistParallelWaveRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistParallelWaveRunValidationResult {
+  valid: boolean;
+  issues: StrategistParallelWaveRunValidationIssue[];
+}
+
+export function buildStrategistParallelWaveProbeEvidence(
+  probeId: string,
+  category: StrategistParallelWaveCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: StrategistParallelWaveProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): StrategistParallelWaveProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildStrategistParallelWaveProbeTelemetry(
+  probeId: string,
+  category: StrategistParallelWaveCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): StrategistParallelWaveProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildStrategistParallelWaveProvenance(
+  runId: string,
+  fixture: StrategistParallelWaveBaseline,
+  contract: StrategistParallelWaveContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistParallelWaveCategory[];
+  },
+): StrategistParallelWaveProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_STRATEGIST_PARALLEL_WAVE_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildStrategistParallelWaveRunRecord(
+  provenance: StrategistParallelWaveProvenance,
+  evidence: StrategistParallelWaveProbeEvidence[],
+  telemetry: StrategistParallelWaveProbeTelemetry[],
+): StrategistParallelWaveRunRecord {
+  const byCategory = {} as Record<StrategistParallelWaveCategory, number>;
+  const byDisposition: Record<StrategistParallelWaveProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of STRATEGIST_PARALLEL_WAVE_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateStrategistParallelWaveRunRecordAgainstProbeIds(
+  record: StrategistParallelWaveRunRecord,
+  expectedProbeIds: string[],
+  contract: StrategistParallelWaveContract,
+): StrategistParallelWaveRunValidationResult {
+  const issues: StrategistParallelWaveRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateStrategistParallelWaveRunRecord(
+  record: StrategistParallelWaveRunRecord,
+  contract: StrategistParallelWaveContract = getActiveStrategistParallelWaveContract(),
+): StrategistParallelWaveRunValidationResult {
+  return validateStrategistParallelWaveRunRecordAgainstProbeIds(
+    record,
+    listStrategistParallelWaveContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateStrategistParallelWaveFailureRecoveryRunRecord(
+  record: StrategistParallelWaveRunRecord,
+  contract: StrategistParallelWaveContract = getActiveStrategistParallelWaveContract(),
+): StrategistParallelWaveRunValidationResult {
+  const issues: StrategistParallelWaveRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P03-B07-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P03-B07-A06`,
+    });
+  }
+
+  const expectedCategories = [...STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateStrategistParallelWaveRunRecordAgainstProbeIds(
+    record,
+    listStrategistParallelWaveFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface StrategistParallelWaveEvidenceSliceResult {
+  atom: "P03-B07-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: StrategistParallelWaveProbeResult[];
+  evidenceResults: StrategistParallelWaveProbeResult[];
+  matrixValidation: StrategistParallelWaveProbeMatrixValidationResult;
+  record: StrategistParallelWaveRunRecord;
+  recordValidation: StrategistParallelWaveRunValidationResult;
+}
+
+function resolveStrategistParallelWaveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runStrategistParallelWaveProbeWithTiming(
+  entry: StrategistParallelWaveFixtureEntry,
+  fixture: StrategistParallelWaveBaseline,
+  contractProbe:
+    | { criterion: string; disposition: StrategistParallelWaveProbeDisposition }
+    | undefined,
+): {
+  result: StrategistParallelWaveProbeResult;
+  durationMs: number;
+  disposition: StrategistParallelWaveProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildStrategistParallelWaveRecordFromEntries(
+  entries: StrategistParallelWaveFixtureEntry[],
+  fixture: StrategistParallelWaveBaseline,
+  contract: StrategistParallelWaveContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistParallelWaveCategory[];
+  },
+): StrategistParallelWaveRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: StrategistParallelWaveProbeEvidence[] = [];
+  const telemetry: StrategistParallelWaveProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runStrategistParallelWaveProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildStrategistParallelWaveProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildStrategistParallelWaveProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildStrategistParallelWaveProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveStrategistParallelWaveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildStrategistParallelWaveRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all parallel wave probes and emit auditable evidence, telemetry and provenance (P03-B07-A06). */
+export function runStrategistParallelWaveProbesWithRecord(
+  fixture: StrategistParallelWaveBaseline = loadStrategistParallelWaveBaseline(),
+): StrategistParallelWaveRunRecord {
+  const contract = getActiveStrategistParallelWaveContract();
+  return buildStrategistParallelWaveRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P03-B07-A06). */
+export function runStrategistParallelWaveFailureRecoverySliceWithRecord(
+  fixture: StrategistParallelWaveBaseline = loadStrategistParallelWaveBaseline(),
+): StrategistParallelWaveRunRecord {
+  const contract = getActiveStrategistParallelWaveContract();
+  const failureRecoveryIds = new Set(listStrategistParallelWaveFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildStrategistParallelWaveRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P03-B07-A06",
+    sliceCategories: STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runStrategistParallelWaveEvidenceSlice(
+  fixture: StrategistParallelWaveBaseline = loadStrategistParallelWaveBaseline(),
+): StrategistParallelWaveEvidenceSliceResult {
+  const contract = getActiveStrategistParallelWaveContract();
+  const results = runStrategistParallelWaveProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistParallelWaveContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistParallelWaveFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runStrategistParallelWaveFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateStrategistParallelWaveFailureRecoveryRunRecord(
+    record,
+    contract,
+  );
+
+  return {
+    atom: "P03-B07-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
+  };
 }

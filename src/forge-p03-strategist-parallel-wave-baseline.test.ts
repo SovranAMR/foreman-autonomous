@@ -6,6 +6,15 @@ import {
   runStrategistParallelWaveProductionSlice,
   runStrategistParallelWaveBoundarySlice,
   runStrategistParallelWaveFailureRecoverySlice,
+  runStrategistParallelWaveFailureRecoverySliceWithRecord,
+  runStrategistParallelWaveProbesWithRecord,
+  runStrategistParallelWaveEvidenceSlice,
+  buildStrategistParallelWaveProbeEvidence,
+  buildStrategistParallelWaveProbeTelemetry,
+  buildStrategistParallelWaveProvenance,
+  buildStrategistParallelWaveRunRecord,
+  validateStrategistParallelWaveFailureRecoveryRunRecord,
+  validateStrategistParallelWaveRunRecord,
   getActiveStrategistParallelWaveContract,
   validateStrategistParallelWaveBaseline,
   validateStrategistParallelWaveProbeMatrix,
@@ -20,6 +29,7 @@ import {
   STRATEGIST_PARALLEL_WAVE_CATEGORIES,
   STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_PARALLEL_WAVE_DECOMPOSE_MAX_LENGTH,
+  FORGE_STRATEGIST_PARALLEL_WAVE_VERSION,
 } from "./forge-p03-strategist-parallel-wave.js";
 
 function formatMismatchReport(
@@ -329,5 +339,159 @@ describe("Forge Strategist Parallel Wave Failure/Recovery Slice — P03-B07-A05"
     assert.ok(exportedValidator);
     assert.equal(exportedValidator!.expected, "FAIL");
     assert.equal(exportedValidator!.actual, "FAIL");
+  });
+});
+
+describe("Forge Strategist Parallel Wave Evidence — P03-B07-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadStrategistParallelWaveBaseline();
+    const contract = getActiveStrategistParallelWaveContract();
+    const probeIds = listStrategistParallelWaveFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-19T00:00:00.000Z";
+    const completedAt = "2026-07-19T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildStrategistParallelWaveProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        startedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildStrategistParallelWaveProbeTelemetry(
+        probeId,
+        contractProbe.category,
+        index,
+        index * 0.5,
+      );
+    });
+
+    const provenance = buildStrategistParallelWaveProvenance(
+      "run-swave-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P03-B07-A06",
+        sliceCategories: STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildStrategistParallelWaveRunRecord(provenance, evidence, telemetry);
+    const validation = validateStrategistParallelWaveFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 7);
+    assert.equal(record.summary.mismatches, 0);
+    assert.ok(record.summary.byDisposition.failure >= 3);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byDisposition.nogo >= 2);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBlockGateAtom, fixture.sourceBlockGate.atom);
+  });
+
+  it("executes evidence slice with zero unexpected mismatches and valid run record", () => {
+    const contract = getActiveStrategistParallelWaveContract();
+    const slice = runStrategistParallelWaveEvidenceSlice();
+
+    assert.equal(slice.atom, "P03-B07-A06");
+    assert.equal(slice.evidenceProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.recordValid, true);
+    assert.equal(slice.evidenceResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 5);
+    assert.equal(slice.matrixValidation.gapAligned, 2);
+    assert.equal(
+      slice.recordValidation.valid,
+      true,
+      slice.recordValidation.issues.map(i => i.detail).join("\n"),
+    );
+
+    for (const category of STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistParallelWaveContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.evidenceResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing evidence result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const record = slice.record;
+    assert.equal(record.evidence.length, 7);
+    assert.equal(record.telemetry.length, 7);
+    assert.equal(record.provenance.totalProbes, 7);
+    assert.equal(record.provenance.sliceAtom, "P03-B07-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_PARALLEL_WAVE_VERSION);
+    assert.equal(record.provenance.harnessVersion, "1.0.0");
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.ok(item.recordedAt.length > 10);
+    }
+
+    const recoveryProbe = record.evidence.find(
+      e => e.probeId === "swave.recovery_sequential_fallback",
+    );
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.disposition, "recovery");
+  });
+
+  it("records evidence, telemetry and provenance for full parallel wave run", () => {
+    const contract = getActiveStrategistParallelWaveContract();
+    const record = runStrategistParallelWaveProbesWithRecord();
+    const validation = validateStrategistParallelWaveRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 27);
+    assert.equal(record.telemetry.length, 27);
+    assert.equal(record.provenance.totalProbes, 27);
+    assert.equal(record.provenance.harnessVersion, "1.0.0");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.summary.aligned, 27);
+  });
+
+  it("records evidence slice via failure/recovery with-record helper", () => {
+    const contract = getActiveStrategistParallelWaveContract();
+    const record = runStrategistParallelWaveFailureRecoverySliceWithRecord();
+    const validation = validateStrategistParallelWaveFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.aligned, 7);
   });
 });

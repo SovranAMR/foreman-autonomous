@@ -98,7 +98,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B07-A03 — Parallel execution wave planı: en küçük üretim dikey dilimini uygula
 - [x] P03-B07-A04 — Parallel execution wave planı: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B07-A05 — Parallel execution wave planı: failure, recovery ve NO-GO yollarını uygula
-- [ ] P03-B07-A06 — Parallel execution wave planı: evidence, telemetry ve provenance kaydını ekle
+- [x] P03-B07-A06 — Parallel execution wave planı: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B07-A07 — Parallel execution wave planı: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B07-A08 — Parallel execution wave planı: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B07-A09 — Parallel execution wave planı: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B07-A05
-last_commit: fa3ef17
-tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (19/19); failure/recovery 7/7 aligned (5 pass, 2 NO-GO gaps); zero unexpected mismatches
-evidence: runStrategistParallelWaveFailureRecoverySlice; validateStrategistParallelWaveFailureRecoveryProbeMatrix
-next: P03-B07-A06
+last_atom: P03-B07-A06
+last_commit: pending
+tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (23/23); evidence slice 7/7 aligned; run record validation passes; zero unexpected mismatches
+evidence: runStrategistParallelWaveFailureRecoverySliceWithRecord; validateStrategistParallelWaveFailureRecoveryRunRecord; runStrategistParallelWaveEvidenceSlice
+next: P03-B07-A07
