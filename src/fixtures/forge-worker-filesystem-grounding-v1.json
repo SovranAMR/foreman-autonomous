@@ -1,0 +1,177 @@
+{
+  "version": "1.0.0",
+  "atom": "P05-B02-A01",
+  "contractAtom": "P05-B02-A02",
+  "purpose": "Worker filesystem read and grounding baseline measured from sealed P05-B01 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P05-B01-A10",
+    "contractVersion": "1.0.0",
+    "workerToolDispatchProbeCount": 27,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "wfg.version_tagged",
+      "category": "grounding_versioning",
+      "description": "Filesystem grounding baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.atom_tagged",
+      "category": "grounding_versioning",
+      "description": "Filesystem grounding baseline declares P05-B02-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.harness_version_exported",
+      "category": "grounding_versioning",
+      "description": "FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION exported for grounding harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.read_file_tool_defined",
+      "category": "read_signal",
+      "description": "read_file tool enables worker file content grounding",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.execution_engine_read_file",
+      "category": "read_signal",
+      "description": "ExecutionEngine.readFile provides secure project-root file reads",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.typed_read_call_union",
+      "category": "read_signal",
+      "description": "TypedReadCall discriminated union narrows path and line-range args before read",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wfg.worker_prompt_grounding_contract",
+      "category": "read_signal",
+      "description": "WORKER_SYSTEM prompt declares filesystem grounding contract for read-before-edit",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wfg.secure_path_resolution",
+      "category": "path_signal",
+      "description": "ExecutionEngine.securePath resolves paths within project root",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.denied_path_blocklist",
+      "category": "path_signal",
+      "description": "ExecutionEngine denies sensitive paths (.env, credentials) before read",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.line_range_reading",
+      "category": "path_signal",
+      "description": "ExecutionEngine.readFile supports start_line and end_line grounding slices",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.orchestrator_pre_read_grounding",
+      "category": "path_signal",
+      "description": "Orchestrator validates filesystem read grounding before edit/write dispatch",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wfg.b01_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P05_B01_TO_B02_HANDOFF_V1 targets P05-B02-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.b01_sealed_dispatch_probes",
+      "category": "baseline_link",
+      "description": "P05-B01→B02 handoff sealed probeCount matches active worker tool dispatch contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P05-B01 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.probe_runner_exported",
+      "category": "boundary",
+      "description": "runWorkerFilesystemGroundingProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL filesystem grounding gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.empty_path_boundary",
+      "category": "boundary",
+      "description": "assessFilesystemReadInputBoundary rejects empty file path input",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.whitespace_path_boundary",
+      "category": "boundary",
+      "description": "assessFilesystemReadInputBoundary rejects whitespace-only file path input",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.null_byte_path_boundary",
+      "category": "boundary",
+      "description": "assessFilesystemReadInputBoundary rejects null-byte file path safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.long_path_truncation_boundary",
+      "category": "boundary",
+      "description": "assessFilesystemReadInputBoundary truncates file path exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateWorkerFilesystemGroundingBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.malformed_path_guard",
+      "category": "failure_path",
+      "description": "assessFilesystemReadInputBoundary rejects null-byte path segments safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.recovery_relative_path_coercion",
+      "category": "recovery_path",
+      "description": "recoverFilesystemReadPath coerces relative paths into project-root read targets",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.recovery_missing_path_rejected",
+      "category": "recovery_path",
+      "description": "recoverFilesystemReadPath rejects unrecoverable missing file path input",
+      "expected": "PASS"
+    },
+    {
+      "id": "wfg.read_before_edit_validator",
+      "category": "nogo_path",
+      "description": "validateReadBeforeEdit rejects edit/write without prior read_file grounding",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wfg.grounding_telemetry_record",
+      "category": "nogo_path",
+      "description": "buildFilesystemGroundingTelemetry records read grounding provenance for worker loop",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wfg.exported_grounding_validator",
+      "category": "nogo_path",
+      "description": "validateFilesystemGrounding exported for orchestrator pre-read grounding checks",
+      "expected": "FAIL"
+    }
+  ]
+}

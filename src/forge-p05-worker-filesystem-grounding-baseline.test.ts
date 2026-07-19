@@ -1,0 +1,134 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import {
+  loadWorkerFilesystemGroundingBaseline,
+  runWorkerFilesystemGroundingProbes,
+  validateWorkerFilesystemGroundingBaseline,
+  summarizeWorkerFilesystemGroundingMatrix,
+  listWorkerFilesystemGroundingProbesByExpected,
+  listWorkerFilesystemGroundingKnownGaps,
+  assessFilesystemReadInputBoundary,
+  recoverFilesystemReadPath,
+  probeDeniedPathReadError,
+  WORKER_FILESYSTEM_GROUNDING_CATEGORIES,
+  WORKER_FILESYSTEM_GROUNDING_PATH_MAX_LENGTH,
+  FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION,
+} from "./forge-p05-worker-filesystem-grounding.js";
+import { getForgeP05B01ToB02Handoff } from "./forge-p05-worker-tool-dispatch.js";
+
+function formatMismatchReport(
+  mismatches: { id: string; expected: string; actual: string; detail: string }[],
+): string {
+  return mismatches
+    .map(m => `  ${m.id}: expected=${m.expected} actual=${m.actual} (${m.detail})`)
+    .join("\n");
+}
+
+describe("Forge Worker Filesystem Grounding — P05-B02-A01", () => {
+  it("loads versioned filesystem grounding baseline aligned with P05-B01 block gate handoff", () => {
+    const fixture = loadWorkerFilesystemGroundingBaseline();
+    const validation = validateWorkerFilesystemGroundingBaseline(fixture);
+    const handoff = getForgeP05B01ToB02Handoff();
+
+    assert.equal(fixture.version, "1.0.0");
+    assert.equal(fixture.atom, "P05-B02-A01");
+    assert.equal(fixture.contractAtom, "P05-B02-A02");
+    assert.equal(fixture.sourceBlockGate.atom, "P05-B01-A10");
+    assert.equal(fixture.sourceBlockGate.sealedAtomCount, 10);
+    assert.equal(fixture.sourceBlockGate.workerToolDispatchProbeCount, 27);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(fixture.probes.length, 27);
+    assert.equal(handoff.targetBlock.entryAtom, "P05-B02-A01");
+  });
+
+  it("measures filesystem grounding probes with documented FAIL gaps from P05-B01 sealed handoff", () => {
+    const results = runWorkerFilesystemGroundingProbes();
+    const summary = summarizeWorkerFilesystemGroundingMatrix(results);
+
+    assert.equal(summary.total, results.length);
+    assert.equal(summary.total, 27);
+    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+
+    const documentedFail = listWorkerFilesystemGroundingProbesByExpected(
+      "FAIL",
+      loadWorkerFilesystemGroundingBaseline(),
+    );
+    assert.equal(documentedFail.length, 6);
+    assert.ok(documentedFail.some(p => p.id === "wfg.typed_read_call_union"));
+    assert.ok(documentedFail.some(p => p.id === "wfg.read_before_edit_validator"));
+    assert.ok(documentedFail.some(p => p.id === "wfg.exported_grounding_validator"));
+
+    for (const gap of summary.knownGaps) {
+      assert.equal(gap.expected, "FAIL");
+      assert.equal(gap.actual, "FAIL");
+      assert.equal(gap.aligned, true);
+    }
+
+    for (const cat of WORKER_FILESYSTEM_GROUNDING_CATEGORIES) {
+      assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
+      assert.ok(summary.byCategory[cat].total > 0, `${cat} has no probes`);
+    }
+
+    const passMismatches = results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(
+      passMismatches.length,
+      0,
+      formatMismatchReport(passMismatches),
+    );
+  });
+
+  it("documents filesystem grounding gaps as measurable baseline debt", () => {
+    const gaps = listWorkerFilesystemGroundingKnownGaps(runWorkerFilesystemGroundingProbes());
+    assert.equal(gaps.length, 6);
+    assert.deepEqual(
+      gaps.map(g => g.id).sort(),
+      [
+        "wfg.exported_grounding_validator",
+        "wfg.grounding_telemetry_record",
+        "wfg.orchestrator_pre_read_grounding",
+        "wfg.read_before_edit_validator",
+        "wfg.typed_read_call_union",
+        "wfg.worker_prompt_grounding_contract",
+      ],
+    );
+  });
+
+  it("assessFilesystemReadInputBoundary rejects empty and null-byte file paths", () => {
+    const empty = assessFilesystemReadInputBoundary("");
+    assert.equal(empty.acceptable, false);
+    assert.equal(empty.disposition, "empty");
+
+    const whitespace = assessFilesystemReadInputBoundary("   \t\n  ");
+    assert.equal(whitespace.acceptable, false);
+    assert.equal(whitespace.disposition, "whitespace_only");
+
+    const nullByte = assessFilesystemReadInputBoundary("src/tools.ts\0");
+    assert.equal(nullByte.acceptable, false);
+    assert.equal(nullByte.disposition, "contains_null_byte");
+  });
+
+  it("assessFilesystemReadInputBoundary truncates oversized file paths", () => {
+    const longPath = "src/" + "x".repeat(WORKER_FILESYSTEM_GROUNDING_PATH_MAX_LENGTH + 500);
+    const truncated = assessFilesystemReadInputBoundary(longPath);
+    assert.equal(truncated.acceptable, true);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedPath.length, WORKER_FILESYSTEM_GROUNDING_PATH_MAX_LENGTH);
+    assert.equal(truncated.disposition, "exceeds_max_length");
+  });
+
+  it("recoverFilesystemReadPath coerces relative paths into project-root read targets", () => {
+    const recovery = recoverFilesystemReadPath("./src/tools.ts");
+
+    assert.equal(recovery.recovered, true);
+    assert.equal(recovery.path, "src/tools.ts");
+  });
+
+  it("probeDeniedPathReadError returns deterministic denied-path error", () => {
+    const ok = probeDeniedPathReadError();
+    assert.equal(ok, true);
+  });
+
+  it("exports harness version for filesystem grounding baseline", () => {
+    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a01");
+  });
+});

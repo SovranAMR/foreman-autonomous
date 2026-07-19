@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B02
-active_atom: P05-B02-A01
+active_atom: P05-B02-A02
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 409/1000
-phase_progress: 7/100
-block_progress: 0/10
+program_progress: 410/1000
+phase_progress: 8/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B02-A01 — Filesystem okuma ve grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P05-B02-A02 — Filesystem okuma ve grounding: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P05-B01 block gate sealed with B02 handoff; baseline fixture for filesystem read/grounding.
-target: Measure current filesystem read behavior and create failing baseline fixture aligned to P05-B01 handoff.
-hypothesis: loadWorkerFilesystemGroundingBaseline returns versioned fixture with documented FAIL gaps from sealed P05-B01 artifacts.
-acceptance: Baseline loads, validates against P05-B01 handoff contract refs, and exposes measurable FAIL probes.
+objective: P05-B02-A01 baseline sealed; typed contract for filesystem read/grounding acceptance.
+target: Define measurable acceptance criteria with typed contract aligned to P05-B02-A01 baseline probes.
+hypothesis: getActiveWorkerFilesystemGroundingContract returns versioned contract with criterion per probe and FAIL gap mapping.
+acceptance: Contract loads, validates against baseline fixture refs, and exposes measurable acceptance probes.
 commands: npx tsx --test src/forge-p05-worker-filesystem-grounding*.test.ts
 blast_radius: src/forge-p05-worker-filesystem-grounding.ts
-rollback: P05-B02-A01 baseline değişikliklerini geri al.
+rollback: P05-B02-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Baseline blocked ise BLOCKED raporla.
+fallback: Contract blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B01-A10
-last_commit: b1d981c
-tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5), forge-p05-worker-tool-dispatch-evidence.test.ts (5/5), forge-p05-worker-tool-dispatch-property-fuzz.test.ts (6/6), forge-p05-worker-tool-dispatch-integration.test.ts (7/7), forge-p05-worker-tool-dispatch.guard.test.ts (9/9), forge-p05-worker-tool-dispatch-block-gate.test.ts (9/9)
-evidence: validateForgeWorkerToolDispatchBlockGate + runWorkerToolDispatchBlockGate; 10/10 atom seals PASS, guard/regression evidence wired, P05-B02 handoff contract valid (entry=P05-B02-A01)
-next: P05-B02-A01
+last_atom: P05-B02-A01
+last_commit: PENDING
+tests: PASS — forge-p05-worker-filesystem-grounding-baseline.test.ts (8/8)
+evidence: loadWorkerFilesystemGroundingBaseline + runWorkerFilesystemGroundingProbes; 27 probes, 6 documented FAIL gaps aligned to P05-B01 handoff (entry=P05-B02-A01)
+next: P05-B02-A02

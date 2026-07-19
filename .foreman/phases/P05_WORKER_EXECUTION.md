@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 10
+completed_atoms: 11
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -28,7 +28,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P05-B02 — Filesystem okuma ve grounding
 
-- [ ] P05-B02-A01 — Filesystem okuma ve grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P05-B02-A01 — Filesystem okuma ve grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P05-B02-A02 — Filesystem okuma ve grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P05-B02-A03 — Filesystem okuma ve grounding: en küçük üretim dikey dilimini uygula
 - [ ] P05-B02-A04 — Filesystem okuma ve grounding: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B01-A10
-last_commit: b1d981c
-tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5), forge-p05-worker-tool-dispatch-evidence.test.ts (5/5), forge-p05-worker-tool-dispatch-property-fuzz.test.ts (6/6), forge-p05-worker-tool-dispatch-integration.test.ts (7/7), forge-p05-worker-tool-dispatch.guard.test.ts (9/9), forge-p05-worker-tool-dispatch-block-gate.test.ts (9/9)
-evidence: validateForgeWorkerToolDispatchBlockGate + runWorkerToolDispatchBlockGate; 10/10 atom seals PASS, guard/regression evidence wired, P05-B02 handoff contract valid (entry=P05-B02-A01)
-next: P05-B02-A01
+last_atom: P05-B02-A01
+last_commit: PENDING
+tests: PASS — forge-p05-worker-filesystem-grounding-baseline.test.ts (8/8)
+evidence: loadWorkerFilesystemGroundingBaseline + runWorkerFilesystemGroundingProbes; 27 probes, 6 documented FAIL gaps aligned to P05-B01 handoff (entry=P05-B02-A01)
+next: P05-B02-A02
