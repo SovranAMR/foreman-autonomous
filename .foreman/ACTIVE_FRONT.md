@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B10
-active_atom: P03-B10-A08
+active_atom: P03-B10-A09
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 296/1000
-phase_progress: 96/100
-block_progress: 7/10
+program_progress: 297/1000
+phase_progress: 97/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B10-A08 — Stratejist phase gate: Forge entegrasyonu ile regression testini tamamla.
+P03-B10-A09 — Stratejist phase gate: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P03-B10-A07 PASS; P03-B10-A08 Forge regression integration slice for strategist phase gate contract probes.
-target: runForgeStrategistPhaseGateRegressionGate validates production slice, run record, property/fuzz gates with zero regressions.
-hypothesis: P03-B10-A08 production slice wires strategist phase gate into Forge pipeline regression gate.
-acceptance: regression gate PASS; property/fuzz embedded; slice atom tagged P03-B10-A08.
+objective: P03-B10-A08 PASS; P03-B10-A09 guard controls for strategist phase gate regression gate.
+target: validateForgeStrategistPhaseGateGuard rejects tampered records; perf/cost/safety thresholds enforced.
+hypothesis: P03-B10-A09 guard slice embeds adversarial scenarios on strategist phase gate run records.
+acceptance: guard gate PASS; adversarial/perf/cost/safety embedded; slice atom tagged P03-B10-A09.
 commands: npx tsx --test src/forge-p03-strategist-phase-gate*.test.ts
 blast_radius: src/forge-p03-strategist-phase-gate.ts, src/forge-p03-strategist-phase-gate.probe.ts
-rollback: P03-B10-A08 regression integration slice değişikliklerini geri al.
+rollback: P03-B10-A09 guard slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B10-A07
+last_atom: P03-B10-A08
 last_commit: pending
-tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (31/31); forge-p03-strategist-phase-gate.property-fuzz.test.ts (6/6)
-evidence: runStrategistPhaseGatePropertyChecks 8/8; runStrategistPhaseGateFuzzValidation rejected=24/24; runStrategistPhaseGateRunRecordFuzzValidation rejected=5/5; runStrategistPhaseGatePropertyFuzzSlice atom=P03-B10-A07
-next: P03-B10-A08
+tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (38/38); forge-p03-strategist-phase-gate.property-fuzz.test.ts (6/6)
+evidence: runForgeStrategistPhaseGateRegressionGate atom=P03-B10-A08 24/24 aligned; propertyFuzz 8/8; contractFuzz rejected=24/24; runFuzz rejected=5/5; zero probe regressions
+next: P03-B10-A09

@@ -10,6 +10,7 @@ import {
   runStrategistPhaseGateProbesWithRecord,
   runStrategistPhaseGateEvidenceSlice,
   runStrategistPhaseGatePropertyFuzzSlice,
+  runForgeStrategistPhaseGateRegressionGate,
   validateStrategistPhaseGateBaseline,
   buildStrategistPhaseGateProbeEvidence,
   buildStrategistPhaseGateProbeTelemetry,
@@ -39,6 +40,10 @@ import {
   FORGE_STRATEGIST_PHASE_GATE_CONTRACT_V1,
   FORGE_STRATEGIST_PHASE_GATE_VERSION,
   P03_STRATEGIST_PHASE_BLOCK_COUNT,
+  detectStrategistPhaseGateProbeRegression,
+  validateStrategistPhaseGateProbeRegression,
+  runStrategistPhaseGateProbeRegression,
+  applyStrategistPhaseGateRunRecordFuzzMutation,
 } from "./forge-p03-strategist-phase-gate.js";
 
 describe("Forge Strategist Phase Gate Contract — P03-B10-A02", () => {
@@ -552,5 +557,124 @@ describe("Forge Strategist Phase Gate Property/Fuzz — P03-B10-A07", () => {
     assert.equal(slice.contractFuzz.accepted, 0);
     assert.equal(slice.runRecordFuzzRejected, true);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
+  });
+});
+
+describe("Forge Strategist Phase Gate Regression — P03-B10-A08", () => {
+  it("runForgeStrategistPhaseGateRegressionGate passes on canonical strategist phase gate matrix", () => {
+    const result = runForgeStrategistPhaseGateRegressionGate();
+
+    assert.equal(result.atom, "P03-B10-A08");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 24);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.ok(result.detail.includes("24/24 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectStrategistPhaseGateProbeRegression flags newly misaligned probes", () => {
+    const prior = runStrategistPhaseGateProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistPhaseGateProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runStrategistPhaseGateProbeRegression alias matches detect helper", () => {
+    const prior = runStrategistPhaseGateProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const detectReport = detectStrategistPhaseGateProbeRegression(prior, current);
+    const runReport = runStrategistPhaseGateProbeRegression(prior, current);
+    assert.deepEqual(runReport, detectReport);
+  });
+
+  it("validateStrategistPhaseGateProbeRegression rejects probe drift", () => {
+    const prior = runStrategistPhaseGateProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const validation = validateStrategistPhaseGateProbeRegression(prior, current);
+    assert.equal(validation.valid, false);
+    assert.equal(validation.report.hasRegression, true);
+  });
+
+  it("runForgeStrategistPhaseGateRegressionGate compares against prior record without false regression", () => {
+    const prior = runStrategistPhaseGateProbesWithRecord();
+    const result = runForgeStrategistPhaseGateRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runForgeStrategistPhaseGateRegressionGate rejects tampered prior records", () => {
+    const prior = runStrategistPhaseGateProbesWithRecord();
+    const tamperedPrior = applyStrategistPhaseGateRunRecordFuzzMutation(prior, {
+      kind: "drop_evidence",
+      probeId: prior.evidence[0]?.probeId,
+    });
+
+    assert.equal(validateStrategistPhaseGateRunRecord(tamperedPrior).valid, false);
+
+    const result = runForgeStrategistPhaseGateRegressionGate(tamperedPrior);
+    assert.equal(result.priorRecordValid, false);
+    assert.equal(result.passed, false);
+    assert.ok(result.detail.includes("priorValidation:"));
+  });
+
+  it("runForgeStrategistPhaseGateRegressionGate fails when probe alignment regresses", () => {
+    const prior = runStrategistPhaseGateProbesWithRecord();
+    const tamperedCurrent = structuredClone(prior);
+    const target = tamperedCurrent.evidence[0]!;
+    target.aligned = false;
+    target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+    tamperedCurrent.summary = {
+      ...tamperedCurrent.summary,
+      aligned: tamperedCurrent.summary.aligned - 1,
+      mismatches: tamperedCurrent.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistPhaseGateProbeRegression(prior, tamperedCurrent);
+    assert.equal(report.hasRegression, true);
   });
 });

@@ -45,6 +45,8 @@ import {
   runStrategistPhaseGatePropertyChecks,
   runStrategistPhaseGateFuzzValidation,
   runStrategistPhaseGateRunRecordFuzzValidation,
+  detectStrategistPhaseGateProbeRegression,
+  validateStrategistPhaseGateProbeRegression,
   FORGE_STRATEGIST_PHASE_GATE_VERSION,
   STRATEGIST_PHASE_GATE_MANIFEST_MAX_LENGTH,
   STRATEGIST_PHASE_GATE_CATEGORIES,
@@ -813,6 +815,95 @@ export function runStrategistPhaseGatePropertyFuzzSlice(
 
 export const runForgeStrategistPhaseGatePropertyFuzzSlice = runStrategistPhaseGatePropertyFuzzSlice;
 
+export interface ForgeStrategistPhaseGateRegressionResult {
+  atom: "P03-B10-A08";
+  passed: boolean;
+  productionSlice: StrategistPhaseGateProductionSliceResult;
+  propertyFuzzSlice: StrategistPhaseGatePropertyFuzzSliceResult;
+  record: StrategistPhaseGateRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: ReturnType<typeof detectStrategistPhaseGateProbeRegression> | null;
+  detail: string;
+}
+
+/**
+ * Execute strategist phase gate probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P03-B10-A08).
+ */
+export function runForgeStrategistPhaseGateRegressionGate(
+  priorRecord?: StrategistPhaseGateRunRecord,
+): ForgeStrategistPhaseGateRegressionResult {
+  const fixture = loadStrategistPhaseGateBaseline();
+  const contract = getActiveStrategistPhaseGateContract();
+  const productionSlice = runStrategistPhaseGateProductionSlice(fixture);
+  const propertyFuzzSlice = runStrategistPhaseGatePropertyFuzzSlice(fixture);
+  const record = runStrategistPhaseGateProbesWithRecord(fixture);
+  const validation = validateStrategistPhaseGateRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateStrategistPhaseGateRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectStrategistPhaseGateProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk && recordValid && priorRecordValid && !alignmentRegression && propertyFuzzOk;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(
+      `priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`,
+    );
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+
+  return {
+    atom: "P03-B10-A08",
+    passed,
+    productionSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P03-B10-A08). */
+export const runStrategistPhaseGateRegressionIntegration = runForgeStrategistPhaseGateRegressionGate;
+
 export {
   buildStrategistPhaseGateProbeEvidence,
   buildStrategistPhaseGateProbeTelemetry,
@@ -823,6 +914,9 @@ export {
   runStrategistPhaseGatePropertyChecks,
   runStrategistPhaseGateFuzzValidation,
   runStrategistPhaseGateRunRecordFuzzValidation,
+  detectStrategistPhaseGateProbeRegression,
+  validateStrategistPhaseGateProbeRegression,
+  runStrategistPhaseGateProbeRegression,
   createStrategistPhaseGateFuzzRng,
   type StrategistPhaseGatePropertyResult,
   type StrategistPhaseGateFuzzValidationResult,

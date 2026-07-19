@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 7
-completed_atoms: 96
+completed_atoms: 97
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -139,7 +139,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B10-A05 — Stratejist phase gate: failure, recovery ve NO-GO yollarını uygula
 - [x] P03-B10-A06 — Stratejist phase gate: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B10-A07 — Stratejist phase gate: unit, property ve fuzz doğrulamasını ekle
-- [ ] P03-B10-A08 — Stratejist phase gate: Forge entegrasyonu ile regression testini tamamla
+- [x] P03-B10-A08 — Stratejist phase gate: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B10-A09 — Stratejist phase gate: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B10-A10 — Stratejist phase gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B10-A07
+last_atom: P03-B10-A08
 last_commit: pending
-tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (31/31); forge-p03-strategist-phase-gate.property-fuzz.test.ts (6/6)
-evidence: runStrategistPhaseGatePropertyChecks 8/8 PASS; runStrategistPhaseGateFuzzValidation rejected=24/24; runStrategistPhaseGateRunRecordFuzzValidation rejected=5/5; runStrategistPhaseGatePropertyFuzzSlice atom=P03-B10-A07; zero accepted mutations
-next: P03-B10-A08
+tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (38/38); forge-p03-strategist-phase-gate.property-fuzz.test.ts (6/6)
+evidence: runForgeStrategistPhaseGateRegressionGate atom=P03-B10-A08 24/24 aligned; detectStrategistPhaseGateProbeRegression; propertyFuzz embedded; verifyForgeP03StrategistPhaseGateRegression orchestrator seam
+next: P03-B10-A09

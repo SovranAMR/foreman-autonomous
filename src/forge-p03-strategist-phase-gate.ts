@@ -2241,4 +2241,76 @@ export function runStrategistPhaseGateRunRecordFuzzValidation(
   };
 }
 
+// ─── Forge regression integration (P03-B10-A08) ─────────────────────────────
+
+export interface StrategistPhaseGateProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare strategist phase gate run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectStrategistPhaseGateProbeRegression(
+  prior: StrategistPhaseGateRunRecord,
+  current: StrategistPhaseGateRunRecord,
+): StrategistPhaseGateProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runStrategistPhaseGateProbeRegression = detectStrategistPhaseGateProbeRegression;
+
+export interface StrategistPhaseGateProbeRegressionValidation {
+  valid: boolean;
+  report: StrategistPhaseGateProbeRegressionReport;
+}
+
+/** Validate probe alignment between prior and current strategist phase gate run records. */
+export function validateStrategistPhaseGateProbeRegression(
+  prior: StrategistPhaseGateRunRecord,
+  current: StrategistPhaseGateRunRecord,
+): StrategistPhaseGateProbeRegressionValidation {
+  const report = detectStrategistPhaseGateProbeRegression(prior, current);
+  return { valid: !report.hasRegression, report };
+}
+
 export { FORGE_STRATEGIST_PROVENANCE_VERSION };
