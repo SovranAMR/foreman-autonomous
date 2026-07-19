@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B05-A05
-last_commit: pending
+last_commit: 8c8950a
 tests: PASS — forge-p02-visioner-research-trigger.test.ts (24/24); forge-p02-visioner-research-trigger-baseline.test.ts (3/3)
 evidence: validateVisionerResearchTriggerFailureRecoveryProbeMatrix; runVisionerResearchTriggerFailureRecoverySlice; failure/recovery/NO-GO probes 6/6 passAligned; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a05
 next: P02-B05-A06
