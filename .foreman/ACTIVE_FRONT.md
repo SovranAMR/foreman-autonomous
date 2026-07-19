@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B05
-active_atom: P03-B05-A04
+active_atom: P03-B05-A05
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 242/1000
-phase_progress: 43/100
-block_progress: 3/10
+program_progress: 243/1000
+phase_progress: 44/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B05-A04 — Risk ve reversibility planı: boundary ve edge-case davranışlarını tamamla.
+P03-B05-A05 — Risk ve reversibility planı: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P03-B05-A03 PASS; P03-B05-A04 implement boundary slice for risk/reversibility edge cases.
-target: runStrategistRiskReversibilityBoundarySlice, validateStrategistRiskReversibilityBoundaryProbeMatrix.
-hypothesis: P03-B05-A04 wires boundary-category probes into recoverable production seam with zero unexpected mismatches.
-acceptance: boundary slice runs; contract-aligned boundary probes pass; zero unexpected mismatches on PASS probes.
+objective: P03-B05-A04 PASS; P03-B05-A05 implement failure/recovery slice for risk/reversibility edge cases.
+target: runStrategistRiskReversibilityFailureRecoverySlice, validateStrategistRiskReversibilityFailureRecoveryProbeMatrix.
+hypothesis: P03-B05-A05 wires failure/recovery/NO-GO probes into recoverable production seam with zero unexpected mismatches.
+acceptance: failure/recovery slice runs; contract-aligned probes pass; zero unexpected mismatches on PASS probes; documented FAIL gaps preserved.
 commands: npx tsx --test src/forge-p03-strategist-risk-reversibility*.test.ts
 blast_radius: src/forge-p03-strategist-risk-reversibility.ts
-rollback: P03-B05-A04 boundary slice değişikliklerini geri al.
+rollback: P03-B05-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: boundary slice blocked ise BLOCKED raporla.
+fallback: failure/recovery slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B05-A03
+last_atom: P03-B05-A04
 last_commit: pending
-tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (13/13); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); production slice 21 pass / 6 documented FAIL gaps
-evidence: recoverStrategistRiskReversibility; runStrategistRiskReversibilityProductionSlice; validateStrategistRiskReversibilityProbeMatrix
-next: P03-B05-A04
+tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (16/16); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); boundary slice 6 pass / 0 unexpected mismatches
+evidence: runStrategistRiskReversibilityBoundarySlice; validateStrategistRiskReversibilityBoundaryProbeMatrix; assessStrategistRiskReversibilityInputBoundary
+next: P03-B05-A05

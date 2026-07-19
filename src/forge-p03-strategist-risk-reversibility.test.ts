@@ -14,8 +14,11 @@ import {
   recoverStrategistRiskReversibility,
   assessStrategistRiskReversibilityInputBoundary,
   runStrategistRiskReversibilityProductionSlice,
+  runStrategistRiskReversibilityBoundarySlice,
   validateStrategistRiskReversibilityProbeMatrix,
+  validateStrategistRiskReversibilityBoundaryProbeMatrix,
   STRATEGIST_RISK_REVERSIBILITY_CATEGORIES,
+  STRATEGIST_RISK_REVERSIBILITY_DECOMPOSE_MAX_LENGTH,
   FORGE_STRATEGIST_RISK_REVERSIBILITY_CONTRACT_V1,
 } from "./forge-p03-strategist-risk-reversibility.js";
 
@@ -223,6 +226,85 @@ CONFIDENCE: 0.75`;
     assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
 
     const matrixValidation = validateStrategistRiskReversibilityProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+});
+
+describe("Forge Strategist Risk Reversibility Boundary Slice — P03-B05-A04", () => {
+  it("assessStrategistRiskReversibilityInputBoundary handles decompose edge cases including truncation", () => {
+    const empty = assessStrategistRiskReversibilityInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistRiskReversibilityInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistRiskReversibilityInputBoundary("bad\0decompose");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const valid = assessStrategistRiskReversibilityInputBoundary(
+      "REASONING: valid\nOUTPUT:\nBlock 1: task\nDEPENDENCIES: none\nCONFIDENCE: 0.8",
+    );
+    assert.equal(valid.disposition, "valid");
+    assert.equal(valid.acceptable, true);
+
+    const longDecompose = "x".repeat(STRATEGIST_RISK_REVERSIBILITY_DECOMPOSE_MAX_LENGTH + 500);
+    const truncated = assessStrategistRiskReversibilityInputBoundary(longDecompose);
+    assert.equal(truncated.disposition, "exceeds_max_length");
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedDecompose.length, STRATEGIST_RISK_REVERSIBILITY_DECOMPOSE_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("defines boundary category with decompose input edge-case probes", () => {
+    const boundary = listStrategistRiskReversibilityContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "srisk.empty_decompose_boundary",
+      "srisk.known_gaps_documented",
+      "srisk.long_decompose_truncation_boundary",
+      "srisk.probe_runner_exported",
+      "srisk.source_block_gate_ref",
+      "srisk.whitespace_decompose_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistRiskReversibilityContract();
+    const slice = runStrategistRiskReversibilityBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B05-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistRiskReversibilityContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistRiskReversibilityBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
     assert.equal(
       matrixValidation.valid,
       true,

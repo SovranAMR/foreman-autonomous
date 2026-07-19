@@ -22,7 +22,7 @@ import {
 } from "./forge-p03-strategist-intent.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION = "1.0.0-a03";
+export const FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P03_B04_SEALED_ATOM_COUNT = 10;
 
@@ -1654,6 +1654,60 @@ export function runStrategistRiskReversibilityProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface StrategistRiskReversibilityBoundarySliceResult {
+  atom: "P03-B05-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistRiskReversibilityProbeResult[];
+  boundaryResults: StrategistRiskReversibilityProbeResult[];
+  matrixValidation: StrategistRiskReversibilityProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateStrategistRiskReversibilityBoundaryProbeMatrix(
+  results: StrategistRiskReversibilityProbeResult[],
+  contract: StrategistRiskReversibilityContract = getActiveStrategistRiskReversibilityContract(),
+): StrategistRiskReversibilityProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistRiskReversibilityContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistRiskReversibilityContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistRiskReversibilityProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (decompose input edge cases, probe runner,
+ * documented gaps, source block gate refs) with zero unexpected mismatches.
+ */
+export function runStrategistRiskReversibilityBoundarySlice(
+  fixture: StrategistRiskReversibilityBaseline = loadStrategistRiskReversibilityBaseline(),
+): StrategistRiskReversibilityBoundarySliceResult {
+  const contract = getActiveStrategistRiskReversibilityContract();
+  const results = runStrategistRiskReversibilityProbes(fixture);
+  const boundaryProbes = listStrategistRiskReversibilityContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistRiskReversibilityBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B05-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }
