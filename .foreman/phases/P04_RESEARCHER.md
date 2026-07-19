@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B10-A01
-last_commit: pending
+last_commit: a7948ac
 tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); documented FAIL gaps=2/2; sourceBlockGate=P04-B09-A10
 evidence: loadResearcherPhaseGateBaseline + runResearcherPhaseGateProbes + validateResearcherPhaseGateBaseline + recoverResearcherPhaseGateEvidence
 next: P04-B10-A02
