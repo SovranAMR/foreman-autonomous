@@ -44,7 +44,7 @@ fallback: P03-B01-A07 property/fuzz slice misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B01-A07
-last_commit: 6704d7c
+last_commit: fd28444
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (23/23); property checks 8/8; contract fuzz 0 accepted; run record fuzz 0 accepted
 evidence: runStrategistIntentPropertyChecks; runStrategistIntentFuzzValidation; runStrategistIntentPropertyFuzzSlice
 next: P03-B01-A08
