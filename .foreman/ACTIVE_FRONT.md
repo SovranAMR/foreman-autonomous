@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B01-A08
-last_commit: pending
+last_commit: bbd49aa
 tests: PASS — forge-p04-researcher*.test.ts (42/42); regression gate PASS; prior/current comparison valid; 0 unexpected mismatches
 evidence: runResearcherQuestionDecompositionForgeRegression; detectResearcherQuestionDecompositionProbeRegression; runForgeResearcherQuestionDecompositionRegressionGate; runResearcherQuestionDecompositionRegressionIntegration
 next: P04-B01-A09

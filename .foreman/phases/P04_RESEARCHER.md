@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B01-A08
-last_commit: pending
+last_commit: bbd49aa
 tests: PASS — forge-p04-researcher*.test.ts (42/42); regression gate PASS; prior/current comparison valid; 0 unexpected mismatches
 evidence: runResearcherQuestionDecompositionForgeRegression; detectResearcherQuestionDecompositionProbeRegression; runForgeResearcherQuestionDecompositionRegressionGate; runResearcherQuestionDecompositionRegressionIntegration; harnessVersion=1.0.0-a08
 next: P04-B01-A09
