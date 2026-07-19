@@ -75,7 +75,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B05-A06 — Citation ve provenance graph: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B05-A07 — Citation ve provenance graph: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B05-A08 — Citation ve provenance graph: Forge entegrasyonu ile regression testini tamamla
-- [ ] P04-B05-A09 — Citation ve provenance graph: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P04-B05-A09 — Citation ve provenance graph: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B05-A10 — Citation ve provenance graph: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B06 — Contradiction ve freshness çözümü
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B05-A08
-last_commit: 5239f42
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (40/40); runForgeResearcherCitationProvenanceGraphRegressionGate; 23/23 probes aligned; propertyFuzz properties=8/8; guard adversarial=3/3; orchestrator verifyForgeResearcherCitationProvenanceGraphRegression
-evidence: runResearcherCitationProvenanceGraphForgeRegression + detectResearcherCitationProvenanceGraphProbeRegression + forge-pipeline-regression integration slice; prior record tamper rejection via applyResearcherCitationProvenanceGraphRunRecordFuzzMutation
-next: P04-B05-A09
+last_atom: P04-B05-A09
+last_commit: pending
+tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (48/48); guard adversarial=3/3; performance/cost/safety violations flagged; orchestrator verifyForgeResearcherCitationProvenanceGraphGuard researcher_citation_provenance_graph_guard
+evidence: forge-p04-researcher-citation-provenance-graph.guard.test.ts + validateForgeResearcherCitationProvenanceGraphGuard + runResearcherCitationProvenanceGraphAdversarialGuardChecks + orchestrator guard verification seam
+next: P04-B05-A10

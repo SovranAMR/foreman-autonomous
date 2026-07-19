@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B05
-active_atom: P04-B05-A09
+active_atom: P04-B05-A10
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 348/1000
-phase_progress: 48/100
-block_progress: 8/10
+program_progress: 349/1000
+phase_progress: 49/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -43,8 +43,8 @@ fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B05-A08
-last_commit: 5239f42
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (40/40); runForgeResearcherCitationProvenanceGraphRegressionGate; 23/23 probes aligned; propertyFuzz=8/8; guard adversarial=3/3
-evidence: runResearcherCitationProvenanceGraphForgeRegression + runForgeResearcherCitationProvenanceGraphRegressionGate + verifyForgeResearcherCitationProvenanceGraphRegression orchestrator seam; probe regression detection; prior record tamper rejection
-next: P04-B05-A09
+last_atom: P04-B05-A09
+last_commit: pending
+tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (48/48); guard adversarial=3/3; performance/cost/safety; orchestrator verifyForgeResearcherCitationProvenanceGraphGuard
+evidence: validateForgeResearcherCitationProvenanceGraphGuard + runResearcherCitationProvenanceGraphAdversarialGuardChecks + forge-p04-researcher-citation-provenance-graph.guard.test.ts + orchestrator researcher_citation_provenance_graph_guard verification seam
+next: P04-B05-A10
