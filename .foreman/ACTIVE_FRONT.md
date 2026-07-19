@@ -44,7 +44,7 @@ fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B03-A07
-last_commit: pending
+last_commit: bd5cf3c
 tests: PASS — forge-p02-visioner-synthesis.property-fuzz.test.ts (5/5); forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis.test.ts (21/21); forge-p02-visioner-synthesis*.test.ts (29/29); forge-p02-*.test.ts (115/115)
 evidence: runVisionerSynthesisPropertyChecks allPassed=true total=8; runVisionerSynthesisFuzzValidation seeds=[42,99,20260719] rejected=24/24; runVisionerSynthesisRunRecordFuzzValidation failureRecovery mutationsRejected=5 mutationsAccepted=0 fullRun mutationsRejected=3; harnessVersion=1.0.0-a07
 next: P02-B03-A08
