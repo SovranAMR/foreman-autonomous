@@ -26,6 +26,7 @@ import {
   listEvidenceArtifactProbesByExpected,
   listEvidenceArtifactKnownGaps,
   FORGE_EVIDENCE_ARTIFACT_VERSION,
+  getActiveEvidenceArtifactContract,
   type EvidenceArtifactBaseline,
   type EvidenceArtifactCategory,
   type EvidenceArtifactProbeResult,
@@ -42,6 +43,15 @@ export {
   EVIDENCE_ARTIFACT_CATEGORIES,
   SEALED_FORGE_EVIDENCE_MODULES,
   FORGE_EVIDENCE_ARTIFACT_VERSION,
+  getActiveEvidenceArtifactContract,
+  getEvidenceArtifactCategoryContract,
+  listEvidenceArtifactContractProbeIds,
+  listEvidenceArtifactProbesByDisposition,
+  listEvidenceArtifactContractProbesByCategory,
+  summarizeEvidenceArtifactContractCoverage,
+  validateEvidenceArtifactContractCoverage,
+  validateEvidenceArtifactBaselineAgainstContract,
+  FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1,
 } from "./forge-evidence-artifact.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -583,8 +593,12 @@ export function loadEvidenceArtifactBaseline(): EvidenceArtifactBaseline {
 export function runEvidenceArtifactProbes(
   fixture: EvidenceArtifactBaseline = loadEvidenceArtifactBaseline(),
 ): EvidenceArtifactProbeResult[] {
+  const contract = getActiveEvidenceArtifactContract();
   return fixture.probes.map(entry => {
     const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
-    return entry.description ? { ...result, criterion: entry.description } : result;
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion
+      ? { ...result, criterion: contractProbe.criterion }
+      : result;
   });
 }
