@@ -44,7 +44,7 @@ fallback: Baseline blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B07-A10
-last_commit: pending
+last_commit: cdcc923
 tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (50/50); block gate 10/10 seals; handoff→P03-B08
 evidence: sealStrategistParallelWaveBlockGate; validateStrategistParallelWaveBlockHandoffContract; runForgeStrategistParallelWaveBlockGate
 next: P03-B08-A01
