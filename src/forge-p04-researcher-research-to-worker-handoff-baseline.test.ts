@@ -41,27 +41,19 @@ describe("Forge Researcher Research-to-Worker Handoff — P04-B09-A01", () => {
     assert.equal(handoff.targetBlock.entryAtom, "P04-B09-A01");
   });
 
-  it("measures research-to-worker handoff probes with documented FAIL gaps from B08 sealed handoff", () => {
+  it("measures research-to-worker handoff probes with full alignment after A03 production slice", () => {
     const results = runResearcherResearchToWorkerHandoffProbes();
     const summary = summarizeResearcherResearchToWorkerHandoffMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listResearcherResearchToWorkerHandoffProbesByExpected(
       "FAIL",
       loadResearcherResearchToWorkerHandoffBaseline(),
     );
-    assert.equal(documentedFail.length, 2);
-    assert.ok(documentedFail.some(p => p.id === "rtwh.parser_research_handoff_bundle"));
-    assert.ok(documentedFail.some(p => p.id === "rtwh.exported_handoff_validator"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -76,16 +68,11 @@ describe("Forge Researcher Research-to-Worker Handoff — P04-B09-A01", () => {
     );
   });
 
-  it("documents research-to-worker handoff gaps as measurable baseline debt", () => {
+  it("documents zero remaining research-to-worker handoff gaps after production slice", () => {
     const gaps = listResearcherResearchToWorkerHandoffKnownGaps(
       runResearcherResearchToWorkerHandoffProbes(),
     );
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "rtwh.exported_handoff_validator",
-      "rtwh.parser_research_handoff_bundle",
-    ]);
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 
   it("assessResearchToWorkerHandoffInputBoundary rejects empty and null-byte handoff inputs", () => {

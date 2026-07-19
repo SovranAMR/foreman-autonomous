@@ -12,9 +12,13 @@ import {
   validateResearcherResearchToWorkerHandoffContract,
   validateResearcherResearchToWorkerHandoffContractCoverage,
   validateResearcherResearchToWorkerHandoffAgainstContract,
+  runResearcherResearchToWorkerHandoffProductionSlice,
+  validateResearcherResearchToWorkerHandoffProbeMatrix,
+  validateResearchToWorkerHandoff,
   RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES,
   FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CONTRACT_V1,
 } from "./forge-p04-researcher-research-to-worker-handoff.js";
+import { parseResearchToWorkerHandoff } from "./parser.js";
 
 const REQUIRE_FULL_ALIGNMENT: Record<
   (typeof RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES)[number],
@@ -60,7 +64,7 @@ describe("Forge Researcher Research-to-Worker Handoff Contract — P04-B09-A02",
     }
   });
 
-  it("maps 23 probes with two documented FAIL nogo gaps in typed contract", () => {
+  it("maps 23 probes with full alignment in typed contract after A03 production slice", () => {
     const contract = getActiveResearcherResearchToWorkerHandoffContract();
     const summary = summarizeResearcherResearchToWorkerHandoffContractCoverage(contract);
     const coverage = validateResearcherResearchToWorkerHandoffContractCoverage(contract);
@@ -68,13 +72,13 @@ describe("Forge Researcher Research-to-Worker Handoff Contract — P04-B09-A02",
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateResearcherResearchToWorkerHandoffContract().valid, true);
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 21);
-    assert.equal(summary.expectedFail, 2);
-    assert.equal(summary.byDisposition.observed, 17);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 19);
     assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
-    assert.equal(summary.byDisposition.nogo, 2);
+    assert.equal(summary.byDisposition.nogo, 0);
     assert.equal(summary.byCategory.evidence_versioning.probeCount, 3);
     assert.equal(summary.byCategory.handoff_signal.probeCount, 3);
     assert.equal(summary.byCategory.worker_context_signal.probeCount, 3);
@@ -85,16 +89,12 @@ describe("Forge Researcher Research-to-Worker Handoff Contract — P04-B09-A02",
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists documented nogo probes as measurable baseline debt", () => {
+  it("lists zero remaining nogo probes after A03 production slice", () => {
     const gaps = listResearcherResearchToWorkerHandoffProbesByDisposition("gap");
     const nogos = listResearcherResearchToWorkerHandoffProbesByDisposition("nogo");
 
     assert.deepEqual(gaps.map(g => g.id).sort(), []);
-    assert.deepEqual(
-      nogos.map(g => g.id).sort(),
-      ["rtwh.exported_handoff_validator", "rtwh.parser_research_handoff_bundle"],
-    );
-    assert.ok([...nogos].every(p => p.expected === "FAIL"));
+    assert.deepEqual(nogos.map(g => g.id).sort(), []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -145,5 +145,65 @@ describe("Forge Researcher Research-to-Worker Handoff Contract — P04-B09-A02",
   it("exports stable contract v1 reference for downstream block handoff", () => {
     assert.equal(FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CONTRACT_V1.version, "1.0.0");
     assert.equal(FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CONTRACT_V1.probes.length, 23);
+  });
+});
+
+describe("Forge Researcher Research-to-Worker Handoff Production Slice — P04-B09-A03", () => {
+  it("parseResearchToWorkerHandoff extracts worker context bundle from researcher output", () => {
+    const parsed = parseResearchToWorkerHandoff(
+      "FINDINGS: async worker pool reduces tail latency\nSOURCES: https://example.com/async\nRELEVANCE: 0.85\nTRADEOFFS:\n1. sync vs async\nRISKS: Increased complexity",
+    );
+
+    assert.equal(parsed.ok, true);
+    if (parsed.ok) {
+      assert.ok(parsed.data.findings.toLowerCase().includes("async worker pool"));
+      assert.ok(parsed.data.sources.some(source => source.includes("example.com")));
+      assert.ok(parsed.data.tradeoffs.some(tradeoff => tradeoff.includes("sync")));
+    }
+  });
+
+  it("validateResearchToWorkerHandoff accepts actionable handoff bundle signals", () => {
+    const validation = validateResearchToWorkerHandoff(
+      "FINDINGS: benchmark supports async\nSOURCES: https://example.com/async\nRELEVANCE: 0.85\nTRADEOFFS:\n1. sync vs async\nRISKS: Increased complexity (medium)",
+    );
+
+    assert.equal(validation.valid, true, validation.issues.join("; "));
+    assert.equal(validation.findingsPresent, true);
+    assert.ok(validation.sourcesPresent);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveResearcherResearchToWorkerHandoffContract();
+    const slice = runResearcherResearchToWorkerHandoffProductionSlice();
+
+    assert.equal(slice.atom, "P04-B09-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    const matrixValidation = validateResearcherResearchToWorkerHandoffProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const parserProbe = slice.results.find(r => r.id === "rtwh.parser_research_handoff_bundle");
+    assert.ok(parserProbe);
+    assert.equal(parserProbe!.expected, "PASS");
+    assert.equal(parserProbe!.actual, "PASS");
+
+    const validatorProbe = slice.results.find(r => r.id === "rtwh.exported_handoff_validator");
+    assert.ok(validatorProbe);
+    assert.equal(validatorProbe!.expected, "PASS");
+    assert.equal(validatorProbe!.actual, "PASS");
   });
 });

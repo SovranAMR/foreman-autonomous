@@ -66,6 +66,15 @@ export interface ResearchParseResult {
   risks: string;
 }
 
+export interface ResearchToWorkerHandoffParseResult {
+  version: string;
+  findings: string;
+  sources: string[];
+  risks: string[];
+  tradeoffs: string[];
+  relevance: number | null;
+}
+
 export interface AtomizeParseResult {
   atoms: string[];
   confidence: number;
@@ -440,6 +449,78 @@ function parseResearchQuestionsField(text: string): string[] {
   }
 
   return questions.filter(question => question.length > 0);
+}
+
+const HANDOFF_SOURCES_LINE = /^\s*(?:\d+[.)]|[-*])\s+(.+)$/;
+const HANDOFF_HTTP_URL = /https?:\/\/[^\s"'<>]+/gi;
+
+function parseHandoffSourcesField(text: string): string[] {
+  const sources: string[] = [];
+  const sourcesRaw = extractField(text, "SOURCES", [
+    "RELEVANCE",
+    "TRADEOFFS",
+    "RISKS",
+    "SPIKE_EXPERIMENTS",
+    "SPIKES",
+    "FALSIFICATION",
+    "REASONING",
+  ]);
+  if (sourcesRaw) {
+    for (const line of sourcesRaw.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) continue;
+      const match = trimmed.match(HANDOFF_SOURCES_LINE);
+      if (match) {
+        sources.push(match[1].trim());
+        continue;
+      }
+      if (/^https?:\/\//i.test(trimmed)) {
+        sources.push(trimmed);
+      }
+    }
+  }
+
+  if (sources.length === 0) {
+    for (const match of text.matchAll(HANDOFF_HTTP_URL)) {
+      sources.push(match[0]);
+    }
+  }
+
+  return [...new Set(sources)];
+}
+
+/**
+ * Parse structured research→worker handoff bundle from researcher output (P04-B09-A03).
+ */
+export function parseResearchToWorkerHandoff(
+  text: string,
+): { ok: true; data: ResearchToWorkerHandoffParseResult } | { ok: false; error: ParseError } {
+  const parsed = parseResearchResponse(text);
+  if (!parsed.ok) {
+    return parsed;
+  }
+
+  const sources = parseHandoffSourcesField(text);
+  const risks = parsed.data.risks.trim().length > 0 ? [parsed.data.risks] : [];
+  const tradeoffs = parsed.data.tradeoffs.map(
+    dimension => `${dimension.left} vs ${dimension.right}`,
+  );
+
+  if (sources.length === 0) {
+    return { ok: false, error: { missing: ["SOURCES"], raw: text } };
+  }
+
+  return {
+    ok: true,
+    data: {
+      version: "1.0.0",
+      findings: parsed.data.findings,
+      sources,
+      risks,
+      tradeoffs,
+      relevance: parsed.data.relevance,
+    },
+  };
 }
 
 /**

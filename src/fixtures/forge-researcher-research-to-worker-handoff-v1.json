@@ -141,13 +141,13 @@
       "id": "rtwh.parser_research_handoff_bundle",
       "category": "nogo_path",
       "description": "parseResearchToWorkerHandoff exports research→worker context bundle from researcher output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rtwh.exported_handoff_validator",
       "category": "nogo_path",
       "description": "validateResearchToWorkerHandoff exported for orchestrator pre-worker handoff checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

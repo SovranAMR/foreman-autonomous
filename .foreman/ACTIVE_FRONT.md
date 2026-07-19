@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B09
-active_atom: P04-B09-A03
+active_atom: P04-B09-A04
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 382/1000
-phase_progress: 81/100
-block_progress: 2/10
+program_progress: 383/1000
+phase_progress: 82/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B09-A03 — Research-to-worker handoff: en küçük üretim dikey dilimini uygula.
+P04-B09-A04 — Research-to-worker handoff: boundary ve edge-case davranışlarını tamamla.
 
-objective: P04-B09-A02 PASS; typed contract for research-to-worker handoff from sealed baseline.
-target: Implement smallest production vertical slice closing documented nogo gaps.
-hypothesis: A02 contract nogo probes (parseResearchToWorkerHandoff, validateResearchToWorkerHandoff) wire via A03 slice.
-acceptance: Production slice runs; nogo gaps closed; probe matrix full alignment.
+objective: P04-B09-A03 PASS; production slice closes nogo gaps with zero unexpected mismatches.
+target: Complete boundary-category probe matrix for handoff input edge cases.
+hypothesis: A03 slice enables A04 boundary gate with contract-wired edge-case probes.
+acceptance: Boundary probes align; zero unexpected mismatches in boundary slice.
 commands: npx tsx --test src/forge-p04-researcher-research-to-worker-handoff*.test.ts
-blast_radius: src/forge-p04-researcher-research-to-worker-handoff*.ts, src/parser.ts
-rollback: P04-B09-A03 production slice değişikliklerini geri al.
+blast_radius: src/forge-p04-researcher-research-to-worker-handoff*.ts
+rollback: P04-B09-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Production slice blocked ise BLOCKED raporla.
+fallback: Boundary slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B09-A02
+last_atom: P04-B09-A03
 last_commit: pending
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (18/18); contract probes=23; expectedFail=2 (rtwh.parser_research_handoff_bundle, rtwh.exported_handoff_validator); fixture↔contract alignment gate PASS
-evidence: FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CONTRACT_V1 + validateResearcherResearchToWorkerHandoffAgainstContract + criterion wiring
-next: P04-B09-A03
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (21/21); probe matrix 23/23 aligned; unexpectedMismatches=0
+evidence: parseResearchToWorkerHandoff + validateResearchToWorkerHandoff + orchestrator wiring + runResearcherResearchToWorkerHandoffProductionSlice
+next: P04-B09-A04

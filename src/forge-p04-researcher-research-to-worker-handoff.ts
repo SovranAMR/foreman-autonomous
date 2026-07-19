@@ -18,7 +18,7 @@ import {
   FORGE_RESEARCHER_SPIKE_FALSIFICATION_CONTRACT_V1,
 } from "./forge-p04-researcher-spike-falsification.js";
 import { validateResearchRiskTradeoff } from "./forge-p04-researcher-risk-tradeoff.js";
-import { parseResearchResponse } from "./parser.js";
+import { parseResearchResponse, parseResearchToWorkerHandoff } from "./parser.js";
 
 export const FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION = "1.0.0-a01";
 
@@ -272,6 +272,74 @@ export function recoverResearchToWorkerHandoff(
     detail: validation.valid
       ? `recovered handoff bundle with ${validation.fieldCount} populated fields`
       : validation.issues.join("; "),
+  };
+}
+
+export interface ResearchToWorkerHandoffValidationOutcome {
+  valid: boolean;
+  fieldCount: number;
+  findingsPresent: boolean;
+  sourcesPresent: boolean;
+  issues: string[];
+}
+
+/**
+ * Validate researcher output declares actionable worker handoff bundle signals (P04-B09-A03).
+ */
+export function validateResearchToWorkerHandoff(
+  researchOutput: string,
+): ResearchToWorkerHandoffValidationOutcome {
+  const boundary = assessResearchToWorkerHandoffInputBoundary(researchOutput);
+  if (!boundary.acceptable) {
+    return {
+      valid: false,
+      fieldCount: 0,
+      findingsPresent: false,
+      sourcesPresent: false,
+      issues: [boundary.detail],
+    };
+  }
+
+  const normalized = boundary.normalizedInput;
+  const handoffParse = parseResearchToWorkerHandoff(normalized);
+  if (!handoffParse.ok) {
+    const recovery = recoverResearchToWorkerHandoff(normalized);
+    if (!recovery.recovered) {
+      return {
+        valid: false,
+        fieldCount: 0,
+        findingsPresent: false,
+        sourcesPresent: false,
+        issues:
+          recovery.parseErrors.length > 0 ? recovery.parseErrors : ["handoff_parse_failed"],
+      };
+    }
+    const validation = validateResearchToWorkerHandoffCollection(recovery.bundle);
+    return {
+      valid: validation.valid,
+      fieldCount: validation.fieldCount,
+      findingsPresent: recovery.bundle.findings.trim().length > 0,
+      sourcesPresent: recovery.bundle.sources.length > 0,
+      issues: validation.issues,
+    };
+  }
+
+  const bundle: ResearchToWorkerHandoffBundle = {
+    version: handoffParse.data.version,
+    findings: handoffParse.data.findings,
+    sources: handoffParse.data.sources,
+    risks: handoffParse.data.risks,
+    tradeoffs: handoffParse.data.tradeoffs,
+    relevance: handoffParse.data.relevance,
+  };
+  const validation = validateResearchToWorkerHandoffCollection(bundle);
+
+  return {
+    valid: validation.valid,
+    fieldCount: validation.fieldCount,
+    findingsPresent: bundle.findings.trim().length > 0,
+    sourcesPresent: bundle.sources.length > 0,
+    issues: validation.issues,
   };
 }
 
@@ -668,8 +736,8 @@ const RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description:
           "parseResearchToWorkerHandoff exports research→worker context bundle from researcher output",
-        expected: "FAIL",
-        disposition: "nogo",
+        expected: "PASS",
+        disposition: "observed",
         criterion:
           "parseResearchToWorkerHandoff exports research→worker context bundle from researcher output",
       },
@@ -678,8 +746,8 @@ const RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description:
           "validateResearchToWorkerHandoff exported for orchestrator pre-worker handoff checks",
-        expected: "FAIL",
-        disposition: "nogo",
+        expected: "PASS",
+        disposition: "observed",
         criterion:
           "validateResearchToWorkerHandoff exported for orchestrator pre-worker handoff checks",
       },
@@ -1096,14 +1164,6 @@ export function validateResearcherResearchToWorkerHandoffBaseline(
   );
   issues.push(...contractAlignment.issues);
 
-  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length === 0) {
-    issues.push({
-      kind: "missing_category",
-      detail: "fixture must document known FAIL gaps for A01 baseline debt",
-    });
-  }
-
   return { valid: issues.length === 0, issues };
 }
 
@@ -1355,9 +1415,17 @@ function runSingleProbe(
       );
     }
     case "rtwh.known_gaps_documented": {
+      const contract = getActiveResearcherResearchToWorkerHandoffContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount >= 1;
-      return probe(id, category, expected, ok, `documentedFailGaps=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, expectedFail=${expectedFail}`,
+      );
     }
     case "rtwh.empty_handoff_input_boundary": {
       const boundary = assessResearchToWorkerHandoffInputBoundary("");
@@ -1424,18 +1492,34 @@ function runSingleProbe(
       );
     }
     case "rtwh.parser_research_handoff_bundle": {
-      const ok = /\bexport function parseResearchToWorkerHandoff\b/.test(parserSource());
-      return probe(id, category, expected, ok, `parseResearchToWorkerHandoff=${ok}`);
-    }
-    case "rtwh.exported_handoff_validator": {
-      const ok = hasProductionExport("validateResearchToWorkerHandoff");
-      const riskSample = validateResearchRiskTradeoff(SAMPLE_RESEARCH_OUTPUT);
+      const parser = parserSource();
+      const parsed = parseResearchToWorkerHandoff(SAMPLE_RESEARCH_OUTPUT);
+      const ok =
+        /\bexport function parseResearchToWorkerHandoff\b/.test(parser) &&
+        parsed.ok &&
+        parsed.data.findings.length > 0 &&
+        parsed.data.sources.length >= 1;
       return probe(
         id,
         category,
         expected,
         ok,
-        `handoffValidator=${ok}, riskTradeoffSample=${riskSample.valid}`,
+        `parseResearchToWorkerHandoff=${ok}, sources=${parsed.ok ? parsed.data.sources.length : 0}`,
+      );
+    }
+    case "rtwh.exported_handoff_validator": {
+      const orchestrator = orchestratorSource();
+      const sampleValidation = validateResearchToWorkerHandoff(SAMPLE_RESEARCH_OUTPUT);
+      const ok =
+        hasProductionExport("validateResearchToWorkerHandoff") &&
+        orchestrator.includes("validateResearchToWorkerHandoff(") &&
+        sampleValidation.valid === true;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `handoffValidator=${ok}, valid=${sampleValidation.valid}`,
       );
     }
     default:
@@ -1448,8 +1532,144 @@ export function runResearcherResearchToWorkerHandoffProbes(
 ): ResearcherResearchToWorkerHandoffProbeResult[] {
   const contract = getActiveResearcherResearchToWorkerHandoffContract();
   return fixture.probes.map(entry => {
-    const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
     const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const expected = contractProbe?.expected ?? entry.expected;
+    const result = runSingleProbe(entry.id, entry.category, expected, fixture);
     return contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
   });
+}
+
+export interface ResearcherResearchToWorkerHandoffProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherResearchToWorkerHandoffProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ResearcherResearchToWorkerHandoffProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+export function validateResearcherResearchToWorkerHandoffProbeMatrix(
+  results: ResearcherResearchToWorkerHandoffProbeResult[],
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffProbeMatrixValidationResult {
+  const issues: ResearcherResearchToWorkerHandoffProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (results.length !== contract.probes.length) {
+    issues.push({
+      kind: "extra_result",
+      detail: `results=${results.length} contract=${contract.probes.length}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface ResearcherResearchToWorkerHandoffProductionSliceResult {
+  atom: "P04-B09-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherResearchToWorkerHandoffProbeResult[];
+  summary: ResearcherResearchToWorkerHandoffProbeSummary;
+  matrixValidation: ResearcherResearchToWorkerHandoffProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: parseResearchToWorkerHandoff and validateResearchToWorkerHandoff
+ * wired to contract probe execution with zero unexpected mismatches.
+ */
+export function runResearcherResearchToWorkerHandoffProductionSlice(
+  fixture: ResearcherResearchToWorkerHandoffBaseline = loadResearcherResearchToWorkerHandoffBaseline(),
+): ResearcherResearchToWorkerHandoffProductionSliceResult {
+  const contract = getActiveResearcherResearchToWorkerHandoffContract();
+  const fixtureValidation = validateResearcherResearchToWorkerHandoffBaseline(fixture);
+  const contractValidation = validateResearcherResearchToWorkerHandoffAgainstContract(fixture, contract);
+  const results = runResearcherResearchToWorkerHandoffProbes(fixture);
+  const summary = summarizeResearcherResearchToWorkerHandoffMatrix(results);
+  const matrixValidation = validateResearcherResearchToWorkerHandoffProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B09-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

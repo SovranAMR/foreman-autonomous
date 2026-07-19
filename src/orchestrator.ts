@@ -78,6 +78,9 @@ import {
 import {
   validateSpikeFalsificationExperiment,
 } from "./forge-p04-researcher-spike-falsification.js";
+import {
+  validateResearchToWorkerHandoff,
+} from "./forge-p04-researcher-research-to-worker-handoff.js";
 
 /** Canonical ordered pipeline phases for behavior-map probes and downstream tooling. */
 export const FORGE_PIPELINE_PHASES = FORGE_PIPELINE_CORE_PHASES;
@@ -2847,6 +2850,15 @@ ${visionOutput}`,
         if (!spikeFalsificationValidation.valid) {
           this.engine.streaming.warning(
             `[forge] validateSpikeFalsificationExperiment: ${spikeFalsificationValidation.issues.join(", ")}`,
+          );
+        }
+
+        const handoffValidation = validateResearchToWorkerHandoff(
+          researchResult.thought.output ?? "",
+        );
+        if (!handoffValidation.valid) {
+          this.engine.streaming.warning(
+            `[forge] validateResearchToWorkerHandoff: ${handoffValidation.issues.join(", ")}`,
           );
         }
 
