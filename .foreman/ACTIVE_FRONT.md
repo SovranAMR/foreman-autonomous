@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B04-A03
-last_commit: PENDING
+last_commit: dbc9d74
 tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (10/10); contract v1 23 probes; zero documented FAIL gaps; recoverBenchmarkPriorArtEvidence production slice
 evidence: recoverBenchmarkPriorArtEvidence; runResearcherBenchmarkPriorArtProductionSlice; validateResearcherBenchmarkPriorArtProbeMatrix; rbpa.structured_benchmark_prior_art_recovery PASS
 next: P04-B04-A04
