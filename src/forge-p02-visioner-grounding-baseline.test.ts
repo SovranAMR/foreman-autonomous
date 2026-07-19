@@ -25,7 +25,7 @@ describe("Forge Visioner Grounding — P02-B04-A01", () => {
 
     assert.equal(fixture.version, "1.0.0");
     assert.equal(fixture.atom, "P02-B04-A01");
-    assert.equal(fixture.contractAtom, "P02-B04-A05");
+    assert.equal(fixture.contractAtom, "P02-B04-A06");
     assert.equal(fixture.sourceBlockGate.atom, "P02-B03-A10");
     assert.equal(fixture.sourceBlockGate.sealedAtomCount, 10);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));

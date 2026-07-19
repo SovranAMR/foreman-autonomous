@@ -7,6 +7,8 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import visionerGroundingBaseline from "./fixtures/forge-visioner-grounding-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -34,9 +36,16 @@ import {
   VISIONER_GROUNDING_CATEGORIES,
   VISIONER_GROUNDING_CONTEXT_MAX_LENGTH,
   EXPECTED_P02_B03_SEALED_ATOM_COUNT,
+  buildVisionerGroundingProbeEvidence,
+  buildVisionerGroundingProbeTelemetry,
+  buildVisionerGroundingProvenance,
+  buildVisionerGroundingRunRecord,
+  validateVisionerGroundingRunRecord,
   type VisionerGroundingBaseline,
   type VisionerGroundingCategory,
+  type VisionerGroundingProbeDisposition,
   type VisionerGroundingProbeResult,
+  type VisionerGroundingRunRecord,
 } from "./forge-p02-visioner-grounding.js";
 
 export type { VisionerGroundingBaseline, VisionerGroundingProbeResult } from "./forge-p02-visioner-grounding.js";
@@ -65,6 +74,12 @@ export {
   listVisionerGroundingContractProbeIds,
   listVisionerGroundingContractProbesByCategory,
   listVisionerGroundingProbesByDisposition,
+  buildVisionerGroundingProbeEvidence,
+  buildVisionerGroundingProbeTelemetry,
+  buildVisionerGroundingProvenance,
+  buildVisionerGroundingRunRecord,
+  validateVisionerGroundingRunRecord,
+  validateVisionerGroundingFailureRecoveryRunRecord,
 } from "./forge-p02-visioner-grounding.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -578,4 +593,116 @@ export function runVisionerGroundingFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerGroundingProbeWithTiming(
+  entry: VisionerGroundingBaseline["probes"][number],
+  fixture: VisionerGroundingBaseline,
+  contractProbe:
+    | { criterion: string; disposition: VisionerGroundingProbeDisposition }
+    | undefined,
+): {
+  result: VisionerGroundingProbeResult;
+  durationMs: number;
+  disposition: VisionerGroundingProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerGroundingRecordFromEntries(
+  entries: VisionerGroundingBaseline["probes"],
+  fixture: VisionerGroundingBaseline,
+  contract: ReturnType<typeof getActiveVisionerGroundingContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerGroundingCategory[];
+  },
+): VisionerGroundingRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerGroundingProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerGroundingProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerGroundingProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerGroundingProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerGroundingProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerGroundingProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerGroundingRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner grounding probes and emit auditable evidence, telemetry and provenance (P02-B04-A06). */
+export function runVisionerGroundingProbesWithRecord(
+  fixture: VisionerGroundingBaseline = loadVisionerGroundingBaseline(),
+): VisionerGroundingRunRecord {
+  const contract = getActiveVisionerGroundingContract();
+  return buildVisionerGroundingRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B04-A06). */
+export function runVisionerGroundingFailureRecoverySliceWithRecord(
+  fixture: VisionerGroundingBaseline = loadVisionerGroundingBaseline(),
+): VisionerGroundingRunRecord {
+  const contract = getActiveVisionerGroundingContract();
+  const failureRecoveryIds = new Set(listVisionerGroundingFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerGroundingRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B04-A06",
+    sliceCategories: VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES,
+  });
 }

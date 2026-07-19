@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "atom": "P02-B04-A01",
-  "contractAtom": "P02-B04-A05",
+  "contractAtom": "P02-B04-A06",
   "purpose": "Repo and user context grounding baseline measured from sealed P02-B03 block gate artifacts (includes documented FAIL gaps).",
   "sourceBlockGate": {
     "version": "1.0.0",

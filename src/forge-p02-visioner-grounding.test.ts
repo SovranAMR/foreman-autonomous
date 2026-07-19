@@ -6,6 +6,8 @@ import {
   runVisionerGroundingProductionSlice,
   runVisionerGroundingBoundarySlice,
   runVisionerGroundingFailureRecoverySlice,
+  runVisionerGroundingProbesWithRecord,
+  runVisionerGroundingFailureRecoverySliceWithRecord,
 } from "./forge-p02-visioner-grounding.probe.js";
 import {
   getActiveVisionerGroundingContract,
@@ -20,12 +22,19 @@ import {
   validateVisionerGroundingProbeMatrix,
   validateVisionerGroundingBoundaryProbeMatrix,
   validateVisionerGroundingFailureRecoveryProbeMatrix,
+  validateVisionerGroundingRunRecord,
+  validateVisionerGroundingFailureRecoveryRunRecord,
+  buildVisionerGroundingProbeEvidence,
+  buildVisionerGroundingProbeTelemetry,
+  buildVisionerGroundingProvenance,
+  buildVisionerGroundingRunRecord,
   VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES,
   recoverVisionerGrounding,
   assessVisionerGroundingInputBoundary,
   assessVisionerGroundingPresence,
   VISIONER_GROUNDING_CATEGORIES,
   VISIONER_GROUNDING_CONTEXT_MAX_LENGTH,
+  FORGE_VISIONER_GROUNDING_VERSION,
 } from "./forge-p02-visioner-grounding.js";
 
 function formatMismatchReport(
@@ -40,7 +49,7 @@ describe("Forge Visioner Grounding Contract — P02-B04-A02", () => {
   it("defines typed acceptance for all eight visioner grounding categories", () => {
     const contract = getActiveVisionerGroundingContract();
     assert.equal(contract.version, "1.0.0");
-    assert.equal(contract.atom, "P02-B04-A05");
+    assert.equal(contract.atom, "P02-B04-A06");
 
     for (const category of VISIONER_GROUNDING_CATEGORIES) {
       const categoryContract = getVisionerGroundingCategoryContract(category);
@@ -359,5 +368,119 @@ describe("Forge Visioner Grounding Failure/Recovery Slice — P02-B04-A05", () =
     assert.ok(ambiguityNogo);
     assert.equal(ambiguityNogo!.expected, "PASS");
     assert.equal(ambiguityNogo!.actual, "PASS");
+  });
+});
+
+describe("Forge Visioner Grounding Evidence — P02-B04-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadVisionerGroundingBaseline();
+    const contract = getActiveVisionerGroundingContract();
+    const probeIds = listVisionerGroundingFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-19T00:00:00.000Z";
+    const completedAt = "2026-07-19T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildVisionerGroundingProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildVisionerGroundingProbeTelemetry(probeId, contractProbe.category, index, index * 0.5);
+    });
+
+    const provenance = buildVisionerGroundingProvenance(
+      "run-vgrd-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P02-B04-A06",
+        sliceCategories: VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildVisionerGroundingRunRecord(provenance, evidence, telemetry);
+    const validation = validateVisionerGroundingFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 6);
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.summary.byDisposition.gap, 0);
+    assert.ok(record.summary.byDisposition.failure >= 2);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byDisposition.nogo >= 2);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBlockGateAtom, fixture.sourceBlockGate.atom);
+  });
+
+  it("records evidence, telemetry and provenance for failure/recovery slice run", () => {
+    const contract = getActiveVisionerGroundingContract();
+    const record = runVisionerGroundingFailureRecoverySliceWithRecord();
+    const validation = validateVisionerGroundingFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 6);
+    assert.equal(record.telemetry.length, 6);
+    assert.equal(record.provenance.totalProbes, 6);
+    assert.equal(record.provenance.sliceAtom, "P02-B04-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, FORGE_VISIONER_GROUNDING_VERSION);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.ok(item.recordedAt.length > 10);
+    }
+
+    const structuredRecovery = record.evidence.find(e => e.probeId === "vgrd.structured_grounding_recovery");
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.aligned, true);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+    assert.equal(structuredRecovery!.disposition, "recovery");
+  });
+
+  it("records evidence, telemetry and provenance for full visioner grounding run", () => {
+    const contract = getActiveVisionerGroundingContract();
+    const record = runVisionerGroundingProbesWithRecord();
+    const validation = validateVisionerGroundingRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 23);
+    assert.equal(record.telemetry.length, 23);
+    assert.equal(record.provenance.totalProbes, 23);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.summary.aligned, 23);
   });
 });

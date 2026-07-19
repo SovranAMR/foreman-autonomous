@@ -12,7 +12,7 @@ import {
   summarizeVisionerSynthesisContractCoverage,
 } from "./forge-p02-visioner-synthesis.js";
 
-export const FORGE_VISIONER_GROUNDING_VERSION = "1.0.0-a05";
+export const FORGE_VISIONER_GROUNDING_VERSION = "1.0.0-a06";
 
 /** Maximum normalized context length before truncation (P02-B04-A01 boundary). */
 export const VISIONER_GROUNDING_CONTEXT_MAX_LENGTH = 32000;
@@ -834,7 +834,7 @@ const VISIONER_GROUNDING_CATEGORY_CONTRACTS: Record<
 
 export const FORGE_VISIONER_GROUNDING_CONTRACT_V1: VisionerGroundingContract = {
   version: "1.0.0",
-  atom: "P02-B04-A05",
+  atom: "P02-B04-A06",
   purpose:
     "Typed visioner grounding contract declaring measurable repo, user and guard probes.",
   categories: VISIONER_GROUNDING_CATEGORY_CONTRACTS,
@@ -1202,4 +1202,285 @@ export function listVisionerGroundingKnownGaps(
   results: VisionerGroundingProbeResult[],
 ): VisionerGroundingProbeResult[] {
   return summarizeVisionerGroundingMatrix(results).knownGaps;
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P02-B04-A06). */
+export interface VisionerGroundingProbeEvidence {
+  probeId: string;
+  category: VisionerGroundingCategory;
+  disposition: VisionerGroundingProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for visioner grounding runs (P02-B04-A06). */
+export interface VisionerGroundingProbeTelemetry {
+  probeId: string;
+  category: VisionerGroundingCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P02-B04-A06). */
+export interface VisionerGroundingProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly VisionerGroundingCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated visioner grounding run record bundling evidence, telemetry and provenance. */
+export interface VisionerGroundingRunRecord {
+  provenance: VisionerGroundingProvenance;
+  evidence: VisionerGroundingProbeEvidence[];
+  telemetry: VisionerGroundingProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<VisionerGroundingCategory, number>;
+    byDisposition: Record<VisionerGroundingProbeDisposition, number>;
+  };
+}
+
+export interface VisionerGroundingRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface VisionerGroundingRunValidationResult {
+  valid: boolean;
+  issues: VisionerGroundingRunValidationIssue[];
+}
+
+export function buildVisionerGroundingProbeEvidence(
+  probeId: string,
+  category: VisionerGroundingCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: VisionerGroundingProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): VisionerGroundingProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildVisionerGroundingProbeTelemetry(
+  probeId: string,
+  category: VisionerGroundingCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): VisionerGroundingProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildVisionerGroundingProvenance(
+  runId: string,
+  fixture: VisionerGroundingBaseline,
+  contract: VisionerGroundingContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerGroundingCategory[];
+  },
+): VisionerGroundingProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_VISIONER_GROUNDING_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildVisionerGroundingRunRecord(
+  provenance: VisionerGroundingProvenance,
+  evidence: VisionerGroundingProbeEvidence[],
+  telemetry: VisionerGroundingProbeTelemetry[],
+): VisionerGroundingRunRecord {
+  const byCategory = {} as Record<VisionerGroundingCategory, number>;
+  const byDisposition: Record<VisionerGroundingProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of VISIONER_GROUNDING_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateVisionerGroundingRunRecordAgainstProbeIds(
+  record: VisionerGroundingRunRecord,
+  expectedProbeIds: string[],
+  contract: VisionerGroundingContract,
+): VisionerGroundingRunValidationResult {
+  const issues: VisionerGroundingRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateVisionerGroundingRunRecord(
+  record: VisionerGroundingRunRecord,
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): VisionerGroundingRunValidationResult {
+  return validateVisionerGroundingRunRecordAgainstProbeIds(
+    record,
+    listVisionerGroundingContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateVisionerGroundingFailureRecoveryRunRecord(
+  record: VisionerGroundingRunRecord,
+  contract: VisionerGroundingContract = getActiveVisionerGroundingContract(),
+): VisionerGroundingRunValidationResult {
+  const issues: VisionerGroundingRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P02-B04-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P02-B04-A06`,
+    });
+  }
+
+  const expectedCategories = [...VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateVisionerGroundingRunRecordAgainstProbeIds(
+    record,
+    listVisionerGroundingFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
 }
