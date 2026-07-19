@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
-active_block: P02-B04
-active_atom: P02-B04-A10
+active_block: P05
+active_atom: P02-B05-A01
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 138/1000
-phase_progress: 38/100
-block_progress: 9/10
+program_progress: 139/1000
+phase_progress: 39/100
+block_progress: 10/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B04-A10 — Repo ve kullanıcı bağlamı grounding: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P02-B05-A01 — Research trigger belirleme: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P02-B04-A09 guard gate sealed; block gate evidence next.
-target: Seal P02-B04 block gate with grounded evidence artifact and P02-B05 handoff baseline.
-hypothesis: A09 guard controls plus sealed block gate provide stable handoff to research trigger block.
-acceptance: block gate PASS; sealed evidence artifact; handoff fixture ready; regression suite green.
-commands: npx tsx --test src/forge-p02-visioner-grounding-block-gate.test.ts
-blast_radius: src/forge-p02-visioner-grounding-block-gate.test.ts
-rollback: P02-B04-A10 block gate değişikliklerini geri al.
+objective: P02-B04 block gate sealed; B05 research trigger baseline next.
+target: Measure current research trigger behavior and create failing baseline fixture for P02-B05.
+hypothesis: Sealed P02-B04 grounding artifacts provide stable entry for research trigger baseline measurement.
+acceptance: failing baseline fixture; probe matrix wired; B04 handoff validated; regression suite green.
+commands: npx tsx --test src/forge-p02-visioner-research-trigger-baseline.test.ts
+blast_radius: src/forge-p02-visioner-research-trigger*
+rollback: P02-B05-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: block gate requires unrelated harness refactor ise BLOCKED raporla.
+fallback: research trigger requires unrelated harness refactor ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B04-A09
-last_commit: f4a886e
-tests: PASS — forge-p02-visioner-grounding.guard.test.ts (8/8); forge-p02-visioner-grounding*.test.ts (37/37 total)
-evidence: validateForgeVisionerGroundingGuard; runVisionerGroundingAdversarialGuardChecks 3/3 rejected; adversarial/perf/cost/safety guard PASS; orchestrator verifyForgeVisionerGroundingGuard visioner_grounding_guard verification
-next: P02-B04-A10
+last_atom: P02-B04-A10
+last_commit: pending
+tests: PASS — forge-p02-visioner-grounding-block-gate.test.ts (6/6); forge-p02-visioner-grounding*.test.ts (43/43 total)
+evidence: runVisionerGroundingBlockGate; FORGE_P02_B04_BLOCK_GATE_V1; FORGE_P02_B04_TO_B05_HANDOFF_V1; orchestrator verifyForgeVisionerGroundingBlockGate visioner_grounding_block_gate verification
+next: P02-B05-A01

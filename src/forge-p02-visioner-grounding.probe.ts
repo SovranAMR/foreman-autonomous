@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import visionerGroundingBaseline from "./fixtures/forge-visioner-grounding-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 import {
   getForgeP02B03ToB04Handoff,
   getActiveVisionerSynthesisContract,
@@ -46,6 +46,12 @@ import {
   runVisionerGroundingRunRecordFuzzValidation,
   validateVisionerGroundingRunRecord,
   validateForgeVisionerGroundingGuard,
+  summarizeVisionerGroundingContractCoverage,
+  listVisionerGroundingProbesByDisposition,
+  getForgeP02B04BlockGate,
+  getForgeP02B04ToB05Handoff,
+  validateVisionerGroundingBlockHandoffContract,
+  buildVisionerGroundingBlockGateEvidence,
   type VisionerGroundingBaseline,
   type VisionerGroundingCategory,
   type VisionerGroundingProbeDisposition,
@@ -89,6 +95,10 @@ export {
   buildVisionerGroundingRunRecord,
   validateVisionerGroundingRunRecord,
   validateVisionerGroundingFailureRecoveryRunRecord,
+  getForgeP02B04BlockGate,
+  getForgeP02B04ToB05Handoff,
+  validateVisionerGroundingBlockHandoffContract,
+  buildVisionerGroundingBlockGateEvidence,
 } from "./forge-p02-visioner-grounding.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -820,3 +830,185 @@ export function runForgeVisionerGroundingRegressionGate(
 
 /** Alias for forge-pipeline-regression integration seam (P02-B04-A08). */
 export const runVisionerGroundingRegressionIntegration = runForgeVisionerGroundingRegressionGate;
+
+export interface ForgeVisionerGroundingBlockGateResult {
+  passed: boolean;
+  evidence: ReturnType<typeof buildVisionerGroundingBlockGateEvidence>;
+  handoff: ReturnType<typeof getForgeP02B04ToB05Handoff>;
+  regression: ForgeVisionerGroundingRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealVisionerGroundingBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P02-B04 block gate: validate A01–A09 deliverables, regression, guard, and B05 handoff (P02-B04-A10).
+ */
+export function runVisionerGroundingBlockGate(): ForgeVisionerGroundingBlockGateResult {
+  const blockGate = getForgeP02B04BlockGate();
+  const handoff = getForgeP02B04ToB05Handoff();
+  const contract = getActiveVisionerGroundingContract();
+  const fixture = loadVisionerGroundingBaseline();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateVisionerGroundingBaseline(fixture);
+  const contractValidation = validateVisionerGroundingAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A01",
+      "visioner_grounding",
+      fixtureValidation.valid &&
+        contractValidation.valid &&
+        fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid && contractValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeVisionerGroundingContractCoverage(contract).totalProbes} probes)`
+        : [...fixtureValidation.issues, ...contractValidation.issues].map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeVisionerGroundingContractCoverage(contract);
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${VISIONER_GROUNDING_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runVisionerGroundingProductionSlice(fixture);
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runVisionerGroundingBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runVisionerGroundingFailureRecoverySlice(fixture);
+  const nogoProbes = listVisionerGroundingProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgeVisionerGroundingRegressionGate();
+  const recordValidation = validateVisionerGroundingRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const propertyFuzz = regression.propertyFuzz;
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A07",
+      "property_fuzz",
+      propertyFuzz.passed,
+      `properties=${propertyFuzz.properties.passed}/${propertyFuzz.properties.total} contractFuzz rejected=${propertyFuzz.contractFuzz.rejected}/${propertyFuzz.contractFuzz.iterations} runFuzz rejected=${propertyFuzz.runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validateVisionerGroundingBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealVisionerGroundingBlockAtom(
+      "P02-B04-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildVisionerGroundingBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runForgeVisionerGroundingBlockGate = runVisionerGroundingBlockGate;

@@ -497,6 +497,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P02-B04 block gate and emit verification event with B05 handoff (P02-B04-A10).
+   */
+  async verifyForgeVisionerGroundingBlockGate(): Promise<import("./forge-p02-visioner-grounding.probe.js").ForgeVisionerGroundingBlockGateResult> {
+    const { runForgeVisionerGroundingBlockGate } = await import("./forge-p02-visioner-grounding.probe.js");
+    const result = runForgeVisionerGroundingBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "visioner_grounding_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B01 block gate and emit verification event with B02 handoff (P02-B01-A10).
    */
   async verifyForgeVisionerIntentBlockGate(): Promise<import("./forge-p02-visioner-intent.probe.js").ForgeVisionerIntentBlockGateResult> {
