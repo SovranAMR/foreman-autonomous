@@ -61,7 +61,7 @@ describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
     }
   });
 
-  it("maps 27 probes with five documented FAIL gaps from A01 baseline debt", () => {
+  it("maps 27 probes with four documented FAIL gaps after A03 production slice", () => {
     const contract = getActiveWorkerGitWorktreeContract();
     const summary = summarizeWorkerGitWorktreeContractCoverage(contract);
     const coverage = validateWorkerGitWorktreeContractCoverage(contract);
@@ -69,10 +69,10 @@ describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateWorkerGitWorktreeContract().valid, true);
     assert.equal(summary.totalProbes, 27);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 5);
-    assert.equal(summary.byDisposition.observed, 18);
-    assert.equal(summary.byDisposition.gap, 5);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 4);
+    assert.equal(summary.byDisposition.observed, 19);
+    assert.equal(summary.byDisposition.gap, 4);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 0);
@@ -86,15 +86,14 @@ describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
 
-  it("lists five gap probes aligned to A01 baseline FAIL debt", () => {
+  it("lists four remaining gap probes after A03 TypedGitCall slice", () => {
     const gaps = listWorkerGitWorktreeProbesByDisposition("gap");
-    assert.equal(gaps.length, 5);
+    assert.equal(gaps.length, 4);
     assert.deepEqual(
       gaps.map(p => p.id).sort(),
       [
         "wgt.exported_git_validator",
         "wgt.orchestrator_pre_git_validation",
-        "wgt.typed_git_call_union",
         "wgt.worker_prompt_git_contract",
         "wgt.worktree_transaction_engine",
       ],
@@ -152,7 +151,7 @@ describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
     assert.equal(FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.atom, "P05-B05-A02");
     assert.equal(FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a03");
     assert.equal(contract.version, FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.version);
   });
 });

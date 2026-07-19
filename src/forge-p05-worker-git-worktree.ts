@@ -15,9 +15,9 @@ import {
   summarizeWorkerShellProcessContractCoverage,
   getActiveWorkerShellProcessContract,
 } from "./forge-p05-worker-shell-process.js";
-import { TOOL_DEFINITIONS } from "./tools.js";
+import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 
-export const FORGE_WORKER_GIT_WORKTREE_VERSION = "1.0.0-a02";
+export const FORGE_WORKER_GIT_WORKTREE_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P05_B04_SEALED_ATOM_COUNT = 10;
 
@@ -246,8 +246,8 @@ const WORKER_GIT_WORKTREE_CATEGORY_CONTRACTS: Record<
         id: "wgt.typed_git_call_union",
         category: "git_signal",
         description: "TypedGitCall discriminated union narrows branch and message args before git dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "TypedGitCall discriminated union narrows branch and message args before git dispatch",
       },
     ],
@@ -1425,4 +1425,200 @@ export function probeDangerousGitOperationBlocked(): boolean {
     executionEngine.includes("isDangerous(") &&
     executionEngine.includes("Dangerous command blocked")
   );
+}
+
+export interface GitCallValidationResult {
+  valid: boolean;
+  errors: string[];
+  message?: string;
+  branch?: string;
+  files?: string[];
+}
+
+/**
+ * Validate git tool call boundary before orchestrator dispatch (P05-B05-A03).
+ */
+export function validateGitCall(call: ToolCall): GitCallValidationResult {
+  const gitTools = new Set(["git_status", "git_commit", "git_diff", "git_log"]);
+  if (!gitTools.has(call.name)) {
+    return { valid: true, errors: [] };
+  }
+
+  if (call.name === "git_commit") {
+    const recovery = recoverGitCommitRequest(call.args.message, call.args.files);
+    if (!recovery.recovered) {
+      return { valid: false, errors: [recovery.detail], message: recovery.message };
+    }
+
+    let branch: string | undefined;
+    if (typeof call.args.branch === "string") {
+      const branchBoundary = assessGitBranchInputBoundary(call.args.branch);
+      if (!branchBoundary.acceptable) {
+        return { valid: false, errors: [branchBoundary.detail] };
+      }
+      branch = branchBoundary.normalizedBranch;
+    }
+
+    return {
+      valid: true,
+      errors: [],
+      message: recovery.message,
+      ...(recovery.files ? { files: recovery.files } : {}),
+      ...(branch ? { branch } : {}),
+    };
+  }
+
+  return { valid: true, errors: [] };
+}
+
+export interface GitWorktreeTelemetry {
+  toolName: string;
+  message?: string;
+  branch?: string;
+  sequenceIndex: number;
+  validated: boolean;
+  validatedAt: string;
+  contractVersion: string;
+  harnessVersion: string;
+  errors: string[];
+}
+
+/**
+ * Record git worktree provenance for worker tool loop telemetry (P05-B05-A03).
+ */
+export function buildGitWorktreeTelemetry(
+  call: ToolCall,
+  options: {
+    sequenceIndex?: number;
+    validation?: GitCallValidationResult;
+  } = {},
+): GitWorktreeTelemetry {
+  const validation = options.validation ?? validateGitCall(call);
+
+  return {
+    toolName: call.name,
+    ...(validation.message ? { message: validation.message } : {}),
+    ...(validation.branch ? { branch: validation.branch } : {}),
+    sequenceIndex: options.sequenceIndex ?? 0,
+    validated: validation.valid,
+    validatedAt: new Date().toISOString(),
+    contractVersion: FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.version,
+    harnessVersion: FORGE_WORKER_GIT_WORKTREE_VERSION,
+    errors: validation.errors,
+  };
+}
+
+export interface WorkerGitWorktreeProbeMatrixValidationIssue {
+  kind: "missing_result" | "criterion_mismatch" | "pass_mismatch" | "gap_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface WorkerGitWorktreeProbeMatrixValidationResult {
+  valid: boolean;
+  issues: WorkerGitWorktreeProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+export function validateWorkerGitWorktreeProbeMatrix(
+  results: WorkerGitWorktreeProbeResult[],
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): WorkerGitWorktreeProbeMatrixValidationResult {
+  const issues: WorkerGitWorktreeProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+      continue;
+    }
+
+    if (result.aligned) {
+      gapAligned++;
+    } else {
+      issues.push({
+        kind: "gap_mismatch",
+        probeId: contractProbe.id,
+        detail: `FAIL probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface WorkerGitWorktreeProductionSliceResult {
+  atom: "P05-B05-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: WorkerGitWorktreeProbeResult[];
+  summary: WorkerGitWorktreeProbeSummary;
+  matrixValidation: WorkerGitWorktreeProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: git worktree contract wired to probe matrix
+ * with first gap probe (TypedGitCall) closed and zero unexpected mismatches.
+ */
+export function runWorkerGitWorktreeProductionSlice(
+  fixture: WorkerGitWorktreeBaseline = loadWorkerGitWorktreeBaseline(),
+): WorkerGitWorktreeProductionSliceResult {
+  const contract = getActiveWorkerGitWorktreeContract();
+  const fixtureValidation = validateWorkerGitWorktreeBaseline(fixture);
+  const contractValidation = validateWorkerGitWorktreeAgainstContract(fixture, contract);
+  const results = runWorkerGitWorktreeProbes(fixture);
+  const summary = summarizeWorkerGitWorktreeMatrix(results);
+  const matrixValidation = validateWorkerGitWorktreeProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B05-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

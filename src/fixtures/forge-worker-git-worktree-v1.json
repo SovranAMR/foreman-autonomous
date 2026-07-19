@@ -51,7 +51,7 @@
       "id": "wgt.typed_git_call_union",
       "category": "git_signal",
       "description": "TypedGitCall discriminated union narrows branch and message args before git dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wgt.git_engine_task_branching",

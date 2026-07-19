@@ -1099,6 +1099,33 @@ export type TypedBashCall = {
   };
 };
 
+/** Discriminated union narrowing git tool args before git dispatch (P05-B05-A03). */
+export type TypedGitCall =
+  | {
+      name: "git_status";
+      args: Record<string, never>;
+    }
+  | {
+      name: "git_commit";
+      args: {
+        message: string;
+        files?: string[];
+        branch?: string;
+      };
+    }
+  | {
+      name: "git_diff";
+      args: {
+        staged?: boolean;
+      };
+    }
+  | {
+      name: "git_log";
+      args: {
+        count?: number;
+      };
+    };
+
 /**
  * Creates a tool executor bound to a project root via ExecutionEngine.
  * All file operations go through the engine's security checks.

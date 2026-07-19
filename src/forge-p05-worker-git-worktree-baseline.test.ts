@@ -41,7 +41,7 @@ describe("Forge Worker Git Worktree — P05-B05-A01", () => {
     assert.equal(handoff.targetBlock.entryAtom, "P05-B05-A01");
   });
 
-  it("measures git worktree probes with documented FAIL gaps from B04 sealed handoff", () => {
+  it("measures git worktree probes with four remaining FAIL gaps after A03 slice", () => {
     const results = runWorkerGitWorktreeProbes();
     const summary = summarizeWorkerGitWorktreeMatrix(results);
 
@@ -53,8 +53,8 @@ describe("Forge Worker Git Worktree — P05-B05-A01", () => {
       "FAIL",
       loadWorkerGitWorktreeBaseline(),
     );
-    assert.equal(documentedFail.length, 5);
-    assert.ok(documentedFail.some(p => p.id === "wgt.typed_git_call_union"));
+    assert.equal(documentedFail.length, 4);
+    assert.ok(!documentedFail.some(p => p.id === "wgt.typed_git_call_union"));
     assert.ok(documentedFail.some(p => p.id === "wgt.worktree_transaction_engine"));
     assert.ok(documentedFail.some(p => p.id === "wgt.worker_prompt_git_contract"));
 
@@ -77,15 +77,14 @@ describe("Forge Worker Git Worktree — P05-B05-A01", () => {
     );
   });
 
-  it("documents git worktree gaps as measurable baseline debt", () => {
+  it("documents four remaining git worktree gaps as measurable baseline debt", () => {
     const gaps = listWorkerGitWorktreeKnownGaps(runWorkerGitWorktreeProbes());
-    assert.equal(gaps.length, 5);
+    assert.equal(gaps.length, 4);
     assert.deepEqual(
       gaps.map(g => g.id).sort(),
       [
         "wgt.exported_git_validator",
         "wgt.orchestrator_pre_git_validation",
-        "wgt.typed_git_call_union",
         "wgt.worker_prompt_git_contract",
         "wgt.worktree_transaction_engine",
       ],
@@ -130,6 +129,6 @@ describe("Forge Worker Git Worktree — P05-B05-A01", () => {
   });
 
   it("exports harness version for git worktree baseline", () => {
-    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a03");
   });
 });
