@@ -44,7 +44,7 @@ fallback: recoverVisionerSteering cannot close gap ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B09-A02
-last_commit: pending
+last_commit: fbc59bd
 tests: PASS — forge-p02-visioner-approval.test.ts (9/9)
 evidence: validateVisionerApprovalContractCoverage valid; 23 probes (22 PASS + 1 documented FAIL gap vapp.structured_steering_recovery); matrix passAligned=22 gapAligned=1 unexpectedMismatches=0
 next: P02-B09-A03
