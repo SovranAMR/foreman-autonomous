@@ -44,7 +44,7 @@ fallback: Forge regression blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B10-A07
-last_commit: 473cb12
+last_commit: bd64a1e
 tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (16/16); forge-p04-researcher-phase-gate.property-fuzz.test.ts (6/6)
 evidence: runResearcherPhaseGatePropertyValidation + runResearcherPhaseGateFuzzValidation + runResearcherPhaseGateRunRecordFuzzValidation + runResearcherPhaseGatePropertyFuzzSlice
 next: P04-B10-A08
