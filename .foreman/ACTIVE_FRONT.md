@@ -44,7 +44,7 @@ fallback: recovery requires orchestrator refactor beyond slice scope ise BLOCKED
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B06-A02
-last_commit: PENDING
+last_commit: 9cd2abb
 tests: PASS — forge-p02-visioner-uncertainty.test.ts (9/9)
 evidence: contract declares 8 categories; 23 probes (22 PASS + 1 documented FAIL gap); probe matrix zero unexpected mismatches; fixture ↔ contract aligned
 next: P02-B06-A03

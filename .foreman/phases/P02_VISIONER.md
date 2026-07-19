@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B06-A02
-last_commit: PENDING
+last_commit: 9cd2abb
 tests: PASS — forge-p02-visioner-uncertainty.test.ts (9/9)
 evidence: contract declares 8 categories; 23 probes (22 PASS + 1 documented FAIL gap vunc.structured_clarification_recovery); probe matrix zero unexpected mismatches; fixture ↔ contract aligned
 next: P02-B06-A03
