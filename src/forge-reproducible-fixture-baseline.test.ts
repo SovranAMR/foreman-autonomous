@@ -34,6 +34,10 @@ import {
   runReproducibleFixtureFuzzValidation,
   runReproducibleFixtureRunRecordFuzzValidation,
   createReproducibleFixtureFuzzRng,
+  runReproducibleFixtureProbesWithRecord,
+  runForgeReproducibleFixtureRegressionGate,
+  runReproducibleFixtureRegressionIntegration,
+  detectReproducibleFixtureProbeRegression,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
   REPRODUCIBLE_FIXTURE_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-reproducible-fixture.probe.js";
@@ -590,5 +594,61 @@ describe("Forge Reproducible Fixture Property/Fuzz — P01-B07-A07", () => {
     assert.equal(runFuzz.validBaseline, true);
     assert.equal(runFuzz.mutationsAccepted, 0);
     assert.equal(runFuzz.mutationsRejected, 3);
+  });
+});
+
+describe("Forge Reproducible Fixture Regression — P01-B07-A08", () => {
+  it("runForgeReproducibleFixtureRegressionGate passes on canonical reproducible fixture matrix", () => {
+    const result = runForgeReproducibleFixtureRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 21);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("21/21 probes aligned"));
+    assert.ok(result.detail.includes("guard:"));
+  });
+
+  it("runReproducibleFixtureRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeReproducibleFixtureRegressionGate();
+    const integration = runReproducibleFixtureRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
+    assert.ok(integration.detail.includes("21/21 probes aligned"));
+    assert.ok(integration.detail.includes("guard:"));
+    assert.equal(integration.record.summary.total, 21);
+  });
+
+  it("detectReproducibleFixtureProbeRegression flags newly misaligned probes", () => {
+    const prior = runReproducibleFixtureProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectReproducibleFixtureProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeReproducibleFixtureRegressionGate compares against prior record without false regression", () => {
+    const prior = runReproducibleFixtureProbesWithRecord();
+    const result = runForgeReproducibleFixtureRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
   });
 });

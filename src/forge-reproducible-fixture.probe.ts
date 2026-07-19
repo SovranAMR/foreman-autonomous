@@ -33,12 +33,17 @@ import {
   buildReproducibleFixtureProbeTelemetry,
   buildReproducibleFixtureProvenance,
   buildReproducibleFixtureRunRecord,
+  validateReproducibleFixtureRunRecord,
+  detectReproducibleFixtureProbeRegression,
+  validateForgeReproducibleFixtureGuard,
   type ReproducibleFixtureBaseline,
   type ReproducibleFixtureCategory,
   type ReproducibleFixtureProbeResult,
   type ReproducibleFixtureProbeMatrixValidationResult,
   type ReproducibleFixtureRunRecord,
   type ReproducibleFixtureProbeDisposition,
+  type ReproducibleFixtureProbeRegressionReport,
+  type ReproducibleFixtureGuardCheckResult,
 } from "./forge-reproducible-fixture.js";
 
 export type { ReproducibleFixtureBaseline, ReproducibleFixtureProbeResult } from "./forge-reproducible-fixture.js";
@@ -74,6 +79,7 @@ export {
   runReproducibleFixtureFuzzValidation,
   runReproducibleFixtureRunRecordFuzzValidation,
   createReproducibleFixtureFuzzRng,
+  detectReproducibleFixtureProbeRegression,
 } from "./forge-reproducible-fixture.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -767,3 +773,71 @@ export function runReproducibleFixtureFailureRecoverySlice(
     matrixValidation,
   };
 }
+
+/** Run all reproducible fixture probes and emit auditable evidence, telemetry and provenance (P01-B07-A08). */
+export function runReproducibleFixtureProbesWithRecord(
+  fixture: ReproducibleFixtureBaseline = loadReproducibleFixtureBaseline(),
+): ReproducibleFixtureRunRecord {
+  const contract = getActiveReproducibleFixtureContract();
+  return buildReproducibleFixtureRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+export interface ForgeReproducibleFixtureRegressionResult {
+  passed: boolean;
+  record: ReproducibleFixtureRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: ReproducibleFixtureProbeRegressionReport | null;
+  guard: ReproducibleFixtureGuardCheckResult;
+  detail: string;
+}
+
+/**
+ * Execute reproducible fixture probes, validate run record, and optionally detect regression vs prior run.
+ * Forge pipeline integration gate (P01-B07-A08).
+ */
+export function runForgeReproducibleFixtureRegressionGate(
+  priorRecord?: ReproducibleFixtureRunRecord,
+): ForgeReproducibleFixtureRegressionResult {
+  const record = runReproducibleFixtureProbesWithRecord();
+  const contract = getActiveReproducibleFixtureContract();
+  const validation = validateReproducibleFixtureRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectReproducibleFixtureProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeReproducibleFixtureGuard(record, { totalCostUsd: 0, llmCalls: 0 });
+  const passed = recordValid && !alignmentRegression && guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    passed,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    guard,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P01-B07-A08). */
+export const runReproducibleFixtureRegressionIntegration = runForgeReproducibleFixtureRegressionGate;

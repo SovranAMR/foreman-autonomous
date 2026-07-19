@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 65
+completed_atoms: 66
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -100,7 +100,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B07-A05 — Reproducible fixture sistemi: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B07-A06 — Reproducible fixture sistemi: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B07-A07 — Reproducible fixture sistemi: unit, property ve fuzz doğrulamasını ekle
-- [ ] P01-B07-A08 — Reproducible fixture sistemi: Forge entegrasyonu ile regression testini tamamla
+- [x] P01-B07-A08 — Reproducible fixture sistemi: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B07-A09 — Reproducible fixture sistemi: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B07-A10 — Reproducible fixture sistemi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,13 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B07-A07
-last_commit: 1c1917b
-tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (23/23)
+last_atom: P01-B07-A08
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (27/27); forge-pipeline-regression.integration.test.ts (+5 P01-B07-A08)
 evidence: |
-  P01-B07-A07 property/fuzz gates: runReproducibleFixturePropertyChecks (8/8 PASS) +
-  runReproducibleFixtureFuzzValidation (24/24 rejected) +
-  runReproducibleFixtureRunRecordFuzzValidation (5/5 rejected on failure/recovery slice);
-  harnessVersion=1.0.0-a07; createReproducibleFixtureFuzzRng deterministic;
-  full contract run record rejects 3 tamper mutations.
-next: P01-B07-A08
+  P01-B07-A08 Forge regression integration: runReproducibleFixtureProbesWithRecord (21 probes) +
+  detectReproducibleFixtureProbeRegression + runForgeReproducibleFixtureRegressionGate +
+  runReproducibleFixtureRegressionIntegration alias + verifyForgeReproducibleFixtureRegression orchestrator seam;
+  canonical 21/21 aligned; prior-record comparison no false regression; guard adversarial=3/3.
+next: P01-B07-A09

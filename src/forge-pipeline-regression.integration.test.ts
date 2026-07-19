@@ -24,6 +24,12 @@ import {
   runBenchmarkEvalRegressionIntegration,
 } from "./forge-benchmark-eval-harness.probe.js";
 import { detectBenchmarkEvalProbeRegression } from "./forge-benchmark-eval-harness.js";
+import {
+  runForgeReproducibleFixtureRegressionGate,
+  runReproducibleFixtureProbesWithRecord,
+  runReproducibleFixtureRegressionIntegration,
+} from "./forge-reproducible-fixture.probe.js";
+import { detectReproducibleFixtureProbeRegression } from "./forge-reproducible-fixture.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -327,6 +333,90 @@ describe("Forge Pipeline Regression — P01-B06-A08", () => {
     if (verification?.type === "verification") {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("26/26 probes aligned"));
+    }
+  });
+});
+
+describe("Forge Pipeline Regression — P01-B07-A08", () => {
+  it("runForgeReproducibleFixtureRegressionGate passes on canonical reproducible fixture matrix", () => {
+    const result = runForgeReproducibleFixtureRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 21);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("21/21 probes aligned"));
+  });
+
+  it("runReproducibleFixtureRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeReproducibleFixtureRegressionGate();
+    const integration = runReproducibleFixtureRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
+    assert.ok(integration.detail.includes("21/21 probes aligned"));
+    assert.equal(integration.record.summary.total, 21);
+  });
+
+  it("detectReproducibleFixtureProbeRegression flags newly misaligned probes", () => {
+    const prior = runReproducibleFixtureProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectReproducibleFixtureProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeReproducibleFixtureRegressionGate compares against prior record without false regression", () => {
+    const prior = runReproducibleFixtureProbesWithRecord();
+    const result = runForgeReproducibleFixtureRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("orchestrator verifyForgeReproducibleFixtureRegression emits reproducible_fixture_regression verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-reproducible-fixture-regression-orch-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "reproducible-fixture" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeReproducibleFixtureRegression();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "reproducible_fixture_regression",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    assert.equal(verification?.type, "verification");
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("21/21 probes aligned"));
     }
   });
 });

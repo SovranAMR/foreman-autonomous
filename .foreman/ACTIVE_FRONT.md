@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B07
-active_atom: P01-B07-A07
+active_atom: P01-B07-A09
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 66/1000
-phase_progress: 65/100
+program_progress: 67/1000
+phase_progress: 66/100
 block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B07-A08 — Reproducible fixture sistemi: Forge entegrasyonu ile regression testini tamamla.
+P01-B07-A09 — Reproducible fixture sistemi: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: A07 property/fuzz gates üzerine Forge regression entegrasyonunu uygula.
-target: runReproducibleFixtureRegressionIntegration; detectReproducibleFixtureProbeRegression.
-hypothesis: Regression integration detects probe alignment drift without false positives on canonical runs.
-acceptance: regression integration test PASS; contract alignment preserved.
-commands: npx tsx --test src/forge-reproducible-fixture-baseline.test.ts
+objective: A08 regression gate üzerine guard/adversarial kontrollerini tamamla.
+target: validateForgeReproducibleFixtureGuard; runReproducibleFixtureAdversarialGuardChecks.
+hypothesis: Guard rejects tampered records and canonical run passes perf/cost/safety limits.
+acceptance: guard test PASS; regression gate guard metrics preserved.
+commands: npx tsx --test src/forge-reproducible-fixture.guard.test.ts
 blast_radius: forge-reproducible-fixture*.ts
-rollback: A08 regression slice değişikliklerini geri al.
+rollback: A09 guard slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B07-A07
-last_commit: 1c1917b
-tests: PASS — forge-reproducible-fixture-baseline.test.ts (23/23)
-evidence: runReproducibleFixturePropertyChecks; runReproducibleFixtureFuzzValidation; runReproducibleFixtureRunRecordFuzzValidation; propertyTotal=8; fuzzRejected=24; runFuzzRejected=5; harnessVersion=1.0.0-a07; sliceAtom=P01-B07-A06
-next: P01-B07-A08
+last_atom: P01-B07-A08
+last_commit: pending
+tests: PASS — forge-reproducible-fixture-baseline.test.ts (27/27); forge-pipeline-regression.integration.test.ts (+5)
+evidence: runReproducibleFixtureRegressionIntegration; detectReproducibleFixtureProbeRegression; runForgeReproducibleFixtureRegressionGate 21/21 aligned; verifyForgeReproducibleFixtureRegression orchestrator seam; guard adversarial=3/3
+next: P01-B07-A09

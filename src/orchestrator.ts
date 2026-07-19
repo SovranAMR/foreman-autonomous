@@ -266,6 +266,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge reproducible fixture regression gate and emit verification event (P01-B07-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeReproducibleFixtureRegression(
+    priorRecord?: import("./forge-reproducible-fixture.js").ReproducibleFixtureRunRecord,
+  ): Promise<import("./forge-reproducible-fixture.probe.js").ForgeReproducibleFixtureRegressionResult> {
+    const { runForgeReproducibleFixtureRegressionGate } = await import("./forge-reproducible-fixture.probe.js");
+    const result = runForgeReproducibleFixtureRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "reproducible_fixture_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge benchmark eval harness guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B06-A09).
    */
   async verifyForgeBenchmarkEvalGuard(
