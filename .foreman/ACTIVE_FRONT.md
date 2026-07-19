@@ -44,7 +44,7 @@ fallback: A03 recovery misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B02-A03
-last_commit: pending
+last_commit: 33b329d
 tests: PASS — forge-p03-strategist-block-contract.test.ts (8/8); forge-p03-strategist-block-contract-baseline.test.ts (3/3); contract v1 23 probes; 0 FAIL gaps
 evidence: recoverStrategistBlockProduction; runStrategistBlockContractProductionSlice; validateStrategistBlockContractProbeMatrix
 next: P03-B02-A04
