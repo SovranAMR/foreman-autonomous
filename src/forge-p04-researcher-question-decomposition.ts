@@ -8,6 +8,8 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import researcherQuestionDecompositionBaseline from "./fixtures/forge-researcher-question-decomposition-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -21,7 +23,7 @@ import {
 } from "./forge-p03-strategist-provenance.js";
 import { parseResearchResponse } from "./parser.js";
 
-export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a05";
+export const FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P03_PHASE_GATE_SEALED_BLOCK_COUNT = P03_STRATEGIST_PHASE_BLOCK_COUNT;
 
@@ -565,6 +567,299 @@ export function runResearcherQuestionDecompositionFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P04-B01-A06). */
+export interface ResearcherQuestionDecompositionProbeEvidence {
+  probeId: string;
+  category: ResearcherQuestionDecompositionCategory;
+  disposition: ResearcherQuestionDecompositionProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for question decomposition runs (P04-B01-A06). */
+export interface ResearcherQuestionDecompositionProbeTelemetry {
+  probeId: string;
+  category: ResearcherQuestionDecompositionCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B01-A06). */
+export interface ResearcherQuestionDecompositionProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourcePhaseGateVersion: string;
+  sourcePhaseGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherQuestionDecompositionCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated question decomposition run record bundling evidence, telemetry and provenance. */
+export interface ResearcherQuestionDecompositionRunRecord {
+  provenance: ResearcherQuestionDecompositionProvenance;
+  evidence: ResearcherQuestionDecompositionProbeEvidence[];
+  telemetry: ResearcherQuestionDecompositionProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherQuestionDecompositionCategory, number>;
+    byDisposition: Record<ResearcherQuestionDecompositionProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherQuestionDecompositionRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherQuestionDecompositionRunValidationResult {
+  valid: boolean;
+  issues: ResearcherQuestionDecompositionRunValidationIssue[];
+}
+
+export function buildResearcherQuestionDecompositionProbeEvidence(
+  probeId: string,
+  category: ResearcherQuestionDecompositionCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherQuestionDecompositionProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherQuestionDecompositionProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherQuestionDecompositionProbeTelemetry(
+  probeId: string,
+  category: ResearcherQuestionDecompositionCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherQuestionDecompositionProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherQuestionDecompositionProvenance(
+  runId: string,
+  fixture: ResearcherQuestionDecompositionBaseline,
+  contract: ResearcherQuestionDecompositionContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherQuestionDecompositionCategory[];
+  },
+): ResearcherQuestionDecompositionProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourcePhaseGateVersion: fixture.sourcePhaseGate.version,
+    sourcePhaseGateAtom: fixture.sourcePhaseGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherQuestionDecompositionRunRecord(
+  provenance: ResearcherQuestionDecompositionProvenance,
+  evidence: ResearcherQuestionDecompositionProbeEvidence[],
+  telemetry: ResearcherQuestionDecompositionProbeTelemetry[],
+): ResearcherQuestionDecompositionRunRecord {
+  const byCategory = {} as Record<ResearcherQuestionDecompositionCategory, number>;
+  const byDisposition: Record<ResearcherQuestionDecompositionProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_QUESTION_DECOMPOSITION_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherQuestionDecompositionRunRecordAgainstProbeIds(
+  record: ResearcherQuestionDecompositionRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherQuestionDecompositionContract,
+): ResearcherQuestionDecompositionRunValidationResult {
+  const issues: ResearcherQuestionDecompositionRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherQuestionDecompositionRunRecord(
+  record: ResearcherQuestionDecompositionRunRecord,
+  contract: ResearcherQuestionDecompositionContract = getActiveResearcherQuestionDecompositionContract(),
+): ResearcherQuestionDecompositionRunValidationResult {
+  return validateResearcherQuestionDecompositionRunRecordAgainstProbeIds(
+    record,
+    listResearcherQuestionDecompositionContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherQuestionDecompositionEvidenceRunRecord(
+  record: ResearcherQuestionDecompositionRunRecord,
+  contract: ResearcherQuestionDecompositionContract = getActiveResearcherQuestionDecompositionContract(),
+): ResearcherQuestionDecompositionRunValidationResult {
+  const issues: ResearcherQuestionDecompositionRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B01-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B01-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherQuestionDecompositionRunRecordAgainstProbeIds(
+    record,
+    listResearcherQuestionDecompositionFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherQuestionDecompositionEvidenceSliceResult {
+  atom: "P04-B01-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherQuestionDecompositionProbeResult[];
+  evidenceResults: ResearcherQuestionDecompositionProbeResult[];
+  matrixValidation: ResearcherQuestionDecompositionProbeMatrixValidationResult;
+  record: ResearcherQuestionDecompositionRunRecord;
+  recordValidation: ResearcherQuestionDecompositionRunValidationResult;
 }
 
 export const RESEARCHER_QUESTION_DECOMPOSITION_A01_MIN_PROBES: Readonly<
@@ -1806,4 +2101,165 @@ export function runResearcherQuestionDecompositionProbes(
       fixture,
     ),
   );
+}
+
+function resolveResearcherQuestionDecompositionGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherQuestionDecompositionProbeWithTiming(
+  entry: ResearcherQuestionDecompositionFixtureEntry,
+  fixture: ResearcherQuestionDecompositionBaseline,
+  contractProbe:
+    | { criterion: string; disposition: ResearcherQuestionDecompositionProbeDisposition }
+    | undefined,
+): {
+  result: ResearcherQuestionDecompositionProbeResult;
+  durationMs: number;
+  disposition: ResearcherQuestionDecompositionProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runResearcherQuestionDecompositionProbe(
+    entry.id,
+    entry.category,
+    entry.expected,
+    fixture,
+  );
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherQuestionDecompositionRecordFromEntries(
+  entries: ResearcherQuestionDecompositionFixtureEntry[],
+  fixture: ResearcherQuestionDecompositionBaseline,
+  contract: ResearcherQuestionDecompositionContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherQuestionDecompositionCategory[];
+  },
+): ResearcherQuestionDecompositionRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ResearcherQuestionDecompositionProbeEvidence[] = [];
+  const telemetry: ResearcherQuestionDecompositionProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherQuestionDecompositionProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherQuestionDecompositionProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherQuestionDecompositionProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherQuestionDecompositionProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherQuestionDecompositionGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherQuestionDecompositionRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all question decomposition probes and emit auditable evidence, telemetry and provenance (P04-B01-A06). */
+export function runResearcherQuestionDecompositionProbesWithRecord(
+  fixture: ResearcherQuestionDecompositionBaseline = loadResearcherQuestionDecompositionBaseline(),
+): ResearcherQuestionDecompositionRunRecord {
+  const contract = getActiveResearcherQuestionDecompositionContract();
+  return buildResearcherQuestionDecompositionRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B01-A06). */
+export function runResearcherQuestionDecompositionFailureRecoverySliceWithRecord(
+  fixture: ResearcherQuestionDecompositionBaseline = loadResearcherQuestionDecompositionBaseline(),
+): ResearcherQuestionDecompositionRunRecord {
+  const contract = getActiveResearcherQuestionDecompositionContract();
+  const failureRecoveryIds = new Set(listResearcherQuestionDecompositionFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherQuestionDecompositionRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B01-A06",
+    sliceCategories: RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherQuestionDecompositionEvidenceSlice(
+  fixture: ResearcherQuestionDecompositionBaseline = loadResearcherQuestionDecompositionBaseline(),
+): ResearcherQuestionDecompositionEvidenceSliceResult {
+  const contract = getActiveResearcherQuestionDecompositionContract();
+  const results = runResearcherQuestionDecompositionProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherQuestionDecompositionContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherQuestionDecompositionFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherQuestionDecompositionFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherQuestionDecompositionEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P04-B01-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
+  };
 }

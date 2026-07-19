@@ -23,6 +23,16 @@ import {
   listResearcherQuestionDecompositionContractProbesByCategory,
   RESEARCHER_QUESTION_DECOMPOSITION_CATEGORIES,
   RESEARCHER_QUESTION_BLOCK_MAX_LENGTH,
+  runResearcherQuestionDecompositionEvidenceSlice,
+  runResearcherQuestionDecompositionProbesWithRecord,
+  runResearcherQuestionDecompositionFailureRecoverySliceWithRecord,
+  validateResearcherQuestionDecompositionRunRecord,
+  validateResearcherQuestionDecompositionEvidenceRunRecord,
+  buildResearcherQuestionDecompositionProbeEvidence,
+  buildResearcherQuestionDecompositionProbeTelemetry,
+  buildResearcherQuestionDecompositionProvenance,
+  buildResearcherQuestionDecompositionRunRecord,
+  FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION,
 } from "./forge-p04-researcher-question-decomposition.js";
 
 function formatMismatchReport(
@@ -324,5 +334,155 @@ describe("Forge Researcher Question Decomposition Failure/Recovery Slice — P04
     assert.ok(orchestratorValidator);
     assert.equal(orchestratorValidator!.expected, "PASS");
     assert.equal(orchestratorValidator!.actual, "PASS");
+  });
+});
+
+describe("Forge Researcher Question Decomposition Evidence — P04-B01-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadResearcherQuestionDecompositionBaseline();
+    const contract = getActiveResearcherQuestionDecompositionContract();
+    const probeIds = listResearcherQuestionDecompositionFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-19T00:00:00.000Z";
+    const completedAt = "2026-07-19T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildResearcherQuestionDecompositionProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildResearcherQuestionDecompositionProbeTelemetry(
+        probeId,
+        contractProbe.category,
+        index,
+        index * 0.5,
+      );
+    });
+
+    const provenance = buildResearcherQuestionDecompositionProvenance(
+      "run-rques-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P04-B01-A06",
+        sliceCategories: RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildResearcherQuestionDecompositionRunRecord(provenance, evidence, telemetry);
+    const validation = validateResearcherQuestionDecompositionEvidenceRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 7);
+    assert.equal(record.summary.mismatches, 0);
+    assert.ok(record.summary.byDisposition.failure >= 3);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byDisposition.nogo >= 2);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourcePhaseGateAtom, fixture.sourcePhaseGate.atom);
+  });
+
+  it("executes evidence slice with zero unexpected mismatches and valid run record", () => {
+    const contract = getActiveResearcherQuestionDecompositionContract();
+    const slice = runResearcherQuestionDecompositionEvidenceSlice();
+
+    assert.equal(slice.atom, "P04-B01-A06");
+    assert.equal(slice.evidenceProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.recordValid, true);
+    assert.equal(slice.evidenceResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 7);
+    assert.equal(slice.recordValidation.valid, true, slice.recordValidation.issues.map(i => i.detail).join("\n"));
+
+    for (const category of RESEARCHER_QUESTION_DECOMPOSITION_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherQuestionDecompositionContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.evidenceResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing evidence result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const record = slice.record;
+    assert.equal(record.evidence.length, 7);
+    assert.equal(record.telemetry.length, 7);
+    assert.equal(record.provenance.totalProbes, 7);
+    assert.equal(record.provenance.sliceAtom, "P04-B01-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.ok(item.recordedAt.length > 10);
+    }
+
+    const researchBlockNonFatal = record.evidence.find(e => e.probeId === "rques.research_block_non_fatal");
+    assert.ok(researchBlockNonFatal);
+    assert.equal(researchBlockNonFatal!.aligned, true);
+    assert.equal(researchBlockNonFatal!.expected, "PASS");
+    assert.equal(researchBlockNonFatal!.actual, "PASS");
+    assert.equal(researchBlockNonFatal!.disposition, "recovery");
+  });
+
+  it("records evidence, telemetry and provenance for full question decomposition run", () => {
+    const contract = getActiveResearcherQuestionDecompositionContract();
+    const record = runResearcherQuestionDecompositionProbesWithRecord();
+    const validation = validateResearcherQuestionDecompositionRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 27);
+    assert.equal(record.telemetry.length, 27);
+    assert.equal(record.provenance.totalProbes, 27);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.summary.aligned, 27);
+  });
+
+  it("records evidence slice via failure/recovery with-record helper", () => {
+    const contract = getActiveResearcherQuestionDecompositionContract();
+    const record = runResearcherQuestionDecompositionFailureRecoverySliceWithRecord();
+    const validation = validateResearcherQuestionDecompositionEvidenceRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 7);
+    assert.equal(record.telemetry.length, 7);
+    assert.equal(record.provenance.sliceAtom, "P04-B01-A06");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
   });
 });

@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 5
+completed_atoms: 6
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -20,7 +20,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B01-A03 — Research question decomposition: en küçük üretim dikey dilimini uygula
 - [x] P04-B01-A04 — Research question decomposition: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B01-A05 — Research question decomposition: failure, recovery ve NO-GO yollarını uygula
-- [ ] P04-B01-A06 — Research question decomposition: evidence, telemetry ve provenance kaydını ekle
+- [x] P04-B01-A06 — Research question decomposition: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B01-A07 — Research question decomposition: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B01-A08 — Research question decomposition: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B01-A09 — Research question decomposition: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B01-A05
-last_commit: 30a5880
-tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (22/22); failure/recovery slice 7/7 PASS; orchestrator Research BLOCK non-fatal wired; 0 unexpected mismatches
-evidence: validateResearcherQuestionDecompositionFailureRecoveryProbeMatrix; runResearcherQuestionDecompositionFailureRecoverySlice; rques.research_block_non_fatal; rques.nogo_empty_question_halt; rques.exported_orchestrator_question_validator
-next: P04-B01-A06
+last_atom: P04-B01-A06
+last_commit: 2377981
+tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (26/26); evidence slice 7/7 PASS; run record valid; 0 unexpected mismatches
+evidence: validateResearcherQuestionDecompositionEvidenceRunRecord; runResearcherQuestionDecompositionEvidenceSlice; runResearcherQuestionDecompositionFailureRecoverySliceWithRecord; rques.research_block_non_fatal disposition=recovery
+next: P04-B01-A07
