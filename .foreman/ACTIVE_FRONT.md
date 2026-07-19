@@ -44,7 +44,7 @@ fallback: Property/fuzz blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B08-A06
-last_commit: pending
+last_commit: 71156fc
 tests: PASS — forge-p03-strategist-replan*.test.ts (24/24); runStrategistReplanEvidenceSlice; validateStrategistReplanFailureRecoveryRunRecord
 evidence: runStrategistReplanFailureRecoverySliceWithRecord; validateStrategistReplanFailureRecoveryRunRecord; runStrategistReplanEvidenceSlice
 next: P03-B08-A07
