@@ -1497,3 +1497,82 @@ export function runStrategistProvenanceBoundarySlice(
     matrixValidation,
   };
 }
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly StrategistProvenanceCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery/NO-GO probes must align; zero unexpected mismatches required.
+ */
+export function validateStrategistProvenanceFailureRecoveryProbeMatrix(
+  results: StrategistProvenanceProbeResult[],
+  contract: StrategistProvenanceContract = getActiveStrategistProvenanceContract(),
+): StrategistProvenanceProbeMatrixValidationResult {
+  const failureRecoveryProbes = STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistProvenanceContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: StrategistProvenanceContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateStrategistProvenanceProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listStrategistProvenanceFailureRecoveryProbeIds(
+  contract: StrategistProvenanceContract = getActiveStrategistProvenanceContract(),
+): string[] {
+  return STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listStrategistProvenanceContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface StrategistProvenanceFailureRecoverySliceResult {
+  atom: "P03-B09-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistProvenanceProbeResult[];
+  failureRecoveryResults: StrategistProvenanceProbeResult[];
+  matrixValidation: StrategistProvenanceProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches.
+ */
+export function runStrategistProvenanceFailureRecoverySlice(
+  fixture: StrategistProvenanceBaseline = loadStrategistProvenanceBaseline(),
+): StrategistProvenanceFailureRecoverySliceResult {
+  const contract = getActiveStrategistProvenanceContract();
+  const results = runStrategistProvenanceProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistProvenanceContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistProvenanceFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P03-B09-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
+    matrixValidation,
+  };
+}

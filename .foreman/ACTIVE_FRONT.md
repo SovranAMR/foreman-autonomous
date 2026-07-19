@@ -6,9 +6,9 @@ active_phase: P03
 active_block: P03-B09
 active_atom: P03-B09-A05
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 283/1000
-phase_progress: 83/100
-block_progress: 4/10
+program_progress: 284/1000
+phase_progress: 84/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B09-A05 — Plan provenance ve drift: failure, recovery ve NO-GO yollarını uygula.
+P03-B09-A06 — Plan provenance ve drift: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P03-B09-A04 PASS; P03-B09-A05 implement failure/recovery/NO-GO vertical slice.
-target: failure_path, recovery_path, nogo_path probe matrix and slice wiring.
-hypothesis: P03-B09-A05 closes failure/recovery/NO-GO category probes with zero mismatches.
-acceptance: Failure/recovery slice runs; failure_path + recovery_path + nogo_path matrix valid.
+objective: P03-B09-A05 PASS; P03-B09-A06 implement evidence/telemetry/provenance run record vertical slice.
+target: failure_path, recovery_path, nogo_path evidence record and slice wiring.
+hypothesis: P03-B09-A06 closes evidence category probes with zero mismatches.
+acceptance: Evidence slice runs; failure/recovery run record valid.
 commands: npx tsx --test src/forge-p03-strategist-provenance*.test.ts
 blast_radius: src/forge-p03-strategist-provenance.ts, src/orchestrator.ts
-rollback: P03-B09-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P03-B09-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B09-A04
-last_commit: c0fd449
-tests: PASS — forge-p03-strategist-provenance.test.ts (15/15); forge-p03-strategist-provenance-baseline.test.ts (3/3)
-evidence: runStrategistProvenanceBoundarySlice; validateStrategistProvenanceBoundaryProbeMatrix; assessStrategistProvenanceInputBoundary edge cases; validatePlanDrift boundary rejection
-next: P03-B09-A05
+last_atom: P03-B09-A05
+last_commit: pending
+tests: PASS — forge-p03-strategist-provenance.test.ts (21/21); forge-p03-strategist-provenance-baseline.test.ts (3/3)
+evidence: runStrategistProvenanceFailureRecoverySlice; validateStrategistProvenanceFailureRecoveryProbeMatrix; listStrategistProvenanceFailureRecoveryProbeIds (7 probes)
+next: P03-B09-A06

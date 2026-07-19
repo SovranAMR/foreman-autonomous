@@ -19,6 +19,10 @@ import {
   assessStrategistProvenanceInputBoundary,
   runStrategistProvenanceProductionSlice,
   runStrategistProvenanceBoundarySlice,
+  runStrategistProvenanceFailureRecoverySlice,
+  validateStrategistProvenanceFailureRecoveryProbeMatrix,
+  listStrategistProvenanceFailureRecoveryProbeIds,
+  STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_PROVENANCE_CATEGORIES,
   STRATEGIST_PROVENANCE_DECOMPOSE_MAX_LENGTH,
   PLAN_DRIFT_THRESHOLD,
@@ -330,6 +334,109 @@ CONFIDENCE: 0.8`;
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Plan Provenance Failure/Recovery Slice — P03-B09-A05", () => {
+  it("defines seven failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveStrategistProvenanceContract();
+    const probeIds = listStrategistProvenanceFailureRecoveryProbeIds(contract);
+
+    assert.equal(STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES.length, 3);
+    assert.equal(probeIds.length, 7);
+    assert.deepEqual(probeIds.sort(), [
+      "sprov.exported_plan_drift_validator",
+      "sprov.invalid_version_rejected",
+      "sprov.malformed_decompose_guard",
+      "sprov.min_category_probes",
+      "sprov.nogo_undetected_drift",
+      "sprov.recovery_reflecting_drift",
+      "sprov.recovery_replan_lineage_checkpoint",
+    ].sort());
+
+    assert.equal(
+      listStrategistProvenanceContractProbesByCategory("failure_path", contract).length,
+      3,
+    );
+    assert.equal(
+      listStrategistProvenanceContractProbesByCategory("recovery_path", contract).length,
+      2,
+    );
+    assert.equal(
+      listStrategistProvenanceContractProbesByCategory("nogo_path", contract).length,
+      2,
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistProvenanceContract();
+    const slice = runStrategistProvenanceFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B09-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 7);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of STRATEGIST_PROVENANCE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistProvenanceContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistProvenanceFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure, recovery and NO-GO provenance paths with all probes passing", () => {
+    const slice = runStrategistProvenanceFailureRecoverySlice();
+    const probeIds = listStrategistProvenanceFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 7);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "sprov.malformed_decompose_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const reflectingDrift = slice.failureRecoveryResults.find(
+      r => r.id === "sprov.recovery_reflecting_drift",
+    );
+    assert.ok(reflectingDrift);
+    assert.equal(reflectingDrift!.expected, "PASS");
+    assert.equal(reflectingDrift!.actual, "PASS");
+
+    const undetectedDrift = slice.failureRecoveryResults.find(
+      r => r.id === "sprov.nogo_undetected_drift",
+    );
+    assert.ok(undetectedDrift);
+    assert.equal(undetectedDrift!.expected, "PASS");
+    assert.equal(undetectedDrift!.actual, "PASS");
+
+    const planDriftValidator = slice.failureRecoveryResults.find(
+      r => r.id === "sprov.exported_plan_drift_validator",
+    );
+    assert.ok(planDriftValidator);
+    assert.equal(planDriftValidator!.expected, "PASS");
+    assert.equal(planDriftValidator!.actual, "PASS");
   });
 });
 
