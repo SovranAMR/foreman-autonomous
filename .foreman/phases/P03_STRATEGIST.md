@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 2
-completed_atoms: 23
+completed_atoms: 24
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -44,7 +44,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B03-A01 — Atomization ve atom boyutu: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P03-B03-A02 — Atomization ve atom boyutu: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P03-B03-A03 — Atomization ve atom boyutu: en küçük üretim dikey dilimini uygula
-- [ ] P03-B03-A04 — Atomization ve atom boyutu: boundary ve edge-case davranışlarını tamamla
+- [x] P03-B03-A04 — Atomization ve atom boyutu: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B03-A05 — Atomization ve atom boyutu: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B03-A06 — Atomization ve atom boyutu: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B03-A07 — Atomization ve atom boyutu: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B03-A03
-last_commit: 6f1a522
-tests: PASS — forge-p03-strategist-atomization*.test.ts (14/14); contract 23 probes; 0 gap dispositions sealed
-evidence: assessStrategistAtomizeInputBoundary; recoverStrategistAtomize; runStrategistAtomizationProductionSlice; validateStrategistAtomizationProbeMatrix
-next: P03-B03-A04
+last_atom: P03-B03-A04
+last_commit: pending
+tests: PASS — forge-p03-strategist-atomization*.test.ts (17/17); contract 24 probes; boundary slice 7/7 aligned
+evidence: assessStrategistAtomizeInputBoundary; runStrategistAtomizationBoundarySlice; validateStrategistAtomizationBoundaryProbeMatrix; satom.long_atomize_truncation_boundary
+next: P03-B03-A05

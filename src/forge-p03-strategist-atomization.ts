@@ -18,7 +18,7 @@ import {
 } from "./forge-p03-strategist-block-contract.js";
 import { parseAtomizeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a03";
+export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a04";
 
 /** Maximum normalized atomize length before truncation (P03-B03-A01 boundary debt). */
 export const STRATEGIST_ATOMIZE_MAX_LENGTH = 32000;
@@ -519,8 +519,8 @@ const STRATEGIST_ATOMIZATION_CATEGORY_CONTRACTS: Record<
     category: "boundary",
     acceptance: {
       invariant:
-        "Atomize boundary assessment handles empty, whitespace-only and atom-cap inputs; probe runner and documented gaps wired.",
-      minProbeCount: 6,
+        "Atomize boundary assessment handles empty, whitespace-only, oversized and atom-cap inputs; probe runner and documented gaps wired.",
+      minProbeCount: 7,
       requireFullAlignment: true,
     },
     probes: [
@@ -571,6 +571,14 @@ const STRATEGIST_ATOMIZATION_CATEGORY_CONTRACTS: Record<
         expected: "PASS",
         disposition: "observed",
         criterion: "parseAtomizeResponse caps over-limit atom lists at six atoms",
+      },
+      {
+        id: "satom.long_atomize_truncation_boundary",
+        category: "boundary",
+        description: "assessStrategistAtomizeInputBoundary truncates atomize exceeding max length",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessStrategistAtomizeInputBoundary truncates atomize exceeding max length",
       },
     ],
   },
@@ -775,6 +783,28 @@ export function validateStrategistAtomizationProbeMatrix(
   };
 }
 
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateStrategistAtomizationBoundaryProbeMatrix(
+  results: StrategistAtomizationProbeResult[],
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistAtomizationContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistAtomizationContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistAtomizationProbeMatrix(boundaryResults, boundaryContract);
+}
+
 export interface StrategistAtomizationProductionSliceResult {
   atom: "P03-B03-A03";
   fixtureValid: boolean;
@@ -806,6 +836,39 @@ export function runStrategistAtomizationProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface StrategistAtomizationBoundarySliceResult {
+  atom: "P03-B03-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistAtomizationProbeResult[];
+  boundaryResults: StrategistAtomizationProbeResult[];
+  matrixValidation: StrategistAtomizationProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (atomize input edge cases, probe runner,
+ * documented gaps, atom cap, truncation) with zero unexpected mismatches.
+ */
+export function runStrategistAtomizationBoundarySlice(
+  fixture: StrategistAtomizationBaseline = loadStrategistAtomizationBaseline(),
+): StrategistAtomizationBoundarySliceResult {
+  const contract = getActiveStrategistAtomizationContract();
+  const results = runStrategistAtomizationProbes(fixture);
+  const boundaryProbes = listStrategistAtomizationContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistAtomizationBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B03-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }
@@ -1496,6 +1559,22 @@ function probeBoundary(
       const parsed = parseAtomizeResponse(overCap);
       const capped = parsed.ok === true && parsed.data.atoms.length === 6;
       return probe(id, category, expected, ok && capped, `parserCap=${ok}, capped=${capped}`);
+    }
+    case "satom.long_atomize_truncation_boundary": {
+      const longAtomize = "x".repeat(STRATEGIST_ATOMIZE_MAX_LENGTH + 500);
+      const result = assessStrategistAtomizeInputBoundary(longAtomize);
+      const ok =
+        result.disposition === "exceeds_max_length" &&
+        result.truncated === true &&
+        result.normalizedAtomize.length === STRATEGIST_ATOMIZE_MAX_LENGTH &&
+        result.acceptable === true;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `truncated=${result.truncated}, length=${result.normalizedAtomize.length}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown boundary probe");

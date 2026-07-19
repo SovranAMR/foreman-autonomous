@@ -114,6 +114,12 @@
       "expected": "PASS"
     },
     {
+      "id": "satom.long_atomize_truncation_boundary",
+      "category": "boundary",
+      "description": "assessStrategistAtomizeInputBoundary truncates atomize exceeding max length",
+      "expected": "PASS"
+    },
+    {
       "id": "satom.invalid_version_rejected",
       "category": "failure_path",
       "description": "validateStrategistAtomizationBaseline rejects unexpected fixture version",

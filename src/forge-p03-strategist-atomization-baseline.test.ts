@@ -29,7 +29,7 @@ describe("Forge Strategist Atomization — P03-B03-A01", () => {
     assert.equal(fixture.sourceBlockGate.atom, "P03-B02-A10");
     assert.equal(fixture.sourceBlockGate.sealedAtomCount, 10);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
-    assert.equal(fixture.probes.length, 23);
+    assert.equal(fixture.probes.length, 24);
   });
 
   it("measures atomization probes with full alignment after A03 recovery slice", () => {
@@ -37,7 +37,7 @@ describe("Forge Strategist Atomization — P03-B03-A01", () => {
     const summary = summarizeStrategistAtomizationMatrix(results);
 
     assert.equal(summary.total, results.length);
-    assert.equal(summary.total, 23);
+    assert.equal(summary.total, 24);
     assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listStrategistAtomizationProbesByExpected(

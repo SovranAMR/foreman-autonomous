@@ -13,7 +13,10 @@ import {
   recoverStrategistAtomize,
   assessStrategistAtomizeInputBoundary,
   runStrategistAtomizationProductionSlice,
+  runStrategistAtomizationBoundarySlice,
+  validateStrategistAtomizationBoundaryProbeMatrix,
   validateStrategistAtomizationProbeMatrix,
+  STRATEGIST_ATOMIZE_MAX_LENGTH,
   STRATEGIST_ATOMIZATION_CATEGORIES,
   FORGE_STRATEGIST_ATOMIZATION_CONTRACT_V1,
 } from "./forge-p03-strategist-atomization.js";
@@ -53,16 +56,16 @@ describe("Forge Strategist Atomization Contract — P03-B03-A02", () => {
     }
   });
 
-  it("maps 23 probes with zero documented FAIL gaps after A03 recovery slice", () => {
+  it("maps 24 probes with zero documented FAIL gaps after A04 boundary slice", () => {
     const contract = getActiveStrategistAtomizationContract();
     const summary = summarizeStrategistAtomizationCoverage(contract);
     const coverage = validateStrategistAtomizationCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
-    assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.totalProbes, 24);
+    assert.equal(summary.expectedPass, 24);
     assert.equal(summary.expectedFail, 0);
-    assert.equal(summary.byDisposition.observed, 17);
+    assert.equal(summary.byDisposition.observed, 18);
     assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
@@ -71,7 +74,7 @@ describe("Forge Strategist Atomization Contract — P03-B03-A02", () => {
     assert.equal(summary.byCategory.atom_structure.probeCount, 3);
     assert.equal(summary.byCategory.atom_sizing.probeCount, 3);
     assert.equal(summary.byCategory.baseline_link.probeCount, 2);
-    assert.equal(summary.byCategory.boundary.probeCount, 6);
+    assert.equal(summary.byCategory.boundary.probeCount, 7);
     assert.equal(summary.byCategory.failure_path.probeCount, 2);
     assert.equal(summary.byCategory.recovery_path.probeCount, 2);
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
@@ -102,7 +105,7 @@ describe("Forge Strategist Atomization Contract — P03-B03-A02", () => {
 
   it("exports stable contract v1 reference", () => {
     assert.equal(FORGE_STRATEGIST_ATOMIZATION_CONTRACT_V1.version, "1.0.0");
-    assert.equal(FORGE_STRATEGIST_ATOMIZATION_CONTRACT_V1.probes.length, 23);
+    assert.equal(FORGE_STRATEGIST_ATOMIZATION_CONTRACT_V1.probes.length, 24);
   });
 
   it("each atomization probe id is globally unique", () => {
@@ -172,9 +175,9 @@ CONFIDENCE: 0.8`;
     assert.equal(slice.fixtureValid, true);
     assert.equal(slice.contractAligned, true);
     assert.equal(slice.matrixValid, true);
-    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.summary.total, 24);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.passAligned, 24);
     assert.equal(slice.matrixValidation.gapAligned, 0);
     assert.equal(slice.summary.knownGaps.length, 0);
 
@@ -199,5 +202,83 @@ CONFIDENCE: 0.8`;
     assert.equal(recoveryProbe!.expected, "PASS");
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
+  });
+});
+
+describe("Forge Strategist Atomization Boundary Slice — P03-B03-A04", () => {
+  it("assessStrategistAtomizeInputBoundary handles atomize edge cases including truncation", () => {
+    const empty = assessStrategistAtomizeInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistAtomizeInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistAtomizeInputBoundary("bad\0atomize");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const valid = assessStrategistAtomizeInputBoundary("OUTPUT:\n1. valid atom task\nCONFIDENCE: 0.8");
+    assert.equal(valid.disposition, "valid");
+    assert.equal(valid.acceptable, true);
+
+    const longAtomize = "x".repeat(STRATEGIST_ATOMIZE_MAX_LENGTH + 500);
+    const truncated = assessStrategistAtomizeInputBoundary(longAtomize);
+    assert.equal(truncated.disposition, "exceeds_max_length");
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedAtomize.length, STRATEGIST_ATOMIZE_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("defines boundary category with atomize input edge-case probes", () => {
+    const boundary = listStrategistAtomizationContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 7);
+    assert.deepEqual(ids, [
+      "satom.atom_cap_boundary",
+      "satom.empty_atomize_boundary",
+      "satom.known_gaps_documented",
+      "satom.long_atomize_truncation_boundary",
+      "satom.probe_runner_exported",
+      "satom.source_block_gate_ref",
+      "satom.whitespace_atomize_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistAtomizationContract();
+    const slice = runStrategistAtomizationBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B03-A04");
+    assert.equal(slice.boundaryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 7);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistAtomizationContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistAtomizationBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });
