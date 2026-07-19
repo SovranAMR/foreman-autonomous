@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B10-A08
-last_commit: pending
+last_commit: a87533e
 tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (38/38); forge-p03-strategist-phase-gate.property-fuzz.test.ts (6/6)
 evidence: runForgeStrategistPhaseGateRegressionGate atom=P03-B10-A08 24/24 aligned; detectStrategistPhaseGateProbeRegression; propertyFuzz embedded; verifyForgeP03StrategistPhaseGateRegression orchestrator seam
 next: P03-B10-A09

@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B10-A08
-last_commit: pending
+last_commit: a87533e
 tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (38/38); forge-p03-strategist-phase-gate.property-fuzz.test.ts (6/6)
 evidence: runForgeStrategistPhaseGateRegressionGate atom=P03-B10-A08 24/24 aligned; propertyFuzz 8/8; contractFuzz rejected=24/24; runFuzz rejected=5/5; zero probe regressions
 next: P03-B10-A09
