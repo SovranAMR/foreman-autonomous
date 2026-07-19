@@ -114,7 +114,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B08-A06 — Spike ve falsification deneyi: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B08-A07 — Spike ve falsification deneyi: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B08-A08 — Spike ve falsification deneyi: Forge entegrasyonu ile regression testini tamamla
-- [ ] P04-B08-A09 — Spike ve falsification deneyi: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P04-B08-A09 — Spike ve falsification deneyi: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B08-A10 — Spike ve falsification deneyi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B09 — Research-to-worker handoff
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B08-A08
-last_commit: 318c8a7
-tests: PASS — forge-p04-researcher-spike-falsification*.test.ts (50/50); regression gate 23/23 aligned; productionSlice+propertyFuzz+runRecord green; adversarial=3/3; orchestrator verification emitted
-evidence: runResearcherSpikeFalsificationForgeRegression + verifyForgeResearcherSpikeFalsificationRegression
-next: P04-B08-A09
+last_atom: P04-B08-A09
+last_commit: pending
+tests: PASS — forge-p04-researcher-spike-falsification*.test.ts (58/58); guard adversarial=3/3; perf/cost/safety green; orchestrator verifyForgeResearcherSpikeFalsificationGuard
+evidence: validateForgeResearcherSpikeFalsificationGuard + verifyForgeResearcherSpikeFalsificationGuard
+next: P04-B08-A10
