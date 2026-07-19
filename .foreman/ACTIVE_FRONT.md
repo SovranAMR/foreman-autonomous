@@ -4,7 +4,7 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B02
-active_atom: P04-B02-A03
+active_atom: P04-B02-A04
 phase_file: .foreman/phases/P04_RESEARCHER.md
 program_progress: 313/1000
 phase_progress: 13/100
