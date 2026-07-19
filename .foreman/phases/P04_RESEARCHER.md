@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B07-A04
-last_commit: pending
+last_commit: ee98f17
 tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (25/25); boundary slice 6/6 aligned; zero unexpected mismatches
 evidence: validateResearcherRiskTradeoffBoundaryProbeMatrix + runResearcherRiskTradeoffBoundarySlice; edge-case rejection for validate/recover; exact max-length boundary
 next: P04-B07-A05
