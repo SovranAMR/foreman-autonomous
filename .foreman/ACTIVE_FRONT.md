@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B03
-active_atom: P05-B03-A09
+active_atom: P05-B03-A10
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 427/1000
-phase_progress: 23/100
-block_progress: 8/10
+program_progress: 428/1000
+phase_progress: 24/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B03-A09 — Cerrahi edit engine: adversarial, performance, cost ve safety kontrolünü geçir.
+P05-B03-A10 — Cerrahi edit engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P05-B03-A08 integration slice sealed; wire guard controls for adversarial/perf/cost/safety.
-target: Close guard slice with tamper rejection, performance ceilings and safety pattern checks.
-hypothesis: Edit engine guard slice rejects tampered records and passes canonical matrix under ceilings.
-acceptance: Guard probe matrix aligned; targeted tests green.
+objective: P05-B03-A09 guard slice sealed; seal block gate with full probe matrix and B04 handoff.
+target: Close P05-B03 block gate with sealed evidence, regression suite and P05-B04 entry contract.
+hypothesis: Block gate seals all 10 atoms with zero mismatches and exports handoff to shell/process lifecycle.
+acceptance: Block gate probe matrix aligned; block suite green; handoff contract exported.
 commands: npx tsx --test src/forge-p05-worker-edit-engine*.test.ts
 blast_radius: src/forge-p05-worker-edit-engine.ts
-rollback: P05-B03-A09 guard slice değişikliklerini geri al.
+rollback: P05-B03-A10 block gate değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Guard slice blocked ise BLOCKED raporla.
+fallback: Block gate blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B03-A08
-last_commit: 2dfb15b
-tests: PASS — forge-p05-worker-edit-engine-integration.test.ts (7/7), property-fuzz (7/7), evidence (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 52 total
-evidence: runWorkerEditEngineIntegrationSlice + validateWorkerEditEngineIntegrationProbeMatrix; 6/6 sub-slices aligned, prior/current run record comparison, guard checks pass
-next: P05-B03-A09
+last_atom: P05-B03-A09
+last_commit: pending
+tests: PASS — forge-p05-worker-edit-engine.guard.test.ts (9/9), integration (7/7), property-fuzz (7/7), evidence (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 61 total
+evidence: runWorkerEditEngineGuardSlice + validateForgeWorkerEditEngineGuard; adversarial 3/3 rejected, perf/cost/safety ceilings pass, guard gate aligned with regression gate
+next: P05-B03-A10

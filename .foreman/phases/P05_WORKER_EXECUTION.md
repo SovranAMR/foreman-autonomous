@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 26
+completed_atoms: 27
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -49,7 +49,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B03-A06 — Cerrahi edit engine: evidence, telemetry ve provenance kaydını ekle
 - [x] P05-B03-A07 — Cerrahi edit engine: unit, property ve fuzz doğrulamasını ekle
 - [x] P05-B03-A08 — Cerrahi edit engine: Forge entegrasyonu ile regression testini tamamla
-- [ ] P05-B03-A09 — Cerrahi edit engine: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P05-B03-A09 — Cerrahi edit engine: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P05-B03-A10 — Cerrahi edit engine: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P05-B04 — Shell ve process lifecycle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B03-A08
-last_commit: 2dfb15b
-tests: PASS — forge-p05-worker-edit-engine-integration.test.ts (7/7), property-fuzz (7/7), evidence (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 52 total
-evidence: runWorkerEditEngineIntegrationSlice + validateWorkerEditEngineIntegrationProbeMatrix; 6/6 sub-slices aligned, prior/current run record comparison, guard checks pass
-next: P05-B03-A09
+last_atom: P05-B03-A09
+last_commit: pending
+tests: PASS — forge-p05-worker-edit-engine.guard.test.ts (9/9), integration (7/7), property-fuzz (7/7), evidence (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 61 total
+evidence: runWorkerEditEngineGuardSlice + validateForgeWorkerEditEngineGuard; adversarial 3/3 rejected, perf/cost/safety ceilings pass, guard gate aligned with regression gate
+next: P05-B03-A10
