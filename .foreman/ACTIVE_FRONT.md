@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B08
-active_atom: P01-B08-A03
+active_atom: P01-B08-A05
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 72/1000
-phase_progress: 71/100
-block_progress: 3/10
+program_progress: 73/1000
+phase_progress: 72/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B08-A04 — Evidence ve artifact şeması: boundary ve edge-case davranışlarını tamamla.
+P01-B08-A05 — Evidence ve artifact şeması: failure, recovery ve NO-GO yollarını uygula.
 
-objective: A03 production slice PASS; boundary ve edge-case davranışlarını tamamla.
-target: runEvidenceArtifactBoundarySlice; boundary category probes with zero unexpected mismatches.
-hypothesis: A03 matrix gate + contract boundary probes yeterli giriş kanıtı sağlar.
-acceptance: boundary slice çalışır; contract-aligned boundary matrix; zero pass mismatches.
-commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A04 suite)
+objective: A04 boundary slice PASS; failure, recovery ve NO-GO yollarını uygula.
+target: runEvidenceArtifactFailureRecoverySlice; failure/recovery/nogo category probes with zero unexpected mismatches.
+hypothesis: A04 boundary gate + contract failure/recovery/nogo probes yeterli giriş kanıtı sağlar.
+acceptance: failure/recovery slice çalışır; contract-aligned failure matrix; zero pass mismatches.
+commands: npx tsx --test src/forge-evidence-artifact*.test.ts (A05 suite)
 blast_radius: forge-evidence-artifact*.ts
-rollback: A04 boundary slice değişikliklerini geri al.
+rollback: A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: boundary slice uygulanamazsa BLOCKED raporla.
+fallback: failure/recovery slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B08-A03
+last_atom: P01-B08-A04
 last_commit: pending
-tests: PASS — forge-evidence-artifact*.test.ts (10/10); runEvidenceArtifactProductionSlice 18 pass / 7 gap aligned
-evidence: validateEvidenceArtifactProbeMatrix; runEvidenceArtifactProductionSlice contract-wired matrix gate
-next: P01-B08-A04
+tests: PASS — forge-evidence-artifact*.test.ts (13/13); runEvidenceArtifactBoundarySlice 3 pass / 0 gap aligned
+evidence: validateEvidenceArtifactBoundaryProbeMatrix; runEvidenceArtifactBoundarySlice contract-wired boundary gate
+next: P01-B08-A05

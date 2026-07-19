@@ -29,6 +29,8 @@ import {
   getActiveEvidenceArtifactContract,
   validateEvidenceArtifactBaselineAgainstContract,
   validateEvidenceArtifactProbeMatrix,
+  validateEvidenceArtifactBoundaryProbeMatrix,
+  listEvidenceArtifactContractProbesByCategory,
   type EvidenceArtifactBaseline,
   type EvidenceArtifactCategory,
   type EvidenceArtifactProbeResult,
@@ -55,6 +57,7 @@ export {
   validateEvidenceArtifactContractCoverage,
   validateEvidenceArtifactBaselineAgainstContract,
   validateEvidenceArtifactProbeMatrix,
+  validateEvidenceArtifactBoundaryProbeMatrix,
   FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1,
   type EvidenceArtifactProbeMatrixValidationResult,
 } from "./forge-evidence-artifact.js";
@@ -639,6 +642,39 @@ export function runEvidenceArtifactProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface EvidenceArtifactBoundarySliceResult {
+  atom: "P01-B08-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: EvidenceArtifactProbeResult[];
+  boundaryResults: EvidenceArtifactProbeResult[];
+  matrixValidation: EvidenceArtifactProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (sourceReproducibleFixture ref,
+ * probe runner, known gaps) with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runEvidenceArtifactBoundarySlice(
+  fixture: EvidenceArtifactBaseline = loadEvidenceArtifactBaseline(),
+): EvidenceArtifactBoundarySliceResult {
+  const contract = getActiveEvidenceArtifactContract();
+  const results = runEvidenceArtifactProbes(fixture);
+  const boundaryProbes = listEvidenceArtifactContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateEvidenceArtifactBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B08-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

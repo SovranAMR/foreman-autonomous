@@ -4,7 +4,9 @@ import {
   loadEvidenceArtifactBaseline,
   runEvidenceArtifactProbes,
   runEvidenceArtifactProductionSlice,
+  runEvidenceArtifactBoundarySlice,
   validateEvidenceArtifactProbeMatrix,
+  validateEvidenceArtifactBoundaryProbeMatrix,
 } from "./forge-evidence-artifact.probe.js";
 
 function formatMismatchReport(
@@ -18,6 +20,7 @@ import {
   getActiveEvidenceArtifactContract,
   getEvidenceArtifactCategoryContract,
   listEvidenceArtifactContractProbeIds,
+  listEvidenceArtifactContractProbesByCategory,
   listEvidenceArtifactProbesByDisposition,
   summarizeEvidenceArtifactContractCoverage,
   validateEvidenceArtifactContractCoverage,
@@ -169,5 +172,71 @@ describe("Forge Evidence Artifact Production Slice — P01-B08-A03", () => {
         "eva.unified_schema_type_export",
       ],
     );
+  });
+});
+
+describe("Forge Evidence Artifact Boundary Slice — P01-B08-A04", () => {
+  it("defines boundary category with sourceReproducibleFixture ref and probe runner probes", () => {
+    const contract = getActiveEvidenceArtifactContract();
+    const boundary = listEvidenceArtifactContractProbesByCategory("boundary", contract);
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 3);
+    assert.deepEqual(ids, [
+      "eva.known_gaps_documented",
+      "eva.probe_runner_exported",
+      "eva.source_reproducible_fixture_ref",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+    assert.ok(boundary.every(p => p.disposition === "observed"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveEvidenceArtifactContract();
+    const slice = runEvidenceArtifactBoundarySlice();
+
+    assert.equal(slice.atom, "P01-B08-A04");
+    assert.equal(slice.boundaryProbeCount, 3);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 3);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 3);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listEvidenceArtifactContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateEvidenceArtifactBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("confirms boundary probes validate sealed B07 handoff and documented FAIL gaps", () => {
+    const slice = runEvidenceArtifactBoundarySlice();
+    const sourceRef = slice.boundaryResults.find(r => r.id === "eva.source_reproducible_fixture_ref");
+    const probeRunner = slice.boundaryResults.find(r => r.id === "eva.probe_runner_exported");
+    const knownGaps = slice.boundaryResults.find(r => r.id === "eva.known_gaps_documented");
+
+    assert.ok(sourceRef);
+    assert.equal(sourceRef!.expected, "PASS");
+    assert.equal(sourceRef!.actual, "PASS");
+    assert.match(sourceRef!.detail, /probes=21/);
+
+    assert.ok(probeRunner);
+    assert.equal(probeRunner!.expected, "PASS");
+    assert.equal(probeRunner!.actual, "PASS");
+
+    assert.ok(knownGaps);
+    assert.equal(knownGaps!.expected, "PASS");
+    assert.equal(knownGaps!.actual, "PASS");
+    assert.match(knownGaps!.detail, /documentedFail=7/);
   });
 });

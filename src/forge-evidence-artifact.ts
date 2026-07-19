@@ -1054,3 +1054,25 @@ export function validateEvidenceArtifactProbeMatrix(
     unexpectedMismatches,
   };
 }
+
+/**
+ * Validate boundary category probe matrix — A04 slice gate.
+ * PASS boundary probes must align; documented FAIL gaps in boundary category preserved.
+ */
+export function validateEvidenceArtifactBoundaryProbeMatrix(
+  results: EvidenceArtifactProbeResult[],
+  contract: EvidenceArtifactContract = getActiveEvidenceArtifactContract(),
+): EvidenceArtifactProbeMatrixValidationResult {
+  const boundaryProbes = listEvidenceArtifactContractProbesByCategory("boundary", contract);
+  const boundaryContract: EvidenceArtifactContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateEvidenceArtifactProbeMatrix(boundaryResults, boundaryContract);
+}

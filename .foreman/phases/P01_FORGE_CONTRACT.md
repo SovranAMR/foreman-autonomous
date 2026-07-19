@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 71
+completed_atoms: 72
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -109,7 +109,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B08-A01 — Evidence ve artifact şeması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B08-A02 — Evidence ve artifact şeması: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B08-A03 — Evidence ve artifact şeması: en küçük üretim dikey dilimini uygula
-- [ ] P01-B08-A04 — Evidence ve artifact şeması: boundary ve edge-case davranışlarını tamamla
+- [x] P01-B08-A04 — Evidence ve artifact şeması: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B08-A05 — Evidence ve artifact şeması: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B08-A06 — Evidence ve artifact şeması: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B08-A07 — Evidence ve artifact şeması: unit, property ve fuzz doğrulamasını ekle
@@ -156,10 +156,10 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B08-A03
+last_atom: P01-B08-A04
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (10/10); production slice 18 pass / 7 gap aligned
+tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (13/13); boundary slice 3 pass / 0 gap aligned
 evidence: |
-  P01-B08-A03 production slice: validateEvidenceArtifactProbeMatrix gates contract-wired probe matrix;
-  runEvidenceArtifactProductionSlice validates fixture↔contract, runs 25 probes, zero unexpected mismatches.
-next: P01-B08-A04
+  P01-B08-A04 boundary slice: validateEvidenceArtifactBoundaryProbeMatrix gates contract-wired boundary probes;
+  runEvidenceArtifactBoundarySlice validates sourceReproducibleFixture ref, probe runner, known gaps — zero unexpected mismatches.
+next: P01-B08-A05
