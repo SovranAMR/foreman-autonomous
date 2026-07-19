@@ -44,7 +44,7 @@ fallback: property suite requires new schema dependency ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B04-A06
-last_commit: PENDING
+last_commit: 31ec85c
 tests: PASS — forge-p02-visioner-grounding.test.ts (21/21); forge-p02-visioner-grounding-baseline.test.ts (3/3)
 evidence: buildVisionerGroundingRunRecord export; validateVisionerGroundingFailureRecoveryRunRecord; runVisionerGroundingFailureRecoverySliceWithRecord; 6/6 failure/recovery slice evidence aligned; full run 23/23 probes with telemetry
 next: P02-B04-A07
