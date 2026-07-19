@@ -3,6 +3,7 @@
  *
  * A01 slice: load, validate, run probes with documented FAIL gaps against sealed
  * P04-B04 benchmark prior-art block gate artifacts.
+ * A04: boundary-category slice gate for citation input edge cases and probe matrix alignment.
  */
 
 import { readFileSync } from "node:fs";
@@ -1823,6 +1824,70 @@ export function runResearcherCitationProvenanceGraphProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherCitationProvenanceGraphBoundaryProbeMatrix(
+  results: ResearcherCitationProvenanceGraphProbeResult[],
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): ResearcherCitationProvenanceGraphProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherCitationProvenanceGraphContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryContract: ResearcherCitationProvenanceGraphContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherCitationProvenanceGraphProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherCitationProvenanceGraphBoundarySliceResult {
+  atom: "P04-B05-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherCitationProvenanceGraphProbeResult[];
+  boundaryResults: ResearcherCitationProvenanceGraphProbeResult[];
+  matrixValidation: ResearcherCitationProvenanceGraphProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (citation input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherCitationProvenanceGraphBoundarySlice(
+  fixture: ResearcherCitationProvenanceGraphBaseline = loadResearcherCitationProvenanceGraphBaseline(),
+): ResearcherCitationProvenanceGraphBoundarySliceResult {
+  const contract = getActiveResearcherCitationProvenanceGraphContract();
+  const results = runResearcherCitationProvenanceGraphProbes(fixture);
+  const boundaryProbes = listResearcherCitationProvenanceGraphContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherCitationProvenanceGraphBoundaryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B05-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

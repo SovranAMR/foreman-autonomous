@@ -4,8 +4,11 @@ import {
   loadResearcherCitationProvenanceGraphBaseline,
   runResearcherCitationProvenanceGraphProbes,
   runResearcherCitationProvenanceGraphProductionSlice,
+  runResearcherCitationProvenanceGraphBoundarySlice,
   validateResearcherCitationProvenanceGraphBaseline,
+  validateResearcherCitationProvenanceGraphBoundaryProbeMatrix,
   validateResearcherCitationProvenanceGraphProbeMatrix,
+  listResearcherCitationProvenanceGraphContractProbesByCategory,
   summarizeResearcherCitationProvenanceGraphMatrix,
   listResearcherCitationProvenanceGraphProbesByExpected,
   listResearcherCitationProvenanceGraphKnownGaps,
@@ -203,5 +206,73 @@ describe("Forge Researcher Citation Provenance Graph Production Slice — P04-B0
     assert.equal(buildGraphProbe!.expected, "PASS");
     assert.equal(buildGraphProbe!.actual, "PASS");
     assert.equal(buildGraphProbe!.aligned, true);
+  });
+});
+
+describe("Forge Researcher Citation Provenance Graph Boundary Slice — P04-B05-A04", () => {
+  it("defines six boundary probes with citation input edge-case criteria", () => {
+    const boundary = listResearcherCitationProvenanceGraphContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "rcpg.empty_citation_input_boundary",
+      "rcpg.known_gaps_documented",
+      "rcpg.long_citation_input_truncation_boundary",
+      "rcpg.probe_runner_exported",
+      "rcpg.source_block_gate_ref",
+      "rcpg.whitespace_citation_input_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on citation edge probes", () => {
+    const contract = getActiveResearcherCitationProvenanceGraphContract();
+    const slice = runResearcherCitationProvenanceGraphBoundarySlice();
+
+    assert.equal(slice.atom, "P04-B05-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listResearcherCitationProvenanceGraphContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateResearcherCitationProvenanceGraphBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("assessCitationProvenanceGraphInputBoundary edge cases align with boundary probe matrix", () => {
+    const slice = runResearcherCitationProvenanceGraphBoundarySlice();
+    const citationProbes = [
+      "rcpg.empty_citation_input_boundary",
+      "rcpg.whitespace_citation_input_boundary",
+      "rcpg.long_citation_input_truncation_boundary",
+    ] as const;
+
+    for (const probeId of citationProbes) {
+      const result = slice.boundaryResults.find(r => r.id === probeId);
+      assert.ok(result, `missing ${probeId}`);
+      assert.equal(result!.actual, "PASS");
+      assert.equal(result!.aligned, true);
+    }
   });
 });

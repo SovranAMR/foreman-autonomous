@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 3
-completed_atoms: 36
+completed_atoms: 37
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -70,7 +70,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B05-A01 — Citation ve provenance graph: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B05-A02 — Citation ve provenance graph: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B05-A03 — Citation ve provenance graph: en küçük üretim dikey dilimini uygula
-- [ ] P04-B05-A04 — Citation ve provenance graph: boundary ve edge-case davranışlarını tamamla
+- [x] P04-B05-A04 — Citation ve provenance graph: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B05-A05 — Citation ve provenance graph: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B05-A06 — Citation ve provenance graph: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B05-A07 — Citation ve provenance graph: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B05-A03
-last_commit: fcc3adf
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (17/17); runResearcherCitationProvenanceGraphProductionSlice; gap probes flipped PASS
-evidence: buildResearchCitationProvenanceGraph + RESEARCHER SOURCES prompt; contract 21 PASS / 2 FAIL nogo; matrix gate zero unexpected mismatches
-next: P04-B05-A04
+last_atom: P04-B05-A04
+last_commit: pending
+tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (20/20); runResearcherCitationProvenanceGraphBoundarySlice; 6 boundary probes aligned
+evidence: validateResearcherCitationProvenanceGraphBoundaryProbeMatrix + runResearcherCitationProvenanceGraphBoundarySlice; citation input edge cases align with boundary matrix gate
+next: P04-B05-A05

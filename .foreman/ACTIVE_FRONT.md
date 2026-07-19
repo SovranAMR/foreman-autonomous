@@ -6,9 +6,9 @@ active_phase: P04
 active_block: P04-B05
 active_atom: P04-B05-A04
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 343/1000
-phase_progress: 43/100
-block_progress: 3/10
+program_progress: 344/1000
+phase_progress: 44/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B05-A04 — Citation ve provenance graph: boundary ve edge-case davranışlarını tamamla.
+P04-B05-A05 — Citation ve provenance graph: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P04-B05-A03 PASS; buildResearchCitationProvenanceGraph + RESEARCHER SOURCES prompt wired; 2 gap probes flipped PASS.
-target: Forge citation provenance graph boundary slice closing parser/validator NO-GO debt or next boundary probes.
-hypothesis: Boundary slice extends input edge cases and probe matrix gate with zero unexpected mismatches.
-acceptance: Boundary probes align PASS; regression suite stays green.
+objective: P04-B05-A04 PASS; boundary slice gate wired; 6 boundary probes aligned; zero unexpected mismatches.
+target: Forge citation provenance graph failure/recovery slice closing parser/validator NO-GO debt or next failure probes.
+hypothesis: Failure/recovery slice extends NO-GO probe matrix gate with zero unexpected mismatches.
+acceptance: Failure/recovery probes align PASS; regression suite stays green.
 commands: npx tsx --test src/forge-p04-researcher-citation-provenance-graph*.test.ts
-blast_radius: src/forge-p04-researcher-citation-provenance-graph*.ts, src/prompts.ts, src/parser.ts
-rollback: P04-B05-A04 boundary slice değişikliklerini geri al.
+blast_radius: src/forge-p04-researcher-citation-provenance-graph*.ts, src/parser.ts
+rollback: P04-B05-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B05-A03
-last_commit: fcc3adf
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (17/17); runResearcherCitationProvenanceGraphProductionSlice; gap probes rcpg.researcher_sources_prompt + rcpg.build_research_citation_graph flipped PASS
-evidence: contract v1 23 probes (21 PASS / 2 FAIL nogo); buildResearchCitationProvenanceGraph export; RESEARCHER_SYSTEM SOURCES field
-next: P04-B05-A04
+last_atom: P04-B05-A04
+last_commit: pending
+tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (20/20); runResearcherCitationProvenanceGraphBoundarySlice; 6 boundary probes aligned
+evidence: validateResearcherCitationProvenanceGraphBoundaryProbeMatrix + runResearcherCitationProvenanceGraphBoundarySlice; boundary matrix gate zero unexpected mismatches
+next: P04-B05-A05
