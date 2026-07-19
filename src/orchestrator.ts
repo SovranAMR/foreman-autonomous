@@ -1859,6 +1859,30 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher risk trade-off guard checks and emit verification event (P04-B07-A09).
+   */
+  async verifyForgeResearcherRiskTradeoffGuard(
+    priorRecord?: import("./forge-p04-researcher-risk-tradeoff.js").ResearcherRiskTradeoffRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-risk-tradeoff.probe.js").ForgeResearcherRiskTradeoffRegressionGateResult
+  > {
+    const { runForgeResearcherRiskTradeoffRegressionGate } = await import(
+      "./forge-p04-researcher-risk-tradeoff.probe.js"
+    );
+    const result = runForgeResearcherRiskTradeoffRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "researcher_risk_tradeoff_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge researcher risk trade-off regression gate and emit verification event (P04-B07-A08).
    */
   async verifyForgeResearcherRiskTradeoffRegression(

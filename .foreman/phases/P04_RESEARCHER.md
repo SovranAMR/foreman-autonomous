@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 64
+completed_atoms: 66
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -100,8 +100,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B07-A05 — Risk ve trade-off araştırması: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B07-A06 — Risk ve trade-off araştırması: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B07-A07 — Risk ve trade-off araştırması: unit, property ve fuzz doğrulamasını ekle
-- [ ] P04-B07-A08 — Risk ve trade-off araştırması: Forge entegrasyonu ile regression testini tamamla
-- [ ] P04-B07-A09 — Risk ve trade-off araştırması: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P04-B07-A08 — Risk ve trade-off araştırması: Forge entegrasyonu ile regression testini tamamla
+- [x] P04-B07-A09 — Risk ve trade-off araştırması: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B07-A10 — Risk ve trade-off araştırması: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B08 — Spike ve falsification deneyi
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B07-A07
+last_atom: P04-B07-A09
 last_commit: pending
-tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (38/38); property/fuzz 8/8 structural; contract fuzz 72/72 rejected; run-record fuzz 5/5 rejected; zero accepted mutations
-evidence: runResearcherRiskTradeoffPropertyValidation + runResearcherRiskTradeoffFuzzValidation + runResearcherRiskTradeoffRunRecordFuzzValidation + runResearcherRiskTradeoffPropertyFuzzSlice; harnessVersion 1.0.0-a07
-next: P04-B07-A08
+tests: PASS — forge-p04-researcher-risk-tradeoff.guard.test.ts (8/8); regression gate guard adversarial=3/3; validateForgeResearcherRiskTradeoffGuard canonical PASS
+evidence: runResearcherRiskTradeoffAdversarialGuardChecks + validateForgeResearcherRiskTradeoffGuard + verifyForgeResearcherRiskTradeoffGuard; harnessVersion 1.0.0-a09
+next: P04-B07-A10
