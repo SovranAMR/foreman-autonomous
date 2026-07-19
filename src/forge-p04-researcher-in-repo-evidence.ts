@@ -18,7 +18,7 @@ import {
 } from "./forge-p04-researcher-question-decomposition.js";
 import { searchFiles, type FileSearchResult } from "./research-engine.js";
 
-export const FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION = "1.0.0-a01";
+export const FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION = "1.0.0-a02";
 
 export const EXPECTED_P04_B01_SEALED_ATOM_COUNT = 10;
 
@@ -207,6 +207,23 @@ export interface ResearcherInRepoEvidenceValidationIssue {
 export interface ResearcherInRepoEvidenceValidationResult {
   valid: boolean;
   issues: ResearcherInRepoEvidenceValidationIssue[];
+}
+
+export interface ResearcherInRepoEvidenceContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: ResearcherInRepoEvidenceCategory;
+  detail: string;
+}
+
+export interface ResearcherInRepoEvidenceContractCoverageResult {
+  valid: boolean;
+  issues: ResearcherInRepoEvidenceContractCoverageIssue[];
 }
 
 export type ResearcherInRepoEvidenceProbeDisposition =
@@ -554,6 +571,26 @@ export function getActiveResearcherInRepoEvidenceContract(): ResearcherInRepoEvi
   return FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1;
 }
 
+export function getResearcherInRepoEvidenceCategoryContract(
+  category: ResearcherInRepoEvidenceCategory,
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): ResearcherInRepoEvidenceCategoryContract {
+  return contract.categories[category];
+}
+
+export function listResearcherInRepoEvidenceContractProbeIds(
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listResearcherInRepoEvidenceProbesByDisposition(
+  disposition: ResearcherInRepoEvidenceProbeDisposition,
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): ResearcherInRepoEvidenceProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
 export function listResearcherInRepoEvidenceContractProbesByCategory(
   category: ResearcherInRepoEvidenceCategory,
   contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
@@ -561,40 +598,198 @@ export function listResearcherInRepoEvidenceContractProbesByCategory(
   return [...contract.categories[category].probes];
 }
 
+export function summarizeResearcherInRepoEvidenceContractCoverage(
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<
+    ResearcherInRepoEvidenceCategory,
+    { probeCount: number; invariant: string }
+  >;
+  byDisposition: Record<ResearcherInRepoEvidenceProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    ResearcherInRepoEvidenceCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<ResearcherInRepoEvidenceProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probe of categoryContract.probes) {
+      totalProbes++;
+      if (probe.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probe.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateResearcherInRepoEvidenceContractCoverage(
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): ResearcherInRepoEvidenceContractCoverageResult {
+  const issues: ResearcherInRepoEvidenceContractCoverageIssue[] = [];
+
+  for (const category of RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({
+        kind: "missing_category",
+        category,
+        detail: `missing category contract: ${category}`,
+      });
+      continue;
+    }
+    if (
+      categoryContract.acceptance.minProbeCount <
+      RESEARCHER_IN_REPO_EVIDENCE_A01_MIN_PROBES[category]
+    ) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${RESEARCHER_IN_REPO_EVIDENCE_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listResearcherInRepoEvidenceContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeResearcherInRepoEvidenceContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("riev.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing riev. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
 export function validateResearcherInRepoEvidenceAgainstContract(
   fixture: ResearcherInRepoEvidenceBaseline,
   contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
 ): ResearcherInRepoEvidenceValidationResult {
   const issues: ResearcherInRepoEvidenceValidationIssue[] = [];
+  const fixtureIds = new Set(fixture.probes.map(p => p.id));
+  const contractIds = new Set(contract.probes.map(p => p.id));
 
-  for (const expected of contract.probes) {
-    const entry = fixture.probes.find(p => p.id === expected.id);
-    if (!entry) {
+  for (const category of RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    const categoryProbes = fixture.probes.filter(p => p.category === category);
+    if (categoryProbes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryProbes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+  }
+
+  for (const probeEntry of contract.probes) {
+    if (!fixtureIds.has(probeEntry.id)) {
       issues.push({
         kind: "missing_probe",
-        probeId: expected.id,
-        detail: `missing probe ${expected.id}`,
+        probeId: probeEntry.id,
+        detail: `fixture missing ${probeEntry.id}`,
       });
+    }
+  }
+
+  for (const entry of fixture.probes) {
+    if (!contractIds.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: `fixture extra ${entry.id}` });
       continue;
     }
+    const expected = contract.probes.find(p => p.id === entry.id)!;
     if (entry.expected !== expected.expected) {
       issues.push({
         kind: "missing_probe",
-        probeId: expected.id,
-        detail: `expected mismatch for ${expected.id}: fixture=${entry.expected} contract=${expected.expected}`,
+        probeId: entry.id,
+        detail: `expected mismatch fixture=${entry.expected} contract=${expected.expected}`,
       });
     }
     if (entry.category !== expected.category) {
       issues.push({
         kind: "missing_probe",
-        probeId: expected.id,
+        probeId: entry.id,
         detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
       });
     }
     if (entry.description !== expected.description) {
       issues.push({
         kind: "missing_probe",
-        probeId: expected.id,
+        probeId: entry.id,
         detail: `description mismatch for ${entry.id}`,
       });
     }
