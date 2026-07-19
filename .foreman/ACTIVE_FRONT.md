@@ -44,7 +44,7 @@ fallback: failure/recovery slice requires orchestrator refactor beyond slice sco
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B08-A04
-last_commit: pending
+last_commit: b2994e4
 tests: PASS — forge-p02-visioner-scoring.test.ts (21/21), forge-p02-visioner-scoring-baseline.test.ts (3/3)
 evidence: validateVisionerScoringBoundaryProbeMatrix 6 passAligned + 0 gapAligned; assessVisionerScoringPresence boundary guard; runVisionerScoringBoundarySlice PASS
 next: P02-B08-A05
