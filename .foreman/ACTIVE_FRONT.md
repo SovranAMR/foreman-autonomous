@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B05
-active_atom: P04-B05-A01
+active_atom: P04-B05-A02
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 340/1000
-phase_progress: 40/100
-block_progress: 0/10
+program_progress: 341/1000
+phase_progress: 41/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B05-A01 — Citation ve provenance graph: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P04-B05-A02 — Citation ve provenance graph: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P04-B04-A10 PASS; block gate sealed with valid P04-B05 handoff contract.
-target: Forge citation provenance graph baseline fixture aligned to sealed P04-B04 block gate.
-hypothesis: Baseline fixture captures citation/provenance graph probe matrix with measurable FAIL gaps.
-acceptance: loadResearcherCitationProvenanceGraphBaseline validates; probe matrix runs with documented gaps.
+objective: P04-B05-A01 PASS; baseline fixture with 4 documented FAIL gaps and probe matrix aligned.
+target: Forge citation provenance graph typed contract v1 wired to baseline probe matrix.
+hypothesis: Contract declares measurable citation/provenance graph probes with disposition and criterion fields.
+acceptance: getActiveResearcherCitationProvenanceGraphContract validates; fixture↔contract alignment gate PASS.
 commands: npx tsx --test src/forge-p04-researcher-citation-provenance-graph*.test.ts
 blast_radius: src/forge-p04-researcher-citation-provenance-graph*.ts
-rollback: P04-B05-A01 baseline değişikliklerini geri al.
+rollback: P04-B05-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B04-A10
-last_commit: a239828
-tests: PASS — forge-p04-researcher-benchmark-prior-art-block-gate.test.ts (7/7); forge-p04-researcher-benchmark-prior-art*.test.ts (48/48); runForgeResearcherBenchmarkPriorArtBlockGate; verifyForgeResearcherBenchmarkPriorArtBlockGate
-evidence: block gate seals 10/10 atoms; regression+guard PASS; handoff=PASS→P04-B05 entry=P04-B05-A01
-next: P04-B05-A01
+last_atom: P04-B05-A01
+last_commit: pending
+tests: PASS — forge-p04-researcher-citation-provenance-graph-baseline.test.ts (7/7); loadResearcherCitationProvenanceGraphBaseline; runResearcherCitationProvenanceGraphProbes; 4 documented FAIL gaps aligned
+evidence: baseline 23 probes; gaps=rcpg.researcher_sources_prompt,rcpg.build_research_citation_graph,rcpg.parser_citation_edges,rcpg.exported_citation_graph_validator; handoff from P04-B04-A10 sealed
+next: P04-B05-A02

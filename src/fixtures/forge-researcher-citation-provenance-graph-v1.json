@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P04-B05-A01",
+  "contractAtom": "P04-B05-A06",
+  "purpose": "Researcher citation and provenance graph baseline measured from sealed P04-B04 benchmark prior-art block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P04-B04-A10",
+    "contractVersion": "1.0.0",
+    "benchmarkPriorArtProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "rcpg.version_tagged",
+      "category": "evidence_versioning",
+      "description": "Citation provenance graph baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.atom_tagged",
+      "category": "evidence_versioning",
+      "description": "Citation provenance graph baseline declares P04-B05-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.harness_version_exported",
+      "category": "evidence_versioning",
+      "description": "FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_VERSION exported for citation graph harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.benchmark_citation_targets",
+      "category": "citation_signal",
+      "description": "recoverBenchmarkPriorArtEvidence exposes citationTargets for prior-art source linkage",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.in_repo_path_line_citations",
+      "category": "citation_signal",
+      "description": "validateInRepoEvidenceCollection accepts repo hits with path:line citation fields",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.researcher_sources_prompt",
+      "category": "citation_signal",
+      "description": "RESEARCHER_SYSTEM prompt requires SOURCES or CITATIONS section in output format",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rcpg.plan_provenance_graph",
+      "category": "provenance_graph_signal",
+      "description": "buildPlanProvenanceGraph links vision→blocks with auditable lineage edges",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.benchmark_prior_art_provenance",
+      "category": "provenance_graph_signal",
+      "description": "buildResearcherBenchmarkPriorArtProvenance records sealed prior-art run lineage",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.build_research_citation_graph",
+      "category": "provenance_graph_signal",
+      "description": "buildResearchCitationProvenanceGraph exports researcher citation→provenance graph builder",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rcpg.b04_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P04_B04_TO_B05_HANDOFF_V1 targets P04-B05-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.b04_sealed_benchmark_probes",
+      "category": "baseline_link",
+      "description": "P04-B04→B05 handoff sealed probeCount matches active benchmark prior-art contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P04-B04 benchmark prior-art block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.probe_runner_exported",
+      "category": "boundary",
+      "description": "runResearcherCitationProvenanceGraphProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL citation graph gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.empty_citation_input_boundary",
+      "category": "boundary",
+      "description": "assessCitationProvenanceGraphInputBoundary rejects empty citation parse input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.whitespace_citation_input_boundary",
+      "category": "boundary",
+      "description": "assessCitationProvenanceGraphInputBoundary rejects whitespace-only citation parse input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.long_citation_input_truncation_boundary",
+      "category": "boundary",
+      "description": "assessCitationProvenanceGraphInputBoundary truncates citation input exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateResearcherCitationProvenanceGraphBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.malformed_citation_input_guard",
+      "category": "failure_path",
+      "description": "assessCitationProvenanceGraphInputBoundary rejects null-byte citation input safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.recovery_citation_graph_repair",
+      "category": "recovery_path",
+      "description": "recoverCitationProvenanceGraph restructures malformed citation parse into actionable graph plan",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.recovery_missing_edges_fallback",
+      "category": "recovery_path",
+      "description": "Citation graph recovery infers lineage edges when explicit CITES field is missing",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcpg.parser_citation_edges",
+      "category": "nogo_path",
+      "description": "parseResearchCitationGraph exports citation→source edges from researcher output",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rcpg.exported_citation_graph_validator",
+      "category": "nogo_path",
+      "description": "validateCitationProvenanceGraph exported for orchestrator citation graph checks",
+      "expected": "FAIL"
+    }
+  ]
+}
