@@ -44,7 +44,7 @@ fallback: integration requires orchestrator refactor beyond slice scope ise BLOC
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B06-A07
-last_commit: pending
+last_commit: 122bc38
 tests: PASS — forge-p02-visioner-uncertainty.property-fuzz.test.ts (5/5); unit (24/24); baseline (3/3)
 evidence: runVisionerUncertaintyPropertyChecks (8 structural properties); runVisionerUncertaintyFuzzValidation (72 fixture mutations rejected); runVisionerUncertaintyRunRecordFuzzValidation (failure/recovery 5/5 + full 3/3 tamper rejections); zero unexpected mismatches preserved
 next: P02-B06-A08
