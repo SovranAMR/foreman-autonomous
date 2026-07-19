@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B02-A07
-last_commit: f2c02a2
+last_commit: 8cd237b
 tests: PASS — forge-p04-researcher*.test.ts (90/90); property/fuzz slice 8 properties; contractFuzz rejected=24/24; runRecordFuzz mutationsAccepted=0
 evidence: runResearcherInRepoEvidencePropertyFuzzSlice; runResearcherInRepoEvidencePropertyChecks; runResearcherInRepoEvidenceFuzzValidation; runResearcherInRepoEvidenceRunRecordFuzzValidation; property/fuzz slice PASS
 next: P04-B02-A08
