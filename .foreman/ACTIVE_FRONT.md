@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B06
-active_atom: P04-B06-A01
+active_atom: P04-B06-A02
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 350/1000
-phase_progress: 50/100
-block_progress: 0/10
+program_progress: 351/1000
+phase_progress: 51/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B06-A01 — Contradiction ve freshness çözümü: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P04-B06-A02 — Contradiction ve freshness çözümü: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P04-B05-A10 PASS; B06 handoff sealed; citation provenance graph artifacts frozen.
-target: Forge contradiction freshness resolution baseline measurement and failing fixture.
-hypothesis: Baseline fixture captures measurable gaps from sealed P04-B05 block gate handoff.
-acceptance: Baseline loads; probe matrix documents FAIL gaps; fixture validates against B05 handoff contract.
+objective: P04-B06-A01 PASS; baseline fixture frozen; probe matrix documents FAIL gaps.
+target: Forge contradiction freshness typed contract with measurable acceptance criteria.
+hypothesis: Typed contract aligns fixture probe matrix to contradiction/freshness categories and dispositions.
+acceptance: Contract validates; fixture aligns; category minProbeCount satisfied.
 commands: npx tsx --test src/forge-p04-researcher-contradiction-freshness*.test.ts
 blast_radius: src/forge-p04-researcher-contradiction-freshness*.ts
-rollback: P04-B06-A01 baseline slice değişikliklerini geri al.
+rollback: P04-B06-A02 contract slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B05-A10
-last_commit: 301d9b1
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (55/55); block gate 10/10 atom seals; handoff→P04-B06; orchestrator verifyForgeResearcherCitationProvenanceGraphBlockGate
-evidence: forge-p04-researcher-citation-provenance-graph-block-gate.test.ts + runResearcherCitationProvenanceGraphBlockGate + FORGE_P04_B05_TO_B06_HANDOFF_V1 + orchestrator researcher_citation_provenance_graph_block_gate verification seam
-next: P04-B06-A01
+last_atom: P04-B06-A01
+last_commit: pending
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (7/7); 23-probe matrix; 2 FAIL gaps aligned
+evidence: forge-researcher-contradiction-freshness-v1.json + forge-p04-researcher-contradiction-freshness.ts + runResearcherContradictionFreshnessProbes + B05 handoff validation
+next: P04-B06-A02

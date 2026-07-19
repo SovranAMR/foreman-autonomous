@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P04-B06-A01",
+  "contractAtom": "P04-B06-A06",
+  "purpose": "Researcher contradiction and freshness resolution baseline measured from sealed P04-B05 citation provenance graph block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P04-B05-A10",
+    "contractVersion": "1.0.0",
+    "citationProvenanceGraphProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "rcfr.version_tagged",
+      "category": "evidence_versioning",
+      "description": "Contradiction freshness baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.atom_tagged",
+      "category": "evidence_versioning",
+      "description": "Contradiction freshness baseline declares P04-B06-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.harness_version_exported",
+      "category": "evidence_versioning",
+      "description": "FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_VERSION exported for contradiction freshness harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.researcher_contradiction_prompt",
+      "category": "contradiction_signal",
+      "description": "RESEARCHER_SYSTEM prompt requires explicit contradiction reporting against vision or strategy",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.strategist_contradiction_block",
+      "category": "contradiction_signal",
+      "description": "STRATEGIST_SYSTEM prompt can BLOCK visioner on internal contradictions",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.citation_graph_claim_nodes",
+      "category": "contradiction_signal",
+      "description": "buildResearchCitationProvenanceGraph exposes claim nodes for contradiction linkage via provenance",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.web_search_freshness_param",
+      "category": "freshness_signal",
+      "description": "web-search-engine validates and normalizes Brave freshness query parameter",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.brave_freshness_shortcuts",
+      "category": "freshness_signal",
+      "description": "web-search-engine declares BRAVE_FRESHNESS_SHORTCUTS for pd/pw/pm/py filters",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.research_engine_freshness_docs",
+      "category": "freshness_signal",
+      "description": "research-engine documents Brave Search freshness filtering support",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.b05_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P04_B05_TO_B06_HANDOFF_V1 targets P04-B06-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.b05_sealed_citation_probes",
+      "category": "baseline_link",
+      "description": "P04-B05→B06 handoff sealed probeCount matches active citation provenance graph contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P04-B05 citation provenance graph block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.probe_runner_exported",
+      "category": "boundary",
+      "description": "runResearcherContradictionFreshnessProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL contradiction freshness gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.empty_evidence_input_boundary",
+      "category": "boundary",
+      "description": "assessContradictionFreshnessInputBoundary rejects empty evidence parse input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.whitespace_evidence_input_boundary",
+      "category": "boundary",
+      "description": "assessContradictionFreshnessInputBoundary rejects whitespace-only evidence parse input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.long_evidence_input_truncation_boundary",
+      "category": "boundary",
+      "description": "assessContradictionFreshnessInputBoundary truncates evidence input exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateResearcherContradictionFreshnessBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.malformed_evidence_guard",
+      "category": "failure_path",
+      "description": "assessContradictionFreshnessInputBoundary rejects null-byte evidence input safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.recovery_contradiction_plan_repair",
+      "category": "recovery_path",
+      "description": "recoverContradictionFreshnessEvidence restructures failed contradiction parse into actionable resolution plan",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.recovery_stale_source_fallback",
+      "category": "recovery_path",
+      "description": "Contradiction freshness recovery infers stale-source freshness hint when explicit STALE marker is missing",
+      "expected": "PASS"
+    },
+    {
+      "id": "rcfr.resolve_contradiction_conflicts",
+      "category": "nogo_path",
+      "description": "resolveResearchContradictions exports contradiction→resolution edges from researcher output",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rcfr.exported_freshness_validator",
+      "category": "nogo_path",
+      "description": "validateResearchFreshness exported for orchestrator contradiction freshness checks",
+      "expected": "FAIL"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 4
-completed_atoms: 50
+completed_atoms: 51
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -80,7 +80,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P04-B06 — Contradiction ve freshness çözümü
 
-- [ ] P04-B06-A01 — Contradiction ve freshness çözümü: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P04-B06-A01 — Contradiction ve freshness çözümü: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P04-B06-A02 — Contradiction ve freshness çözümü: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B06-A03 — Contradiction ve freshness çözümü: en küçük üretim dikey dilimini uygula
 - [ ] P04-B06-A04 — Contradiction ve freshness çözümü: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B05-A10
-last_commit: 301d9b1
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (55/55); block gate 10/10 atom seals; handoff→P04-B06; orchestrator verifyForgeResearcherCitationProvenanceGraphBlockGate researcher_citation_provenance_graph_block_gate
-evidence: forge-p04-researcher-citation-provenance-graph-block-gate.test.ts + runResearcherCitationProvenanceGraphBlockGate + FORGE_P04_B05_TO_B06_HANDOFF_V1 + orchestrator block gate verification seam
-next: P04-B06-A01
+last_atom: P04-B06-A01
+last_commit: pending
+tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (7/7); 23-probe matrix with 2 documented FAIL gaps; B05 handoff contract validated
+evidence: forge-researcher-contradiction-freshness-v1.json + forge-p04-researcher-contradiction-freshness.ts + assessContradictionFreshnessInputBoundary + recoverContradictionFreshnessEvidence + runResearcherContradictionFreshnessProbes
+next: P04-B06-A02
