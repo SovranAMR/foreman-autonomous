@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B03-A07
-last_commit: pending
+last_commit: 6172981
 tests: PASS — forge-p04-researcher*.test.ts; propertyChecks=8; contractFuzz rejected=24/24; runRecordFuzz rejected=5/5
 evidence: runResearcherWebPrimarySourcePropertyFuzzSlice; runResearcherWebPrimarySourcePropertyChecks; forge-p04-researcher-web-primary-source.property-fuzz.test.ts
 next: P04-B03-A08
