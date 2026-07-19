@@ -6,9 +6,9 @@ active_phase: P01
 active_block: P01-B09
 active_atom: P01-B09-A07
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 86/1000
-phase_progress: 85/100
-block_progress: 7/10
+program_progress: 87/1000
+phase_progress: 86/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B09-A08 — Orchestrator seam ve modülerleşme: Forge entegrasyonu ile regression testini tamamla.
+P01-B09-A09 — Orchestrator seam ve modülerleşme: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: A07 property/fuzz gates sealed; forge-orchestrator-seam regression integration with sealed B08 handoff.
-target: forge-orchestrator-seam regression integration test; runOrchestratorSeamProductionSlice wired to forge pipeline.
-hypothesis: A07 property/fuzz coverage + A06 run record sufficient for regression integration gate.
-acceptance: regression integration test pass; zero unexpected probe mismatches on production slice.
-commands: npx tsx --test src/forge-orchestrator-seam*.test.ts src/forge-pipeline-regression.integration.test.ts
-blast_radius: forge-orchestrator-seam*.ts, forge-pipeline-regression.integration.test.ts
-rollback: A08 regression integration değişikliklerini geri al.
+objective: A08 regression integration sealed; forge-orchestrator-seam guard controls on production slice.
+target: validateForgeOrchestratorSeamGuard adversarial/perf/cost/safety gate wired to orchestrator verifyForgeOrchestratorSeamGuard.
+hypothesis: A08 guard foundation + sealed B08 handoff sufficient for standalone guard gate.
+acceptance: guard gate pass; adversarial scenarios rejected; perf/cost/safety within controls.
+commands: npx tsx --test src/forge-orchestrator-seam*.test.ts
+blast_radius: forge-orchestrator-seam.ts, forge-orchestrator-seam.probe.ts, orchestrator.ts
+rollback: A09 guard değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A07 property/fuzz invalid ise BLOCKED raporla.
+fallback: A08 regression invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B09-A07
-last_commit: 9cf4561
-tests: PASS — forge-orchestrator-seam*.test.ts (23/23); propertyChecks=8; fixtureFuzz=72/72 rejected; runRecordFuzz=8/8 rejected
-evidence: runOrchestratorSeamPropertyChecks; runOrchestratorSeamFuzzValidation; runOrchestratorSeamRunRecordFuzzValidation in forge-orchestrator-seam.ts
-next: P01-B09-A08
+last_atom: P01-B09-A08
+last_commit: PENDING
+tests: PASS — forge-orchestrator-seam*.test.ts (28/28); forge-pipeline-regression.integration.test.ts (5/5 A08); productionSlice unexpected=0; propertyFuzz sealed; guard adversarial=3/3
+evidence: runForgeOrchestratorSeamRegressionGate; runOrchestratorSeamProbesWithRecord; verifyForgeOrchestratorSeamRegression in forge-orchestrator-seam.probe.ts + orchestrator.ts
+next: P01-B09-A09

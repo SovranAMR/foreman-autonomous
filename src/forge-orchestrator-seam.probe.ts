@@ -44,6 +44,16 @@ import {
   type OrchestratorSeamProbeDisposition,
   type OrchestratorSeamProbeResult,
   type OrchestratorSeamRunRecord,
+  validateOrchestratorSeamRunRecord,
+  detectOrchestratorSeamProbeRegression,
+  validateForgeOrchestratorSeamGuard,
+  runOrchestratorSeamPropertyChecks,
+  runOrchestratorSeamFuzzValidation,
+  runOrchestratorSeamRunRecordFuzzValidation,
+  type OrchestratorSeamPropertyResult,
+  type OrchestratorSeamFuzzValidationResult,
+  type OrchestratorSeamGuardCheckResult,
+  type OrchestratorSeamProbeRegressionReport,
 } from "./forge-orchestrator-seam.js";
 
 export type { OrchestratorSeamBaseline, OrchestratorSeamProbeResult } from "./forge-orchestrator-seam.js";
@@ -78,6 +88,11 @@ export {
   buildOrchestratorSeamRunRecord,
   validateOrchestratorSeamFailureRecoveryRunRecord,
   validateOrchestratorSeamRunRecord,
+  detectOrchestratorSeamProbeRegression,
+  validateForgeOrchestratorSeamGuard,
+  runOrchestratorSeamPropertyChecks,
+  runOrchestratorSeamFuzzValidation,
+  runOrchestratorSeamRunRecordFuzzValidation,
 } from "./forge-orchestrator-seam.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -780,3 +795,114 @@ export function runOrchestratorSeamFailureRecoverySliceWithRecord(
     sliceCategories: ORCHESTRATOR_SEAM_FAILURE_RECOVERY_CATEGORIES,
   });
 }
+
+/** Run all orchestrator seam probes and emit auditable evidence, telemetry and provenance (P01-B09-A08). */
+export function runOrchestratorSeamProbesWithRecord(
+  fixture: OrchestratorSeamBaseline = loadOrchestratorSeamBaseline(),
+): OrchestratorSeamRunRecord {
+  const contract = getActiveOrchestratorSeamContract();
+  return buildOrchestratorSeamRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+export interface ForgeOrchestratorSeamRegressionPropertyFuzzResult {
+  passed: boolean;
+  properties: OrchestratorSeamPropertyResult;
+  contractFuzz: OrchestratorSeamFuzzValidationResult;
+  runFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface ForgeOrchestratorSeamRegressionResult {
+  passed: boolean;
+  productionSlice: OrchestratorSeamProductionSliceResult;
+  record: OrchestratorSeamRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: OrchestratorSeamProbeRegressionReport | null;
+  guard: OrchestratorSeamGuardCheckResult;
+  propertyFuzz: ForgeOrchestratorSeamRegressionPropertyFuzzResult;
+  detail: string;
+}
+
+/**
+ * Execute orchestrator seam probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P01-B09-A08).
+ */
+export function runForgeOrchestratorSeamRegressionGate(
+  priorRecord?: OrchestratorSeamRunRecord,
+): ForgeOrchestratorSeamRegressionResult {
+  const fixture = loadOrchestratorSeamBaseline();
+  const contract = getActiveOrchestratorSeamContract();
+  const productionSlice = runOrchestratorSeamProductionSlice(fixture);
+  const record = runOrchestratorSeamProbesWithRecord(fixture);
+  const validation = validateOrchestratorSeamRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord ? detectOrchestratorSeamProbeRegression(priorRecord, record) : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeOrchestratorSeamGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
+
+  const properties = runOrchestratorSeamPropertyChecks(contract);
+  const contractFuzz = runOrchestratorSeamFuzzValidation(fixture, contract);
+  const runFuzz = runOrchestratorSeamRunRecordFuzzValidation(record, contract);
+  const propertyFuzzPassed =
+    properties.allPassed &&
+    contractFuzz.allMutationsRejected &&
+    runFuzz.mutationsAccepted === 0;
+  const propertyFuzz: ForgeOrchestratorSeamRegressionPropertyFuzzResult = {
+    passed: propertyFuzzPassed,
+    properties,
+    contractFuzz,
+    runFuzz: {
+      validBaseline: runFuzz.validBaseline,
+      mutationsRejected: runFuzz.mutationsRejected,
+      mutationsAccepted: runFuzz.mutationsAccepted,
+    },
+  };
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const passed =
+    productionSliceOk && recordValid && !alignmentRegression && guard.passed && propertyFuzzPassed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    passed,
+    productionSlice,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    guard,
+    propertyFuzz,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P01-B09-A08). */
+export const runOrchestratorSeamRegressionIntegration = runForgeOrchestratorSeamRegressionGate;

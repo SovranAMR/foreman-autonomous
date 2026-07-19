@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 83
+completed_atoms: 84
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -126,7 +126,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B09-A05 — Orchestrator seam ve modülerleşme: failure, recovery ve NO-GO yollarını uygula
 - [x] P01-B09-A06 — Orchestrator seam ve modülerleşme: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B09-A07 — Orchestrator seam ve modülerleşme: unit, property ve fuzz doğrulamasını ekle
-- [ ] P01-B09-A08 — Orchestrator seam ve modülerleşme: Forge entegrasyonu ile regression testini tamamla
+- [x] P01-B09-A08 — Orchestrator seam ve modülerleşme: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B09-A09 — Orchestrator seam ve modülerleşme: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B09-A10 — Orchestrator seam ve modülerleşme: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,11 +156,13 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B09-A07
-last_commit: 9cf4561
-tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (23/23); propertyChecks=8; fixtureFuzz=72/72 rejected; runRecordFuzz=8/8 rejected
+last_atom: P01-B09-A08
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts src/forge-pipeline-regression.integration.test.ts` (28/28 seam + 5/5 A08 integration); productionSlice unexpected=0; propertyFuzz sealed; guard adversarial=3/3
 evidence: |
-  P01-B09-A07: runOrchestratorSeamPropertyChecks, createOrchestratorSeamFuzzRng,
-  runOrchestratorSeamFuzzValidation, runOrchestratorSeamRunRecordFuzzValidation in forge-orchestrator-seam.ts;
-  forge-orchestrator-seam.property-fuzz.test.ts with 8 structural properties and deterministic fuzz gates.
-next: P01-B09-A08
+  P01-B09-A08: runForgeOrchestratorSeamRegressionGate, runOrchestratorSeamProbesWithRecord,
+  runOrchestratorSeamRegressionIntegration, detectOrchestratorSeamProbeRegression,
+  validateForgeOrchestratorSeamGuard in forge-orchestrator-seam.ts + forge-orchestrator-seam.probe.ts;
+  verifyForgeOrchestratorSeamRegression in orchestrator.ts; integration tests in
+  forge-orchestrator-seam.test.ts and forge-pipeline-regression.integration.test.ts.
+next: P01-B09-A09

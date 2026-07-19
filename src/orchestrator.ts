@@ -302,6 +302,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge orchestrator seam regression gate and emit verification event (P01-B09-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeOrchestratorSeamRegression(
+    priorRecord?: import("./forge-orchestrator-seam.js").OrchestratorSeamRunRecord,
+  ): Promise<import("./forge-orchestrator-seam.probe.js").ForgeOrchestratorSeamRegressionResult> {
+    const { runForgeOrchestratorSeamRegressionGate } = await import("./forge-orchestrator-seam.probe.js");
+    const result = runForgeOrchestratorSeamRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "orchestrator_seam_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge reproducible fixture guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B07-A09).
    */
   async verifyForgeReproducibleFixtureGuard(

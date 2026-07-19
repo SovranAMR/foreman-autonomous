@@ -7,6 +7,9 @@ import {
   runOrchestratorSeamBoundarySlice,
   runOrchestratorSeamFailureRecoverySlice,
   runOrchestratorSeamFailureRecoverySliceWithRecord,
+  runOrchestratorSeamProbesWithRecord,
+  runForgeOrchestratorSeamRegressionGate,
+  runOrchestratorSeamRegressionIntegration,
 } from "./forge-orchestrator-seam.probe.js";
 import {
   getActiveOrchestratorSeamContract,
@@ -26,6 +29,7 @@ import {
   buildOrchestratorSeamProbeTelemetry,
   buildOrchestratorSeamProvenance,
   buildOrchestratorSeamRunRecord,
+  detectOrchestratorSeamProbeRegression,
   FORGE_ORCHESTRATOR_SEAM_VERSION,
   ORCHESTRATOR_SEAM_CATEGORIES,
   ORCHESTRATOR_SEAM_FAILURE_RECOVERY_CATEGORIES,
@@ -419,5 +423,72 @@ describe("Forge Orchestrator Seam Evidence — P01-B09-A06", () => {
       assert.equal(item.aligned, true);
       assert.ok(item.recordedAt.length > 10);
     }
+  });
+});
+
+describe("Forge Orchestrator Seam Regression — P01-B09-A08", () => {
+  it("runForgeOrchestratorSeamRegressionGate passes on canonical orchestrator seam matrix", () => {
+    const result = runForgeOrchestratorSeamRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.guard.passed, true);
+    assert.equal(result.propertyFuzz.passed, true);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+  });
+
+  it("runOrchestratorSeamRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeOrchestratorSeamRegressionGate();
+    const integration = runOrchestratorSeamRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
+    assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
+    assert.ok(integration.detail.includes("23/23 probes aligned"));
+    assert.equal(integration.record.summary.total, 23);
+  });
+
+  it("detectOrchestratorSeamProbeRegression flags newly misaligned probes", () => {
+    const prior = runOrchestratorSeamProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectOrchestratorSeamProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeOrchestratorSeamRegressionGate compares against prior record without false regression", () => {
+    const prior = runOrchestratorSeamProbesWithRecord();
+    const result = runForgeOrchestratorSeamRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("regression gate rejects pass probe mismatches on canonical matrix", () => {
+    const results = runOrchestratorSeamProbes();
+    const passMismatches = results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
   });
 });
