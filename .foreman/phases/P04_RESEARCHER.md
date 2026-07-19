@@ -120,7 +120,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P04-B09 — Research-to-worker handoff
 
 - [x] P04-B09-A01 — Research-to-worker handoff: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P04-B09-A02 — Research-to-worker handoff: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P04-B09-A02 — Research-to-worker handoff: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B09-A03 — Research-to-worker handoff: en küçük üretim dikey dilimini uygula
 - [ ] P04-B09-A04 — Research-to-worker handoff: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B09-A05 — Research-to-worker handoff: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B09-A01
+last_atom: P04-B09-A02
 last_commit: pending
-tests: PASS — forge-p04-researcher-research-to-worker-handoff-baseline.test.ts (10/10); probes=23; documented FAIL gaps=2; B08 sourceBlockGate refs validated (P04-B08-A10, spikeFalsificationProbeCount=23)
-evidence: loadResearcherResearchToWorkerHandoffBaseline + runResearcherResearchToWorkerHandoffProbes + listResearcherResearchToWorkerHandoffKnownGaps
-next: P04-B09-A02
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (18/18); contract probes=23; expectedFail=2 nogo gaps; fixture↔contract alignment gate PASS
+evidence: FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CONTRACT_V1 + validateResearcherResearchToWorkerHandoffAgainstContract + criterion wiring in runResearcherResearchToWorkerHandoffProbes
+next: P04-B09-A03

@@ -304,6 +304,7 @@ export interface ResearcherResearchToWorkerHandoffProbeResult {
   actual: ForgeAcceptanceOutcome;
   aligned: boolean;
   detail: string;
+  criterion?: string;
 }
 
 export interface ResearcherResearchToWorkerHandoffProbeSummary {
@@ -327,6 +328,651 @@ export interface ResearcherResearchToWorkerHandoffValidationIssue {
 export interface ResearcherResearchToWorkerHandoffValidationResult {
   valid: boolean;
   issues: ResearcherResearchToWorkerHandoffValidationIssue[];
+}
+
+export type ResearcherResearchToWorkerHandoffProbeDisposition =
+  | "observed"
+  | "gap"
+  | "failure"
+  | "recovery"
+  | "nogo";
+
+export interface ResearcherResearchToWorkerHandoffProbeContract {
+  id: string;
+  category: ResearcherResearchToWorkerHandoffCategory;
+  description: string;
+  expected: ForgeAcceptanceOutcome;
+  disposition: ResearcherResearchToWorkerHandoffProbeDisposition;
+  criterion: string;
+}
+
+export interface ResearcherResearchToWorkerHandoffCategoryAcceptance {
+  invariant: string;
+  minProbeCount: number;
+  requireFullAlignment: boolean;
+}
+
+export interface ResearcherResearchToWorkerHandoffCategoryContract {
+  category: ResearcherResearchToWorkerHandoffCategory;
+  acceptance: ResearcherResearchToWorkerHandoffCategoryAcceptance;
+  probes: readonly ResearcherResearchToWorkerHandoffProbeContract[];
+}
+
+export interface ResearcherResearchToWorkerHandoffContract {
+  version: string;
+  atom: string;
+  purpose: string;
+  categories: Record<
+    ResearcherResearchToWorkerHandoffCategory,
+    ResearcherResearchToWorkerHandoffCategoryContract
+  >;
+  probes: readonly ResearcherResearchToWorkerHandoffProbeContract[];
+}
+
+function flattenResearchToWorkerHandoffCategoryProbes(
+  categories: Record<
+    ResearcherResearchToWorkerHandoffCategory,
+    ResearcherResearchToWorkerHandoffCategoryContract
+  >,
+): readonly ResearcherResearchToWorkerHandoffProbeContract[] {
+  return RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES.flatMap(
+    category => categories[category].probes,
+  );
+}
+
+const RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORY_CONTRACTS: Record<
+  ResearcherResearchToWorkerHandoffCategory,
+  ResearcherResearchToWorkerHandoffCategoryContract
+> = {
+  evidence_versioning: {
+    category: "evidence_versioning",
+    acceptance: {
+      invariant:
+        "Research-to-worker handoff baseline declares semver version, atom id and exported harness version.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rtwh.version_tagged",
+        category: "evidence_versioning",
+        description: "Research-to-worker handoff baseline declares semver version field",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Research-to-worker handoff baseline declares semver version field",
+      },
+      {
+        id: "rtwh.atom_tagged",
+        category: "evidence_versioning",
+        description: "Research-to-worker handoff baseline declares P04-B09-A01 atom id",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Research-to-worker handoff baseline declares P04-B09-A01 atom id",
+      },
+      {
+        id: "rtwh.harness_version_exported",
+        category: "evidence_versioning",
+        description:
+          "FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION exported for handoff harness",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION exported for handoff harness",
+      },
+    ],
+  },
+  handoff_signal: {
+    category: "handoff_signal",
+    acceptance: {
+      invariant:
+        "Researcher findings and spike falsification gates inform worker handoff execution context.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rtwh.researcher_findings_flow_to_worker",
+        category: "handoff_signal",
+        description:
+          "RESEARCHER_SYSTEM prompt declares findings available to Worker for execution context",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "RESEARCHER_SYSTEM prompt declares findings available to Worker for execution context",
+      },
+      {
+        id: "rtwh.spike_falsification_informs_handoff",
+        category: "handoff_signal",
+        description:
+          "validateSpikeFalsificationExperiment exports spike gate used before worker handoff",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "validateSpikeFalsificationExperiment exports spike gate used before worker handoff",
+      },
+      {
+        id: "rtwh.b08_handoff_research_block",
+        category: "handoff_signal",
+        description:
+          "FORGE_P04_B08_TO_B09_HANDOFF_V1 targets research-to-worker handoff block entry",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "FORGE_P04_B08_TO_B09_HANDOFF_V1 targets research-to-worker handoff block entry",
+      },
+    ],
+  },
+  worker_context_signal: {
+    category: "worker_context_signal",
+    acceptance: {
+      invariant:
+        "Orchestrator injects research findings and runs pre-worker validators before execution.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rtwh.orchestrator_injects_findings",
+        category: "worker_context_signal",
+        description: "Orchestrator injects RESEARCH FINDINGS into worker atomContext before execution",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "Orchestrator injects RESEARCH FINDINGS into worker atomContext before execution",
+      },
+      {
+        id: "rtwh.orchestrator_pre_worker_validators",
+        category: "worker_context_signal",
+        description:
+          "Orchestrator runs validateResearchRiskTradeoff and validateSpikeFalsificationExperiment after research",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "Orchestrator runs validateResearchRiskTradeoff and validateSpikeFalsificationExperiment after research",
+      },
+      {
+        id: "rtwh.worker_receives_research_context",
+        category: "worker_context_signal",
+        description: "WORKER_SYSTEM prompt references external knowledge from Researcher layer",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "WORKER_SYSTEM prompt references external knowledge from Researcher layer",
+      },
+    ],
+  },
+  baseline_link: {
+    category: "baseline_link",
+    acceptance: {
+      invariant:
+        "Research-to-worker handoff baseline links to sealed P04-B08 spike falsification block gate handoff.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rtwh.b08_block_handoff_entry",
+        category: "baseline_link",
+        description: "FORGE_P04_B08_TO_B09_HANDOFF_V1 targets P04-B09-A01 entry atom",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "FORGE_P04_B08_TO_B09_HANDOFF_V1 targets P04-B09-A01 entry atom",
+      },
+      {
+        id: "rtwh.b08_sealed_spike_probes",
+        category: "baseline_link",
+        description:
+          "P04-B08→B09 handoff sealed probeCount matches active spike falsification contract",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "P04-B08→B09 handoff sealed probeCount matches active spike falsification contract",
+      },
+    ],
+  },
+  boundary: {
+    category: "boundary",
+    acceptance: {
+      invariant:
+        "Handoff boundary assessment rejects invalid input; probe runner and documented gaps wired.",
+      minProbeCount: 6,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rtwh.source_block_gate_ref",
+        category: "boundary",
+        description:
+          "Baseline fixture references sealed P04-B08 spike falsification block gate source artifacts",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "Baseline fixture references sealed P04-B08 spike falsification block gate source artifacts",
+      },
+      {
+        id: "rtwh.probe_runner_exported",
+        category: "boundary",
+        description: "runResearcherResearchToWorkerHandoffProbes executes contract-wired probe matrix",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "runResearcherResearchToWorkerHandoffProbes executes contract-wired probe matrix",
+      },
+      {
+        id: "rtwh.known_gaps_documented",
+        category: "boundary",
+        description:
+          "Baseline fixture documents at least one measurable FAIL research-to-worker handoff gap",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "Baseline fixture documents at least one measurable FAIL research-to-worker handoff gap",
+      },
+      {
+        id: "rtwh.empty_handoff_input_boundary",
+        category: "boundary",
+        description: "assessResearchToWorkerHandoffInputBoundary rejects empty handoff parse input",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessResearchToWorkerHandoffInputBoundary rejects empty handoff parse input",
+      },
+      {
+        id: "rtwh.whitespace_handoff_input_boundary",
+        category: "boundary",
+        description:
+          "assessResearchToWorkerHandoffInputBoundary rejects whitespace-only handoff parse input",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "assessResearchToWorkerHandoffInputBoundary rejects whitespace-only handoff parse input",
+      },
+      {
+        id: "rtwh.long_handoff_input_truncation_boundary",
+        category: "boundary",
+        description:
+          "assessResearchToWorkerHandoffInputBoundary truncates handoff input exceeding max length",
+        expected: "PASS",
+        disposition: "observed",
+        criterion:
+          "assessResearchToWorkerHandoffInputBoundary truncates handoff input exceeding max length",
+      },
+    ],
+  },
+  failure_path: {
+    category: "failure_path",
+    acceptance: {
+      invariant: "Invalid fixture versions and null-byte handoff input are rejected safely.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rtwh.invalid_version_rejected",
+        category: "failure_path",
+        description:
+          "validateResearcherResearchToWorkerHandoffBaseline rejects unexpected fixture version",
+        expected: "PASS",
+        disposition: "failure",
+        criterion:
+          "validateResearcherResearchToWorkerHandoffBaseline rejects unexpected fixture version",
+      },
+      {
+        id: "rtwh.malformed_handoff_input_guard",
+        category: "failure_path",
+        description: "assessResearchToWorkerHandoffInputBoundary rejects null-byte handoff input safely",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "assessResearchToWorkerHandoffInputBoundary rejects null-byte handoff input safely",
+      },
+    ],
+  },
+  recovery_path: {
+    category: "recovery_path",
+    acceptance: {
+      invariant:
+        "Recovery paths restructure malformed research parses into actionable worker handoff bundles.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rtwh.recovery_handoff_bundle_repair",
+        category: "recovery_path",
+        description:
+          "recoverResearchToWorkerHandoff restructures malformed research parse into actionable worker bundle",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion:
+          "recoverResearchToWorkerHandoff restructures malformed research parse into actionable worker bundle",
+      },
+      {
+        id: "rtwh.recovery_missing_findings_fallback",
+        category: "recovery_path",
+        description: "Handoff recovery infers findings summary when explicit FINDINGS marker is missing",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion:
+          "Handoff recovery infers findings summary when explicit FINDINGS marker is missing",
+      },
+    ],
+  },
+  nogo_path: {
+    category: "nogo_path",
+    acceptance: {
+      invariant:
+        "Research-to-worker handoff parser and validator exports gate orchestrator NO-GO wiring.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "rtwh.parser_research_handoff_bundle",
+        category: "nogo_path",
+        description:
+          "parseResearchToWorkerHandoff exports research→worker context bundle from researcher output",
+        expected: "FAIL",
+        disposition: "nogo",
+        criterion:
+          "parseResearchToWorkerHandoff exports research→worker context bundle from researcher output",
+      },
+      {
+        id: "rtwh.exported_handoff_validator",
+        category: "nogo_path",
+        description:
+          "validateResearchToWorkerHandoff exported for orchestrator pre-worker handoff checks",
+        expected: "FAIL",
+        disposition: "nogo",
+        criterion:
+          "validateResearchToWorkerHandoff exported for orchestrator pre-worker handoff checks",
+      },
+    ],
+  },
+};
+
+export const FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CONTRACT_V1: ResearcherResearchToWorkerHandoffContract =
+  {
+    version: "1.0.0",
+    atom: "P04-B09-A06",
+    purpose:
+      "Typed research-to-worker handoff contract declaring measurable handoff, context and guard probes.",
+    categories: RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORY_CONTRACTS,
+    probes: flattenResearchToWorkerHandoffCategoryProbes(
+      RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORY_CONTRACTS,
+    ),
+  };
+
+export function getActiveResearcherResearchToWorkerHandoffContract(): ResearcherResearchToWorkerHandoffContract {
+  return FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CONTRACT_V1;
+}
+
+export function getResearcherResearchToWorkerHandoffCategoryContract(
+  category: ResearcherResearchToWorkerHandoffCategory,
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffCategoryContract {
+  return contract.categories[category];
+}
+
+export function listResearcherResearchToWorkerHandoffContractProbeIds(
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listResearcherResearchToWorkerHandoffProbesByDisposition(
+  disposition: ResearcherResearchToWorkerHandoffProbeDisposition,
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listResearcherResearchToWorkerHandoffContractProbesByCategory(
+  category: ResearcherResearchToWorkerHandoffCategory,
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): readonly ResearcherResearchToWorkerHandoffProbeContract[] {
+  return [...contract.categories[category].probes];
+}
+
+export interface ResearcherResearchToWorkerHandoffContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: ResearcherResearchToWorkerHandoffCategory;
+  detail: string;
+}
+
+export interface ResearcherResearchToWorkerHandoffContractCoverageResult {
+  valid: boolean;
+  issues: ResearcherResearchToWorkerHandoffContractCoverageIssue[];
+}
+
+export function summarizeResearcherResearchToWorkerHandoffContractCoverage(
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<
+    ResearcherResearchToWorkerHandoffCategory,
+    { probeCount: number; invariant: string }
+  >;
+  byDisposition: Record<ResearcherResearchToWorkerHandoffProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    ResearcherResearchToWorkerHandoffCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<ResearcherResearchToWorkerHandoffProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probeEntry of categoryContract.probes) {
+      totalProbes++;
+      if (probeEntry.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probeEntry.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateResearcherResearchToWorkerHandoffContractCoverage(
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffContractCoverageResult {
+  const issues: ResearcherResearchToWorkerHandoffContractCoverageIssue[] = [];
+
+  for (const category of RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({
+        kind: "missing_category",
+        category,
+        detail: `missing category contract: ${category}`,
+      });
+      continue;
+    }
+    if (
+      categoryContract.acceptance.minProbeCount <
+      RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_A01_MIN_PROBES[category]
+    ) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listResearcherResearchToWorkerHandoffContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeResearcherResearchToWorkerHandoffContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("rtwh.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing rtwh. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherResearchToWorkerHandoffContract(
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffContractCoverageResult {
+  return validateResearcherResearchToWorkerHandoffContractCoverage(contract);
+}
+
+export function validateResearcherResearchToWorkerHandoffAgainstContract(
+  fixture: ResearcherResearchToWorkerHandoffBaseline,
+  contract: ResearcherResearchToWorkerHandoffContract = getActiveResearcherResearchToWorkerHandoffContract(),
+): ResearcherResearchToWorkerHandoffValidationResult {
+  const issues: ResearcherResearchToWorkerHandoffValidationIssue[] = [];
+  const fixtureIds = new Set(fixture.probes.map(p => p.id));
+  const contractIds = new Set(contract.probes.map(p => p.id));
+
+  if (fixture.contractAtom && fixture.contractAtom !== contract.atom) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `contractAtom=${fixture.contractAtom} contract=${contract.atom}`,
+    });
+  }
+
+  for (const category of RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    const categoryProbes = fixture.probes.filter(p => p.category === category);
+    if (categoryProbes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryProbes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+  }
+
+  for (const probeEntry of contract.probes) {
+    if (!fixtureIds.has(probeEntry.id)) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: probeEntry.id,
+        detail: `fixture missing ${probeEntry.id}`,
+      });
+    }
+  }
+
+  for (const entry of fixture.probes) {
+    if (!contractIds.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: `fixture extra ${entry.id}` });
+      continue;
+    }
+    const expected = contract.probes.find(p => p.id === entry.id)!;
+    if (entry.expected !== expected.expected) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `expected mismatch fixture=${entry.expected} contract=${expected.expected}`,
+      });
+    }
+    if (entry.category !== expected.category) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
+      });
+    }
+    if (entry.description !== expected.description) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `description mismatch for ${entry.id}`,
+      });
+    }
+  }
+
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
+  if (expectedFailCount > 0 && failGaps.length === 0) {
+    issues.push({
+      kind: "missing_category",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
+    });
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export const FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_A01_PROBE_MATRIX: readonly ResearcherResearchToWorkerHandoffFixtureEntry[] =
@@ -443,6 +1089,12 @@ export function validateResearcherResearchToWorkerHandoffBaseline(
       detail: `B08 handoff entryAtom=${handoff.targetBlock.entryAtom} expected=P04-B09-A01`,
     });
   }
+
+  const contractAlignment = validateResearcherResearchToWorkerHandoffAgainstContract(
+    fixture,
+    getActiveResearcherResearchToWorkerHandoffContract(),
+  );
+  issues.push(...contractAlignment.issues);
 
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
   if (failGaps.length === 0) {
@@ -794,7 +1446,10 @@ function runSingleProbe(
 export function runResearcherResearchToWorkerHandoffProbes(
   fixture: ResearcherResearchToWorkerHandoffBaseline = loadResearcherResearchToWorkerHandoffBaseline(),
 ): ResearcherResearchToWorkerHandoffProbeResult[] {
-  return fixture.probes.map(entry =>
-    runSingleProbe(entry.id, entry.category, entry.expected, fixture),
-  );
+  const contract = getActiveResearcherResearchToWorkerHandoffContract();
+  return fixture.probes.map(entry => {
+    const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  });
 }
