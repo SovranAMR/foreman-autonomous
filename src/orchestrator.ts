@@ -711,6 +711,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner approval regression gate and emit verification event (P02-B09-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeVisionerApprovalRegression(
+    priorRecord?: import("./forge-p02-visioner-approval.js").VisionerApprovalRunRecord,
+  ): Promise<import("./forge-p02-visioner-approval.probe.js").ForgeVisionerApprovalRegressionResult> {
+    const { runForgeVisionerApprovalRegressionGate } = await import(
+      "./forge-p02-visioner-approval.probe.js"
+    );
+    const result = runForgeVisionerApprovalRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "visioner_approval_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B06 block gate and emit verification event with B07 handoff (P02-B06-A10).
    */
   async verifyForgeVisionerUncertaintyBlockGate(): Promise<import("./forge-p02-visioner-uncertainty.probe.js").ForgeVisionerUncertaintyBlockGateResult> {

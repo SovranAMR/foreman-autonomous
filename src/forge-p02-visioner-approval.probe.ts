@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { execSync } from "node:child_process";
+import { performance } from "node:perf_hooks";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import visionerApprovalBaseline from "./fixtures/forge-visioner-approval-v1.json" with { type: "json" };
@@ -29,6 +30,12 @@ import {
   buildVisionerApprovalProbeTelemetry,
   buildVisionerApprovalProvenance,
   buildVisionerApprovalRunRecord,
+  validateVisionerApprovalRunRecord,
+  detectVisionerApprovalProbeRegression,
+  validateForgeVisionerApprovalGuard,
+  runVisionerApprovalPropertyChecks,
+  runVisionerApprovalFuzzValidation,
+  runVisionerApprovalRunRecordFuzzValidation,
   listVisionerApprovalFailureRecoveryProbeIds,
   VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES,
   summarizeVisionerApprovalMatrix,
@@ -704,3 +711,108 @@ export function runVisionerApprovalFailureRecoverySliceWithRecord(
     sliceCategories: VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES,
   });
 }
+
+export interface ForgeVisionerApprovalRegressionPropertyFuzzResult {
+  passed: boolean;
+  properties: ReturnType<typeof runVisionerApprovalPropertyChecks>;
+  contractFuzz: ReturnType<typeof runVisionerApprovalFuzzValidation>;
+  runFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface ForgeVisionerApprovalRegressionResult {
+  passed: boolean;
+  productionSlice: VisionerApprovalProductionSliceResult;
+  record: VisionerApprovalRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: ReturnType<typeof detectVisionerApprovalProbeRegression> | null;
+  guard: ReturnType<typeof validateForgeVisionerApprovalGuard>;
+  propertyFuzz: ForgeVisionerApprovalRegressionPropertyFuzzResult;
+  detail: string;
+}
+
+/**
+ * Execute visioner approval probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P02-B09-A08).
+ */
+export function runForgeVisionerApprovalRegressionGate(
+  priorRecord?: VisionerApprovalRunRecord,
+): ForgeVisionerApprovalRegressionResult {
+  const fixture = loadVisionerApprovalBaseline();
+  const contract = getActiveVisionerApprovalContract();
+  const productionSlice = runVisionerApprovalProductionSlice(fixture);
+  const record = runVisionerApprovalProbesWithRecord(fixture);
+  const validation = validateVisionerApprovalRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectVisionerApprovalProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeVisionerApprovalGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
+
+  const properties = runVisionerApprovalPropertyChecks(contract);
+  const contractFuzz = runVisionerApprovalFuzzValidation(fixture, contract);
+  const runFuzz = runVisionerApprovalRunRecordFuzzValidation(record, contract);
+  const propertyFuzzPassed =
+    properties.allPassed &&
+    contractFuzz.allMutationsRejected &&
+    runFuzz.mutationsAccepted === 0;
+  const propertyFuzz: ForgeVisionerApprovalRegressionPropertyFuzzResult = {
+    passed: propertyFuzzPassed,
+    properties,
+    contractFuzz,
+    runFuzz: {
+      validBaseline: runFuzz.validBaseline,
+      mutationsRejected: runFuzz.mutationsRejected,
+      mutationsAccepted: runFuzz.mutationsAccepted,
+    },
+  };
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const passed =
+    productionSliceOk && recordValid && !alignmentRegression && guard.passed && propertyFuzzPassed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    passed,
+    productionSlice,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    guard,
+    propertyFuzz,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P02-B09-A08). */
+export const runVisionerApprovalRegressionIntegration = runForgeVisionerApprovalRegressionGate;

@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B09
-active_atom: P02-B09-A08
+active_atom: P02-B09-A09
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 186/1000
-phase_progress: 85/100
-block_progress: 7/10
+program_progress: 187/1000
+phase_progress: 86/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B09-A08 — Kullanıcı approval ve steering: Forge entegrasyonu ile regression testini tamamla.
+P02-B09-A09 — Kullanıcı approval ve steering: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P02-B09-A07 PASS; wire approval slice into Forge regression integration with detectVisionerApprovalProbeRegression gate.
-target: forge-p02-visioner-approval Forge integration regression slice.
-hypothesis: integrated regression detects approval probe alignment regressions while accepting valid baseline runs.
-acceptance: forge-p02-visioner-approval regression integration gates pass.
+objective: P02-B09-A08 PASS; wire guard integration tests and orchestrator verification for approval slice.
+target: forge-p02-visioner-approval guard controls integration.
+hypothesis: validateForgeVisionerApprovalGuard rejects tampered records and passes canonical baseline.
+acceptance: guard integration gates pass with adversarial=3/3.
 commands: npx tsx --test src/forge-p02-visioner-approval.test.ts src/forge-pipeline-regression.integration.test.ts
-blast_radius: src/forge-p02-visioner-approval*, src/forge-pipeline-regression*
-rollback: P02-B09-A08 Forge integration slice değişikliklerini geri al.
+blast_radius: src/forge-p02-visioner-approval*, src/forge-pipeline-regression*, src/orchestrator.ts
+rollback: P02-B09-A09 guard integration değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: Forge integration cannot align ise BLOCKED raporla.
+fallback: Guard integration cannot align ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B09-A07
+last_atom: P02-B09-A08
 last_commit: pending
-tests: PASS — forge-p02-visioner-approval.property-fuzz.test.ts (5/5), forge-p02-visioner-approval.test.ts (26/26), forge-p02-visioner-approval-baseline.test.ts (3/3)
-evidence: runVisionerApprovalPropertyChecks; runVisionerApprovalFuzzValidation; runVisionerApprovalRunRecordFuzzValidation; property=8/8 fuzz=24/24 rejected runRecord mutations=0 accepted
-next: P02-B09-A08
+tests: PASS — forge-p02-visioner-approval.test.ts (26/26), forge-pipeline-regression.integration.test.ts (+5 P02-B09-A08)
+evidence: runForgeVisionerApprovalRegressionGate; detectVisionerApprovalProbeRegression; runVisionerApprovalRegressionIntegration; verifyForgeVisionerApprovalRegression; 23/23 probes adversarial=3/3
+next: P02-B09-A09
