@@ -44,7 +44,7 @@ fallback: Contract blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B06-A01
-last_commit: pending
+last_commit: 33301ce
 tests: PASS — forge-p03-strategist-resource-budget-baseline.test.ts (3/3); 27 probes; 6 documented FAIL gaps
 evidence: loadStrategistResourceBudgetBaseline; validateStrategistResourceBudgetBaseline; runStrategistResourceBudgetProbes; FORGE_P03_B05_TO_B06_HANDOFF_V1 alignment
 next: P03-B06-A02
