@@ -1170,6 +1170,85 @@ export function runStrategistParallelWaveBoundarySlice(
   };
 }
 
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly StrategistParallelWaveCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery probes and documented FAIL NO-GO gaps must align; zero unexpected mismatches.
+ */
+export function validateStrategistParallelWaveFailureRecoveryProbeMatrix(
+  results: StrategistParallelWaveProbeResult[],
+  contract: StrategistParallelWaveContract = getActiveStrategistParallelWaveContract(),
+): StrategistParallelWaveProbeMatrixValidationResult {
+  const failureRecoveryProbes = STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistParallelWaveContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: StrategistParallelWaveContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateStrategistParallelWaveProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listStrategistParallelWaveFailureRecoveryProbeIds(
+  contract: StrategistParallelWaveContract = getActiveStrategistParallelWaveContract(),
+): string[] {
+  return STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listStrategistParallelWaveContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface StrategistParallelWaveFailureRecoverySliceResult {
+  atom: "P03-B07-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistParallelWaveProbeResult[];
+  failureRecoveryResults: StrategistParallelWaveProbeResult[];
+  matrixValidation: StrategistParallelWaveProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches.
+ */
+export function runStrategistParallelWaveFailureRecoverySlice(
+  fixture: StrategistParallelWaveBaseline = loadStrategistParallelWaveBaseline(),
+): StrategistParallelWaveFailureRecoverySliceResult {
+  const contract = getActiveStrategistParallelWaveContract();
+  const results = runStrategistParallelWaveProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistParallelWaveContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistParallelWaveFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P03-B07-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
+    matrixValidation,
+  };
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = __dirname;
 

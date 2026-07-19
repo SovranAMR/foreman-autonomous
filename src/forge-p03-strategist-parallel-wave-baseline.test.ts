@@ -5,16 +5,20 @@ import {
   runStrategistParallelWaveProbes,
   runStrategistParallelWaveProductionSlice,
   runStrategistParallelWaveBoundarySlice,
+  runStrategistParallelWaveFailureRecoverySlice,
   getActiveStrategistParallelWaveContract,
   validateStrategistParallelWaveBaseline,
   validateStrategistParallelWaveProbeMatrix,
   validateStrategistParallelWaveBoundaryProbeMatrix,
+  validateStrategistParallelWaveFailureRecoveryProbeMatrix,
   summarizeStrategistParallelWaveMatrix,
   listStrategistParallelWaveProbesByExpected,
   listStrategistParallelWaveKnownGaps,
   listStrategistParallelWaveContractProbesByCategory,
+  listStrategistParallelWaveFailureRecoveryProbeIds,
   assessStrategistParallelWaveInputBoundary,
   STRATEGIST_PARALLEL_WAVE_CATEGORIES,
+  STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_PARALLEL_WAVE_DECOMPOSE_MAX_LENGTH,
 } from "./forge-p03-strategist-parallel-wave.js";
 
@@ -215,5 +219,115 @@ describe("Forge Strategist Parallel Wave Boundary Slice — P03-B07-A04", () => 
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Parallel Wave Failure/Recovery Slice — P03-B07-A05", () => {
+  it("defines seven failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveStrategistParallelWaveContract();
+    const probeIds = listStrategistParallelWaveFailureRecoveryProbeIds(contract);
+
+    assert.equal(STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES.length, 3);
+    assert.equal(probeIds.length, 7);
+    assert.deepEqual(probeIds.sort(), [
+      "swave.exported_wave_validator",
+      "swave.invalid_version_rejected",
+      "swave.malformed_decompose_guard",
+      "swave.min_category_probes",
+      "swave.nogo_invalid_wave_plan",
+      "swave.recovery_sequential_fallback",
+      "swave.recovery_wave_checkpoint",
+    ].sort());
+
+    assert.equal(
+      listStrategistParallelWaveContractProbesByCategory("failure_path", contract).length,
+      3,
+    );
+    assert.equal(
+      listStrategistParallelWaveContractProbesByCategory("recovery_path", contract).length,
+      2,
+    );
+    assert.equal(
+      listStrategistParallelWaveContractProbesByCategory("nogo_path", contract).length,
+      2,
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistParallelWaveContract();
+    const slice = runStrategistParallelWaveFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B07-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 5);
+    assert.equal(slice.matrixValidation.gapAligned, 2);
+
+    for (const category of STRATEGIST_PARALLEL_WAVE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistParallelWaveContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistParallelWaveFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves NO-GO gaps while exercising failure and recovery paths", () => {
+    const slice = runStrategistParallelWaveFailureRecoverySlice();
+    const probeIds = listStrategistParallelWaveFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 7);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "swave.malformed_decompose_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const sequentialFallback = slice.failureRecoveryResults.find(
+      r => r.id === "swave.recovery_sequential_fallback",
+    );
+    assert.ok(sequentialFallback);
+    assert.equal(sequentialFallback!.expected, "PASS");
+    assert.equal(sequentialFallback!.actual, "PASS");
+
+    const waveCheckpoint = slice.failureRecoveryResults.find(
+      r => r.id === "swave.recovery_wave_checkpoint",
+    );
+    assert.ok(waveCheckpoint);
+    assert.equal(waveCheckpoint!.expected, "PASS");
+    assert.equal(waveCheckpoint!.actual, "PASS");
+
+    const nogoInvalidPlan = slice.failureRecoveryResults.find(
+      r => r.id === "swave.nogo_invalid_wave_plan",
+    );
+    assert.ok(nogoInvalidPlan);
+    assert.equal(nogoInvalidPlan!.expected, "FAIL");
+    assert.equal(nogoInvalidPlan!.actual, "FAIL");
+
+    const exportedValidator = slice.failureRecoveryResults.find(
+      r => r.id === "swave.exported_wave_validator",
+    );
+    assert.ok(exportedValidator);
+    assert.equal(exportedValidator!.expected, "FAIL");
+    assert.equal(exportedValidator!.actual, "FAIL");
   });
 });
