@@ -44,7 +44,7 @@ fallback: contract uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B07-A01
-last_commit: PENDING
+last_commit: 7e74e51
 tests: PASS — forge-reproducible-fixture-baseline.test.ts (3/3)
 evidence: loadReproducibleFixtureBaseline; validateReproducibleFixtureBaseline; 21-probe matrix with 7 documented FAIL gaps from B06 sealed handoff
 next: P01-B07-A02
