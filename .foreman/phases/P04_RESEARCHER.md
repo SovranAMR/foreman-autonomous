@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B05-A03
-last_commit: pending
+last_commit: fcc3adf
 tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (17/17); runResearcherCitationProvenanceGraphProductionSlice; gap probes flipped PASS
 evidence: buildResearchCitationProvenanceGraph + RESEARCHER SOURCES prompt; contract 21 PASS / 2 FAIL nogo; matrix gate zero unexpected mismatches
 next: P04-B05-A04
