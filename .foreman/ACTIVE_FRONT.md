@@ -44,7 +44,7 @@ fallback: Failure-recovery slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B08-A04
-last_commit: pending
+last_commit: 59448d1
 tests: PASS — forge-p03-strategist-replan.test.ts (17/17); forge-p03-strategist-replan-baseline.test.ts (3/3); assessStrategistReplanInputBoundary edge cases; runStrategistReplanBoundarySlice; 6/6 boundary probes aligned
 evidence: validateStrategistReplanBoundaryProbeMatrix; runStrategistReplanBoundarySlice; assessStrategistReplanInputBoundary empty/whitespace/null-byte/truncation
 next: P03-B08-A05

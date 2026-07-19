@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B08-A04
-last_commit: pending
+last_commit: aa7f3a6
 tests: PASS — forge-p03-strategist-replan*.test.ts (17/17); assessStrategistReplanInputBoundary edge cases; runStrategistReplanBoundarySlice; 6/6 boundary probes aligned
 evidence: validateStrategistReplanBoundaryProbeMatrix; runStrategistReplanBoundarySlice; assessStrategistReplanInputBoundary empty/whitespace/null-byte/truncation
 next: P03-B08-A05
