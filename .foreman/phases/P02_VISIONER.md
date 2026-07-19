@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B10-A02
-last_commit: pending
+last_commit: 95dbb48
 tests: PASS — forge-p02-visioner-phase-gate.test.ts (8/8); baseline regression (3/3)
 evidence: validateVisionerPhaseGateContractCoverage; summarizeVisionerPhaseGateContractCoverage; knownGap=vpg.orchestrator_phase_gate_runner; handoff=P02-B10-A02→A03
 next: P02-B10-A03
