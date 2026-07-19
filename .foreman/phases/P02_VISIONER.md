@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B10-A09
-last_commit: pending
+last_commit: b2add83
 tests: PASS — forge-p02-visioner-phase-gate.guard.test.ts (8/8); forge-pipeline-regression.integration.test.ts P02-B10-A09 (3/3); 114/114 targeted
 evidence: validateForgeVisionerPhaseGateGuard; verifyForgeP02VisionerPhaseGateGuard; adversarial=3/3 rejected; regression gate includes guard metrics; handoff=P02-B10-A09→A10
 next: P02-B10-A10
