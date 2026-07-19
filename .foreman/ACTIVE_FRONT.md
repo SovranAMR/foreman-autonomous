@@ -44,7 +44,7 @@ fallback: guard cannot validate without scope creep ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B01-A08
-last_commit: pending
+last_commit: de960cb
 tests: PASS — forge-p02-visioner-intent*.test.ts (29/29); forge-pipeline-regression.integration.test.ts P02-B01-A08 (5/5); regression gate 23/23 aligned
 evidence: runForgeVisionerIntentRegressionGate, detectVisionerIntentProbeRegression, verifyForgeVisionerIntentRegression; structured_intent_recovery gap preserved
 next: P02-B01-A09

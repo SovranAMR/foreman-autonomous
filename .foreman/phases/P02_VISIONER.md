@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B01-A08
-last_commit: pending
+last_commit: de960cb
 tests: PASS — forge-p02-visioner-intent.test.ts (24/24); forge-p02-visioner-intent.property-fuzz.test.ts (5/5); forge-pipeline-regression.integration.test.ts P02-B01-A08 (5/5); regression gate 23/23 probes aligned; productionSlice unexpected=0; propertyFuzz 8/8 + contractFuzz 72/72 + runFuzz 3/3; guard adversarial=3/3
 evidence: runForgeVisionerIntentRegressionGate, runVisionerIntentRegressionIntegration, detectVisionerIntentProbeRegression, verifyForgeVisionerIntentRegression; validateForgeVisionerIntentGuard foundation for A09
 next: P02-B01-A09
