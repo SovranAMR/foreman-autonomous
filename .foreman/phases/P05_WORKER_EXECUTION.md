@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 8
+completed_atoms: 9
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -23,7 +23,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B01-A06 — Typed tool interface ve dispatch: evidence, telemetry ve provenance kaydını ekle
 - [x] P05-B01-A07 — Typed tool interface ve dispatch: unit, property ve fuzz doğrulamasını ekle
 - [x] P05-B01-A08 — Typed tool interface ve dispatch: Forge entegrasyonu ile regression testini tamamla
-- [ ] P05-B01-A09 — Typed tool interface ve dispatch: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P05-B01-A09 — Typed tool interface ve dispatch: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P05-B01-A10 — Typed tool interface ve dispatch: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P05-B02 — Filesystem okuma ve grounding
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B01-A08
-last_commit: 06c077c
-tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5), forge-p05-worker-tool-dispatch-evidence.test.ts (5/5), forge-p05-worker-tool-dispatch-property-fuzz.test.ts (6/6), forge-p05-worker-tool-dispatch-integration.test.ts (7/7)
-evidence: validateWorkerToolDispatchIntegrationProbeMatrix + runWorkerToolDispatchIntegrationSlice; 6/6 sub-slices aligned, 27/27 probes aligned, zero unexpected mismatches, probe regression detection wired
-next: P05-B01-A09
+last_atom: P05-B01-A09
+last_commit: PENDING
+tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5), forge-p05-worker-tool-dispatch-evidence.test.ts (5/5), forge-p05-worker-tool-dispatch-property-fuzz.test.ts (6/6), forge-p05-worker-tool-dispatch-integration.test.ts (7/7), forge-p05-worker-tool-dispatch.guard.test.ts (9/9)
+evidence: validateForgeWorkerToolDispatchGuard + runWorkerToolDispatchGuardSlice; adversarial 3/3 rejected, perf/cost/safety within ceilings, guard wired into integration slice
+next: P05-B01-A10

@@ -112,6 +112,6 @@ describe("Forge Worker Tool Dispatch — P05-B01-A01", () => {
   });
 
   it("exports harness version for worker tool dispatch baseline", () => {
-    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a08");
+    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a09");
   });
 });

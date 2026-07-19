@@ -27,7 +27,7 @@ import {
   type ToolCall,
 } from "./tools.js";
 
-export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a08";
+export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a09";
 
 export const WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH = 16_384;
 
@@ -2966,6 +2966,7 @@ export interface WorkerToolDispatchIntegrationSliceResult {
   validationIssues: string[];
   priorValidationIssues: string[];
   probeRegression: WorkerToolDispatchProbeRegressionReport | null;
+  guard: WorkerToolDispatchGuardCheckResult;
   matrixValid: boolean;
   matrixValidation: WorkerToolDispatchIntegrationProbeMatrixValidationResult;
   detail: string;
@@ -3102,6 +3103,11 @@ export function runWorkerToolDispatchIntegrationSlice(
     ? detectWorkerToolDispatchProbeRegression(priorRecord, record)
     : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeWorkerToolDispatchGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
 
   const productionSliceOk =
     productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
@@ -3127,7 +3133,8 @@ export function runWorkerToolDispatchIntegrationSlice(
     propertyFuzzOk &&
     recordValid &&
     priorRecordValid &&
-    !alignmentRegression;
+    !alignmentRegression &&
+    guard.passed;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
@@ -3149,6 +3156,15 @@ export function runWorkerToolDispatchIntegrationSlice(
   detailParts.push(
     `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
   );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   const partial: WorkerToolDispatchIntegrationSliceResult = {
     atom: "P05-B01-A08",
@@ -3164,6 +3180,7 @@ export function runWorkerToolDispatchIntegrationSlice(
     validationIssues,
     priorValidationIssues,
     probeRegression,
+    guard,
     matrixValid: false,
     matrixValidation: {
       valid: false,
@@ -3189,6 +3206,413 @@ export function runWorkerToolDispatchIntegrationSlice(
 
 /** Alias for forge-pipeline-regression integration seam (P05-B01-A08). */
 export const runWorkerToolDispatchRegressionIntegration = runWorkerToolDispatchIntegrationSlice;
+
+// ─── Guard controls (P05-B01-A09) ─────────────────────────────────────────────
+
+export interface ForgeWorkerToolDispatchGuardControls {
+  atom: string;
+  adversarial: {
+    rejectTamperedRecords: true;
+    rejectFalseAlignment: true;
+    rejectSummaryEvidenceMismatch: true;
+  };
+  performance: {
+    maxSuiteDurationMs: number;
+    maxProbeDurationMs: number;
+    maxWallClockMs: number;
+  };
+  cost: {
+    maxTotalCostUsd: number;
+    maxLlmCalls: number;
+  };
+  safety: {
+    maxDetailLength: number;
+    forbiddenPatterns: readonly RegExp[];
+  };
+}
+
+export interface WorkerToolDispatchGuardCheckIssue {
+  domain: "adversarial" | "performance" | "cost" | "safety";
+  code: string;
+  detail: string;
+}
+
+export interface WorkerToolDispatchGuardCheckResult {
+  passed: boolean;
+  issues: WorkerToolDispatchGuardCheckIssue[];
+  metrics: {
+    suiteDurationMs: number;
+    wallClockMs: number;
+    maxProbeDurationMs: number;
+    totalCostUsd: number;
+    llmCalls: number;
+    adversarialScenariosRejected: number;
+    adversarialScenariosTotal: number;
+  };
+}
+
+export interface WorkerToolDispatchAdversarialGuardScenario {
+  id: string;
+  description: string;
+  build: (record: WorkerToolDispatchRunRecord) => WorkerToolDispatchRunRecord;
+  expectRejected: true;
+}
+
+export interface WorkerToolDispatchGuardSliceResult {
+  atom: "P05-B01-A09";
+  passed: boolean;
+  record: WorkerToolDispatchRunRecord;
+  guard: WorkerToolDispatchGuardCheckResult;
+  detail: string;
+}
+
+export const FORGE_WORKER_TOOL_DISPATCH_GUARD_CONTROLS_V1: ForgeWorkerToolDispatchGuardControls = {
+  atom: "P05-B01-A09",
+  adversarial: {
+    rejectTamperedRecords: true,
+    rejectFalseAlignment: true,
+    rejectSummaryEvidenceMismatch: true,
+  },
+  performance: {
+    maxSuiteDurationMs: 30_000,
+    maxProbeDurationMs: 5_000,
+    maxWallClockMs: 45_000,
+  },
+  cost: {
+    maxTotalCostUsd: 0,
+    maxLlmCalls: 0,
+  },
+  safety: {
+    maxDetailLength: 4096,
+    forbiddenPatterns: [
+      /sk-[a-zA-Z0-9]{20,}/,
+      /api[_-]?key\s*[:=]\s*\S+/i,
+      /Bearer\s+[a-zA-Z0-9._-]{20,}/i,
+      /password\s*[:=]\s*\S+/i,
+      /-----BEGIN (RSA |EC )?PRIVATE KEY-----/,
+    ],
+  },
+};
+
+export function getForgeWorkerToolDispatchGuardControls(): ForgeWorkerToolDispatchGuardControls {
+  return FORGE_WORKER_TOOL_DISPATCH_GUARD_CONTROLS_V1;
+}
+
+function parseWorkerToolDispatchIsoDurationMs(startedAt: string, completedAt: string): number {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(completedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
+  return end - start;
+}
+
+export function summarizeWorkerToolDispatchTelemetry(
+  telemetry: WorkerToolDispatchProbeRunTelemetry[],
+): {
+  suiteDurationMs: number;
+  maxProbeDurationMs: number;
+} {
+  let suiteDurationMs = 0;
+  let maxProbeDurationMs = 0;
+  for (const item of telemetry) {
+    suiteDurationMs += item.durationMs;
+    if (item.durationMs > maxProbeDurationMs) maxProbeDurationMs = item.durationMs;
+  }
+  return { suiteDurationMs, maxProbeDurationMs };
+}
+
+export function detectWorkerToolDispatchEvidenceSummaryMismatch(
+  record: WorkerToolDispatchRunRecord,
+): string | null {
+  let alignedCount = 0;
+  for (const item of record.evidence) {
+    if (item.aligned) alignedCount++;
+  }
+  const mismatches = record.evidence.length - alignedCount;
+  if (record.summary.aligned !== alignedCount) {
+    return `summary.aligned=${record.summary.aligned} evidence=${alignedCount}`;
+  }
+  if (record.summary.mismatches !== mismatches) {
+    return `summary.mismatches=${record.summary.mismatches} evidence=${mismatches}`;
+  }
+  if (record.summary.total !== record.evidence.length) {
+    return `summary.total=${record.summary.total} evidence=${record.evidence.length}`;
+  }
+  return null;
+}
+
+export function detectWorkerToolDispatchFalseAlignment(
+  record: WorkerToolDispatchRunRecord,
+): string[] {
+  const violations: string[] = [];
+  for (const item of record.evidence) {
+    const shouldAlign = item.actual === item.expected;
+    if (item.aligned !== shouldAlign) {
+      violations.push(
+        `${item.probeId}: aligned=${item.aligned} actual=${item.actual} expected=${item.expected}`,
+      );
+    }
+    if (item.aligned && item.actual !== item.expected) {
+      violations.push(`${item.probeId}: false PASS claim`);
+    }
+  }
+  return violations;
+}
+
+export function validateWorkerToolDispatchSafety(
+  record: WorkerToolDispatchRunRecord,
+  controls: ForgeWorkerToolDispatchGuardControls = getForgeWorkerToolDispatchGuardControls(),
+): WorkerToolDispatchGuardCheckIssue[] {
+  const issues: WorkerToolDispatchGuardCheckIssue[] = [];
+  for (const item of record.evidence) {
+    if (item.detail.length > controls.safety.maxDetailLength) {
+      issues.push({
+        domain: "safety",
+        code: "detail_too_long",
+        detail: `${item.probeId} detail length=${item.detail.length}`,
+      });
+    }
+    for (const pattern of controls.safety.forbiddenPatterns) {
+      if (pattern.test(item.detail) || pattern.test(item.criterion)) {
+        issues.push({
+          domain: "safety",
+          code: "forbidden_pattern",
+          detail: `${item.probeId} matched ${pattern.source}`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+export function validateWorkerToolDispatchPerformance(
+  record: WorkerToolDispatchRunRecord,
+  controls: ForgeWorkerToolDispatchGuardControls = getForgeWorkerToolDispatchGuardControls(),
+): WorkerToolDispatchGuardCheckIssue[] {
+  const issues: WorkerToolDispatchGuardCheckIssue[] = [];
+  const { suiteDurationMs, maxProbeDurationMs } = summarizeWorkerToolDispatchTelemetry(
+    record.telemetry,
+  );
+  const wallClockMs = parseWorkerToolDispatchIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  if (suiteDurationMs > controls.performance.maxSuiteDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "suite_duration_exceeded",
+      detail: `${suiteDurationMs}ms > ${controls.performance.maxSuiteDurationMs}ms`,
+    });
+  }
+  if (maxProbeDurationMs > controls.performance.maxProbeDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "probe_duration_exceeded",
+      detail: `${maxProbeDurationMs}ms > ${controls.performance.maxProbeDurationMs}ms`,
+    });
+  }
+  if (wallClockMs > controls.performance.maxWallClockMs) {
+    issues.push({
+      domain: "performance",
+      code: "wall_clock_exceeded",
+      detail: `${wallClockMs}ms > ${controls.performance.maxWallClockMs}ms`,
+    });
+  }
+  return issues;
+}
+
+export function validateWorkerToolDispatchCost(
+  totalCostUsd: number,
+  llmCalls: number,
+  controls: ForgeWorkerToolDispatchGuardControls = getForgeWorkerToolDispatchGuardControls(),
+): WorkerToolDispatchGuardCheckIssue[] {
+  const issues: WorkerToolDispatchGuardCheckIssue[] = [];
+  if (totalCostUsd > controls.cost.maxTotalCostUsd) {
+    issues.push({
+      domain: "cost",
+      code: "cost_exceeded",
+      detail: `$${totalCostUsd.toFixed(4)} > $${controls.cost.maxTotalCostUsd}`,
+    });
+  }
+  if (llmCalls > controls.cost.maxLlmCalls) {
+    issues.push({
+      domain: "cost",
+      code: "llm_calls_exceeded",
+      detail: `${llmCalls} > ${controls.cost.maxLlmCalls}`,
+    });
+  }
+  return issues;
+}
+
+export function buildWorkerToolDispatchAdversarialGuardScenarios(): WorkerToolDispatchAdversarialGuardScenario[] {
+  return [
+    {
+      id: "adversarial.false_alignment_claim",
+      description: "Evidence claims aligned while actual !== expected",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = true;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.summary_mismatch",
+      description: "Summary reports zero mismatches while evidence is tampered",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = false;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        cloned.summary = { ...cloned.summary, aligned: cloned.summary.total, mismatches: 0 };
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.dropped_probe",
+      description: "Run record omits required probe evidence",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        cloned.evidence = cloned.evidence.slice(1);
+        cloned.telemetry = cloned.telemetry.slice(1);
+        cloned.summary = {
+          ...cloned.summary,
+          total: cloned.evidence.length,
+          aligned: cloned.evidence.filter(item => item.aligned).length,
+          mismatches: cloned.evidence.filter(item => !item.aligned).length,
+        };
+        return cloned;
+      },
+    },
+  ];
+}
+
+export function runWorkerToolDispatchAdversarialGuardChecks(
+  fixtureRecord: WorkerToolDispatchRunRecord,
+  contract: WorkerToolDispatchContract = getActiveWorkerToolDispatchContract(),
+): { rejected: number; total: number; failures: string[] } {
+  const scenarios = buildWorkerToolDispatchAdversarialGuardScenarios();
+  const failures: string[] = [];
+  let rejected = 0;
+
+  for (const scenario of scenarios) {
+    const tampered = scenario.build(fixtureRecord);
+    const validation = validateWorkerToolDispatchRunRecord(tampered, contract);
+    const falseAlignment = detectWorkerToolDispatchFalseAlignment(tampered);
+    const summaryMismatch = detectWorkerToolDispatchEvidenceSummaryMismatch(tampered);
+    const rejectedByGuard =
+      !validation.valid || falseAlignment.length > 0 || summaryMismatch !== null;
+
+    if (rejectedByGuard) rejected++;
+    else failures.push(`${scenario.id}: tampered record was not rejected`);
+  }
+
+  return { rejected, total: scenarios.length, failures };
+}
+
+export function validateForgeWorkerToolDispatchGuard(
+  record: WorkerToolDispatchRunRecord,
+  options: {
+    totalCostUsd?: number;
+    llmCalls?: number;
+    contract?: WorkerToolDispatchContract;
+    controls?: ForgeWorkerToolDispatchGuardControls;
+  } = {},
+): WorkerToolDispatchGuardCheckResult {
+  const controls = options.controls ?? getForgeWorkerToolDispatchGuardControls();
+  const contract = options.contract ?? getActiveWorkerToolDispatchContract();
+  const totalCostUsd = options.totalCostUsd ?? 0;
+  const llmCalls = options.llmCalls ?? 0;
+  const issues: WorkerToolDispatchGuardCheckIssue[] = [];
+
+  issues.push(...validateWorkerToolDispatchPerformance(record, controls));
+  issues.push(...validateWorkerToolDispatchCost(totalCostUsd, llmCalls, controls));
+  issues.push(...validateWorkerToolDispatchSafety(record, controls));
+
+  const falseAlignment = detectWorkerToolDispatchFalseAlignment(record);
+  if (falseAlignment.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "false_alignment",
+      detail: falseAlignment.join("; "),
+    });
+  }
+  const summaryMismatch = detectWorkerToolDispatchEvidenceSummaryMismatch(record);
+  if (summaryMismatch) {
+    issues.push({
+      domain: "adversarial",
+      code: "summary_evidence_mismatch",
+      detail: summaryMismatch,
+    });
+  }
+
+  const adversarial = runWorkerToolDispatchAdversarialGuardChecks(record, contract);
+  if (adversarial.failures.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "scenario_not_rejected",
+      detail: adversarial.failures.join("; "),
+    });
+  }
+
+  const telemetrySummary = summarizeWorkerToolDispatchTelemetry(record.telemetry);
+  const wallClockMs = parseWorkerToolDispatchIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  return {
+    passed: issues.length === 0 && adversarial.rejected === adversarial.total,
+    issues,
+    metrics: {
+      suiteDurationMs: telemetrySummary.suiteDurationMs,
+      wallClockMs,
+      maxProbeDurationMs: telemetrySummary.maxProbeDurationMs,
+      totalCostUsd,
+      llmCalls,
+      adversarialScenariosRejected: adversarial.rejected,
+      adversarialScenariosTotal: adversarial.total,
+    },
+  };
+}
+
+/**
+ * A09 guard slice: adversarial tamper rejection plus performance, cost and safety ceilings.
+ */
+export function runWorkerToolDispatchGuardSlice(): WorkerToolDispatchGuardSliceResult {
+  const record = runWorkerToolDispatchProbesWithRecord();
+  const contract = getActiveWorkerToolDispatchContract();
+  const guard = validateForgeWorkerToolDispatchGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+  const passed = guard.passed && record.summary.mismatches === 0;
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard FAIL: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard PASS: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+  return {
+    atom: "P05-B01-A09",
+    passed,
+    record,
+    guard,
+    detail: detailParts.join(" | "),
+  };
+}
 
 /** Smoke probe: unknown tool dispatch returns deterministic error (P05-B01-A01 boundary). */
 export async function probeUnknownToolDispatchError(): Promise<boolean> {

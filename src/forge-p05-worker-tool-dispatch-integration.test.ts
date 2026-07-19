@@ -41,7 +41,7 @@ describe("Forge Worker Tool Dispatch Integration — P05-B01-A08", () => {
     assert.ok(result.detail.includes("27/27 probes aligned"));
     assert.ok(result.detail.includes("productionSlice:"));
     assert.ok(result.detail.includes("propertyFuzz:"));
-    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a08");
+    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a09");
   });
 
   it("maps integration sub-slices through validateWorkerToolDispatchIntegrationProbeMatrix", () => {

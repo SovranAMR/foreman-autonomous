@@ -141,7 +141,7 @@ describe("Forge Worker Tool Dispatch Contract — P05-B01-A02", () => {
     assert.equal(FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.atom, "P05-B01-A02");
     assert.equal(FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a08");
+    assert.equal(FORGE_WORKER_TOOL_DISPATCH_VERSION, "1.0.0-a09");
     assert.equal(contract.version, FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1.version);
   });
 });
