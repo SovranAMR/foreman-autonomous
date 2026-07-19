@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B07
-active_atom: P02-B07-A07
+active_atom: P02-B07-A08
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 165/1000
-phase_progress: 64/100
-block_progress: 6/10
+program_progress: 166/1000
+phase_progress: 65/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -43,8 +43,8 @@ fallback: property/fuzz requires orchestrator refactor beyond slice scope ise BL
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B07-A06
-last_commit: a089f32
-tests: PASS — forge-p02-visioner-alternative.test.ts (24/24); forge-p02-visioner-alternative-baseline.test.ts (3/3)
-evidence: validateVisionerAlternativeFailureRecoveryRunRecord + runVisionerAlternativeFailureRecoverySliceWithRecord; 6/6 failure/recovery/NO-GO probes aligned; 23/23 full matrix preserved
-next: P02-B07-A07
+last_atom: P02-B07-A07
+last_commit: pending
+tests: PASS — forge-p02-visioner-alternative.property-fuzz.test.ts (5/5); forge-p02-visioner-alternative.test.ts (24/24); forge-p02-visioner-alternative-baseline.test.ts (3/3)
+evidence: runVisionerAlternativePropertyChecks (8/8); runVisionerAlternativeFuzzValidation rejects 24/24 mutations per seed; runVisionerAlternativeRunRecordFuzzValidation rejects 5/5 failure-recovery and 3/3 full-record tamper cases
+next: P02-B07-A08
