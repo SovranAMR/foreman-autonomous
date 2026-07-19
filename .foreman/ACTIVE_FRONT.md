@@ -44,7 +44,7 @@ fallback: boundary probes cannot align ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B09-A03
-last_commit: pending
+last_commit: a4116cf
 tests: PASS — forge-p02-visioner-approval.test.ts (12/12), forge-p02-visioner-approval-baseline.test.ts (3/3)
 evidence: recoverVisionerSteering export; vapp.structured_steering_recovery PASS; matrix passAligned=23 gapAligned=0 unexpectedMismatches=0; runVisionerApprovalProductionSlice valid
 next: P02-B09-A04
