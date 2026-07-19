@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B02
-active_atom: P03-B02-A07
+active_atom: P03-B02-A08
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 215/1000
-phase_progress: 16/100
-block_progress: 6/10
+program_progress: 216/1000
+phase_progress: 17/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B02-A07 — Block üretim kontratı: unit, property ve fuzz doğrulamasını ekle.
+P03-B02-A08 — Block üretim kontratı: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P03-B02-A06 PASS; P03-B02-A07 property/fuzz slice for block contract probes.
-target: runStrategistBlockContractPropertyChecks, runStrategistBlockContractFuzzValidation.
-hypothesis: P03-B02-A07 closes structural property and fuzz gates on canonical block contract.
-acceptance: property checks PASS; fuzz rejects fixture mutations; run record gate intact.
+objective: P03-B02-A07 PASS; P03-B02-A08 Forge regression slice for block contract probes.
+target: runStrategistBlockContractForgeRegression, detectStrategistBlockContractProbeRegression.
+hypothesis: P03-B02-A08 closes Forge regression gate on canonical block contract matrix.
+acceptance: regression slice PASS; zero probe alignment regression; run record gate intact.
 commands: npx tsx --test src/forge-p03-strategist-block-contract.test.ts
 blast_radius: src/forge-p03-strategist-block-contract.ts
-rollback: P03-B02-A07 property/fuzz slice değişikliklerini geri al.
+rollback: P03-B02-A08 regression slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: A06 run record misaligned ise BLOCKED raporla.
+fallback: A07 property/fuzz misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B02-A06
-last_commit: 87d5959
-tests: PASS — forge-p03-strategist-block-contract.test.ts (18/18); forge-p03-strategist-block-contract-baseline.test.ts (3/3); failure/recovery 6 probes; run record gate PASS
-evidence: runStrategistBlockContractFailureRecoverySliceWithRecord; validateStrategistBlockContractFailureRecoveryRunRecord; runStrategistBlockContractEvidenceSlice
-next: P03-B02-A07
+last_atom: P03-B02-A07
+last_commit: pending
+tests: PASS — forge-p03-strategist-block-contract.test.ts (24/24); property 8/8; contract fuzz 72/72 rejected; run record fuzz 8/8 rejected
+evidence: runStrategistBlockContractPropertyChecks; runStrategistBlockContractFuzzValidation; runStrategistBlockContractPropertyFuzzSlice
+next: P03-B02-A08
