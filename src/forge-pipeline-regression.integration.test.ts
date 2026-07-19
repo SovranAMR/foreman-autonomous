@@ -132,6 +132,12 @@ import {
   runResearcherWebPrimarySourceRegressionIntegration,
 } from "./forge-p04-researcher-web-primary-source.probe.js";
 import { detectResearcherWebPrimarySourceProbeRegression } from "./forge-p04-researcher-web-primary-source.js";
+import {
+  runForgeResearcherBenchmarkPriorArtRegressionGate,
+  runResearcherBenchmarkPriorArtProbesWithRecord,
+  runResearcherBenchmarkPriorArtRegressionIntegration,
+} from "./forge-p04-researcher-benchmark-prior-art.probe.js";
+import { detectResearcherBenchmarkPriorArtProbeRegression } from "./forge-p04-researcher-benchmark-prior-art.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -2455,6 +2461,75 @@ describe("Forge Researcher Web Primary-Source Regression Integration — P04-B03
   it("runForgeResearcherWebPrimarySourceRegressionGate compares against prior record without false regression", () => {
     const prior = runResearcherWebPrimarySourceProbesWithRecord();
     const result = runForgeResearcherWebPrimarySourceRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+});
+
+describe("Forge Researcher Benchmark Prior-Art Regression Integration — P04-B04-A08", () => {
+  it("runForgeResearcherBenchmarkPriorArtRegressionGate passes on canonical benchmark prior-art matrix", () => {
+    const result = runForgeResearcherBenchmarkPriorArtRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzz.mutationsAccepted, 0);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+  });
+
+  it("runForgeResearcherBenchmarkPriorArtRegressionGate guard passes on canonical benchmark prior-art matrix", () => {
+    const result = runForgeResearcherBenchmarkPriorArtRegressionGate();
+    assert.equal(result.guard.passed, true, result.guard.issues.map(i => i.detail).join("; "));
+    assert.equal(result.guard.metrics.adversarialScenariosRejected, 3);
+    assert.equal(result.guard.metrics.adversarialScenariosTotal, 3);
+  });
+
+  it("runResearcherBenchmarkPriorArtRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeResearcherBenchmarkPriorArtRegressionGate();
+    const integration = runResearcherBenchmarkPriorArtRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzzSlice.propertyChecksPassed, gate.propertyFuzzSlice.propertyChecksPassed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("23/23 probes aligned"));
+    assert.equal(integration.record.summary.total, 23);
+  });
+
+  it("detectResearcherBenchmarkPriorArtProbeRegression flags newly misaligned probes", () => {
+    const prior = runResearcherBenchmarkPriorArtProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectResearcherBenchmarkPriorArtProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeResearcherBenchmarkPriorArtRegressionGate compares against prior record without false regression", () => {
+    const prior = runResearcherBenchmarkPriorArtProbesWithRecord();
+    const result = runForgeResearcherBenchmarkPriorArtRegressionGate(prior);
 
     assert.equal(result.passed, true, result.detail);
     assert.ok(result.probeRegression);

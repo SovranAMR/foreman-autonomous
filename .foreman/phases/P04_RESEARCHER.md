@@ -61,7 +61,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B04-A05 — Benchmark ve prior-art analizi: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B04-A06 — Benchmark ve prior-art analizi: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B04-A07 — Benchmark ve prior-art analizi: unit, property ve fuzz doğrulamasını ekle
-- [ ] P04-B04-A08 — Benchmark ve prior-art analizi: Forge entegrasyonu ile regression testini tamamla
+- [x] P04-B04-A08 — Benchmark ve prior-art analizi: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B04-A09 — Benchmark ve prior-art analizi: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B04-A10 — Benchmark ve prior-art analizi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B04-A07
-last_commit: 4543dce
-tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); forge-p04-researcher-benchmark-prior-art.property-fuzz.test.ts (6/6); runResearcherBenchmarkPriorArtPropertyValidation; runResearcherBenchmarkPriorArtRunRecordFuzzValidation; runResearcherBenchmarkPriorArtPropertyFuzzSlice
-evidence: runResearcherBenchmarkPriorArtPropertyValidation; runResearcherBenchmarkPriorArtFuzzValidation; runResearcherBenchmarkPriorArtRunRecordFuzzValidation; runResearcherBenchmarkPriorArtPropertyFuzzSlice with zero accepted mutations
-next: P04-B04-A08
+last_atom: P04-B04-A08
+last_commit: 056e44b
+tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); forge-p04-researcher-benchmark-prior-art.property-fuzz.test.ts (6/6); forge-pipeline-regression.integration.test.ts P04-B04-A08 (5/5); runResearcherBenchmarkPriorArtForgeRegression; runResearcherBenchmarkPriorArtPropertyFuzzSlice
+evidence: runResearcherBenchmarkPriorArtPropertyFuzzSlice wired into runResearcherBenchmarkPriorArtForgeRegression and forge-pipeline-regression integration gate with zero accepted mutations
+next: P04-B04-A09
