@@ -44,7 +44,7 @@ fallback: Guard blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B06-A08
-last_commit: pending
+last_commit: b7e93a0
 tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (33/33); regression 7/7; forge integration gate PASS
 evidence: runStrategistResourceBudgetForgeRegression; detectStrategistResourceBudgetProbeRegression; validateStrategistResourceBudgetProbeRegression; runStrategistResourceBudgetProbeRegression
 next: P03-B06-A09
