@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B05
-active_atom: P03-B05-A02
+active_atom: P03-B05-A03
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 240/1000
-phase_progress: 41/100
-block_progress: 1/10
+program_progress: 241/1000
+phase_progress: 42/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B05-A02 — Risk ve reversibility planı: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P03-B05-A03 — Risk ve reversibility planı: en küçük üretim dikey dilimini uygula.
 
-objective: P03-B05-A01 PASS; P03-B05-A02 define typed contract with measurable acceptance criteria for risk/reversibility probes.
-target: getActiveStrategistRiskReversibilityContract, validateStrategistRiskReversibilityAgainstContract.
-hypothesis: P03-B05-A02 formalizes the 27-probe A01 matrix into a versioned contract aligned to sealed P03-B04 handoff.
-acceptance: contract declares all categories; fixture aligns; coverage validation passes.
+objective: P03-B05-A02 PASS; P03-B05-A03 implement smallest production vertical slice for risk/reversibility probes.
+target: recoverStrategistRiskReversibility, runStrategistRiskReversibilityProductionSlice.
+hypothesis: P03-B05-A03 wires contract probes into a recoverable production seam aligned to sealed P03-B04 handoff.
+acceptance: production slice runs; contract-aligned probes pass; zero unexpected mismatches on PASS probes.
 commands: npx tsx --test src/forge-p03-strategist-risk-reversibility*.test.ts
 blast_radius: src/forge-p03-strategist-risk-reversibility.ts
-rollback: P03-B05-A02 contract değişikliklerini geri al.
+rollback: P03-B05-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: contract blocked ise BLOCKED raporla.
+fallback: production slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B05-A01
-last_commit: f2a6b7c
-tests: PASS — forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); harness 1.0.0-a01; 27 probes / 6 FAIL gaps
-evidence: loadStrategistRiskReversibilityBaseline; validateStrategistRiskReversibilityBaseline; getForgeP03B04ToB05Handoff
-next: P03-B05-A02
+last_atom: P03-B05-A02
+last_commit: pending
+tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (8/8); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); 27 probes / 6 FAIL gaps
+evidence: getActiveStrategistRiskReversibilityContract; validateStrategistRiskReversibilityAgainstContract; validateStrategistRiskReversibilityCoverage
+next: P03-B05-A03
