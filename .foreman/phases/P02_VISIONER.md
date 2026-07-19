@@ -127,7 +127,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B09-A06 — Kullanıcı approval ve steering: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B09-A07 — Kullanıcı approval ve steering: unit, property ve fuzz doğrulamasını ekle
 - [x] P02-B09-A08 — Kullanıcı approval ve steering: Forge entegrasyonu ile regression testini tamamla
-- [ ] P02-B09-A09 — Kullanıcı approval ve steering: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P02-B09-A09 — Kullanıcı approval ve steering: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B09-A10 — Kullanıcı approval ve steering: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P02-B10 — Vizyoner phase gate
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B09-A08
+last_atom: P02-B09-A09
 last_commit: pending
-tests: PASS — forge-p02-visioner-approval.test.ts (26/26), forge-pipeline-regression.integration.test.ts (+5 P02-B09-A08, 117 total in run)
-evidence: runForgeVisionerApprovalRegressionGate; detectVisionerApprovalProbeRegression; runVisionerApprovalRegressionIntegration; verifyForgeVisionerApprovalRegression; 23/23 probes adversarial=3/3
-next: P02-B09-A09
+tests: PASS — forge-p02-visioner-approval.guard.test.ts (8/8), forge-p02-visioner-approval.test.ts (26/26), forge-pipeline-regression.integration.test.ts (+2 P02-B09-A09, 127 total in run)
+evidence: validateForgeVisionerApprovalGuard; runVisionerApprovalAdversarialGuardChecks; verifyForgeVisionerApprovalGuard; guard integration adversarial=3/3
+next: P02-B09-A10

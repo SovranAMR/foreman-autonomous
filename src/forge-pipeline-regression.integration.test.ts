@@ -1826,3 +1826,45 @@ describe("Forge Visioner Approval Regression Integration — P02-B09-A08", () =>
     }
   });
 });
+
+describe("Forge Visioner Approval Guard Integration — P02-B09-A09", () => {
+  it("runForgeVisionerApprovalRegressionGate guard passes on canonical visioner approval matrix", () => {
+    const result = runForgeVisionerApprovalRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.guard.passed, true);
+    assert.equal(result.guard.metrics.adversarialScenariosRejected, 3);
+    assert.ok(result.detail.includes("guard:"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("orchestrator verifyForgeVisionerApprovalGuard emits visioner_approval_guard verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-approval-guard-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-approval" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeVisionerApprovalGuard();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_approval_guard",
+    );
+
+    assert.equal(result.guard.passed, true);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("guard PASS"));
+      assert.ok(verification.detail.includes("adversarial=3/3"));
+    }
+  });
+});
