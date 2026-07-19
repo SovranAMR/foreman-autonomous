@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B01
-active_atom: P03-B01-A04
+active_atom: P03-B01-A05
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 202/1000
+program_progress: 203/1000
 phase_progress: 3/100
-block_progress: 3/10
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B01-A04 — Hedef decomposition: boundary ve edge-case davranışlarını tamamla.
+P03-B01-A05 — Hedef decomposition: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P03-B01-A03 PASS; P03-B01-A04 strategist intent boundary slice.
-target: assessStrategistVisionInputBoundary edge cases, runStrategistIntentBoundarySlice.
-hypothesis: P03-B01-A04 completes contract-wired boundary probes with zero unexpected mismatches.
-acceptance: boundary slice probes aligned; contract matrix green; baseline regression green.
+objective: P03-B01-A04 PASS; P03-B01-A05 strategist intent failure/recovery slice.
+target: runStrategistIntentFailureRecoverySlice, validateStrategistIntentFailureRecoveryProbeMatrix.
+hypothesis: P03-B01-A05 completes contract-wired failure/recovery/NO-GO probes with zero unexpected mismatches.
+acceptance: failure/recovery slice probes aligned; contract matrix green; baseline regression green.
 commands: npx tsx --test src/forge-p03-strategist-intent.test.ts
 blast_radius: src/forge-p03-strategist-intent.ts
-rollback: P03-B01-A04 boundary slice değişikliklerini geri al.
+rollback: P03-B01-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: P03-B01-A03 production slice misaligned ise BLOCKED raporla.
+fallback: P03-B01-A04 boundary slice misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B01-A03
-last_commit: 4c2d525
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (7/7); 23 probes; 0 documented FAIL gaps
-evidence: recoverStrategistDecompose; runStrategistIntentProductionSlice; validateStrategistIntentProbeMatrix; gap=sint.structured_decompose_recovery closed
-next: P03-B01-A04
+last_atom: P03-B01-A04
+last_commit: pending
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (10/10); boundary slice 6/6 probes; 0 unexpected mismatches
+evidence: assessStrategistVisionInputBoundary; runStrategistIntentBoundarySlice; validateStrategistIntentBoundaryProbeMatrix
+next: P03-B01-A05

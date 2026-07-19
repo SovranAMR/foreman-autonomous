@@ -18,7 +18,7 @@ import {
 } from "./forge-p02-visioner-phase-gate.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_INTENT_VERSION = "1.0.0-a03";
+export const FORGE_STRATEGIST_INTENT_VERSION = "1.0.0-a04";
 
 /** Maximum normalized vision length before truncation (P03-B01-A01 boundary). */
 export const STRATEGIST_VISION_MAX_LENGTH = 32000;
@@ -352,6 +352,28 @@ export function validateStrategistIntentProbeMatrix(
   };
 }
 
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateStrategistIntentBoundaryProbeMatrix(
+  results: StrategistIntentProbeResult[],
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): StrategistIntentProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistIntentContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistIntentContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistIntentProbeMatrix(boundaryResults, boundaryContract);
+}
+
 export interface StrategistIntentProductionSliceResult {
   atom: "P03-B01-A03";
   fixtureValid: boolean;
@@ -383,6 +405,39 @@ export function runStrategistIntentProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface StrategistIntentBoundarySliceResult {
+  atom: "P03-B01-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistIntentProbeResult[];
+  boundaryResults: StrategistIntentProbeResult[];
+  matrixValidation: StrategistIntentProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (vision input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runStrategistIntentBoundarySlice(
+  fixture: StrategistIntentBaseline = loadStrategistIntentBaseline(),
+): StrategistIntentBoundarySliceResult {
+  const contract = getActiveStrategistIntentContract();
+  const results = runStrategistIntentProbes(fixture);
+  const boundaryProbes = listStrategistIntentContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistIntentBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B01-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

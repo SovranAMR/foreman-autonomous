@@ -11,6 +11,10 @@ import {
   summarizeStrategistIntentContractCoverage,
   validateStrategistIntentContractCoverage,
   validateStrategistIntentAgainstContract,
+  assessStrategistVisionInputBoundary,
+  runStrategistIntentBoundarySlice,
+  validateStrategistIntentBoundaryProbeMatrix,
+  STRATEGIST_VISION_MAX_LENGTH,
   STRATEGIST_INTENT_CATEGORIES,
 } from "./forge-p03-strategist-intent.js";
 
@@ -111,5 +115,71 @@ describe("Forge Strategist Intent Contract — P03-B01-A02", () => {
       listStrategistIntentContractProbesByCategory(category, contract).map(p => p.id),
     );
     assert.deepEqual(categoryIds, flatIds);
+  });
+});
+
+describe("Forge Strategist Intent Boundary Slice — P03-B01-A04", () => {
+  it("assessStrategistVisionInputBoundary handles empty, whitespace-only and oversized inputs", () => {
+    const empty = assessStrategistVisionInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistVisionInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistVisionInputBoundary("vision\x00output");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longVision = "x".repeat(STRATEGIST_VISION_MAX_LENGTH + 500);
+    const truncated = assessStrategistVisionInputBoundary(longVision);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedVision.length, STRATEGIST_VISION_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("defines boundary category with vision input edge-case probes", () => {
+    const boundary = listStrategistIntentContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "sint.empty_vision_boundary",
+      "sint.known_gaps_documented",
+      "sint.long_vision_truncation_boundary",
+      "sint.probe_runner_exported",
+      "sint.source_phase_gate_ref",
+      "sint.whitespace_vision_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistIntentContract();
+    const slice = runStrategistIntentBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B01-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistIntentContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistIntentBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });
