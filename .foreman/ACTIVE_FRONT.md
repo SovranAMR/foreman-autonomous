@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B01-A06 — Typed tool interface ve dispatch: evidence, telemetry ve provenance kaydını ekle.
+P05-B01-A07 — Typed tool interface ve dispatch: unit, property ve fuzz doğrulamasını ekle.
 
-objective: P05-B01-A05 failure/recovery slice sealed; implement evidence, telemetry and provenance record.
-target: Extend typed tool dispatch with evidence/telemetry/provenance slice gate.
-hypothesis: evidence_path + telemetry_path + provenance_path probes map to validateWorkerToolDispatchEvidenceProbeMatrix.
-acceptance: Evidence/telemetry slice PASS with zero unexpected mismatches against contract matrix.
+objective: P05-B01-A06 evidence/telemetry slice sealed; implement unit, property and fuzz validation gate.
+target: Extend typed tool dispatch with property/fuzz slice gate.
+hypothesis: property_checks + fuzz_mutations map to validateWorkerToolDispatchPropertyProbeMatrix.
+acceptance: Property/fuzz slice PASS with zero unexpected mismatches against contract matrix.
 commands: npx tsx --test src/forge-p05-worker-tool-dispatch*.test.ts
-blast_radius: src/forge-p05-worker-tool-dispatch.ts, src/tools.ts, src/orchestrator.ts
-rollback: P05-B01-A06 evidence/telemetry slice değişikliklerini geri al.
+blast_radius: src/forge-p05-worker-tool-dispatch.ts
+rollback: P05-B01-A07 property/fuzz slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Evidence/telemetry slice blocked ise BLOCKED raporla.
+fallback: Property/fuzz slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B01-A05
+last_atom: P05-B01-A06
 last_commit: pending
-tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5)
-evidence: validateWorkerToolDispatchFailureRecoveryProbeMatrix + runWorkerToolDispatchFailureRecoverySlice; 7/7 failure/recovery/nogo probes aligned (invalid version, null-byte guard, string args coercion, missing name rejection, schema validation, dispatch validator, telemetry record) with zero unexpected mismatches
-next: P05-B01-A06
+tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8), forge-p05-worker-tool-dispatch-production.test.ts (5/5), forge-p05-worker-tool-dispatch-boundary.test.ts (4/4), forge-p05-worker-tool-dispatch-failure-recovery.test.ts (5/5), forge-p05-worker-tool-dispatch-evidence.test.ts (5/5)
+evidence: validateWorkerToolDispatchEvidenceProbeMatrix + runWorkerToolDispatchEvidenceSlice; 7/7 evidence/telemetry/provenance probes aligned (failure_path, recovery_path, nogo_path) with auditable run record, zero unexpected mismatches
+next: P05-B01-A07

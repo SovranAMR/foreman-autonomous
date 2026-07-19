@@ -5,6 +5,8 @@
  * P04-B10 researcher phase gate artifacts.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +27,7 @@ import {
   type ToolCall,
 } from "./tools.js";
 
-export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a05";
+export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a06";
 
 export const WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH = 16_384;
 
@@ -1831,6 +1833,461 @@ export function runWorkerToolDispatchFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P05-B01-A06). */
+export interface WorkerToolDispatchProbeEvidence {
+  probeId: string;
+  category: WorkerToolDispatchCategory;
+  disposition: WorkerToolDispatchProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for worker tool dispatch runs (P05-B01-A06). */
+export interface WorkerToolDispatchProbeRunTelemetry {
+  probeId: string;
+  category: WorkerToolDispatchCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P05-B01-A06). */
+export interface WorkerToolDispatchProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  sliceAtom?: string;
+  sliceCategories?: readonly WorkerToolDispatchCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated worker tool dispatch run record bundling evidence, telemetry and provenance. */
+export interface WorkerToolDispatchRunRecord {
+  provenance: WorkerToolDispatchProvenance;
+  evidence: WorkerToolDispatchProbeEvidence[];
+  telemetry: WorkerToolDispatchProbeRunTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<WorkerToolDispatchCategory, number>;
+    byDisposition: Record<WorkerToolDispatchProbeDisposition, number>;
+  };
+}
+
+export interface WorkerToolDispatchRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface WorkerToolDispatchRunValidationResult {
+  valid: boolean;
+  issues: WorkerToolDispatchRunValidationIssue[];
+}
+
+export function buildWorkerToolDispatchProbeEvidence(
+  probeId: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: WorkerToolDispatchProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): WorkerToolDispatchProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildWorkerToolDispatchProbeRunTelemetry(
+  probeId: string,
+  category: WorkerToolDispatchCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): WorkerToolDispatchProbeRunTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildWorkerToolDispatchProvenance(
+  runId: string,
+  fixture: WorkerToolDispatchBaseline,
+  contract: WorkerToolDispatchContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly WorkerToolDispatchCategory[];
+  },
+): WorkerToolDispatchProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_WORKER_TOOL_DISPATCH_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildWorkerToolDispatchRunRecord(
+  provenance: WorkerToolDispatchProvenance,
+  evidence: WorkerToolDispatchProbeEvidence[],
+  telemetry: WorkerToolDispatchProbeRunTelemetry[],
+): WorkerToolDispatchRunRecord {
+  const byCategory = {} as Record<WorkerToolDispatchCategory, number>;
+  const byDisposition: Record<WorkerToolDispatchProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of WORKER_TOOL_DISPATCH_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateWorkerToolDispatchRunRecordAgainstProbeIds(
+  record: WorkerToolDispatchRunRecord,
+  expectedProbeIds: string[],
+  contract: WorkerToolDispatchContract,
+): WorkerToolDispatchRunValidationResult {
+  const issues: WorkerToolDispatchRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateWorkerToolDispatchRunRecord(
+  record: WorkerToolDispatchRunRecord,
+  contract: WorkerToolDispatchContract = getActiveWorkerToolDispatchContract(),
+): WorkerToolDispatchRunValidationResult {
+  return validateWorkerToolDispatchRunRecordAgainstProbeIds(
+    record,
+    listWorkerToolDispatchContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateWorkerToolDispatchEvidenceRunRecord(
+  record: WorkerToolDispatchRunRecord,
+  contract: WorkerToolDispatchContract = getActiveWorkerToolDispatchContract(),
+): WorkerToolDispatchRunValidationResult {
+  const issues: WorkerToolDispatchRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P05-B01-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P05-B01-A06`,
+    });
+  }
+
+  const expectedCategories = [...WORKER_TOOL_DISPATCH_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateWorkerToolDispatchRunRecordAgainstProbeIds(
+    record,
+    listWorkerToolDispatchFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+/**
+ * Validate evidence_path + telemetry_path + provenance_path probe matrix — A06 slice gate.
+ * Contract-wired failure_path, recovery_path and nogo_path probes with zero unexpected mismatches.
+ */
+export function validateWorkerToolDispatchEvidenceProbeMatrix(
+  results: WorkerToolDispatchProbeResult[],
+  contract: WorkerToolDispatchContract = getActiveWorkerToolDispatchContract(),
+): WorkerToolDispatchProbeMatrixValidationResult {
+  return validateWorkerToolDispatchFailureRecoveryProbeMatrix(results, contract);
+}
+
+export interface WorkerToolDispatchEvidenceSliceResult {
+  atom: "P05-B01-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: WorkerToolDispatchProbeResult[];
+  evidenceResults: WorkerToolDispatchProbeResult[];
+  matrixValidation: WorkerToolDispatchProbeMatrixValidationResult;
+  record: WorkerToolDispatchRunRecord;
+  recordValidation: WorkerToolDispatchRunValidationResult;
+}
+
+function resolveWorkerToolDispatchGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runWorkerToolDispatchProbeWithTiming(
+  entry: WorkerToolDispatchFixtureEntry,
+  fixture: WorkerToolDispatchBaseline,
+  contractProbe:
+    | { criterion: string; disposition: WorkerToolDispatchProbeDisposition }
+    | undefined,
+): {
+  result: WorkerToolDispatchProbeResult;
+  durationMs: number;
+  disposition: WorkerToolDispatchProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildWorkerToolDispatchRecordFromEntries(
+  entries: WorkerToolDispatchFixtureEntry[],
+  fixture: WorkerToolDispatchBaseline,
+  contract: WorkerToolDispatchContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly WorkerToolDispatchCategory[];
+  },
+): WorkerToolDispatchRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: WorkerToolDispatchProbeEvidence[] = [];
+  const telemetry: WorkerToolDispatchProbeRunTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runWorkerToolDispatchProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildWorkerToolDispatchProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildWorkerToolDispatchProbeRunTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildWorkerToolDispatchProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveWorkerToolDispatchGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildWorkerToolDispatchRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all worker tool dispatch probes and emit auditable evidence, telemetry and provenance (P05-B01-A06). */
+export function runWorkerToolDispatchProbesWithRecord(
+  fixture: WorkerToolDispatchBaseline = loadWorkerToolDispatchBaseline(),
+): WorkerToolDispatchRunRecord {
+  const contract = getActiveWorkerToolDispatchContract();
+  return buildWorkerToolDispatchRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P05-B01-A06). */
+export function runWorkerToolDispatchFailureRecoverySliceWithRecord(
+  fixture: WorkerToolDispatchBaseline = loadWorkerToolDispatchBaseline(),
+): WorkerToolDispatchRunRecord {
+  const contract = getActiveWorkerToolDispatchContract();
+  const failureRecoveryIds = new Set(listWorkerToolDispatchFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildWorkerToolDispatchRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P05-B01-A06",
+    sliceCategories: WORKER_TOOL_DISPATCH_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runWorkerToolDispatchEvidenceSlice(
+  fixture: WorkerToolDispatchBaseline = loadWorkerToolDispatchBaseline(),
+): WorkerToolDispatchEvidenceSliceResult {
+  const contract = getActiveWorkerToolDispatchContract();
+  const results = runWorkerToolDispatchProbes(fixture);
+  const failureRecoveryProbes = WORKER_TOOL_DISPATCH_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listWorkerToolDispatchContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateWorkerToolDispatchEvidenceProbeMatrix(results, contract);
+  const record = runWorkerToolDispatchFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateWorkerToolDispatchEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P05-B01-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
 
