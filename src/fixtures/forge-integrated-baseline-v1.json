@@ -75,7 +75,7 @@
       "id": "ibase.integrated_guard_orchestrator",
       "category": "guard_integration",
       "description": "Orchestrator exposes verifyForgeIntegratedGuard for unified adversarial guard sweep",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "ibase.nine_block_gate_methods",

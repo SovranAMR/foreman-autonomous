@@ -657,7 +657,11 @@ describe("Forge Pipeline Regression — P01-B10-A08", () => {
     const integration = runIntegratedBaselineRegressionIntegration();
 
     assert.equal(integration.passed, gate.passed);
-    assert.equal(integration.detail, gate.detail);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
+    assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
+    assert.ok(integration.detail.includes("24/24 probes aligned"));
+    assert.equal(integration.record.summary.total, 24);
   });
 
   it("orchestrator verifyForgeIntegratedRegression emits integrated_baseline_regression verification", async () => {
@@ -687,6 +691,48 @@ describe("Forge Pipeline Regression — P01-B10-A08", () => {
     if (verification?.type === "verification") {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("24/24 probes aligned"));
+    }
+  });
+});
+
+describe("Forge Pipeline Regression — P01-B10-A09", () => {
+  it("runForgeIntegratedBaselineRegressionGate guard passes on canonical integrated baseline matrix", () => {
+    const result = runForgeIntegratedBaselineRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.guard.passed, true);
+    assert.equal(result.guard.metrics.adversarialScenariosRejected, 3);
+    assert.ok(result.detail.includes("guard:"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("orchestrator verifyForgeIntegratedGuard emits integrated_baseline_guard verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-integrated-baseline-guard-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "integrated-baseline" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeIntegratedGuard();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "integrated_baseline_guard",
+    );
+
+    assert.equal(result.guard.passed, true);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("guard PASS"));
+      assert.ok(verification.detail.includes("adversarial=3/3"));
     }
   });
 });

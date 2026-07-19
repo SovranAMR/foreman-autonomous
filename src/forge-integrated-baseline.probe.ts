@@ -44,6 +44,8 @@ import {
   runIntegratedBaselinePropertyChecks,
   runIntegratedBaselineFuzzValidation,
   runIntegratedBaselineRunRecordFuzzValidation,
+  validateForgeIntegratedBaselineGuard,
+  type IntegratedBaselineGuardCheckResult,
   type IntegratedBaseline,
   type IntegratedBaselineCategory,
   type IntegratedBaselineProbeResult,
@@ -834,6 +836,7 @@ export interface ForgeIntegratedBaselineRegressionResult {
   recordValid: boolean;
   validationIssues: string[];
   probeRegression: import("./forge-integrated-baseline.js").IntegratedBaselineProbeRegressionReport | null;
+  guard: IntegratedBaselineGuardCheckResult;
   propertyFuzz: ForgeIntegratedBaselineRegressionPropertyFuzzResult;
   detail: string;
 }
@@ -857,6 +860,7 @@ export function runForgeIntegratedBaselineRegressionGate(
     ? detectIntegratedBaselineProbeRegression(priorRecord, record)
     : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeIntegratedBaselineGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
 
   const properties = runIntegratedBaselinePropertyChecks(contract);
   const contractFuzz = runIntegratedBaselineFuzzValidation(fixture, contract);
@@ -878,7 +882,7 @@ export function runForgeIntegratedBaselineRegressionGate(
 
   const productionSliceOk =
     productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
-  const passed = productionSliceOk && recordValid && !alignmentRegression && propertyFuzzPassed;
+  const passed = productionSliceOk && recordValid && !alignmentRegression && guard.passed && propertyFuzzPassed;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
@@ -892,6 +896,15 @@ export function runForgeIntegratedBaselineRegressionGate(
   detailParts.push(
     `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}`,
   );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   return {
     passed,
@@ -899,6 +912,7 @@ export function runForgeIntegratedBaselineRegressionGate(
     recordValid,
     validationIssues,
     probeRegression,
+    guard,
     propertyFuzz,
     detail: detailParts.join(" | "),
   };

@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 8
-completed_atoms: 96
+completed_atoms: 97
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -140,7 +140,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B10-A06 — Entegre Forge baseline gate: evidence, telemetry ve provenance kaydını ekle
 - [x] P01-B10-A07 — Entegre Forge baseline gate: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B10-A08 — Entegre Forge baseline gate: Forge entegrasyonu ile regression testini tamamla
-- [ ] P01-B10-A09 — Entegre Forge baseline gate: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P01-B10-A09 — Entegre Forge baseline gate: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P01-B10-A10 — Entegre Forge baseline gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## Phase acceptance
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B10-A08
+last_atom: P01-B10-A09
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts src/forge-pipeline-regression.integration.test.ts` (63/63); runForgeIntegratedBaselineRegressionGate; verifyForgeIntegratedRegression orchestrator wiring; detectIntegratedBaselineProbeRegression
+tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts src/forge-pipeline-regression.integration.test.ts` (74/74); validateForgeIntegratedBaselineGuard; verifyForgeIntegratedGuard orchestrator wiring
 evidence: |
-  P01-B10-A08: runForgeIntegratedBaselineRegressionGate passes 24/24 probes with property/fuzz gates;
-  verifyForgeIntegratedRegression lazy-loads integrated baseline regression gate and emits integrated_baseline_regression verification;
-  ibase.unified_regression_runner sealed from documented gap to PASS.
-next: P01-B10-A09
+  P01-B10-A09: validateForgeIntegratedBaselineGuard passes adversarial=3/3 with perf/cost/safety controls;
+  runForgeIntegratedBaselineRegressionGate includes guard PASS in detail;
+  verifyForgeIntegratedGuard lazy-loads integrated baseline guard gate and emits integrated_baseline_guard verification;
+  ibase.integrated_guard_orchestrator sealed from documented gap to PASS.
+next: P01-B10-A10
