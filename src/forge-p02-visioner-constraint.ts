@@ -12,7 +12,10 @@ import {
   summarizeVisionerIntentContractCoverage,
 } from "./forge-p02-visioner-intent.js";
 
-export const FORGE_VISIONER_CONSTRAINT_VERSION = "1.0.0-a03";
+export const FORGE_VISIONER_CONSTRAINT_VERSION = "1.0.0-a04";
+
+/** Maximum normalized vision length before truncation (P02-B02-A04 boundary). */
+export const VISIONER_CONSTRAINT_VISION_MAX_LENGTH = 32000;
 
 export const VISIONER_CONSTRAINT_CATEGORIES = [
   "constraint_versioning",
@@ -35,21 +38,86 @@ export interface VisionerConstraintPresence {
   detail: string;
 }
 
+export type VisionerConstraintInputDisposition =
+  | "valid"
+  | "empty"
+  | "whitespace_only"
+  | "contains_null_byte"
+  | "exceeds_max_length";
+
+export interface VisionerConstraintInputBoundary {
+  disposition: VisionerConstraintInputDisposition;
+  acceptable: boolean;
+  normalizedVision: string;
+  truncated: boolean;
+  detail: string;
+}
+
+/**
+ * Assess vision output boundary conditions — empty, whitespace-only, null bytes, max length (P02-B02-A04).
+ */
+export function assessVisionerConstraintInputBoundary(
+  visionOutput: string,
+): VisionerConstraintInputBoundary {
+  if (visionOutput.includes("\0")) {
+    return {
+      disposition: "contains_null_byte",
+      acceptable: false,
+      normalizedVision: "",
+      truncated: false,
+      detail: "null byte in vision output",
+    };
+  }
+
+  const trimmed = visionOutput.trim();
+  if (trimmed.length === 0) {
+    const disposition: VisionerConstraintInputDisposition =
+      visionOutput.length === 0 ? "empty" : "whitespace_only";
+    return {
+      disposition,
+      acceptable: false,
+      normalizedVision: "",
+      truncated: false,
+      detail: disposition === "empty" ? "empty vision output" : "whitespace-only vision output",
+    };
+  }
+
+  let normalizedVision = visionOutput;
+  let truncated = false;
+  if (normalizedVision.length > VISIONER_CONSTRAINT_VISION_MAX_LENGTH) {
+    normalizedVision = normalizedVision.slice(0, VISIONER_CONSTRAINT_VISION_MAX_LENGTH);
+    truncated = true;
+  }
+
+  return {
+    disposition: truncated ? "exceeds_max_length" : "valid",
+    acceptable: true,
+    normalizedVision,
+    truncated,
+    detail: truncated
+      ? `vision truncated to ${VISIONER_CONSTRAINT_VISION_MAX_LENGTH} characters`
+      : "valid vision output",
+  };
+}
+
 /**
  * Assess whether vision output declares CONSTRAINT and FORBIDDEN (non-goal) sections (P02-B02-A01).
  */
 export function assessVisionerConstraintPresence(visionOutput: string): VisionerConstraintPresence {
-  if (visionOutput.includes("\0")) {
+  const boundary = assessVisionerConstraintInputBoundary(visionOutput);
+  if (!boundary.acceptable) {
     return {
       hasConstraints: false,
       hasNonGoals: false,
       constraintLines: [],
       nonGoalLines: [],
-      detail: "null byte in vision output",
+      detail: boundary.detail,
     };
   }
 
-  const lines = visionOutput.split("\n");
+  const visionOutputNormalized = boundary.normalizedVision;
+
+  const lines = visionOutputNormalized.split("\n");
   const constraintLines: string[] = [];
   const nonGoalLines: string[] = [];
   const constraintHeader = /^\*?\*?\s*CONSTRAINT/i;
@@ -310,6 +378,28 @@ export function validateVisionerConstraintProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateVisionerConstraintBoundaryProbeMatrix(
+  results: VisionerConstraintProbeResult[],
+  contract: VisionerConstraintContract = getActiveVisionerConstraintContract(),
+): VisionerConstraintProbeMatrixValidationResult {
+  const boundaryProbes = listVisionerConstraintContractProbesByCategory("boundary", contract);
+  const boundaryContract: VisionerConstraintContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateVisionerConstraintProbeMatrix(boundaryResults, boundaryContract);
 }
 
 export interface VisionerConstraintFixtureEntry {
@@ -579,7 +669,7 @@ const VISIONER_CONSTRAINT_CATEGORY_CONTRACTS: Record<
     category: "boundary",
     acceptance: {
       invariant:
-        "Constraint baseline references sealed B01 block gate; probe runner and documented gaps wired.",
+        "Vision output boundary assessment handles empty, whitespace-only and oversized inputs; probe runner and documented gaps wired.",
       minProbeCount: 6,
       requireFullAlignment: true,
     },
@@ -611,26 +701,26 @@ const VISIONER_CONSTRAINT_CATEGORY_CONTRACTS: Record<
       {
         id: "vcon.empty_vision_constraint_presence",
         category: "boundary",
-        description: "assessVisionerConstraintPresence reports no constraints for empty vision output",
+        description: "assessVisionerConstraintInputBoundary rejects empty vision output",
         expected: "PASS",
         disposition: "observed",
-        criterion: "assessVisionerConstraintPresence reports no constraints for empty vision output",
+        criterion: "assessVisionerConstraintInputBoundary rejects empty vision output",
       },
       {
-        id: "vcon.memory_constraint_category",
+        id: "vcon.whitespace_vision_boundary",
         category: "boundary",
-        description: "Memory category type includes constraint for project guardrails",
+        description: "assessVisionerConstraintInputBoundary rejects whitespace-only vision output",
         expected: "PASS",
         disposition: "observed",
-        criterion: "Memory category type includes constraint for project guardrails",
+        criterion: "assessVisionerConstraintInputBoundary rejects whitespace-only vision output",
       },
       {
-        id: "vcon.worker_vision_summary_wired",
+        id: "vcon.long_vision_truncation_boundary",
         category: "boundary",
-        description: "Orchestrator injects buildVisionSummary constraint slice into worker context",
+        description: "assessVisionerConstraintInputBoundary truncates vision exceeding max length",
         expected: "PASS",
         disposition: "observed",
-        criterion: "Orchestrator injects buildVisionSummary constraint slice into worker context",
+        criterion: "assessVisionerConstraintInputBoundary truncates vision exceeding max length",
       },
     ],
   },

@@ -16,16 +16,20 @@ import {
 } from "./forge-p02-visioner-intent.js";
 import {
   assessVisionerConstraintPresence,
+  assessVisionerConstraintInputBoundary,
   extractVisionerConstraints,
   validateVisionerConstraintBaseline,
   validateVisionerConstraintAgainstContract,
   validateVisionerConstraintProbeMatrix,
+  validateVisionerConstraintBoundaryProbeMatrix,
   summarizeVisionerConstraintMatrix,
   listVisionerConstraintProbesByExpected,
   listVisionerConstraintKnownGaps,
+  listVisionerConstraintContractProbesByCategory,
   getActiveVisionerConstraintContract,
   FORGE_VISIONER_CONSTRAINT_VERSION,
   VISIONER_CONSTRAINT_CATEGORIES,
+  VISIONER_CONSTRAINT_VISION_MAX_LENGTH,
   EXPECTED_P02_B01_SEALED_ATOM_COUNT,
   type VisionerConstraintBaseline,
   type VisionerConstraintCategory,
@@ -37,14 +41,18 @@ export {
   validateVisionerConstraintBaseline,
   validateVisionerConstraintAgainstContract,
   validateVisionerConstraintProbeMatrix,
+  validateVisionerConstraintBoundaryProbeMatrix,
   summarizeVisionerConstraintMatrix,
   listVisionerConstraintProbesByExpected,
   listVisionerConstraintKnownGaps,
   getActiveVisionerConstraintContract,
   assessVisionerConstraintPresence,
+  assessVisionerConstraintInputBoundary,
   extractVisionerConstraints,
+  buildVisionConstraintSummary,
   FORGE_VISIONER_CONSTRAINT_VERSION,
   VISIONER_CONSTRAINT_CATEGORIES,
+  VISIONER_CONSTRAINT_VISION_MAX_LENGTH,
 } from "./forge-p02-visioner-constraint.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -84,10 +92,6 @@ function orchestratorSource(): string {
 
 function promptsSource(): string {
   return readSrc("prompts.ts");
-}
-
-function typesSource(): string {
-  return readSrc("types.ts");
 }
 
 function productionConstraintSource(): string {
@@ -232,8 +236,6 @@ function probeBoundary(
   expected: ForgeAcceptanceOutcome,
   fixture: VisionerConstraintBaseline,
 ): VisionerConstraintProbeResult {
-  const orchestrator = orchestratorSource();
-
   switch (id) {
     case "vcon.source_block_gate_ref": {
       const handoff = getForgeP02B01ToB02Handoff();
@@ -261,28 +263,51 @@ function probeBoundary(
       return probe(id, category, expected, failCount >= 1, `documentedFail=${failCount}`);
     }
     case "vcon.empty_vision_constraint_presence": {
-      const result = assessVisionerConstraintPresence("");
+      const result = assessVisionerConstraintInputBoundary("");
+      const presence = assessVisionerConstraintPresence("");
       const ok =
-        hasProductionExport("assessVisionerConstraintPresence") &&
-        result.hasConstraints === false &&
-        result.hasNonGoals === false;
+        hasProductionExport("assessVisionerConstraintInputBoundary") &&
+        result.disposition === "empty" &&
+        result.acceptable === false &&
+        presence.hasConstraints === false &&
+        presence.hasNonGoals === false;
       return probe(
         id,
         category,
         expected,
         ok,
-        `hasConstraints=${result.hasConstraints}, hasNonGoals=${result.hasNonGoals}`,
+        `disposition=${result.disposition}, hasConstraints=${presence.hasConstraints}`,
       );
     }
-    case "vcon.memory_constraint_category": {
-      const ok = typesSource().includes('"constraint"');
-      return probe(id, category, expected, ok, `memoryConstraintCategory=${ok}`);
-    }
-    case "vcon.worker_vision_summary_wired": {
+    case "vcon.whitespace_vision_boundary": {
+      const result = assessVisionerConstraintInputBoundary("   \t\n  ");
       const ok =
-        orchestrator.includes("buildVisionSummary") &&
-        orchestrator.includes("visionSummary");
-      return probe(id, category, expected, ok, `workerVisionSummary=${ok}`);
+        hasProductionExport("assessVisionerConstraintInputBoundary") &&
+        result.disposition === "whitespace_only" &&
+        result.acceptable === false;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `disposition=${result.disposition}, acceptable=${result.acceptable}`,
+      );
+    }
+    case "vcon.long_vision_truncation_boundary": {
+      const longVision = "x".repeat(VISIONER_CONSTRAINT_VISION_MAX_LENGTH + 500);
+      const result = assessVisionerConstraintInputBoundary(longVision);
+      const ok =
+        hasProductionExport("assessVisionerConstraintInputBoundary") &&
+        result.truncated === true &&
+        result.normalizedVision.length === VISIONER_CONSTRAINT_VISION_MAX_LENGTH &&
+        result.acceptable === true;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `truncated=${result.truncated}, len=${result.normalizedVision.length}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown boundary probe");
@@ -302,9 +327,12 @@ function probeFailurePath(
       return probe(id, category, expected, ok, `rejectsInvalidVersion=${ok}`);
     }
     case "vcon.malformed_vision_presence_guard": {
+      const boundary = assessVisionerConstraintInputBoundary("bad\0vision");
       const result = assessVisionerConstraintPresence("bad\0vision");
       const ok =
-        hasProductionExport("assessVisionerConstraintPresence") &&
+        hasProductionExport("assessVisionerConstraintInputBoundary") &&
+        boundary.disposition === "contains_null_byte" &&
+        boundary.acceptable === false &&
         result.hasConstraints === false &&
         result.hasNonGoals === false;
       return probe(id, category, expected, ok, `detail=${result.detail}`);
@@ -435,6 +463,39 @@ export function runVisionerConstraintProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface VisionerConstraintBoundarySliceResult {
+  atom: "P02-B02-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerConstraintProbeResult[];
+  boundaryResults: VisionerConstraintProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerConstraintBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (vision output edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches; remaining documented FAIL gaps preserved.
+ */
+export function runVisionerConstraintBoundarySlice(
+  fixture: VisionerConstraintBaseline = loadVisionerConstraintBaseline(),
+): VisionerConstraintBoundarySliceResult {
+  const contract = getActiveVisionerConstraintContract();
+  const results = runVisionerConstraintProbes(fixture);
+  const boundaryProbes = listVisionerConstraintContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateVisionerConstraintBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B02-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

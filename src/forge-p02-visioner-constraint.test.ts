@@ -4,8 +4,10 @@ import {
   loadVisionerConstraintBaseline,
   runVisionerConstraintProbes,
   runVisionerConstraintProductionSlice,
+  runVisionerConstraintBoundarySlice,
 } from "./forge-p02-visioner-constraint.probe.js";
 import {
+  assessVisionerConstraintInputBoundary,
   extractVisionerConstraints,
   buildVisionConstraintSummary,
   getActiveVisionerConstraintContract,
@@ -17,7 +19,9 @@ import {
   validateVisionerConstraintContractCoverage,
   validateVisionerConstraintAgainstContract,
   validateVisionerConstraintProbeMatrix,
+  validateVisionerConstraintBoundaryProbeMatrix,
   VISIONER_CONSTRAINT_CATEGORIES,
+  VISIONER_CONSTRAINT_VISION_MAX_LENGTH,
 } from "./forge-p02-visioner-constraint.js";
 
 function formatMismatchReport(
@@ -193,5 +197,89 @@ describe("Forge Visioner Constraint Production Slice — P02-B02-A03", () => {
       assert.equal(result!.actual, "PASS");
       assert.equal(result!.aligned, true);
     }
+  });
+});
+
+describe("Forge Visioner Constraint Boundary Slice — P02-B02-A04", () => {
+  it("assessVisionerConstraintInputBoundary handles empty, whitespace-only and oversized vision output", () => {
+    const empty = assessVisionerConstraintInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerConstraintInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerConstraintInputBoundary("vision\x00output");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longVision = "x".repeat(VISIONER_CONSTRAINT_VISION_MAX_LENGTH + 200);
+    const truncated = assessVisionerConstraintInputBoundary(longVision);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedVision.length, VISIONER_CONSTRAINT_VISION_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("extractVisionerConstraints returns empty arrays for unacceptable boundary inputs", () => {
+    const extracted = extractVisionerConstraints("   ");
+    assert.equal(extracted.hasConstraints, false);
+    assert.equal(extracted.hasNonGoals, false);
+    assert.deepEqual(extracted.constraints, []);
+    assert.deepEqual(extracted.nonGoals, []);
+  });
+
+  it("defines boundary category with vision output edge-case probes", () => {
+    const boundary = listVisionerConstraintContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "vcon.empty_vision_constraint_presence",
+      "vcon.known_gaps_documented",
+      "vcon.long_vision_truncation_boundary",
+      "vcon.probe_runner_exported",
+      "vcon.source_block_gate_ref",
+      "vcon.whitespace_vision_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerConstraintContract();
+    const slice = runVisionerConstraintBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B02-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerConstraintContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerConstraintBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves structured_constraint_recovery gap while boundary probes pass", () => {
+    const slice = runVisionerConstraintBoundarySlice();
+    const recoveryGap = slice.results.find(r => r.id === "vcon.structured_constraint_recovery");
+
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+    assert.equal(recoveryGap!.aligned, true);
   });
 });

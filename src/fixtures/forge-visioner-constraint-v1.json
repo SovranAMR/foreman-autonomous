@@ -98,19 +98,19 @@
     {
       "id": "vcon.empty_vision_constraint_presence",
       "category": "boundary",
-      "description": "assessVisionerConstraintPresence reports no constraints for empty vision output",
+      "description": "assessVisionerConstraintInputBoundary rejects empty vision output",
       "expected": "PASS"
     },
     {
-      "id": "vcon.memory_constraint_category",
+      "id": "vcon.whitespace_vision_boundary",
       "category": "boundary",
-      "description": "Memory category type includes constraint for project guardrails",
+      "description": "assessVisionerConstraintInputBoundary rejects whitespace-only vision output",
       "expected": "PASS"
     },
     {
-      "id": "vcon.worker_vision_summary_wired",
+      "id": "vcon.long_vision_truncation_boundary",
       "category": "boundary",
-      "description": "Orchestrator injects buildVisionSummary constraint slice into worker context",
+      "description": "assessVisionerConstraintInputBoundary truncates vision exceeding max length",
       "expected": "PASS"
     },
     {
