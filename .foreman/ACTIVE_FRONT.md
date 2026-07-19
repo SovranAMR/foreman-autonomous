@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B04-A05
-last_commit: pending
+last_commit: 6ef9a9f
 tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (16/16); failure/recovery 6 probes; zero unexpected mismatches; runResearcherBenchmarkPriorArtFailureRecoverySlice
 evidence: runResearcherBenchmarkPriorArtFailureRecoverySlice; validateResearcherBenchmarkPriorArtFailureRecoveryProbeMatrix; assessBenchmarkPriorArtInputBoundary NO-GO paths PASS
 next: P04-B04-A06
