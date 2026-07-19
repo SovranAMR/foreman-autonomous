@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B01-A10
-last_commit: pending
+last_commit: a1dc6cb
 tests: PASS — forge-p04-researcher*.test.ts (57/57); block gate PASS; seals=10/10; handoff→P04-B02; regression+guard PASS
 evidence: runResearcherQuestionDecompositionBlockGate; verifyForgeResearcherQuestionDecompositionBlockGate; FORGE_P04_B01_BLOCK_GATE_V1; FORGE_P04_B01_TO_B02_HANDOFF_V1; harnessVersion=1.0.0-a10
 next: P04-B02-A01
