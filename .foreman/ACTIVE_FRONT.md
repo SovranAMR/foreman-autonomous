@@ -44,7 +44,7 @@ fallback: Guard slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B02-A08
-last_commit: 1eb1f65
+last_commit: 51c0c91
 tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts
 evidence: runWorkerFilesystemGroundingIntegrationSlice; validateWorkerFilesystemGroundingIntegrationProbeMatrix; 6 sub-slices aligned; 27/27 probes; propertyFuzz 8/8; contractFuzz 24/24 rejected; runFuzz 5/5 rejected; 0 accepted mutations
 next: P05-B02-A09
