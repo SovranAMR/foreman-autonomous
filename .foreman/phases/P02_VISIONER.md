@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B06-A04
-last_commit: pending
+last_commit: 357fb33
 tests: PASS — forge-p02-visioner-uncertainty.test.ts (18/18); baseline (3/3)
 evidence: validateVisionerUncertaintyBoundaryProbeMatrix + runVisionerUncertaintyBoundarySlice exported; 6 boundary probes all PASS; assessVisionerUncertaintyInputBoundary edge cases verified; probe matrix zero unexpected mismatches
 next: P02-B06-A05
