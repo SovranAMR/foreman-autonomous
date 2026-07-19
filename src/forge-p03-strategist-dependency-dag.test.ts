@@ -34,6 +34,10 @@ import {
   runStrategistDependencyDagFuzzValidation,
   runStrategistDependencyDagRunRecordFuzzValidation,
   runStrategistDependencyDagPropertyFuzzSlice,
+  runStrategistDependencyDagForgeRegression,
+  detectStrategistDependencyDagProbeRegression,
+  runStrategistDependencyDagProbeRegression,
+  applyStrategistDependencyDagRunRecordFuzzMutation,
   createStrategistDependencyDagFuzzRng,
   STRATEGIST_DEPENDENCY_DAG_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH,
@@ -508,7 +512,7 @@ describe("Forge Strategist Dependency DAG Evidence — P03-B04-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -540,7 +544,7 @@ describe("Forge Strategist Dependency DAG Evidence — P03-B04-A06", () => {
     assert.equal(record.evidence.length, 27);
     assert.equal(record.telemetry.length, 27);
     assert.equal(record.provenance.totalProbes, 27);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 27);
@@ -665,5 +669,105 @@ describe("Forge Strategist Dependency DAG Property/Fuzz — P03-B04-A07", () => 
     assert.equal(slice.contractFuzz.allMutationsRejected, true);
     assert.equal(slice.contractFuzz.accepted, 0);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
+  });
+});
+
+describe("Forge Strategist Dependency DAG Regression — P03-B04-A08", () => {
+  it("runStrategistDependencyDagForgeRegression passes on canonical dependency DAG matrix", () => {
+    const result = runStrategistDependencyDagForgeRegression();
+
+    assert.equal(result.atom, "P03-B04-A08");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 27);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.ok(result.detail.includes("27/27 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectStrategistDependencyDagProbeRegression flags newly misaligned probes", () => {
+    const prior = runStrategistDependencyDagProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistDependencyDagProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runStrategistDependencyDagProbeRegression alias matches detect helper", () => {
+    const prior = runStrategistDependencyDagProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const detectReport = detectStrategistDependencyDagProbeRegression(prior, current);
+    const runReport = runStrategistDependencyDagProbeRegression(prior, current);
+    assert.deepEqual(runReport, detectReport);
+  });
+
+  it("runStrategistDependencyDagForgeRegression compares against prior record without false regression", () => {
+    const prior = runStrategistDependencyDagProbesWithRecord();
+    const result = runStrategistDependencyDagForgeRegression(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runStrategistDependencyDagForgeRegression rejects tampered prior records", () => {
+    const prior = runStrategistDependencyDagProbesWithRecord();
+    const tamperedPrior = applyStrategistDependencyDagRunRecordFuzzMutation(prior, {
+      kind: "drop_evidence",
+      probeId: prior.evidence[0]?.probeId,
+    });
+
+    assert.equal(validateStrategistDependencyDagRunRecord(tamperedPrior).valid, false);
+
+    const result = runStrategistDependencyDagForgeRegression(tamperedPrior);
+    assert.equal(result.priorRecordValid, false);
+    assert.equal(result.passed, false);
+    assert.ok(result.detail.includes("priorValidation:"));
+  });
+
+  it("runStrategistDependencyDagForgeRegression fails when probe alignment regresses", () => {
+    const prior = runStrategistDependencyDagProbesWithRecord();
+    const tamperedCurrent = structuredClone(prior);
+    const target = tamperedCurrent.evidence[0]!;
+    target.aligned = false;
+    target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+    tamperedCurrent.summary = {
+      ...tamperedCurrent.summary,
+      aligned: tamperedCurrent.summary.aligned - 1,
+      mismatches: tamperedCurrent.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistDependencyDagProbeRegression(prior, tamperedCurrent);
+    assert.equal(report.hasRegression, true);
   });
 });

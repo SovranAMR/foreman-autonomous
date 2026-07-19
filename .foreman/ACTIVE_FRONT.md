@@ -6,9 +6,9 @@ active_phase: P03
 active_block: P03-B04
 active_atom: P03-B04-A07
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 236/1000
-phase_progress: 37/100
-block_progress: 6/10
+program_progress: 237/1000
+phase_progress: 38/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B04-A08 — Dependency DAG: Forge entegrasyonu ile regression testini tamamla.
+P03-B04-A09 — Dependency DAG: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P03-B04-A07 PASS; P03-B04-A08 implement Forge regression integration for dependency DAG evidence slice.
-target: runStrategistDependencyDagForgeRegression, runStrategistDependencyDagProbeRegression.
-hypothesis: P03-B04-A08 closes Forge regression integration gaps for dependency DAG evidence slice.
-acceptance: regression slice passes; probe regression detects mismatches; zero unexpected mismatches.
+objective: P03-B04-A08 PASS; P03-B04-A09 implement guard controls for dependency DAG evidence slice.
+target: validateForgeStrategistDependencyDagGuard, runStrategistDependencyDagAdversarialGuardChecks.
+hypothesis: P03-B04-A09 closes adversarial/performance/cost/safety gaps for dependency DAG evidence slice.
+acceptance: guard slice passes; adversarial scenarios rejected; performance/cost/safety within bounds.
 commands: npx tsx --test src/forge-p03-strategist-dependency-dag*.test.ts
 blast_radius: src/forge-p03-strategist-dependency-dag.ts
-rollback: P03-B04-A08 regression slice değişikliklerini geri al.
+rollback: P03-B04-A09 guard slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: regression slice blocked ise BLOCKED raporla.
+fallback: guard slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B04-A07
+last_atom: P03-B04-A08
 last_commit: pending
-tests: PASS — forge-p03-strategist-dependency-dag.test.ts (31/31); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 8 structural properties; 72 fixture fuzz + 5 run-record fuzz mutations rejected
-evidence: runStrategistDependencyDagPropertyChecks; runStrategistDependencyDagFuzzValidation; runStrategistDependencyDagRunRecordFuzzValidation; runStrategistDependencyDagPropertyFuzzSlice
-next: P03-B04-A08
+tests: PASS — forge-p03-strategist-dependency-dag.test.ts; forge-p03-strategist-dependency-dag-baseline.test.ts; harness 1.0.0-a08; regression slice zero unexpected mismatches
+evidence: runStrategistDependencyDagForgeRegression; runStrategistDependencyDagProbeRegression; detectStrategistDependencyDagProbeRegression
+next: P03-B04-A09

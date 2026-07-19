@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 3
-completed_atoms: 35
+completed_atoms: 36
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -61,7 +61,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B04-A05 — Dependency DAG: failure, recovery ve NO-GO yollarını uygula
 - [x] P03-B04-A06 — Dependency DAG: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B04-A07 — Dependency DAG: unit, property ve fuzz doğrulamasını ekle
-- [ ] P03-B04-A08 — Dependency DAG: Forge entegrasyonu ile regression testini tamamla
+- [x] P03-B04-A08 — Dependency DAG: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B04-A09 — Dependency DAG: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B04-A10 — Dependency DAG: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B04-A07
+last_atom: P03-B04-A08
 last_commit: pending
-tests: PASS — forge-p03-strategist-dependency-dag.test.ts (31/31); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); harness 1.0.0-a07; 8 structural properties; 72 fixture fuzz + 5 run-record fuzz mutations rejected
-evidence: runStrategistDependencyDagPropertyChecks; runStrategistDependencyDagFuzzValidation; runStrategistDependencyDagRunRecordFuzzValidation; runStrategistDependencyDagPropertyFuzzSlice
-next: P03-B04-A08
+tests: PASS — forge-p03-strategist-dependency-dag.test.ts (37/37); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); harness 1.0.0-a08; regression slice zero unexpected mismatches
+evidence: runStrategistDependencyDagForgeRegression; runStrategistDependencyDagProbeRegression; detectStrategistDependencyDagProbeRegression
+next: P03-B04-A09
