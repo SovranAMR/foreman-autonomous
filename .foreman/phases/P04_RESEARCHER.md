@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B08-A07
-last_commit: pending
+last_commit: 0f23a90
 tests: PASS — forge-p04-researcher-spike-falsification.property-fuzz.test.ts (6/6); property 8/8; contract fuzz 72/72 rejected; run record fuzz 5/5 rejected; slice zero accepted mutations
 evidence: runResearcherSpikeFalsificationPropertyFuzzSlice + validateResearcherSpikeFalsificationEvidenceRunRecord tampered record rejection
 next: P04-B08-A08
