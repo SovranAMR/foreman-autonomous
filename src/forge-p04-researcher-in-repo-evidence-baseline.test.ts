@@ -16,6 +16,10 @@ import {
   listResearcherInRepoEvidenceContractProbesByCategory,
   runResearcherInRepoEvidenceBoundarySlice,
   validateResearcherInRepoEvidenceBoundaryProbeMatrix,
+  runResearcherInRepoEvidenceFailureRecoverySlice,
+  validateResearcherInRepoEvidenceFailureRecoveryProbeMatrix,
+  listResearcherInRepoEvidenceFailureRecoveryProbeIds,
+  RESEARCHER_IN_REPO_EVIDENCE_FAILURE_RECOVERY_CATEGORIES,
   RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES,
   RESEARCHER_IN_REPO_EVIDENCE_QUERY_MAX_LENGTH,
 } from "./forge-p04-researcher-in-repo-evidence.js";
@@ -229,5 +233,113 @@ describe("Forge Researcher In-Repo Evidence Boundary Slice — P04-B02-A04", () 
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Researcher In-Repo Evidence Failure/Recovery Slice — P04-B02-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveResearcherInRepoEvidenceContract();
+    const failure = listResearcherInRepoEvidenceContractProbesByCategory(
+      "failure_path",
+      contract,
+    );
+    const recovery = listResearcherInRepoEvidenceContractProbesByCategory(
+      "recovery_path",
+      contract,
+    );
+    const nogo = listResearcherInRepoEvidenceContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_IN_REPO_EVIDENCE_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveResearcherInRepoEvidenceContract();
+    const slice = runResearcherInRepoEvidenceFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B02-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of RESEARCHER_IN_REPO_EVIDENCE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherInRepoEvidenceContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherInRepoEvidenceFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with validator export and citation recovery", () => {
+    const slice = runResearcherInRepoEvidenceFailureRecoverySlice();
+    const probeIds = listResearcherInRepoEvidenceFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "riev.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const malformedQuery = slice.failureRecoveryResults.find(
+      r => r.id === "riev.malformed_query_guard",
+    );
+    assert.ok(malformedQuery);
+    assert.equal(malformedQuery!.expected, "PASS");
+    assert.equal(malformedQuery!.actual, "PASS");
+
+    const researchBlockNonFatal = slice.failureRecoveryResults.find(
+      r => r.id === "riev.research_block_non_fatal",
+    );
+    assert.ok(researchBlockNonFatal);
+    assert.equal(researchBlockNonFatal!.expected, "PASS");
+    assert.equal(researchBlockNonFatal!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "riev.structured_repo_evidence_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const researcherCriticalBlock = slice.failureRecoveryResults.find(
+      r => r.id === "riev.researcher_critical_block",
+    );
+    assert.ok(researcherCriticalBlock);
+    assert.equal(researcherCriticalBlock!.expected, "PASS");
+    assert.equal(researcherCriticalBlock!.actual, "PASS");
+
+    const exportedValidator = slice.failureRecoveryResults.find(
+      r => r.id === "riev.exported_repo_evidence_validator",
+    );
+    assert.ok(exportedValidator);
+    assert.equal(exportedValidator!.expected, "PASS");
+    assert.equal(exportedValidator!.actual, "PASS");
   });
 });
