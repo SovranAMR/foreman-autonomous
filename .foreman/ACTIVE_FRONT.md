@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B04
-active_atom: P03-B04-A05
+active_atom: P03-B04-A06
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 233/1000
-phase_progress: 34/100
+program_progress: 234/1000
+phase_progress: 35/100
 block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B04-A05 — Dependency DAG: failure, recovery ve NO-GO yollarını uygula.
+P03-B04-A06 — Dependency DAG: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P03-B04-A04 PASS; P03-B04-A05 implement failure, recovery and NO-GO paths.
-target: runStrategistDependencyDagFailureRecoverySlice, validateStrategistDependencyDagFailureRecoveryProbeMatrix.
-hypothesis: P03-B04-A05 closes failure/recovery/NO-GO dependency DAG gaps from typed contract.
-acceptance: failure/recovery slice runs; failure/recovery/nogo probes aligned; matrix validation passes.
+objective: P03-B04-A05 PASS; P03-B04-A06 implement evidence, telemetry and provenance run records.
+target: buildStrategistDependencyDagRunRecord, validateStrategistDependencyDagFailureRecoveryRunRecord, runStrategistDependencyDagFailureRecoverySliceWithRecord.
+hypothesis: P03-B04-A06 closes auditable evidence/telemetry/provenance gaps for dependency DAG failure/recovery slice.
+acceptance: run record builds; failure/recovery record validation passes; slice emits provenance.
 commands: npx tsx --test src/forge-p03-strategist-dependency-dag*.test.ts
 blast_radius: src/forge-p03-strategist-dependency-dag.ts
-rollback: P03-B04-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P03-B04-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: failure/recovery slice blocked ise BLOCKED raporla.
+fallback: evidence slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B04-A04
-last_commit: 921c844
-tests: PASS — forge-p03-strategist-dependency-dag.test.ts (15/15); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 27 probes; 7 boundary probes PASS
-evidence: assessStrategistDependencyDagInputBoundary; runStrategistDependencyDagBoundarySlice; validateStrategistDependencyDagBoundaryProbeMatrix
-next: P03-B04-A05
+last_atom: P03-B04-A05
+last_commit: f2d924f
+tests: PASS — forge-p03-strategist-dependency-dag.test.ts (21/21); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 8 failure/recovery probes; 5 PASS + 3 NO-GO gaps aligned
+evidence: runStrategistDependencyDagFailureRecoverySlice; validateStrategistDependencyDagFailureRecoveryProbeMatrix; listStrategistDependencyDagFailureRecoveryProbeIds
+next: P03-B04-A06

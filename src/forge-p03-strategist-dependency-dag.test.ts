@@ -16,8 +16,12 @@ import {
   assessStrategistDependencyDagInputBoundary,
   runStrategistDependencyDagProductionSlice,
   runStrategistDependencyDagBoundarySlice,
+  runStrategistDependencyDagFailureRecoverySlice,
   validateStrategistDependencyDagProbeMatrix,
   validateStrategistDependencyDagBoundaryProbeMatrix,
+  validateStrategistDependencyDagFailureRecoveryProbeMatrix,
+  listStrategistDependencyDagFailureRecoveryProbeIds,
+  STRATEGIST_DEPENDENCY_DAG_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH,
   STRATEGIST_DEPENDENCY_DAG_CATEGORIES,
   FORGE_STRATEGIST_DEPENDENCY_DAG_CONTRACT_V1,
@@ -304,5 +308,86 @@ describe("Forge Strategist Dependency DAG Boundary Slice — P03-B04-A04", () =>
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Dependency DAG Failure/Recovery Slice — P03-B04-A05", () => {
+  it("defines eight failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveStrategistDependencyDagContract();
+    const failure = listStrategistDependencyDagContractProbesByCategory("failure_path", contract);
+    const recovery = listStrategistDependencyDagContractProbesByCategory("recovery_path", contract);
+    const nogo = listStrategistDependencyDagContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 3);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 3);
+    assert.deepEqual(
+      [...STRATEGIST_DEPENDENCY_DAG_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistDependencyDagContract();
+    const slice = runStrategistDependencyDagFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B04-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 8);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 8);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 5);
+    assert.equal(slice.matrixValidation.gapAligned, 3);
+
+    for (const category of STRATEGIST_DEPENDENCY_DAG_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistDependencyDagContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistDependencyDagFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves NO-GO gaps while exercising failure/recovery paths", () => {
+    const slice = runStrategistDependencyDagFailureRecoverySlice();
+    const probeIds = listStrategistDependencyDagFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 8);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "sdag.malformed_decompose_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const dagRepair = slice.failureRecoveryResults.find(r => r.id === "sdag.recovery_dag_repair");
+    assert.ok(dagRepair);
+    assert.equal(dagRepair!.expected, "PASS");
+    assert.equal(dagRepair!.actual, "PASS");
+
+    const cycleNogo = slice.failureRecoveryResults.find(r => r.id === "sdag.nogo_cycle_block_halt");
+    assert.ok(cycleNogo);
+    assert.equal(cycleNogo!.expected, "FAIL");
+    assert.equal(cycleNogo!.actual, "FAIL");
+
+    const dagValidatorGap = slice.failureRecoveryResults.find(
+      r => r.id === "sdag.exported_dag_validator",
+    );
+    assert.ok(dagValidatorGap);
+    assert.equal(dagValidatorGap!.expected, "FAIL");
+    assert.equal(dagValidatorGap!.actual, "FAIL");
   });
 });
