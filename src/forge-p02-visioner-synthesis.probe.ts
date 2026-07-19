@@ -5,6 +5,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import visionerSynthesisBaseline from "./fixtures/forge-visioner-synthesis-v1.json" with { type: "json" };
@@ -34,9 +36,15 @@ import {
   VISIONER_SYNTHESIS_VISION_MAX_LENGTH,
   EXPECTED_P02_B02_SEALED_ATOM_COUNT,
   buildVisionSynthesisSummary,
+  buildVisionerSynthesisProbeEvidence,
+  buildVisionerSynthesisProbeTelemetry,
+  buildVisionerSynthesisProvenance,
+  buildVisionerSynthesisRunRecord,
   type VisionerSynthesisBaseline,
   type VisionerSynthesisCategory,
+  type VisionerSynthesisProbeDisposition,
   type VisionerSynthesisProbeResult,
+  type VisionerSynthesisRunRecord,
 } from "./forge-p02-visioner-synthesis.js";
 
 export type { VisionerSynthesisBaseline, VisionerSynthesisProbeResult } from "./forge-p02-visioner-synthesis.js";
@@ -57,6 +65,10 @@ export {
   assessVisionerSynthesisInputBoundary,
   extractVisionerSynthesis,
   buildVisionSynthesisSummary,
+  buildVisionerSynthesisProbeEvidence,
+  buildVisionerSynthesisProbeTelemetry,
+  buildVisionerSynthesisProvenance,
+  buildVisionerSynthesisRunRecord,
   FORGE_VISIONER_SYNTHESIS_VERSION,
   VISIONER_SYNTHESIS_CATEGORIES,
   VISIONER_SYNTHESIS_VISION_MAX_LENGTH,
@@ -547,4 +559,116 @@ export function runVisionerSynthesisFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerSynthesisProbeWithTiming(
+  entry: VisionerSynthesisBaseline["probes"][number],
+  fixture: VisionerSynthesisBaseline,
+  contractProbe:
+    | ReturnType<typeof getActiveVisionerSynthesisContract>["probes"][number]
+    | undefined,
+): {
+  result: VisionerSynthesisProbeResult;
+  durationMs: number;
+  disposition: VisionerSynthesisProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerSynthesisRecordFromEntries(
+  entries: VisionerSynthesisBaseline["probes"],
+  fixture: VisionerSynthesisBaseline,
+  contract: ReturnType<typeof getActiveVisionerSynthesisContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerSynthesisCategory[];
+  },
+): VisionerSynthesisRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerSynthesisProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerSynthesisProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerSynthesisProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerSynthesisProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerSynthesisProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerSynthesisProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerSynthesisRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner synthesis probes and emit auditable evidence, telemetry and provenance (P02-B03-A06). */
+export function runVisionerSynthesisProbesWithRecord(
+  fixture: VisionerSynthesisBaseline = loadVisionerSynthesisBaseline(),
+): VisionerSynthesisRunRecord {
+  const contract = getActiveVisionerSynthesisContract();
+  return buildVisionerSynthesisRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B03-A06). */
+export function runVisionerSynthesisFailureRecoverySliceWithRecord(
+  fixture: VisionerSynthesisBaseline = loadVisionerSynthesisBaseline(),
+): VisionerSynthesisRunRecord {
+  const contract = getActiveVisionerSynthesisContract();
+  const failureRecoveryIds = new Set(listVisionerSynthesisFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerSynthesisRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B03-A06",
+    sliceCategories: VISIONER_SYNTHESIS_FAILURE_RECOVERY_CATEGORIES,
+  });
 }
