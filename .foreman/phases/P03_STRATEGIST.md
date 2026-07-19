@@ -127,7 +127,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B09-A06 — Plan provenance ve drift: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B09-A07 — Plan provenance ve drift: unit, property ve fuzz doğrulamasını ekle
 - [x] P03-B09-A08 — Plan provenance ve drift: Forge entegrasyonu ile regression testini tamamla
-- [ ] P03-B09-A09 — Plan provenance ve drift: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P03-B09-A09 — Plan provenance ve drift: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B09-A10 — Plan provenance ve drift: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P03-B10 — Stratejist phase gate
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B09-A08
-last_commit: 9fe47e3
-tests: PASS — forge-p03-strategist-provenance.test.ts (39/39); forge-p03-strategist-provenance-baseline.test.ts (3/3); runStrategistProvenanceForgeRegression; runForgeStrategistProvenanceRegressionGate; detectStrategistProvenanceProbeRegression (28/28 probes aligned, prior/current drift rejected)
-evidence: runStrategistProvenanceForgeRegression; runStrategistProvenanceProbeRegression; validateStrategistProvenanceProbeRegression; runForgeStrategistProvenanceRegressionGate
-next: P03-B09-A09
+last_atom: P03-B09-A09
+last_commit: pending
+tests: PASS — forge-p03-strategist-provenance.test.ts (45/45); forge-p03-strategist-provenance-baseline.test.ts (3/3); validateForgeStrategistProvenanceGuard; runStrategistProvenanceAdversarialGuardChecks (3/3 tampered rejected); runForgeStrategistProvenanceRegressionGate with guard metrics
+evidence: validateForgeStrategistProvenanceGuard; runStrategistProvenanceAdversarialGuardChecks; detectStrategistProvenanceFalseAlignment; detectStrategistProvenanceEvidenceSummaryMismatch; runForgeStrategistProvenanceRegressionGate
+next: P03-B09-A10

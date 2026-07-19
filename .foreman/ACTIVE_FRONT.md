@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B09
-active_atom: P03-B09-A09
+active_atom: P03-B09-A10
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 287/1000
-phase_progress: 87/100
-block_progress: 8/10
+program_progress: 288/1000
+phase_progress: 88/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B09-A09 — Plan provenance ve drift: adversarial, performance, cost ve safety kontrolünü geçir.
+P03-B09-A10 — Plan provenance ve drift: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P03-B09-A08 PASS; P03-B09-A09 implement guard controls for provenance probe matrix.
-target: adversarial tamper rejection, performance/cost/safety guard metrics on provenance run records.
-hypothesis: P03-B09-A09 closes guard category with zero adversarial bypasses.
-acceptance: Guard checks reject tampered records; performance/cost/safety within controls.
+objective: P03-B09-A09 PASS; P03-B09-A10 seal block gate evidence and B10 handoff contract.
+target: block gate checks, atom seals, regression+guard pass, handoff to P03-B10.
+hypothesis: P03-B09-A10 closes P03-B09 with sealed block gate and valid handoff.
+acceptance: Block gate evidence sealed; handoff contract valid; all 10 atoms PASS.
 commands: npx tsx --test src/forge-p03-strategist-provenance*.test.ts
 blast_radius: src/forge-p03-strategist-provenance.ts
-rollback: P03-B09-A09 guard control değişikliklerini geri al.
+rollback: P03-B09-A10 block gate değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B09-A08
-last_commit: 9fe47e3
-tests: PASS — forge-p03-strategist-provenance.test.ts (39/39); forge-p03-strategist-provenance-baseline.test.ts (3/3)
-evidence: runStrategistProvenanceForgeRegression; runForgeStrategistProvenanceRegressionGate; detectStrategistProvenanceProbeRegression (28/28 probes aligned, prior/current drift rejected)
-next: P03-B09-A09
+last_atom: P03-B09-A09
+last_commit: pending
+tests: PASS — forge-p03-strategist-provenance.test.ts (45/45); forge-p03-strategist-provenance-baseline.test.ts (3/3)
+evidence: validateForgeStrategistProvenanceGuard; runStrategistProvenanceAdversarialGuardChecks (3/3 tampered rejected); runForgeStrategistProvenanceRegressionGate with guard metrics
+next: P03-B09-A10
