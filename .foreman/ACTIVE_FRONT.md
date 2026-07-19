@@ -44,7 +44,7 @@ fallback: P03-B01-A08 regression slice misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B01-A08
-last_commit: pending
+last_commit: bebb2f1
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (28/28); regression gate canonical PASS; probe regression detection; tampered prior rejected
 evidence: runStrategistIntentForgeRegression; detectStrategistIntentProbeRegression
 next: P03-B01-A09
