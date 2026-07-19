@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B02-A01
-last_commit: 28f6bb1
+last_commit: 4c5981e
 tests: PASS — forge-p04-researcher*.test.ts (64/64); baseline 23 probes; knownGaps=1 (riev.structured_repo_evidence_recovery); handoff P04-B01→B02 validated
 evidence: loadResearcherInRepoEvidenceBaseline; runResearcherInRepoEvidenceProbes; validateResearcherInRepoEvidenceBaseline; assessInRepoEvidenceInputBoundary; validateInRepoEvidenceCollection; FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1; harnessVersion=1.0.0-a01
 next: P04-B02-A02
