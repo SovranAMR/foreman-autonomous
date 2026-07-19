@@ -44,7 +44,7 @@ fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B02-A09
-last_commit: 15a3a22
+last_commit: ee40979
 tests: PASS — forge-p02-visioner-constraint*.test.ts (42/42); forge-p02-visioner-intent*.test.ts (43/43); forge-p02-*.test.ts (85/85); forge-pipeline-regression.integration.test.ts (126/126)
 evidence: validateForgeVisionerConstraintGuard (adversarial=3/3 rejected); runVisionerConstraintAdversarialGuardChecks; detectVisionerConstraintFalseAlignment; detectVisionerConstraintEvidenceSummaryMismatch; runForgeVisionerConstraintRegressionGate guard PASS; orchestrator verifyForgeVisionerConstraintGuard phase=visioner_constraint_guard
 next: P02-B02-A10
