@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B01-A06
-last_commit: 2377981
+last_commit: 891225f
 tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (26/26); evidence slice 7/7 PASS; 0 unexpected mismatches
 evidence: validateResearcherQuestionDecompositionEvidenceRunRecord; runResearcherQuestionDecompositionEvidenceSlice; rques.research_block_non_fatal provenance
 next: P04-B01-A07
