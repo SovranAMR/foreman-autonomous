@@ -703,10 +703,24 @@ export function listVisionerApprovalContractProbesByCategory(
   return contract.categories[category].probes;
 }
 
-function listVisionerApprovalContractProbeIds(
+export function getVisionerApprovalCategoryContract(
+  category: VisionerApprovalCategory,
+  contract: VisionerApprovalContract = getActiveVisionerApprovalContract(),
+): VisionerApprovalCategoryContract {
+  return contract.categories[category];
+}
+
+export function listVisionerApprovalContractProbeIds(
   contract: VisionerApprovalContract = getActiveVisionerApprovalContract(),
 ): string[] {
   return contract.probes.map(p => p.id);
+}
+
+export function listVisionerApprovalProbesByDisposition(
+  disposition: VisionerApprovalProbeDisposition,
+  contract: VisionerApprovalContract = getActiveVisionerApprovalContract(),
+): VisionerApprovalProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
 }
 
 export function summarizeVisionerApprovalContractCoverage(

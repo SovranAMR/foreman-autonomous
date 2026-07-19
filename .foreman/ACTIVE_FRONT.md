@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B09
-active_atom: P02-B09-A02
+active_atom: P02-B09-A03
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 180/1000
-phase_progress: 79/100
-block_progress: 1/10
+program_progress: 181/1000
+phase_progress: 80/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B09-A02 — Kullanıcı approval ve steering: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P02-B09-A03 — Kullanıcı approval ve steering: en küçük üretim dikey dilimini uygula.
 
-objective: P02-B09-A01 baseline PASS; define typed approval/steering contract with measurable acceptance criteria.
-target: forge-p02-visioner-approval typed contract alignment and contract coverage validation.
-hypothesis: Documented vapp.structured_steering_recovery FAIL gap maps to typed contract disposition and criterion.
-acceptance: forge-p02-visioner-approval.test.ts contract coverage and alignment gates pass.
+objective: P02-B09-A02 contract PASS; implement recoverVisionerSteering production slice closing vapp.structured_steering_recovery gap.
+target: forge-p02-visioner-approval production slice with recoverVisionerSteering export and probe alignment.
+hypothesis: recoverVisionerSteering restructures malformed steering parse into actionable approval revision, closing documented FAIL gap.
+acceptance: forge-p02-visioner-approval.test.ts production slice gates pass; vapp.structured_steering_recovery aligned PASS.
 commands: npx tsx --test src/forge-p02-visioner-approval.test.ts
 blast_radius: src/forge-p02-visioner-approval*
-rollback: P02-B09-A02 contract değişikliklerini geri al.
+rollback: P02-B09-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: contract cannot express baseline gaps ise BLOCKED raporla.
+fallback: recoverVisionerSteering cannot close gap ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B09-A01
-last_commit: 3fa7982
-tests: PASS — forge-p02-visioner-approval-baseline.test.ts (3/3)
-evidence: runVisionerApprovalProbes 22/23 aligned; documented FAIL gap vapp.structured_steering_recovery; fixture+probe harness sealed from P02-B08 handoff
-next: P02-B09-A02
+last_atom: P02-B09-A02
+last_commit: pending
+tests: PASS — forge-p02-visioner-approval.test.ts (9/9)
+evidence: validateVisionerApprovalContractCoverage valid; 23 probes (22 PASS + 1 documented FAIL gap vapp.structured_steering_recovery); matrix passAligned=22 gapAligned=1 unexpectedMismatches=0
+next: P02-B09-A03

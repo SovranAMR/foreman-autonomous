@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 79
+completed_atoms: 80
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -120,7 +120,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P02-B09 — Kullanıcı approval ve steering
 
 - [x] P02-B09-A01 — Kullanıcı approval ve steering: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P02-B09-A02 — Kullanıcı approval ve steering: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P02-B09-A02 — Kullanıcı approval ve steering: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B09-A03 — Kullanıcı approval ve steering: en küçük üretim dikey dilimini uygula
 - [ ] P02-B09-A04 — Kullanıcı approval ve steering: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B09-A05 — Kullanıcı approval ve steering: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B09-A01
-last_commit: 3fa7982
-tests: PASS — forge-p02-visioner-approval-baseline.test.ts (3/3)
-evidence: runVisionerApprovalProbes 22/23 aligned; documented FAIL gap vapp.structured_steering_recovery (recoverVisionerSteering absent); P02-B08→B09 handoff prerequisite sealed
-next: P02-B09-A02
+last_atom: P02-B09-A02
+last_commit: pending
+tests: PASS — forge-p02-visioner-approval.test.ts (9/9)
+evidence: validateVisionerApprovalContractCoverage valid; 23 probes (22 PASS + 1 documented FAIL gap vapp.structured_steering_recovery disposition=gap); matrix passAligned=22 gapAligned=1 unexpectedMismatches=0; contract exports getVisionerApprovalCategoryContract/listVisionerApprovalProbesByDisposition
+next: P02-B09-A03
