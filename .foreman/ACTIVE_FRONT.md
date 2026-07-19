@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B07
-active_atom: P04-B07-A01
+active_atom: P04-B07-A02
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 360/1000
-phase_progress: 60/100
-block_progress: 0/10
+program_progress: 361/1000
+phase_progress: 61/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B07-A01 — Risk ve trade-off araştırması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P04-B07-A02 — Risk ve trade-off araştırması: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P04-B06-A10 PASS; block gate sealed; B07 handoff contract valid; contradiction freshness suite green.
-target: Measure risk and trade-off research baseline from sealed P04-B06 contradiction freshness block gate.
-hypothesis: B07 baseline fixture links to sealed B06 handoff with documented FAIL gaps for risk/trade-off probes.
-acceptance: Baseline loads; fixture validates; probe matrix aligned; failing gaps documented.
+objective: P04-B07-A01 PASS; baseline fixture validates; B06 handoff linked; 4 documented FAIL gaps aligned.
+target: Define typed risk/trade-off contract with measurable acceptance criteria wired to A01 probe matrix.
+hypothesis: Contract v1 declares risk_signal, tradeoff_signal and nogo_path probes with documented gap dispositions.
+acceptance: Contract loads; coverage validates; fixture aligned; gap probes preserved.
 commands: npx tsx --test src/forge-p04-researcher-risk-tradeoff*.test.ts
 blast_radius: src/forge-p04-researcher-risk-tradeoff*.ts
-rollback: P04-B07-A01 baseline değişikliklerini geri al.
+rollback: P04-B07-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B06-A10
+last_atom: P04-B07-A01
 last_commit: pending
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (60/60); block gate seals=10/10; handoff=PASS→P04-B07; orchestrator researcher_contradiction_freshness_block_gate wired
-evidence: runResearcherContradictionFreshnessBlockGate + validateResearcherContradictionFreshnessBlockHandoffContract + forge-p04-researcher-contradiction-freshness-block-gate.test.ts; orchestrator verifyForgeResearcherContradictionFreshnessBlockGate
-next: P04-B07-A01
+tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (9/9); baseline validates; probe matrix aligned; documented FAIL gaps=4
+evidence: loadResearcherRiskTradeoffBaseline + validateResearcherRiskTradeoffBaseline + runResearcherRiskTradeoffProbes + forge-p04-researcher-risk-tradeoff.test.ts; B06 handoff sealed probeCount=23
+next: P04-B07-A02

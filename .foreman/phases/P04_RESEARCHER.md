@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 60
+completed_atoms: 61
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -93,7 +93,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P04-B07 — Risk ve trade-off araştırması
 
-- [ ] P04-B07-A01 — Risk ve trade-off araştırması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P04-B07-A01 — Risk ve trade-off araştırması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P04-B07-A02 — Risk ve trade-off araştırması: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B07-A03 — Risk ve trade-off araştırması: en küçük üretim dikey dilimini uygula
 - [ ] P04-B07-A04 — Risk ve trade-off araştırması: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B06-A10
+last_atom: P04-B07-A01
 last_commit: pending
-tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (60/60); block gate seals=10/10; handoff=PASS→P04-B07; orchestrator researcher_contradiction_freshness_block_gate wired
-evidence: runResearcherContradictionFreshnessBlockGate + validateResearcherContradictionFreshnessBlockHandoffContract + forge-p04-researcher-contradiction-freshness-block-gate.test.ts; orchestrator verifyForgeResearcherContradictionFreshnessBlockGate
-next: P04-B07-A01
+tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (9/9); baseline validates; probe matrix aligned; documented FAIL gaps=4
+evidence: loadResearcherRiskTradeoffBaseline + validateResearcherRiskTradeoffBaseline + runResearcherRiskTradeoffProbes + forge-p04-researcher-risk-tradeoff.test.ts; B06 handoff sealed probeCount=23
+next: P04-B07-A02
