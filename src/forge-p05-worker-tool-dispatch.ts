@@ -1,0 +1,824 @@
+/**
+ * FOREMAN — Worker Tool Dispatch Baseline (P05-B01)
+ *
+ * A01 slice: load, validate, run probes with documented FAIL gaps against sealed
+ * P04-B10 researcher phase gate artifacts.
+ */
+
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import workerToolDispatchBaseline from "./fixtures/forge-worker-tool-dispatch-v1.json" with { type: "json" };
+import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import {
+  getForgeP04B10ToP05Handoff,
+  getActiveResearcherPhaseGateContract,
+  summarizeResearcherPhaseGateContractCoverage,
+  EXPECTED_P04_B09_SEALED_ATOM_COUNT,
+} from "./forge-p04-researcher-phase-gate.js";
+import {
+  TOOL_DEFINITIONS,
+  createToolExecutor,
+  toGeminiFunctionDeclarations,
+  type ToolCall,
+} from "./tools.js";
+
+export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a01";
+
+export const WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH = 16_384;
+
+export const WORKER_TOOL_DISPATCH_CATEGORIES = [
+  "dispatch_versioning",
+  "tool_interface",
+  "dispatch_routing",
+  "baseline_link",
+  "boundary",
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const;
+
+export type WorkerToolDispatchCategory = (typeof WORKER_TOOL_DISPATCH_CATEGORIES)[number];
+
+export const WORKER_TOOL_DISPATCH_A01_MIN_PROBES: Readonly<
+  Record<WorkerToolDispatchCategory, number>
+> = {
+  dispatch_versioning: 3,
+  tool_interface: 4,
+  dispatch_routing: 4,
+  baseline_link: 2,
+  boundary: 7,
+  failure_path: 2,
+  recovery_path: 2,
+  nogo_path: 3,
+};
+
+export type WorkerToolCallInputDisposition =
+  | "valid"
+  | "empty"
+  | "whitespace_only"
+  | "contains_null_byte"
+  | "exceeds_max_length";
+
+export interface WorkerToolCallInputBoundary {
+  disposition: WorkerToolCallInputDisposition;
+  acceptable: boolean;
+  normalizedName: string;
+  normalizedArgs: Record<string, unknown>;
+  truncated: boolean;
+  detail: string;
+}
+
+export interface WorkerToolCallRecoveryResult {
+  recovered: boolean;
+  call: ToolCall;
+  parseErrors: string[];
+  detail: string;
+}
+
+export interface WorkerToolDispatchFixtureEntry {
+  id: string;
+  category: WorkerToolDispatchCategory;
+  description: string;
+  expected: ForgeAcceptanceOutcome;
+}
+
+export interface WorkerToolDispatchBaseline {
+  version: string;
+  atom: string;
+  contractAtom?: string;
+  purpose: string;
+  sourceBlockGate: {
+    version: string;
+    atom: string;
+    contractVersion: string;
+    researcherPhaseGateProbeCount: number;
+    sealedAtomCount: number;
+  };
+  probes: WorkerToolDispatchFixtureEntry[];
+}
+
+export interface WorkerToolDispatchProbeResult {
+  id: string;
+  category: WorkerToolDispatchCategory;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  detail: string;
+}
+
+export interface WorkerToolDispatchValidationIssue {
+  kind: "missing_probe" | "extra_probe" | "missing_category" | "underflow";
+  probeId?: string;
+  category?: WorkerToolDispatchCategory;
+  detail: string;
+}
+
+export interface WorkerToolDispatchValidationResult {
+  valid: boolean;
+  issues: WorkerToolDispatchValidationIssue[];
+}
+
+export interface WorkerToolDispatchProbeSummary {
+  total: number;
+  aligned: number;
+  mismatches: WorkerToolDispatchProbeResult[];
+  knownGaps: WorkerToolDispatchProbeResult[];
+  byCategory: Record<
+    WorkerToolDispatchCategory,
+    { total: number; aligned: number; expectedFail: number }
+  >;
+}
+
+function readSrc(relativePath: string): string {
+  const moduleDir = dirname(fileURLToPath(import.meta.url));
+  return readFileSync(join(moduleDir, relativePath), "utf8");
+}
+
+function serializeToolArgs(args: Record<string, unknown>): string {
+  try {
+    return JSON.stringify(args);
+  } catch {
+    return String(args);
+  }
+}
+
+function argsContainNullByte(args: Record<string, unknown>): boolean {
+  for (const value of Object.values(args)) {
+    if (typeof value === "string" && value.includes("\0")) {
+      return true;
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      if (argsContainNullByte(value as Record<string, unknown>)) {
+        return true;
+      }
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "string" && item.includes("\0")) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Assess tool call input boundary conditions before worker dispatch (P05-B01-A01).
+ */
+export function assessWorkerToolCallInputBoundary(
+  name: string,
+  args: Record<string, unknown> = {},
+): WorkerToolCallInputBoundary {
+  if (name.includes("\0") || argsContainNullByte(args)) {
+    return {
+      disposition: "contains_null_byte",
+      acceptable: false,
+      normalizedName: "",
+      normalizedArgs: {},
+      truncated: false,
+      detail: "null byte detected in tool call input",
+    };
+  }
+
+  const trimmedName = name.trim();
+  if (trimmedName.length === 0) {
+    const disposition: WorkerToolCallInputDisposition =
+      name.length === 0 ? "empty" : "whitespace_only";
+    return {
+      disposition,
+      acceptable: false,
+      normalizedName: "",
+      normalizedArgs: {},
+      truncated: false,
+      detail: disposition === "empty" ? "empty tool name" : "whitespace-only tool name",
+    };
+  }
+
+  let normalizedArgs = args;
+  let truncated = false;
+  const serialized = serializeToolArgs(args);
+  if (serialized.length > WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH) {
+    normalizedArgs = { _truncated: serialized.slice(0, WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH) };
+    truncated = true;
+  }
+
+  return {
+    disposition: truncated ? "exceeds_max_length" : "valid",
+    acceptable: true,
+    normalizedName: trimmedName,
+    normalizedArgs,
+    truncated,
+    detail: truncated
+      ? `tool args truncated to ${WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH} characters`
+      : "valid tool call input",
+  };
+}
+
+/**
+ * Recover malformed worker tool call into dispatch-ready ToolCall (P05-B01-A01).
+ */
+export function recoverWorkerToolCall(
+  rawName: string,
+  rawArgs: unknown,
+): WorkerToolCallRecoveryResult {
+  const boundary = assessWorkerToolCallInputBoundary(rawName, {});
+  if (!boundary.acceptable) {
+    return {
+      recovered: false,
+      call: { name: rawName, args: {} },
+      parseErrors: [boundary.disposition],
+      detail: `cannot recover ${boundary.disposition.replace(/_/g, "-")} tool call`,
+    };
+  }
+
+  let args: Record<string, unknown> = {};
+  const parseErrors: string[] = [];
+
+  if (typeof rawArgs === "string") {
+    try {
+      const parsed = JSON.parse(rawArgs) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        args = parsed as Record<string, unknown>;
+      } else {
+        parseErrors.push("string_args_not_object");
+      }
+    } catch {
+      parseErrors.push("string_args_invalid_json");
+    }
+  } else if (rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs)) {
+    args = rawArgs as Record<string, unknown>;
+  } else if (rawArgs !== undefined && rawArgs !== null) {
+    parseErrors.push("unsupported_args_type");
+  }
+
+  const argsBoundary = assessWorkerToolCallInputBoundary(boundary.normalizedName, args);
+  if (!argsBoundary.acceptable) {
+    return {
+      recovered: false,
+      call: { name: boundary.normalizedName, args: {} },
+      parseErrors: [argsBoundary.disposition],
+      detail: argsBoundary.detail,
+    };
+  }
+
+  const recovered = parseErrors.length === 0;
+  return {
+    recovered,
+    call: {
+      name: argsBoundary.normalizedName,
+      args: argsBoundary.normalizedArgs,
+    },
+    parseErrors,
+    detail: recovered
+      ? `recovered tool call name=${argsBoundary.normalizedName}`
+      : `partial recovery: ${parseErrors.join(", ")}`,
+  };
+}
+
+export const FORGE_WORKER_TOOL_DISPATCH_A01_PROBE_MATRIX: readonly WorkerToolDispatchFixtureEntry[] =
+  workerToolDispatchBaseline.probes as WorkerToolDispatchFixtureEntry[];
+
+export function getWorkerToolDispatchA01ExpectedFailCount(): number {
+  return FORGE_WORKER_TOOL_DISPATCH_A01_PROBE_MATRIX.filter(p => p.expected === "FAIL").length;
+}
+
+export function loadWorkerToolDispatchBaseline(): WorkerToolDispatchBaseline {
+  return workerToolDispatchBaseline as WorkerToolDispatchBaseline;
+}
+
+export function validateWorkerToolDispatchBaseline(
+  fixture: WorkerToolDispatchBaseline,
+): WorkerToolDispatchValidationResult {
+  const issues: WorkerToolDispatchValidationIssue[] = [];
+
+  if (fixture.version !== "1.0.0") {
+    issues.push({ kind: "missing_probe", detail: `unexpected fixture version: ${fixture.version}` });
+  }
+  if (fixture.atom !== "P05-B01-A01") {
+    issues.push({ kind: "missing_probe", detail: `unexpected atom: ${fixture.atom}` });
+  }
+
+  const ids = new Set<string>();
+  const byCategory = Object.fromEntries(
+    WORKER_TOOL_DISPATCH_CATEGORIES.map(category => [category, 0]),
+  ) as Record<WorkerToolDispatchCategory, number>;
+
+  for (const entry of fixture.probes) {
+    if (ids.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: "duplicate probe id" });
+    }
+    ids.add(entry.id);
+    byCategory[entry.category]++;
+  }
+
+  for (const category of WORKER_TOOL_DISPATCH_CATEGORIES) {
+    const min = WORKER_TOOL_DISPATCH_A01_MIN_PROBES[category];
+    if (byCategory[category] < min) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} has ${byCategory[category]} probes, minimum ${min}`,
+      });
+    }
+  }
+
+  if (fixture.probes.length !== FORGE_WORKER_TOOL_DISPATCH_A01_PROBE_MATRIX.length) {
+    issues.push({
+      kind: "missing_probe",
+      detail:
+        `fixture probe count=${fixture.probes.length} matrix=${FORGE_WORKER_TOOL_DISPATCH_A01_PROBE_MATRIX.length}`,
+    });
+  }
+
+  for (const expected of FORGE_WORKER_TOOL_DISPATCH_A01_PROBE_MATRIX) {
+    const entry = fixture.probes.find(p => p.id === expected.id);
+    if (!entry) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: expected.id,
+        detail: `missing probe ${expected.id}`,
+      });
+      continue;
+    }
+    if (entry.category !== expected.category) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: expected.id,
+        detail: `category mismatch for ${expected.id}`,
+      });
+    }
+    if (entry.expected !== expected.expected) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: expected.id,
+        detail: `expected mismatch for ${expected.id}`,
+      });
+    }
+  }
+
+  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
+  if (failGaps.length === 0) {
+    issues.push({
+      kind: "missing_category",
+      detail: "fixture must document at least one measurable FAIL gap",
+    });
+  }
+
+  const handoff = getForgeP04B10ToP05Handoff();
+  const phaseGateCoverage = summarizeResearcherPhaseGateContractCoverage(
+    getActiveResearcherPhaseGateContract(),
+  );
+
+  if (fixture.sourceBlockGate.atom !== "P04-B10-A10") {
+    issues.push({
+      kind: "missing_probe",
+      detail: `sourceBlockGate.atom=${fixture.sourceBlockGate.atom} expected=P04-B10-A10`,
+    });
+  }
+  if (fixture.sourceBlockGate.researcherPhaseGateProbeCount !== phaseGateCoverage.totalProbes) {
+    issues.push({
+      kind: "missing_probe",
+      detail:
+        `sourceBlockGate.researcherPhaseGateProbeCount=${fixture.sourceBlockGate.researcherPhaseGateProbeCount} ` +
+        `contract=${phaseGateCoverage.totalProbes}`,
+    });
+  }
+  if (fixture.sourceBlockGate.sealedAtomCount !== EXPECTED_P04_B09_SEALED_ATOM_COUNT) {
+    issues.push({
+      kind: "missing_probe",
+      detail:
+        `sourceBlockGate.sealedAtomCount=${fixture.sourceBlockGate.sealedAtomCount} ` +
+        `expected=${EXPECTED_P04_B09_SEALED_ATOM_COUNT}`,
+    });
+  }
+  if (handoff.targetBlock.entryAtom !== "P05-B01-A01") {
+    issues.push({
+      kind: "missing_probe",
+      detail: `handoff entryAtom=${handoff.targetBlock.entryAtom} expected=P05-B01-A01`,
+    });
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+function outcome(ok: boolean): ForgeAcceptanceOutcome {
+  return ok ? "PASS" : "FAIL";
+}
+
+function probe(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+  ok: boolean,
+  detail: string,
+): WorkerToolDispatchProbeResult {
+  const actual = outcome(ok);
+  return {
+    id,
+    category,
+    expected,
+    actual,
+    aligned: actual === expected,
+    detail,
+  };
+}
+
+function toolsSource(): string {
+  return readSrc("tools.ts");
+}
+
+function orchestratorSource(): string {
+  return readSrc("orchestrator.ts");
+}
+
+function promptsSource(): string {
+  return readSrc("prompts.ts");
+}
+
+function productionDispatchSource(): string {
+  return readSrc("forge-p05-worker-tool-dispatch.ts");
+}
+
+function hasProductionExport(functionName: string): boolean {
+  return new RegExp(`export function ${functionName}\\b`).test(productionDispatchSource());
+}
+
+function probeDispatchVersioning(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+  fixture: WorkerToolDispatchBaseline,
+): WorkerToolDispatchProbeResult {
+  switch (id) {
+    case "wtd.version_tagged": {
+      const ok = fixture.version === "1.0.0";
+      return probe(id, category, expected, ok, `version=${fixture.version}`);
+    }
+    case "wtd.atom_tagged": {
+      const ok = fixture.atom === "P05-B01-A01";
+      return probe(id, category, expected, ok, `atom=${fixture.atom}`);
+    }
+    case "wtd.harness_version_exported": {
+      const ok = FORGE_WORKER_TOOL_DISPATCH_VERSION.startsWith("1.0.0");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `harnessVersion=${FORGE_WORKER_TOOL_DISPATCH_VERSION}`,
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown dispatch_versioning probe");
+  }
+}
+
+function probeToolInterface(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+): WorkerToolDispatchProbeResult {
+  const tools = toolsSource();
+  const prompts = promptsSource();
+
+  switch (id) {
+    case "wtd.tool_definitions_registry": {
+      const ok =
+        TOOL_DEFINITIONS.length > 0 &&
+        TOOL_DEFINITIONS.every(def => def.name.length > 0 && def.parameters !== undefined);
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `toolCount=${TOOL_DEFINITIONS.length}`,
+      );
+    }
+    case "wtd.gemini_function_declarations": {
+      const declarations = toGeminiFunctionDeclarations();
+      const ok =
+        declarations.length === TOOL_DEFINITIONS.length &&
+        tools.includes("export function toGeminiFunctionDeclarations");
+      return probe(id, category, expected, ok, `declarations=${declarations.length}`);
+    }
+    case "wtd.typed_tool_call_union": {
+      const ok =
+        tools.includes("export type TypedToolCall") ||
+        tools.includes("interface TypedToolCall");
+      return probe(id, category, expected, ok, `typedToolCall=${ok}`);
+    }
+    case "wtd.worker_prompt_typed_contract": {
+      const ok =
+        prompts.includes("typed tool dispatch") ||
+        prompts.includes("Typed tool dispatch") ||
+        prompts.includes("TYPED TOOL DISPATCH");
+      return probe(id, category, expected, ok, `typedContractSection=${ok}`);
+    }
+    default:
+      return probe(id, category, expected, false, "unknown tool_interface probe");
+  }
+}
+
+function probeDispatchRouting(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+): WorkerToolDispatchProbeResult {
+  const tools = toolsSource();
+  const orchestrator = orchestratorSource();
+
+  switch (id) {
+    case "wtd.create_tool_executor_exported": {
+      const ok = tools.includes("export function createToolExecutor");
+      return probe(id, category, expected, ok, `createToolExecutor=${ok}`);
+    }
+    case "wtd.engine_tool_executor_exported": {
+      const ok = tools.includes("export function createEngineToolExecutor");
+      return probe(id, category, expected, ok, `createEngineToolExecutor=${ok}`);
+    }
+    case "wtd.switch_based_dispatcher": {
+      const ok =
+        tools.includes("function createToolDispatcher") &&
+        tools.includes("switch (call.name)");
+      return probe(id, category, expected, ok, `switchDispatcher=${ok}`);
+    }
+    case "wtd.orchestrator_pre_dispatch_check": {
+      const ok =
+        orchestrator.includes("validateWorkerToolCall(") ||
+        orchestrator.includes("validateWorkerToolCallAgainstSchema(");
+      return probe(id, category, expected, ok, `preDispatchValidation=${ok}`);
+    }
+    default:
+      return probe(id, category, expected, false, "unknown dispatch_routing probe");
+  }
+}
+
+function probeBaselineLink(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+): WorkerToolDispatchProbeResult {
+  switch (id) {
+    case "wtd.b10_handoff_entry": {
+      const handoff = getForgeP04B10ToP05Handoff();
+      const ok =
+        handoff.targetBlock.blockId === "P05-B01" &&
+        handoff.targetBlock.entryAtom === "P05-B01-A01";
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `target=${handoff.targetBlock.blockId}/${handoff.targetBlock.entryAtom}`,
+      );
+    }
+    case "wtd.b10_sealed_phase_gate_probes": {
+      const handoff = getForgeP04B10ToP05Handoff();
+      const coverage = summarizeResearcherPhaseGateContractCoverage(
+        getActiveResearcherPhaseGateContract(),
+      );
+      const ok = handoff.sealedArtifacts.probeCount === coverage.totalProbes;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `handoff_probes=${handoff.sealedArtifacts.probeCount}, contract=${coverage.totalProbes}`,
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown baseline_link probe");
+  }
+}
+
+function probeBoundary(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+  fixture: WorkerToolDispatchBaseline,
+): WorkerToolDispatchProbeResult {
+  switch (id) {
+    case "wtd.source_block_gate_ref": {
+      const handoff = getForgeP04B10ToP05Handoff();
+      const ok =
+        fixture.sourceBlockGate.atom === handoff.atom &&
+        fixture.sourceBlockGate.sealedAtomCount === EXPECTED_P04_B09_SEALED_ATOM_COUNT;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `source=${fixture.sourceBlockGate.atom}, sealed=${fixture.sourceBlockGate.sealedAtomCount}`,
+      );
+    }
+    case "wtd.probe_runner_exported": {
+      const ok = productionDispatchSource().includes(
+        "export function runWorkerToolDispatchProbes",
+      );
+      return probe(id, category, expected, ok, `probeRunner=${ok}`);
+    }
+    case "wtd.known_gaps_documented": {
+      const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
+      const ok = failCount >= 1;
+      return probe(id, category, expected, ok, `documentedFailGaps=${failCount}`);
+    }
+    case "wtd.empty_tool_name_boundary": {
+      const result = assessWorkerToolCallInputBoundary("");
+      const ok = !result.acceptable && result.disposition === "empty";
+      return probe(id, category, expected, ok, `disposition=${result.disposition}`);
+    }
+    case "wtd.whitespace_tool_name_boundary": {
+      const result = assessWorkerToolCallInputBoundary("   \t\n  ");
+      const ok = !result.acceptable && result.disposition === "whitespace_only";
+      return probe(id, category, expected, ok, `disposition=${result.disposition}`);
+    }
+    case "wtd.null_byte_tool_name_boundary": {
+      const result = assessWorkerToolCallInputBoundary("read_file\0");
+      const ok = !result.acceptable && result.disposition === "contains_null_byte";
+      return probe(id, category, expected, ok, `disposition=${result.disposition}`);
+    }
+    case "wtd.long_tool_args_truncation_boundary": {
+      const longArgs = { payload: "x".repeat(WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH + 500) };
+      const result = assessWorkerToolCallInputBoundary("read_file", longArgs);
+      const ok = result.acceptable && result.truncated && result.disposition === "exceeds_max_length";
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `truncated=${result.truncated}, argsLen=${serializeToolArgs(result.normalizedArgs).length}`,
+      );
+    }
+    default:
+      return probe(id, category, expected, false, "unknown boundary probe");
+  }
+}
+
+function probeFailurePath(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+  fixture: WorkerToolDispatchBaseline,
+): WorkerToolDispatchProbeResult {
+  switch (id) {
+    case "wtd.invalid_version_rejected": {
+      const invalid = { ...fixture, version: "9.9.9" };
+      const validation = validateWorkerToolDispatchBaseline(invalid);
+      const ok = validation.valid === false;
+      return probe(id, category, expected, ok, `rejected=${ok}`);
+    }
+    case "wtd.malformed_tool_call_guard": {
+      const result = assessWorkerToolCallInputBoundary("read_file", { path: "file\0.txt" });
+      const ok = !result.acceptable && result.disposition === "contains_null_byte";
+      return probe(id, category, expected, ok, `disposition=${result.disposition}`);
+    }
+    default:
+      return probe(id, category, expected, false, "unknown failure_path probe");
+  }
+}
+
+function probeRecoveryPath(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+): WorkerToolDispatchProbeResult {
+  switch (id) {
+    case "wtd.recovery_string_args_coercion": {
+      const recovery = recoverWorkerToolCall(
+        "read_file",
+        JSON.stringify({ path: "src/tools.ts" }),
+      );
+      const ok =
+        recovery.recovered &&
+        recovery.call.name === "read_file" &&
+        recovery.call.args.path === "src/tools.ts";
+      return probe(id, category, expected, ok, recovery.detail);
+    }
+    case "wtd.recovery_missing_name_rejected": {
+      const recovery = recoverWorkerToolCall("", { path: "src/tools.ts" });
+      const ok = !recovery.recovered && recovery.parseErrors.includes("empty");
+      return probe(id, category, expected, ok, recovery.detail);
+    }
+    default:
+      return probe(id, category, expected, false, "unknown recovery_path probe");
+  }
+}
+
+function probeNogoPath(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+): WorkerToolDispatchProbeResult {
+  switch (id) {
+    case "wtd.schema_validation_before_dispatch": {
+      const ok = hasProductionExport("validateWorkerToolCallAgainstSchema");
+      return probe(id, category, expected, ok, `schemaValidator=${ok}`);
+    }
+    case "wtd.exported_dispatch_validator": {
+      const ok = hasProductionExport("validateWorkerToolCall");
+      return probe(id, category, expected, ok, `dispatchValidator=${ok}`);
+    }
+    case "wtd.dispatch_telemetry_record": {
+      const ok = hasProductionExport("buildWorkerToolDispatchTelemetry");
+      return probe(id, category, expected, ok, `dispatchTelemetry=${ok}`);
+    }
+    default:
+      return probe(id, category, expected, false, "unknown nogo_path probe");
+  }
+}
+
+function runSingleProbe(
+  id: string,
+  category: WorkerToolDispatchCategory,
+  expected: ForgeAcceptanceOutcome,
+  fixture: WorkerToolDispatchBaseline,
+): WorkerToolDispatchProbeResult {
+  switch (category) {
+    case "dispatch_versioning":
+      return probeDispatchVersioning(id, category, expected, fixture);
+    case "tool_interface":
+      return probeToolInterface(id, category, expected);
+    case "dispatch_routing":
+      return probeDispatchRouting(id, category, expected);
+    case "baseline_link":
+      return probeBaselineLink(id, category, expected);
+    case "boundary":
+      return probeBoundary(id, category, expected, fixture);
+    case "failure_path":
+      return probeFailurePath(id, category, expected, fixture);
+    case "recovery_path":
+      return probeRecoveryPath(id, category, expected);
+    case "nogo_path":
+      return probeNogoPath(id, category, expected);
+    default:
+      return probe(id, category, expected, false, "unknown category");
+  }
+}
+
+export function runWorkerToolDispatchProbes(
+  fixture: WorkerToolDispatchBaseline = loadWorkerToolDispatchBaseline(),
+): WorkerToolDispatchProbeResult[] {
+  return fixture.probes.map(entry =>
+    runSingleProbe(entry.id, entry.category, entry.expected, fixture),
+  );
+}
+
+export function summarizeWorkerToolDispatchMatrix(
+  results: WorkerToolDispatchProbeResult[],
+): WorkerToolDispatchProbeSummary {
+  const mismatches = results.filter(r => !r.aligned);
+  const knownGaps = results.filter(
+    r => r.expected === "FAIL" && r.actual === "FAIL" && r.aligned,
+  );
+
+  const byCategory = Object.fromEntries(
+    WORKER_TOOL_DISPATCH_CATEGORIES.map(category => [
+      category,
+      { total: 0, aligned: 0, expectedFail: 0 },
+    ]),
+  ) as WorkerToolDispatchProbeSummary["byCategory"];
+
+  for (const result of results) {
+    const bucket = byCategory[result.category];
+    bucket.total++;
+    if (result.aligned) bucket.aligned++;
+    if (result.expected === "FAIL") bucket.expectedFail++;
+  }
+
+  return {
+    total: results.length,
+    aligned: results.filter(r => r.aligned).length,
+    mismatches,
+    knownGaps,
+    byCategory,
+  };
+}
+
+export function listWorkerToolDispatchProbesByExpected(
+  expected: ForgeAcceptanceOutcome,
+  fixture: WorkerToolDispatchBaseline = loadWorkerToolDispatchBaseline(),
+): WorkerToolDispatchFixtureEntry[] {
+  return fixture.probes.filter(p => p.expected === expected);
+}
+
+export function listWorkerToolDispatchKnownGaps(
+  results: WorkerToolDispatchProbeResult[] = runWorkerToolDispatchProbes(),
+): WorkerToolDispatchProbeResult[] {
+  return summarizeWorkerToolDispatchMatrix(results).knownGaps;
+}
+
+/** Smoke probe: unknown tool dispatch returns deterministic error (P05-B01-A01 boundary). */
+export async function probeUnknownToolDispatchError(): Promise<boolean> {
+  const tempRoot = mkdtempSync(join(tmpdir(), "foreman-wtd-"));
+  try {
+    const executor = createToolExecutor(tempRoot);
+    const result = await executor({ name: "__nonexistent_foreman_tool__", args: {} });
+    return result.isError === true && result.content.includes("Unknown tool");
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
+}

@@ -1,0 +1,177 @@
+{
+  "version": "1.0.0",
+  "atom": "P05-B01-A01",
+  "contractAtom": "P05-B01-A02",
+  "purpose": "Worker tool dispatch baseline measured from sealed P04-B10 researcher phase gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P04-B10-A10",
+    "contractVersion": "1.0.0",
+    "researcherPhaseGateProbeCount": 24,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "wtd.version_tagged",
+      "category": "dispatch_versioning",
+      "description": "Worker tool dispatch baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.atom_tagged",
+      "category": "dispatch_versioning",
+      "description": "Worker tool dispatch baseline declares P05-B01-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.harness_version_exported",
+      "category": "dispatch_versioning",
+      "description": "FORGE_WORKER_TOOL_DISPATCH_VERSION exported for dispatch harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.tool_definitions_registry",
+      "category": "tool_interface",
+      "description": "TOOL_DEFINITIONS exports worker-invokable tool registry with name and parameters schema",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.gemini_function_declarations",
+      "category": "tool_interface",
+      "description": "toGeminiFunctionDeclarations converts TOOL_DEFINITIONS into provider function declarations",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.typed_tool_call_union",
+      "category": "tool_interface",
+      "description": "TypedToolCall discriminated union narrows args per tool name before dispatch",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wtd.worker_prompt_typed_contract",
+      "category": "tool_interface",
+      "description": "WORKER_SYSTEM prompt declares typed tool dispatch contract for worker execution",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wtd.create_tool_executor_exported",
+      "category": "dispatch_routing",
+      "description": "createToolExecutor exports project-root-bound worker tool dispatcher",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.engine_tool_executor_exported",
+      "category": "dispatch_routing",
+      "description": "createEngineToolExecutor reuses Engine subsystems for orchestrator tool dispatch",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.switch_based_dispatcher",
+      "category": "dispatch_routing",
+      "description": "createToolDispatcher routes tool calls through deterministic switch dispatch table",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.orchestrator_pre_dispatch_check",
+      "category": "dispatch_routing",
+      "description": "Orchestrator validates worker tool calls against typed contract before executor dispatch",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wtd.b10_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P04_B10_TO_P05_HANDOFF_V1 targets P05-B01-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.b10_sealed_phase_gate_probes",
+      "category": "baseline_link",
+      "description": "P04-B10→P05 handoff sealed probeCount matches active researcher phase gate contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P04-B10 researcher phase gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.probe_runner_exported",
+      "category": "boundary",
+      "description": "runWorkerToolDispatchProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL worker tool dispatch gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.empty_tool_name_boundary",
+      "category": "boundary",
+      "description": "assessWorkerToolCallInputBoundary rejects empty tool name before dispatch",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.whitespace_tool_name_boundary",
+      "category": "boundary",
+      "description": "assessWorkerToolCallInputBoundary rejects whitespace-only tool name",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.null_byte_tool_name_boundary",
+      "category": "boundary",
+      "description": "assessWorkerToolCallInputBoundary rejects null-byte tool name safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.long_tool_args_truncation_boundary",
+      "category": "boundary",
+      "description": "assessWorkerToolCallInputBoundary truncates oversized serialized tool args",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateWorkerToolDispatchBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.malformed_tool_call_guard",
+      "category": "failure_path",
+      "description": "assessWorkerToolCallInputBoundary rejects null-byte serialized args safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.recovery_string_args_coercion",
+      "category": "recovery_path",
+      "description": "recoverWorkerToolCall coerces JSON string tool args into object record before dispatch",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.recovery_missing_name_rejected",
+      "category": "recovery_path",
+      "description": "recoverWorkerToolCall rejects tool calls with unrecoverable missing tool name",
+      "expected": "PASS"
+    },
+    {
+      "id": "wtd.schema_validation_before_dispatch",
+      "category": "nogo_path",
+      "description": "validateWorkerToolCallAgainstSchema rejects args missing required tool parameters before dispatch",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wtd.exported_dispatch_validator",
+      "category": "nogo_path",
+      "description": "validateWorkerToolCall exported for orchestrator pre-dispatch typed contract checks",
+      "expected": "FAIL"
+    },
+    {
+      "id": "wtd.dispatch_telemetry_record",
+      "category": "nogo_path",
+      "description": "buildWorkerToolDispatchTelemetry records dispatch provenance for worker tool loop",
+      "expected": "FAIL"
+    }
+  ]
+}

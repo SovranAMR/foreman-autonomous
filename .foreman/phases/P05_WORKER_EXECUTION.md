@@ -1,9 +1,9 @@
 # P05 — İşçi — Deterministik Tool ve Execution Kernel
 
 phase_id: P05
-phase_status: QUEUED
+phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 0
+completed_atoms: 1
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -15,7 +15,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P05-B01 — Typed tool interface ve dispatch
 
-- [ ] P05-B01-A01 — Typed tool interface ve dispatch: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P05-B01-A01 — Typed tool interface ve dispatch: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P05-B01-A02 — Typed tool interface ve dispatch: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P05-B01-A03 — Typed tool interface ve dispatch: en küçük üretim dikey dilimini uygula
 - [ ] P05-B01-A04 — Typed tool interface ve dispatch: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: NONE
-last_commit: NONE
-tests: NOT-RUN
-evidence: Phase backlog initialized
-next: P05-B01-A01
+last_atom: P05-B01-A01
+last_commit: pending
+tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8)
+evidence: Worker tool dispatch baseline v1.0.0 with 27 probes (21 PASS aligned, 6 documented FAIL gaps aligned) linked to FORGE_P04_B10_TO_P05_HANDOFF_V1
+next: P05-B01-A02
