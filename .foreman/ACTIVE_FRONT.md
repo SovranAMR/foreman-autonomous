@@ -44,7 +44,7 @@ fallback: contract coverage alignment fails ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B01-A01
-last_commit: pending
+last_commit: 14eb4e0
 tests: PASS — forge-p02-visioner-intent-baseline.test.ts (3/3); 20 probes 14 PASS + 5 aligned FAIL gaps; validateVisionerIntentBaseline PASS; P01 handoff link PASS
 evidence: loadVisionerIntentBaseline v1.0.0 atom P02-B01-A01; runVisionerIntentProbes matrix 20/20 aligned; documented gaps: structured_intent_parse, programmatic_depth_classifier, depth_routed_prompt, structured_intent_recovery, intent_ambiguity_nogo
 next: P02-B01-A02

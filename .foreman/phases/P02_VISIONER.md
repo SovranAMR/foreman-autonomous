@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B01-A01
-last_commit: pending
+last_commit: 14eb4e0
 tests: PASS — forge-p02-visioner-intent-baseline.test.ts (3/3); 20 probes aligned; 5 documented FAIL intent gaps
 evidence: forge-visioner-intent-v1.json + forge-p02-visioner-intent.ts probe harness; P01 phase gate handoff validated; gaps: parse/classify/route/recover/ambiguity
 next: P02-B01-A02
