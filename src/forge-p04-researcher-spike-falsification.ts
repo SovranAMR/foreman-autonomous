@@ -13,7 +13,12 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import researcherSpikeFalsificationBaseline from "./fixtures/forge-researcher-spike-falsification-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP04B07ToB08Handoff,
   getActiveResearcherRiskTradeoffContract,
@@ -3280,5 +3285,248 @@ export function validateForgeResearcherSpikeFalsificationGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P04-B08-A10) ─────────────────────────────────────
+
+export interface ResearcherSpikeFalsificationBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface ResearcherSpikeFalsificationBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    spikeFalsificationCategories: readonly ResearcherSpikeFalsificationCategory[];
+    sourceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    spikeFalsificationRecordRequired: true;
+  };
+}
+
+export const FORGE_P04_B08_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P04-B08-A10",
+  blockId: "P04-B08",
+  title: "Spike ve falsification deneyi",
+  requiredAtomIds: [
+    "P04-B08-A01",
+    "P04-B08-A02",
+    "P04-B08-A03",
+    "P04-B08-A04",
+    "P04-B08-A05",
+    "P04-B08-A06",
+    "P04-B08-A07",
+    "P04-B08-A08",
+    "P04-B08-A09",
+    "P04-B08-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P04-B08-A01",
+      description:
+        "Spike falsification baseline aligns with typed contract and P04-B07 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P04-B08-A02",
+      description: "Contract declares measurable probes for all spike falsification categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P04-B08-A03",
+      description: "Spike falsification probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P04-B08-A04",
+      description:
+        "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P04-B08-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P04-B08-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P04-B08-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P04-B08-A08",
+      description: "Regression gate passes on canonical spike falsification matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P04-B08-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P04-B08-A10",
+      description: "Block gate evidence sealed with valid B09 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P04_B08_TO_B09_HANDOFF_V1: ResearcherSpikeFalsificationBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P04-B08-A10",
+  sourceBlock: {
+    blockId: "P04-B08",
+    title: "Spike ve falsification deneyi",
+    completedAtoms: FORGE_P04_B08_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P04-B09",
+    title: "Research-to-worker handoff",
+    entryAtom: "P04-B09-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_RESEARCHER_SPIKE_FALSIFICATION_CONTRACT_V1.version,
+    harnessVersion: FORGE_RESEARCHER_SPIKE_FALSIFICATION_VERSION,
+    probeCount: summarizeResearcherSpikeFalsificationContractCoverage(
+      FORGE_RESEARCHER_SPIKE_FALSIFICATION_CONTRACT_V1,
+    ).totalProbes,
+    spikeFalsificationCategories: RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES,
+    sourceBlockGateAtom: "P04-B07-A10",
+  },
+  prerequisites: [
+    "Spike falsification contract v1 with measurable spike, falsification and guard probes",
+    "Versioned spike falsification baseline aligned to contract probe matrix and sealed P04-B07 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P04-B07 risk trade-off block gate referenced by sourceBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P04-B09-A01 formalizes research-to-worker handoff using sealed spike falsification artifacts",
+    requiresBlockGatePass: true,
+    spikeFalsificationRecordRequired: true,
+  },
+};
+
+export function getForgeP04B08BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P04_B08_BLOCK_GATE_V1;
+}
+
+export function getForgeP04B08ToB09Handoff(): ResearcherSpikeFalsificationBlockHandoffContract {
+  return FORGE_P04_B08_TO_B09_HANDOFF_V1;
+}
+
+export function validateResearcherSpikeFalsificationBlockHandoffContract(
+  handoff: ResearcherSpikeFalsificationBlockHandoffContract,
+  evidence: Pick<
+    ResearcherSpikeFalsificationBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeResearcherSpikeFalsificationContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_RESEARCHER_SPIKE_FALSIFICATION_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_RESEARCHER_SPIKE_FALSIFICATION_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.spikeFalsificationCategories.length !==
+    RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES.length
+  ) {
+    issues.push("handoff spikeFalsificationCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceBlockGateAtom !== "P04-B07-A10") {
+    issues.push(`unexpected source block gate atom: ${handoff.sealedArtifacts.sourceBlockGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P04-B09-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildResearcherSpikeFalsificationBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P04_B08_BLOCK_GATE_V1.blockId,
+): ResearcherSpikeFalsificationBlockGateEvidence {
+  const handoffValid = validateResearcherSpikeFalsificationBlockHandoffContract(
+    getForgeP04B08ToB09Handoff(),
+    {
+      probeCount,
+      regressionPassed,
+      guardPassed,
+    },
+  ).valid;
+
+  return {
+    blockId,
+    atom: "P04-B08-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }
