@@ -44,7 +44,7 @@ fallback: A05 failure/recovery slice invalid ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B09-A05
-last_commit: 12e9a20
+last_commit: c4065a5
 tests: PASS — forge-orchestrator-seam*.test.ts (16/16); failureRecovery=6; passAligned=2; gapAligned=4; unexpectedMismatches=0
 evidence: runOrchestratorSeamFailureRecoverySlice; validateOrchestratorSeamFailureRecoveryProbeMatrix; documented FAIL gaps preserved
 next: P01-B09-A06

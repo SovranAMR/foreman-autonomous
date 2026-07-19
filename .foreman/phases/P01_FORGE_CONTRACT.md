@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B09-A05
-last_commit: 12e9a20
+last_commit: c4065a5
 tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (16/16); failureRecovery=6; passAligned=2; gapAligned=4; unexpectedMismatches=0
 evidence: |
   P01-B09-A05: runOrchestratorSeamFailureRecoverySlice in forge-orchestrator-seam.probe.ts;
