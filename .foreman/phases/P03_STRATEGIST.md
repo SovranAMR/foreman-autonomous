@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B03-A05
-last_commit: 7606aa1
+last_commit: df98136
 tests: PASS — forge-p03-strategist-atomization*.test.ts (20/20); contract 24 probes; failure/recovery slice 6/6 aligned
 evidence: runStrategistAtomizationFailureRecoverySlice; validateStrategistAtomizationFailureRecoveryProbeMatrix; satom.malformed_atomize_guard; satom.structured_atom_recovery; satom.orchestrator_zero_atoms_skip
 next: P03-B03-A06
