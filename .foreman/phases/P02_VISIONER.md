@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B05-A08
-last_commit: pending
+last_commit: bc65313
 tests: PASS — forge-pipeline-regression.integration.test.ts P02-B05-A08 (5/5); forge-p02-visioner-research-trigger.test.ts (24/24); forge-p02-visioner-research-trigger.property-fuzz.test.ts (5/5)
 evidence: runForgeVisionerResearchTriggerRegressionGate 23/23 probes; propertyFuzz properties=8/8 contractFuzz rejected=72/72 runFuzz rejected=3/3; guard adversarial=3/3; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a08
 next: P02-B05-A09
