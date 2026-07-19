@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 3
-completed_atoms: 31
+completed_atoms: 32
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -56,7 +56,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P03-B04-A01 — Dependency DAG: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P03-B04-A02 — Dependency DAG: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P03-B04-A03 — Dependency DAG: en küçük üretim dikey dilimini uygula
+- [x] P03-B04-A03 — Dependency DAG: en küçük üretim dikey dilimini uygula
 - [ ] P03-B04-A04 — Dependency DAG: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B04-A05 — Dependency DAG: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B04-A06 — Dependency DAG: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B04-A02
-last_commit: 22eb306
-tests: PASS — forge-p03-strategist-dependency-dag.test.ts (8/8); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 23 probes; 8 gap dispositions; fixture↔contract aligned
-evidence: StrategistDependencyDagContract; validateStrategistDependencyDagAgainstContract; validateStrategistDependencyDagCoverage
-next: P03-B04-A03
+last_atom: P03-B04-A03
+last_commit: pending
+tests: PASS — forge-p03-strategist-dependency-dag.test.ts (12/12); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 23 probes; 6 gap dispositions; 2 recovery probes flipped PASS
+evidence: recoverStrategistDependencyDag; inferBlockDependenciesFromOrder; runStrategistDependencyDagProductionSlice; validateStrategistDependencyDagProbeMatrix
+next: P03-B04-A04

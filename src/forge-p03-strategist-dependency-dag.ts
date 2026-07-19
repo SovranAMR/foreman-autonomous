@@ -18,7 +18,379 @@ import {
 } from "./forge-p03-strategist-atomization.js";
 import { parseDecomposeResponse, parseAtomizeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION = "1.0.0-a01";
+export const FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION = "1.0.0-a03";
+
+export interface StrategistDependencyDagRecoveryHints {
+  blocks?: string[];
+  blockDeps?: number[][];
+  confidence?: number;
+  reasoning?: string;
+}
+
+export interface StrategistDependencyDagRecoveryResult {
+  recovered: boolean;
+  dagValid: boolean;
+  composedDecompose: string;
+  blocks: string[];
+  blockDeps: number[][];
+  blockCount: number;
+  parseErrors: string[];
+  detail: string;
+}
+
+const INFORMAL_BLOCK_LINE = /^block\s*(\d+)\s*[:=\-]\s*(.+)$/i;
+
+function sanitizeBlockDeps(blockDeps: number[][], blockCount: number): number[][] {
+  return blockDeps.map((deps, index) =>
+    [...new Set(deps.filter(dep => dep >= 0 && dep < blockCount && dep !== index))],
+  );
+}
+
+function blockDepsHasCycle(blockDeps: number[][], blockCount: number): boolean {
+  const visiting = new Set<number>();
+  const visited = new Set<number>();
+
+  function dfs(node: number): boolean {
+    if (visiting.has(node)) return true;
+    if (visited.has(node)) return false;
+    visiting.add(node);
+    for (const dep of blockDeps[node] ?? []) {
+      if (dep >= 0 && dep < blockCount && dfs(dep)) return true;
+    }
+    visiting.delete(node);
+    visited.add(node);
+    return false;
+  }
+
+  for (let i = 0; i < blockCount; i++) {
+    if (dfs(i)) return true;
+  }
+  return false;
+}
+
+function formatDependenciesField(blockDeps: number[][]): string {
+  const entries: string[] = [];
+  for (let i = 0; i < blockDeps.length; i++) {
+    const deps = blockDeps[i] ?? [];
+    if (deps.length === 0) continue;
+    const depNums = deps.map(dep => dep + 1).join(",");
+    entries.push(`${i + 1}→${depNums}`);
+  }
+  return entries.length > 0 ? entries.join(", ") : "none";
+}
+
+/**
+ * Infer sequential block dependencies when DEPENDENCIES field is missing (P03-B04-A03).
+ */
+export function inferBlockDependenciesFromOrder(blockCount: number): number[][] {
+  const deps: number[][] = Array.from({ length: blockCount }, () => []);
+  for (let i = 1; i < blockCount; i++) {
+    deps[i].push(i - 1);
+  }
+  return deps;
+}
+
+/**
+ * Restructure malformed dependency graph into valid DAG plan (P03-B04-A03).
+ */
+export function recoverStrategistDependencyDag(
+  failedParse: string,
+  hints: StrategistDependencyDagRecoveryHints = {},
+): StrategistDependencyDagRecoveryResult {
+  const parseErrors: string[] = [];
+
+  if (failedParse.includes("\0")) {
+    return {
+      recovered: false,
+      dagValid: false,
+      composedDecompose: "",
+      blocks: [],
+      blockDeps: [],
+      blockCount: 0,
+      parseErrors: ["null_byte_in_decompose"],
+      detail: "cannot recover null-byte decompose output",
+    };
+  }
+
+  const trimmed = failedParse.trim();
+  if (trimmed.length === 0) {
+    return {
+      recovered: false,
+      dagValid: false,
+      composedDecompose: "",
+      blocks: [],
+      blockDeps: [],
+      blockCount: 0,
+      parseErrors: ["empty_decompose"],
+      detail: "cannot recover empty decompose output",
+    };
+  }
+
+  const direct = parseDecomposeResponse(failedParse);
+  if (direct.ok) {
+    const blockCount = direct.data.blocks.length;
+    let blockDeps = sanitizeBlockDeps(direct.data.blockDeps, blockCount);
+    if (blockDeps.every(deps => deps.length === 0)) {
+      blockDeps = inferBlockDependenciesFromOrder(blockCount);
+      parseErrors.push("missing_deps_inferred");
+    }
+    if (blockDepsHasCycle(blockDeps, blockCount)) {
+      blockDeps = inferBlockDependenciesFromOrder(blockCount);
+      parseErrors.push("cycle_repaired");
+    }
+    const depsField = formatDependenciesField(blockDeps);
+    const composedDecompose = failedParse.includes("DEPENDENCIES:")
+      ? failedParse
+      : [
+          trimmed,
+          `DEPENDENCIES: ${depsField}`,
+        ].join("\n");
+    const reparsed = parseDecomposeResponse(composedDecompose);
+    const dagValid =
+      reparsed.ok === true &&
+      !blockDepsHasCycle(blockDeps, blockCount) &&
+      blockDeps.every((deps, index) =>
+        deps.every(dep => dep >= 0 && dep < blockCount && dep !== index),
+      );
+    return {
+      recovered: true,
+      dagValid,
+      composedDecompose: dagValid ? composedDecompose : "",
+      blocks: direct.data.blocks,
+      blockDeps,
+      blockCount,
+      parseErrors,
+      detail: dagValid
+        ? `direct parse succeeded with ${blockCount} blocks and valid DAG`
+        : "direct parse deps not DAG-valid",
+    };
+  }
+
+  let blocks = [...(hints.blocks ?? [])];
+  let reasoning = hints.reasoning;
+  const confidence = hints.confidence ?? 0.75;
+
+  const reasoningMatch = failedParse.match(
+    /REASONING:\s*(.+?)(?:\n(?:OUTPUT|Block\s*\d|CONFIDENCE|DEPENDENCIES|\d+\.)|$)/is,
+  );
+  if (reasoningMatch && !reasoning) {
+    reasoning = reasoningMatch[1].trim();
+  }
+
+  for (const line of failedParse.split("\n")) {
+    const candidate = line.trim();
+    if (!candidate) continue;
+
+    const blockMatch = candidate.match(INFORMAL_BLOCK_LINE);
+    if (blockMatch) {
+      blocks.push(blockMatch[2].trim());
+      continue;
+    }
+
+    const numberedMatch = candidate.match(/^(\d+)\.\s*(.+)$/);
+    if (numberedMatch) {
+      blocks.push(numberedMatch[2].trim());
+      continue;
+    }
+
+    const bulletMatch = candidate.match(/^[-*•]\s*(.+)$/);
+    if (bulletMatch && bulletMatch[1].length > 5) {
+      blocks.push(bulletMatch[1].trim());
+    }
+  }
+
+  blocks = [...new Set(blocks.map(block => block.trim()).filter(block => block.length > 0))];
+  if (blocks.length > 8) {
+    blocks = blocks.slice(0, 8);
+  }
+
+  if (blocks.length === 0) {
+    parseErrors.push("missing_blocks");
+    blocks = ["Recovered block pending strategist refinement"];
+  }
+
+  const outputLines = blocks.map((block, index) => {
+    const cleaned = block.replace(/^Block\s*\d+\s*:\s*/i, "");
+    return `Block ${index + 1}: ${cleaned}`;
+  });
+
+  const draftDecompose = [
+    `REASONING: ${reasoning ?? "Recovered from failed dependency DAG parse"}`,
+    "OUTPUT:",
+    ...outputLines,
+    `CONFIDENCE: ${confidence}`,
+  ].join("\n");
+
+  const draftParsed = parseDecomposeResponse(draftDecompose);
+  const blockCount = draftParsed.ok ? draftParsed.data.blocks.length : blocks.length;
+  let blockDeps = hints.blockDeps
+    ? sanitizeBlockDeps(hints.blockDeps, blockCount)
+    : draftParsed.ok
+      ? sanitizeBlockDeps(draftParsed.data.blockDeps, blockCount)
+      : inferBlockDependenciesFromOrder(blockCount);
+
+  if (blockDeps.every(deps => deps.length === 0)) {
+    blockDeps = inferBlockDependenciesFromOrder(blockCount);
+    parseErrors.push("missing_deps_inferred");
+  }
+  if (blockDepsHasCycle(blockDeps, blockCount)) {
+    blockDeps = inferBlockDependenciesFromOrder(blockCount);
+    parseErrors.push("cycle_repaired");
+  }
+
+  const composedDecompose = [
+    `REASONING: ${reasoning ?? "Recovered from failed dependency DAG parse"}`,
+    "OUTPUT:",
+    ...outputLines,
+    `DEPENDENCIES: ${formatDependenciesField(blockDeps)}`,
+    `CONFIDENCE: ${confidence}`,
+  ].join("\n");
+
+  const parsed = parseDecomposeResponse(composedDecompose);
+  const dagValid =
+    parsed.ok === true &&
+    !blockDepsHasCycle(blockDeps, blockCount) &&
+    blockDeps.every((deps, index) =>
+      deps.every(dep => dep >= 0 && dep < blockCount && dep !== index),
+    );
+  const recovered = parsed.ok === true && parsed.data.blocks.length >= 1;
+
+  return {
+    recovered,
+    dagValid,
+    composedDecompose: dagValid ? composedDecompose : "",
+    blocks: parsed.ok ? parsed.data.blocks : blocks,
+    blockDeps,
+    blockCount: parsed.ok ? parsed.data.blocks.length : blocks.length,
+    parseErrors,
+    detail: dagValid
+      ? `valid DAG plan with ${parsed.ok ? parsed.data.blocks.length : 0} blocks`
+      : `recovery incomplete: ${parseErrors.join(", ") || "parse failed"}`,
+  };
+}
+
+export interface StrategistDependencyDagProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistDependencyDagProbeMatrixValidationResult {
+  valid: boolean;
+  issues: StrategistDependencyDagProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateStrategistDependencyDagProbeMatrix(
+  results: StrategistDependencyDagProbeResult[],
+  contract: StrategistDependencyDagContract = getActiveStrategistDependencyDagContract(),
+): StrategistDependencyDagProbeMatrixValidationResult {
+  const issues: StrategistDependencyDagProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface StrategistDependencyDagProductionSliceResult {
+  atom: "P03-B04-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: StrategistDependencyDagProbeResult[];
+  summary: StrategistDependencyDagProbeSummary;
+  matrixValidation: StrategistDependencyDagProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: recoverStrategistDependencyDag wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runStrategistDependencyDagProductionSlice(
+  fixture: StrategistDependencyDagBaseline = loadStrategistDependencyDagBaseline(),
+): StrategistDependencyDagProductionSliceResult {
+  const contract = getActiveStrategistDependencyDagContract();
+  const fixtureValidation = validateStrategistDependencyDagBaseline(fixture);
+  const contractValidation = validateStrategistDependencyDagAgainstContract(fixture, contract);
+  const results = runStrategistDependencyDagProbes(fixture);
+  const summary = summarizeStrategistDependencyDagMatrix(results);
+  const matrixValidation = validateStrategistDependencyDagProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B04-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
+}
 
 export const STRATEGIST_DEPENDENCY_DAG_CATEGORIES = [
   "dag_versioning",
@@ -386,16 +758,16 @@ const STRATEGIST_DEPENDENCY_DAG_CATEGORY_CONTRACTS: Record<
         id: "sdag.recovery_dag_repair",
         category: "recovery_path",
         description: "recoverStrategistDependencyDag restructures malformed dependency graph into valid DAG plan",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion: "recoverStrategistDependencyDag restructures malformed dependency graph into valid DAG plan",
       },
       {
         id: "sdag.recovery_missing_deps_fallback",
         category: "recovery_path",
         description: "Dependency recovery falls back when DEPENDENCIES field is missing from decompose output",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion: "Dependency recovery falls back when DEPENDENCIES field is missing from decompose output",
       },
     ],
@@ -1151,14 +1523,54 @@ function probeRecoveryPath(
 ): StrategistDependencyDagProbeResult {
   switch (id) {
     case "sdag.recovery_dag_repair": {
-      const ok = hasProductionExport("recoverStrategistDependencyDag");
-      return probe(id, category, expected, ok, `recoveryRepair=${ok}`);
+      const malformed = `REASONING: Need dependency DAG plan
+Here are the steps:
+Block 1: Setup dependency DAG types
+Block 2: Wire block dependency parser seam
+Block 3: Add dependency DAG baseline tests
+DEPENDENCIES: 2→99, 3→3, 4→1
+CONFIDENCE: 0.8`;
+      const recovery = recoverStrategistDependencyDag(malformed);
+      const ok =
+        recovery.recovered === true &&
+        recovery.dagValid === true &&
+        recovery.blockCount >= 3 &&
+        !blockDepsHasCycle(recovery.blockDeps, recovery.blockCount) &&
+        recovery.blocks.some(block => block.includes("dependency DAG types")) &&
+        recovery.blocks.some(block => block.includes("dependency parser seam")) &&
+        recovery.blocks.some(block => block.includes("dependency DAG baseline"));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recovered=${recovery.recovered}, dagValid=${recovery.dagValid}, blocks=${recovery.blockCount}, ${recovery.detail}`,
+      );
     }
     case "sdag.recovery_missing_deps_fallback": {
+      const missingDeps = `REASONING: Blocks without explicit deps
+OUTPUT:
+Block 1: Root dependency block
+Block 2: Depends on prior work implicitly
+Block 3: Final dependency integration
+CONFIDENCE: 0.75`;
+      const recovery = recoverStrategistDependencyDag(missingDeps);
+      const inferred = inferBlockDependenciesFromOrder(recovery.blockCount);
       const ok =
-        hasProductionExport("recoverMissingBlockDependencies") ||
-        hasProductionExport("inferBlockDependenciesFromOrder");
-      return probe(id, category, expected, ok, `missingDepsFallback=${ok}`);
+        recovery.recovered === true &&
+        recovery.dagValid === true &&
+        recovery.blockCount >= 2 &&
+        recovery.blockDeps.length === recovery.blockCount &&
+        recovery.blockDeps[1]?.includes(0) &&
+        inferred[1]?.includes(0) &&
+        recovery.composedDecompose.includes("DEPENDENCIES:");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recovered=${recovery.recovered}, inferred=${recovery.parseErrors.includes("missing_deps_inferred")}, ${recovery.detail}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown recovery_path probe");
@@ -1227,7 +1639,12 @@ function runSingleProbe(
 export function runStrategistDependencyDagProbes(
   fixture: StrategistDependencyDagBaseline = loadStrategistDependencyDagBaseline(),
 ): StrategistDependencyDagProbeResult[] {
-  return fixture.probes.map(entry =>
-    runSingleProbe(entry.id, entry.category, entry.expected, fixture),
-  );
+  const contract = getActiveStrategistDependencyDagContract();
+  return fixture.probes.map(entry => {
+    const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion
+      ? { ...result, criterion: contractProbe.criterion }
+      : result;
+  });
 }

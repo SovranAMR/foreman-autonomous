@@ -123,13 +123,13 @@
       "id": "sdag.recovery_dag_repair",
       "category": "recovery_path",
       "description": "recoverStrategistDependencyDag restructures malformed dependency graph into valid DAG plan",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sdag.recovery_missing_deps_fallback",
       "category": "recovery_path",
       "description": "Dependency recovery falls back when DEPENDENCIES field is missing from decompose output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sdag.nogo_cycle_block_halt",

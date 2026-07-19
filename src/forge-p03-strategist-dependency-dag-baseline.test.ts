@@ -44,7 +44,7 @@ describe("Forge Strategist Dependency DAG — P03-B04-A01", () => {
       "FAIL",
       loadStrategistDependencyDagBaseline(),
     );
-    assert.equal(documentedFail.length, 8);
+    assert.equal(documentedFail.length, 6);
     assert.ok(documentedFail.some(p => p.id === "sdag.parser_atom_deps"));
     assert.ok(documentedFail.some(p => p.id === "sdag.nogo_cycle_block_halt"));
 
@@ -78,8 +78,6 @@ describe("Forge Strategist Dependency DAG — P03-B04-A01", () => {
       "sdag.orchestrator_atom_waves",
       "sdag.parser_atom_deps",
       "sdag.prompt_atom_dependencies",
-      "sdag.recovery_dag_repair",
-      "sdag.recovery_missing_deps_fallback",
     ]);
     assert.ok(
       gaps.every(g => STRATEGIST_DEPENDENCY_DAG_CATEGORIES.includes(g.category)),
