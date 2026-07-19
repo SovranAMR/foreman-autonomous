@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B01-A03
-last_commit: pending
+last_commit: 27eeed0
 tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (16/16); 25/25 probes aligned; 0 FAIL gaps
 evidence: decomposeResearchQuestions; validateResearchQuestionDecomposition orchestrator wiring; RESEARCH_QUESTIONS prompt+parser; runResearcherQuestionDecompositionProductionSlice matrixValid
 next: P04-B01-A04
