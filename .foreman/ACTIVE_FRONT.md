@@ -44,7 +44,7 @@ fallback: Production slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B02-A02
-last_commit: pending
+last_commit: 5aea64a
 tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (16/16)
 evidence: getActiveWorkerFilesystemGroundingContract + validateWorkerFilesystemGroundingAgainstContract; 27 probes, 6 FAIL gaps (3 gap + 3 nogo disposition)
 next: P05-B02-A03
