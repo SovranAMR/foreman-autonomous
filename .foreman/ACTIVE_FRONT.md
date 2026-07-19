@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B08
-active_atom: P02-B08-A09
+active_atom: P02-B08-A10
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 177/1000
-phase_progress: 76/100
-block_progress: 8/10
+program_progress: 178/1000
+phase_progress: 77/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B08-A09 — Vision scoring adversarial, performance, cost and safety kontrolünü geçir.
+P02-B08-A10 — Vision scoring block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P02-B08-A08 regression gate PASS; extend guard controls with dedicated adversarial/perf/cost/safety test suite.
-target: validateForgeVisionerScoringGuard and forge-p02-visioner-scoring.guard.test.ts.
-hypothesis: A08 regression gate guard foundation enables A09 guard slice without probe matrix refactor.
-acceptance: forge-p02-visioner-scoring.guard.test.ts; guard integration with orchestrator verifyForgeVisionerScoringGuard.
-commands: npx tsx --test src/forge-p02-visioner-scoring.guard.test.ts
+objective: P02-B08-A09 guard PASS; seal B08 block gate with full suite and B09 handoff.
+target: runForgeVisionerScoringBlockGate and forge-p02-visioner-scoring-block-gate.test.ts.
+hypothesis: A09 guard suite enables A10 block gate seal without contract refactor.
+acceptance: forge-p02-visioner-scoring-block-gate.test.ts; orchestrator verifyForgeVisionerScoringBlockGate.
+commands: npx tsx --test src/forge-p02-visioner-scoring-block-gate.test.ts
 blast_radius: src/forge-p02-visioner-scoring*
-rollback: P02-B08-A09 guard test değişikliklerini geri al.
+rollback: P02-B08-A10 block gate değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: guard slice requires scoring contract refactor beyond slice scope ise BLOCKED raporla.
+fallback: block gate requires scoring contract refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B08-A08
-last_commit: 8602240
-tests: PASS — forge-p02-visioner-scoring.test.ts (31/31), forge-p02-visioner-scoring.property-fuzz.test.ts (5/5), forge-pipeline-regression.integration.test.ts scoring slice (5/5)
-evidence: detectVisionerScoringProbeRegression wired; runForgeVisionerScoringRegressionGate 23/23 aligned; orchestrator verifyForgeVisionerScoringRegression emits visioner_scoring_regression
-next: P02-B08-A09
+last_atom: P02-B08-A09
+last_commit: 95bd33e
+tests: PASS — forge-p02-visioner-scoring.guard.test.ts (8/8)
+evidence: validateForgeVisionerScoringGuard adversarial=3/3; perf/cost/safety; orchestrator verifyForgeVisionerScoringGuard visioner_scoring_guard
+next: P02-B08-A10

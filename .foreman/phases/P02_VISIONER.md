@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 77
+completed_atoms: 78
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -114,7 +114,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B08-A06 — Vizyon scoring ve trade-off: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B08-A07 — Vizyon scoring ve trade-off: unit, property ve fuzz doğrulamasını ekle
 - [x] P02-B08-A08 — Vizyon scoring ve trade-off: Forge entegrasyonu ile regression testini tamamla
-- [ ] P02-B08-A09 — Vizyon scoring ve trade-off: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P02-B08-A09 — Vizyon scoring ve trade-off: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B08-A10 — Vizyon scoring ve trade-off: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P02-B09 — Kullanıcı approval ve steering
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B08-A08
-last_commit: 8602240
-tests: PASS — forge-p02-visioner-scoring.test.ts (31/31), forge-p02-visioner-scoring.property-fuzz.test.ts (5/5), forge-pipeline-regression.integration.test.ts scoring slice (5/5)
-evidence: detectVisionerScoringProbeRegression; runForgeVisionerScoringRegressionGate 23/23 aligned; orchestrator verifyForgeVisionerScoringRegression
-next: P02-B08-A09
+last_atom: P02-B08-A09
+last_commit: 95bd33e
+tests: PASS — forge-p02-visioner-scoring.guard.test.ts (8/8)
+evidence: validateForgeVisionerScoringGuard adversarial=3/3; perf/cost/safety controls; orchestrator verifyForgeVisionerScoringGuard emits visioner_scoring_guard
+next: P02-B08-A10
