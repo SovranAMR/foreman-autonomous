@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B03
-active_atom: P03-B03-A08
+active_atom: P03-B03-A09
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 226/1000
-phase_progress: 27/100
-block_progress: 7/10
+program_progress: 227/1000
+phase_progress: 28/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B03-A08 — Atomization ve atom boyutu: Forge entegrasyonu ile regression testini tamamla.
+P03-B03-A09 — Atomization ve atom boyutu: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P03-B03-A07 PASS; P03-B03-A08 add Forge integration regression test for atomization slice.
-target: forge regression harness, probe regression detection, integrated run record validation.
-hypothesis: P03-B03-A08 closes atomization block with end-to-end Forge regression gate.
-acceptance: regression slice PASS; zero probe regressions; production + property/fuzz slices green.
+objective: P03-B03-A08 PASS; P03-B03-A09 add guard controls with adversarial, performance, cost and safety validation for atomization slice.
+target: ForgeStrategistAtomizationGuardControls, adversarial guard scenarios, validateForgeStrategistAtomizationGuard.
+hypothesis: P03-B03-A09 hardens atomization block with guard gate before block seal handoff.
+acceptance: guard slice PASS; adversarial scenarios reject tampered records; performance/cost/safety within bounds.
 commands: npx tsx --test src/forge-p03-strategist-atomization*.test.ts
 blast_radius: src/forge-p03-strategist-atomization.ts
-rollback: P03-B03-A08 regression slice değişikliklerini geri al.
+rollback: P03-B03-A09 guard slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: regression closure blocked ise BLOCKED raporla.
+fallback: guard closure blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B03-A07
-last_commit: 2c92c1c
-tests: PASS — forge-p03-strategist-atomization*.test.ts (30/30); property checks 8/8; contract fuzz 72/72 rejected; run-record fuzz 0 accepted
-evidence: runStrategistAtomizationPropertyFuzzSlice; runStrategistAtomizationPropertyChecks; runStrategistAtomizationFuzzValidation; runStrategistAtomizationRunRecordFuzzValidation
-next: P03-B03-A08
+last_atom: P03-B03-A08
+last_commit: 6043f2e
+tests: PASS — forge-p03-strategist-atomization*.test.ts (35/35); regression 24/24 aligned; zero probe regressions; property/fuzz slices green
+evidence: runStrategistAtomizationForgeRegression; detectStrategistAtomizationProbeRegression; runStrategistAtomizationProductionSlice; runStrategistAtomizationPropertyFuzzSlice
+next: P03-B03-A09

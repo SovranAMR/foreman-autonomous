@@ -34,6 +34,9 @@ import {
   runStrategistAtomizationFuzzValidation,
   runStrategistAtomizationRunRecordFuzzValidation,
   runStrategistAtomizationPropertyFuzzSlice,
+  runStrategistAtomizationForgeRegression,
+  detectStrategistAtomizationProbeRegression,
+  applyStrategistAtomizationRunRecordFuzzMutation,
   FORGE_STRATEGIST_ATOMIZATION_VERSION,
   loadStrategistAtomizationBaseline,
   STRATEGIST_ATOMIZE_MAX_LENGTH,
@@ -481,7 +484,7 @@ describe("Forge Strategist Atomization Evidence — P03-B03-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_ATOMIZATION_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -513,7 +516,7 @@ describe("Forge Strategist Atomization Evidence — P03-B03-A06", () => {
     assert.equal(record.evidence.length, 24);
     assert.equal(record.telemetry.length, 24);
     assert.equal(record.provenance.totalProbes, 24);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a07");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 24);
@@ -638,5 +641,86 @@ describe("Forge Strategist Atomization Property/Fuzz — P03-B03-A07", () => {
     assert.equal(slice.contractFuzz.allMutationsRejected, true);
     assert.equal(slice.contractFuzz.accepted, 0);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
+  });
+});
+
+describe("Forge Strategist Atomization Regression — P03-B03-A08", () => {
+  it("runStrategistAtomizationForgeRegression passes on canonical atomization matrix", () => {
+    const result = runStrategistAtomizationForgeRegression();
+
+    assert.equal(result.atom, "P03-B03-A08");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 24);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.ok(result.detail.includes("24/24 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectStrategistAtomizationProbeRegression flags newly misaligned probes", () => {
+    const prior = runStrategistAtomizationProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistAtomizationProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runStrategistAtomizationForgeRegression compares against prior record without false regression", () => {
+    const prior = runStrategistAtomizationProbesWithRecord();
+    const result = runStrategistAtomizationForgeRegression(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runStrategistAtomizationForgeRegression rejects tampered prior records", () => {
+    const prior = runStrategistAtomizationProbesWithRecord();
+    const tamperedPrior = applyStrategistAtomizationRunRecordFuzzMutation(prior, {
+      kind: "drop_evidence",
+      probeId: prior.evidence[0]?.probeId,
+    });
+
+    assert.equal(validateStrategistAtomizationRunRecord(tamperedPrior).valid, false);
+
+    const result = runStrategistAtomizationForgeRegression(tamperedPrior);
+    assert.equal(result.priorRecordValid, false);
+    assert.equal(result.passed, false);
+    assert.ok(result.detail.includes("priorValidation:"));
+  });
+
+  it("runStrategistAtomizationForgeRegression fails when probe alignment regresses", () => {
+    const prior = runStrategistAtomizationProbesWithRecord();
+    const tamperedCurrent = structuredClone(prior);
+    const target = tamperedCurrent.evidence[0]!;
+    target.aligned = false;
+    target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+    tamperedCurrent.summary = {
+      ...tamperedCurrent.summary,
+      aligned: tamperedCurrent.summary.aligned - 1,
+      mismatches: tamperedCurrent.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistAtomizationProbeRegression(prior, tamperedCurrent);
+    assert.equal(report.hasRegression, true);
   });
 });

@@ -48,7 +48,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B03-A05 — Atomization ve atom boyutu: failure, recovery ve NO-GO yollarını uygula
 - [x] P03-B03-A06 — Atomization ve atom boyutu: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B03-A07 — Atomization ve atom boyutu: unit, property ve fuzz doğrulamasını ekle
-- [ ] P03-B03-A08 — Atomization ve atom boyutu: Forge entegrasyonu ile regression testini tamamla
+- [x] P03-B03-A08 — Atomization ve atom boyutu: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B03-A09 — Atomization ve atom boyutu: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B03-A10 — Atomization ve atom boyutu: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B03-A07
-last_commit: 2c92c1c
-tests: PASS — forge-p03-strategist-atomization*.test.ts (30/30); property checks 8/8; contract fuzz 72/72 rejected; run-record fuzz 0 accepted
-evidence: runStrategistAtomizationPropertyFuzzSlice; runStrategistAtomizationPropertyChecks; runStrategistAtomizationFuzzValidation; runStrategistAtomizationRunRecordFuzzValidation
-next: P03-B03-A08
+last_atom: P03-B03-A08
+last_commit: 6043f2e
+tests: PASS — forge-p03-strategist-atomization*.test.ts (35/35); regression 24/24 aligned; zero probe regressions; property/fuzz slices green
+evidence: runStrategistAtomizationForgeRegression; detectStrategistAtomizationProbeRegression; runStrategistAtomizationProductionSlice; runStrategistAtomizationPropertyFuzzSlice
+next: P03-B03-A09
