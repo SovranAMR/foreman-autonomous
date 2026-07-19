@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
-active_block: P03-B01
-active_atom: P03-B01-A10
+active_block: P03-B02
+active_atom: P03-B02-A01
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 208/1000
-phase_progress: 8/100
-block_progress: 9/10
+program_progress: 209/1000
+phase_progress: 10/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B01-A10 — Hedef decomposition: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P03-B02-A01 — Block üretim kontratı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P03-B01-A09 PASS; P03-B01-A10 strategist intent block gate seal and B02 handoff.
-target: runStrategistIntentBlockGate, getForgeP03B01BlockGate, getForgeP03B01ToB02Handoff.
-hypothesis: P03-B01-A10 seals P03-B01 atom deliverables, regression, guard and B02 handoff contract.
-acceptance: block gate evidence sealed; handoff contract valid; all A01–A09 checks pass.
-commands: npx tsx --test src/forge-p03-strategist-intent.test.ts
-blast_radius: src/forge-p03-strategist-intent.ts
-rollback: P03-B01-A10 block gate değişikliklerini geri al.
+objective: P03-B01-A10 PASS; P03-B02-A01 block production contract baseline measurement.
+target: loadStrategistBlockContractBaseline, runStrategistBlockContractProbes.
+hypothesis: P03-B02-A01 establishes measurable block production contract baseline from sealed P03-B01 handoff.
+acceptance: versioned baseline fixture; P03-B01 handoff alignment; probe matrix with documented gaps.
+commands: npx tsx --test src/forge-p03-strategist-block-contract-baseline.test.ts
+blast_radius: src/forge-p03-strategist-block-contract.ts
+rollback: P03-B02-A01 baseline fixture değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: P03-B01-A09 guard slice misaligned ise BLOCKED raporla.
+fallback: P03-B01 handoff misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B01-A09
-last_commit: 360bf84
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (34/34); guard adversarial 3/3; performance/cost/safety bounds enforced
-evidence: validateForgeStrategistIntentGuard; runStrategistIntentAdversarialGuardChecks
-next: P03-B01-A10
+last_atom: P03-B01-A10
+last_commit: PENDING
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (34/34); forge-p03-strategist-intent-block-gate.test.ts (6/6); block gate seals 10/10; handoff→P03-B02
+evidence: runStrategistIntentBlockGate; getForgeP03B01BlockGate; getForgeP03B01ToB02Handoff
+next: P03-B02-A01

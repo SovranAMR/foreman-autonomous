@@ -11,7 +11,12 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import strategistIntentBaseline from "./fixtures/forge-strategist-intent-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP02ToP03PhaseHandoff,
   getActiveVisionerPhaseGateContract,
@@ -3190,5 +3195,188 @@ export function validateForgeStrategistIntentGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P03-B01-A10) ─────────────────────────────────────
+
+export interface StrategistIntentBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface StrategistIntentBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    strategistIntentCategories: readonly StrategistIntentCategory[];
+    sourcePhaseGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    strategistIntentRecordRequired: true;
+  };
+}
+
+export const FORGE_P03_B01_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P03-B01-A10",
+  blockId: "P03-B01",
+  title: "Hedef decomposition",
+  requiredAtomIds: [
+    "P03-B01-A01",
+    "P03-B01-A02",
+    "P03-B01-A03",
+    "P03-B01-A04",
+    "P03-B01-A05",
+    "P03-B01-A06",
+    "P03-B01-A07",
+    "P03-B01-A08",
+    "P03-B01-A09",
+    "P03-B01-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P03-B01-A01", description: "Strategist intent baseline aligns with typed contract and P02 phase gate handoff" },
+    { id: "typed_contract_coverage", atomId: "P03-B01-A02", description: "Contract declares measurable probes for all strategist intent categories" },
+    { id: "probe_matrix_aligned", atomId: "P03-B01-A03", description: "Strategist intent probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P03-B01-A04", description: "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes" },
+    { id: "failure_recovery_nogo", atomId: "P03-B01-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P03-B01-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P03-B01-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P03-B01-A08", description: "Regression gate passes on canonical strategist intent matrix" },
+    { id: "guard_controls", atomId: "P03-B01-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P03-B01-A10", description: "Block gate evidence sealed with valid B02 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P03_B01_TO_B02_HANDOFF_V1: StrategistIntentBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P03-B01-A10",
+  sourceBlock: {
+    blockId: "P03-B01",
+    title: "Hedef decomposition",
+    completedAtoms: FORGE_P03_B01_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P03-B02",
+    title: "Block üretim kontratı",
+    entryAtom: "P03-B02-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_STRATEGIST_INTENT_CONTRACT_V1.version,
+    harnessVersion: FORGE_STRATEGIST_INTENT_VERSION,
+    probeCount: summarizeStrategistIntentContractCoverage(FORGE_STRATEGIST_INTENT_CONTRACT_V1).totalProbes,
+    strategistIntentCategories: STRATEGIST_INTENT_CATEGORIES,
+    sourcePhaseGateAtom: "P02-PHASE-GATE",
+  },
+  prerequisites: [
+    "Strategist intent contract v1 with measurable vision signal, decomposition depth and block cap probes",
+    "Versioned strategist intent baseline aligned to contract probe matrix and sealed P02 phase gate handoff",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P02 visioner phase gate referenced by sourcePhaseGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P03-B02-A01 formalizes block production contract using sealed strategist intent decomposition artifacts",
+    requiresBlockGatePass: true,
+    strategistIntentRecordRequired: true,
+  },
+};
+
+export function getForgeP03B01BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P03_B01_BLOCK_GATE_V1;
+}
+
+export function getForgeP03B01ToB02Handoff(): StrategistIntentBlockHandoffContract {
+  return FORGE_P03_B01_TO_B02_HANDOFF_V1;
+}
+
+export function validateStrategistIntentBlockHandoffContract(
+  handoff: StrategistIntentBlockHandoffContract,
+  evidence: Pick<StrategistIntentBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeStrategistIntentContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.strategistIntentCategories.length !== STRATEGIST_INTENT_CATEGORIES.length) {
+    issues.push("handoff strategistIntentCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P03-B02-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildStrategistIntentBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P03_B01_BLOCK_GATE_V1.blockId,
+): StrategistIntentBlockGateEvidence {
+  const handoff = getForgeP03B01ToB02Handoff();
+  const handoffValid = validateStrategistIntentBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P03-B01-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }
