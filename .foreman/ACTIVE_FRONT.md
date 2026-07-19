@@ -44,7 +44,7 @@ fallback: B06 contract unrelated orchestrator refactor gerektirirse BLOCKED rapo
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B06-A01
-last_commit: pending
+last_commit: 77a97a3
 tests: PASS — forge-p02-visioner-uncertainty-baseline.test.ts (3/3)
 evidence: baseline fixture v1.0.0 loads; 23 probes; 1 documented FAIL gap (vunc.structured_clarification_recovery); P02-B05 handoff validated
 next: P02-B06-A02
