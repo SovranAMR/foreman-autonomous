@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 4
-completed_atoms: 43
+completed_atoms: 44
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -73,7 +73,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B05-A04 — Research trigger belirleme: boundary ve edge-case davranışlarını tamamla
 - [x] P02-B05-A05 — Research trigger belirleme: failure, recovery ve NO-GO yollarını uygula
 - [x] P02-B05-A06 — Research trigger belirleme: evidence, telemetry ve provenance kaydını ekle
-- [ ] P02-B05-A07 — Research trigger belirleme: unit, property ve fuzz doğrulamasını ekle
+- [x] P02-B05-A07 — Research trigger belirleme: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B05-A08 — Research trigger belirleme: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B05-A09 — Research trigger belirleme: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B05-A10 — Research trigger belirleme: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B05-A06
-last_commit: 6d85b80
-tests: PASS — forge-p02-visioner-research-trigger.test.ts (27/27); forge-p02-visioner-research-trigger-baseline.test.ts (3/3)
-evidence: validateVisionerResearchTriggerFailureRecoveryRunRecord; runVisionerResearchTriggerFailureRecoverySliceWithRecord; runVisionerResearchTriggerProbesWithRecord; failure/recovery/NO-GO probes 6/6 aligned in record gate; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a06
-next: P02-B05-A07
+last_atom: P02-B05-A07
+last_commit: pending
+tests: PASS — forge-p02-visioner-research-trigger.test.ts (27/27); forge-p02-visioner-research-trigger.property-fuzz.test.ts (5/5); forge-p02-visioner-research-trigger-baseline.test.ts (3/3)
+evidence: runVisionerResearchTriggerPropertyChecks (8/8); runVisionerResearchTriggerFuzzValidation (72/72 rejected); runVisionerResearchTriggerRunRecordFuzzValidation failure/recovery 5/5 + full 3/3; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a07
+next: P02-B05-A08
