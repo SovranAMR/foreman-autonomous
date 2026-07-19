@@ -1,0 +1,141 @@
+{
+  "version": "1.0.0",
+  "atom": "P01-B07-A01",
+  "contractAtom": "P01-B07-A05",
+  "purpose": "Reproducible fixture system baseline measured from sealed B06 benchmark eval artifacts (includes documented FAIL gaps).",
+  "sourceBenchmarkEval": {
+    "version": "1.0.0",
+    "atom": "P01-B06-A10",
+    "contractVersion": "1.0.0",
+    "probeCount": 26,
+    "benchmarkEvalCategories": 9
+  },
+  "probes": [
+    {
+      "id": "fix.sealed_fixture_files",
+      "category": "fixture_versioning",
+      "description": "All six sealed forge baseline fixture JSON files exist under src/fixtures",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.version_tagged",
+      "category": "fixture_versioning",
+      "description": "Reproducible fixture baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.atom_tagged",
+      "category": "fixture_versioning",
+      "description": "Reproducible fixture baseline declares P01-B07-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.json_stable_import",
+      "category": "fixture_integrity",
+      "description": "Forge harness modules import fixtures with typed JSON import assertions",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.canonical_fixture_hash",
+      "category": "fixture_integrity",
+      "description": "Central canonicalFixtureHash computes stable SHA-256 over fixture content",
+      "expected": "FAIL"
+    },
+    {
+      "id": "fix.content_addressable_store",
+      "category": "fixture_integrity",
+      "description": "Fixture hash sidecar or registry stores content-addressable fixture digests",
+      "expected": "FAIL"
+    },
+    {
+      "id": "fix.load_reproducible_baseline",
+      "category": "deterministic_load",
+      "description": "loadReproducibleFixtureBaseline exports versioned baseline loader",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.validate_reproducible_baseline",
+      "category": "deterministic_load",
+      "description": "validateReproducibleFixtureBaseline validates fixture structure and B06 handoff",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.deterministic_eval_seed",
+      "category": "deterministic_load",
+      "description": "Orchestrator accepts deterministic eval seed for reproducible benchmark runs",
+      "expected": "FAIL"
+    },
+    {
+      "id": "fix.fixture_load_idempotent",
+      "category": "deterministic_load",
+      "description": "Repeated loadReproducibleFixtureBaseline returns identical fixture snapshot",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.b06_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P01_B06_TO_B07_HANDOFF_V1 targets P01-B07-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.b06_sealed_probe_count",
+      "category": "baseline_link",
+      "description": "Sealed B06 handoff probeCount matches active benchmark eval contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.source_benchmark_eval_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed sourceBenchmarkEval artifacts from B06-A10",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.probe_runner_exported",
+      "category": "boundary",
+      "description": "runReproducibleFixtureProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL reproducibility gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateReproducibleFixtureBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.min_category_probes",
+      "category": "failure_path",
+      "description": "validateReproducibleFixtureBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "fix.recovery_missing_fixture_file",
+      "category": "recovery_path",
+      "description": "Recovery loader falls back when versioned fixture file is missing",
+      "expected": "FAIL"
+    },
+    {
+      "id": "fix.recovery_baseline_reset",
+      "category": "recovery_path",
+      "description": "Reproducible fixture harness resets baseline metrics on recovery transition",
+      "expected": "FAIL"
+    },
+    {
+      "id": "fix.nogo_fixture_drift_gate",
+      "category": "nogo_path",
+      "description": "NO-GO gate halts eval when reproducible fixture drift is detected",
+      "expected": "FAIL"
+    },
+    {
+      "id": "fix.nogo_hash_mismatch_gate",
+      "category": "nogo_path",
+      "description": "NO-GO gate rejects benchmark run when fixture canonical hash mismatches registry",
+      "expected": "FAIL"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 59
+completed_atoms: 60
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -93,7 +93,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P01-B07 — Reproducible fixture sistemi
 
-- [ ] P01-B07-A01 — Reproducible fixture sistemi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P01-B07-A01 — Reproducible fixture sistemi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P01-B07-A02 — Reproducible fixture sistemi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B07-A03 — Reproducible fixture sistemi: en küçük üretim dikey dilimini uygula
 - [ ] P01-B07-A04 — Reproducible fixture sistemi: boundary ve edge-case davranışlarını tamamla
@@ -156,11 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B06-A10
-last_commit: 8831d13
-tests: PASS — `npx tsx --test src/forge-benchmark-eval-block-gate.test.ts` (6/6); `npx tsx --test src/forge-benchmark-eval-harness.guard.test.ts` (8/8); `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (22/22); `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (B06 slice 5/5)
+last_atom: P01-B07-A01
+last_commit: PENDING
+tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (3/3)
 evidence: |
-  P01-B06-A10 block gate: runForgeBenchmarkEvalBlockGate + verifyForgeBenchmarkEvalBlockGate orchestrator seam;
-  FORGE_P01_B06_BLOCK_GATE_V1 seals A01–A09; FORGE_P01_B06_TO_B07_HANDOFF_V1 targets P01-B07-A01;
-  regression+guard PASS embedded in sealed evidence; handoff=PASS→P01-B07.
-next: P01-B07-A01
+  P01-B07-A01 baseline: loadReproducibleFixtureBaseline + validateReproducibleFixtureBaseline on
+  forge-reproducible-fixture-v1.json; 21-probe matrix with 7 documented FAIL gaps
+  (canonical hash, content-addressable store, deterministic eval seed, recovery, NO-GO);
+  B06 handoff probeCount=26 aligned; PASS probes fully aligned.
+next: P01-B07-A02
