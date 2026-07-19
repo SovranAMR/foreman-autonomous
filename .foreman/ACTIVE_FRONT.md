@@ -44,7 +44,7 @@ fallback: baseline uygulanamazsa BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B06-A10
-last_commit: 11d7878
+last_commit: 8831d13
 tests: PASS — forge-benchmark-eval-block-gate.test.ts (6/6); forge-benchmark-eval-harness.guard.test.ts (8/8); forge-benchmark-eval-harness.test.ts (22/22); forge-pipeline-regression.integration.test.ts (B06 slice 5/5)
 evidence: runForgeBenchmarkEvalBlockGate; verifyForgeBenchmarkEvalBlockGate orchestrator seam; FORGE_P01_B06_TO_B07_HANDOFF_V1 handoff→P01-B07
 next: P01-B07-A01
