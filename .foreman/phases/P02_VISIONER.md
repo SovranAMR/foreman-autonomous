@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B07-A08
-last_commit: 566112d
+last_commit: dfab3fb
 tests: PASS — forge-pipeline-regression.integration.test.ts (84/84); forge-p02-visioner-alternative*.test.ts (32/32)
 evidence: runForgeVisionerAlternativeRegressionGate (23/23 aligned, guard 3/3 adversarial); detectVisionerAlternativeProbeRegression; orchestrator verifyForgeVisionerAlternativeRegression
 next: P02-B07-A09

@@ -44,7 +44,7 @@ fallback: guard requires orchestrator refactor beyond slice scope ise BLOCKED ra
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B07-A08
-last_commit: 566112d
+last_commit: dfab3fb
 tests: PASS — forge-pipeline-regression.integration.test.ts (84/84); forge-p02-visioner-alternative*.test.ts (32/32)
 evidence: runForgeVisionerAlternativeRegressionGate (23/23 aligned); detectVisionerAlternativeProbeRegression flags misalignment; orchestrator verifyForgeVisionerAlternativeRegression emits visioner_alternative_regression
 next: P02-B07-A09
