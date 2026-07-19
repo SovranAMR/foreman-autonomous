@@ -5,8 +5,12 @@ import {
   runResearcherCitationProvenanceGraphProbes,
   runResearcherCitationProvenanceGraphProductionSlice,
   runResearcherCitationProvenanceGraphBoundarySlice,
+  runResearcherCitationProvenanceGraphFailureRecoverySlice,
   validateResearcherCitationProvenanceGraphBaseline,
   validateResearcherCitationProvenanceGraphBoundaryProbeMatrix,
+  validateResearcherCitationProvenanceGraphFailureRecoveryProbeMatrix,
+  listResearcherCitationProvenanceGraphFailureRecoveryProbeIds,
+  RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES,
   validateResearcherCitationProvenanceGraphProbeMatrix,
   listResearcherCitationProvenanceGraphContractProbesByCategory,
   summarizeResearcherCitationProvenanceGraphMatrix,
@@ -274,5 +278,116 @@ describe("Forge Researcher Citation Provenance Graph Boundary Slice — P04-B05-
       assert.equal(result!.actual, "PASS");
       assert.equal(result!.aligned, true);
     }
+  });
+});
+
+describe("Forge Researcher Citation Provenance Graph Failure Recovery Slice — P04-B05-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveResearcherCitationProvenanceGraphContract();
+    const failure = listResearcherCitationProvenanceGraphContractProbesByCategory(
+      "failure_path",
+      contract,
+    );
+    const recovery = listResearcherCitationProvenanceGraphContractProbesByCategory(
+      "recovery_path",
+      contract,
+    );
+    const nogo = listResearcherCitationProvenanceGraphContractProbesByCategory(
+      "nogo_path",
+      contract,
+    );
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveResearcherCitationProvenanceGraphContract();
+    const slice = runResearcherCitationProvenanceGraphFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B05-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 4);
+    assert.equal(slice.matrixValidation.gapAligned, 2);
+
+    for (const category of RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherCitationProvenanceGraphContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherCitationProvenanceGraphFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with citation recovery and documented parser debt", () => {
+    const slice = runResearcherCitationProvenanceGraphFailureRecoverySlice();
+    const probeIds = listResearcherCitationProvenanceGraphFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "rcpg.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const malformedInput = slice.failureRecoveryResults.find(
+      r => r.id === "rcpg.malformed_citation_input_guard",
+    );
+    assert.ok(malformedInput);
+    assert.equal(malformedInput!.expected, "PASS");
+    assert.equal(malformedInput!.actual, "PASS");
+
+    const graphRepair = slice.failureRecoveryResults.find(
+      r => r.id === "rcpg.recovery_citation_graph_repair",
+    );
+    assert.ok(graphRepair);
+    assert.equal(graphRepair!.expected, "PASS");
+    assert.equal(graphRepair!.actual, "PASS");
+
+    const missingEdgesFallback = slice.failureRecoveryResults.find(
+      r => r.id === "rcpg.recovery_missing_edges_fallback",
+    );
+    assert.ok(missingEdgesFallback);
+    assert.equal(missingEdgesFallback!.expected, "PASS");
+    assert.equal(missingEdgesFallback!.actual, "PASS");
+
+    const parserCitationEdges = slice.failureRecoveryResults.find(
+      r => r.id === "rcpg.parser_citation_edges",
+    );
+    assert.ok(parserCitationEdges);
+    assert.equal(parserCitationEdges!.expected, "FAIL");
+    assert.equal(parserCitationEdges!.actual, "FAIL");
+
+    const exportedValidator = slice.failureRecoveryResults.find(
+      r => r.id === "rcpg.exported_citation_graph_validator",
+    );
+    assert.ok(exportedValidator);
+    assert.equal(exportedValidator!.expected, "FAIL");
+    assert.equal(exportedValidator!.actual, "FAIL");
   });
 });

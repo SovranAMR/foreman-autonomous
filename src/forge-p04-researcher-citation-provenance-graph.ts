@@ -4,6 +4,7 @@
  * A01 slice: load, validate, run probes with documented FAIL gaps against sealed
  * P04-B04 benchmark prior-art block gate artifacts.
  * A04: boundary-category slice gate for citation input edge cases and probe matrix alignment.
+ * A05: failure/recovery/NO-GO slice gate for failure_path, recovery_path and nogo_path probes.
  */
 
 import { readFileSync } from "node:fs";
@@ -1888,6 +1889,90 @@ export function runResearcherCitationProvenanceGraphBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly ResearcherCitationProvenanceGraphCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery probes and documented FAIL NO-GO gaps must align; zero unexpected mismatches.
+ */
+export function validateResearcherCitationProvenanceGraphFailureRecoveryProbeMatrix(
+  results: ResearcherCitationProvenanceGraphProbeResult[],
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): ResearcherCitationProvenanceGraphProbeMatrixValidationResult {
+  const failureRecoveryProbes = RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherCitationProvenanceGraphContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: ResearcherCitationProvenanceGraphContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateResearcherCitationProvenanceGraphProbeMatrix(
+    failureRecoveryResults,
+    failureRecoveryContract,
+  );
+}
+
+export function listResearcherCitationProvenanceGraphFailureRecoveryProbeIds(
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): string[] {
+  return RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listResearcherCitationProvenanceGraphContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface ResearcherCitationProvenanceGraphFailureRecoverySliceResult {
+  atom: "P04-B05-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherCitationProvenanceGraphProbeResult[];
+  failureRecoveryResults: ResearcherCitationProvenanceGraphProbeResult[];
+  matrixValidation: ResearcherCitationProvenanceGraphProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes (invalid fixture rejection, null-byte guard, recoverCitationProvenanceGraph,
+ * missing CITES fallback, parseResearchCitationGraph and validateCitationProvenanceGraph
+ * documented NO-GO debt) with zero unexpected mismatches.
+ */
+export function runResearcherCitationProvenanceGraphFailureRecoverySlice(
+  fixture: ResearcherCitationProvenanceGraphBaseline = loadResearcherCitationProvenanceGraphBaseline(),
+): ResearcherCitationProvenanceGraphFailureRecoverySliceResult {
+  const contract = getActiveResearcherCitationProvenanceGraphContract();
+  const results = runResearcherCitationProvenanceGraphProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_CITATION_PROVENANCE_GRAPH_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherCitationProvenanceGraphContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherCitationProvenanceGraphFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B05-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }
