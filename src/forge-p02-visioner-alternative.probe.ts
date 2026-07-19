@@ -45,6 +45,11 @@ import {
   runVisionerAlternativePropertyChecks,
   runVisionerAlternativeFuzzValidation,
   runVisionerAlternativeRunRecordFuzzValidation,
+  getForgeP02B07BlockGate,
+  getForgeP02B07ToB08Handoff,
+  validateVisionerAlternativeBlockHandoffContract,
+  buildVisionerAlternativeBlockGateEvidence,
+  listVisionerAlternativeProbesByDisposition,
   FORGE_VISIONER_ALTERNATIVE_VERSION,
   VISIONER_ALTERNATIVE_CATEGORIES,
   VISIONER_ALTERNATIVE_VISION_MAX_LENGTH,
@@ -56,7 +61,7 @@ import {
   type VisionerAlternativeRunRecord,
   type VisionerAlternativeProbeDisposition,
 } from "./forge-p02-visioner-alternative.js";
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 
 export type { VisionerAlternativeBaseline, VisionerAlternativeProbeResult } from "./forge-p02-visioner-alternative.js";
 export {
@@ -836,9 +841,195 @@ export function runForgeVisionerAlternativeRegressionGate(
 /** Alias for forge-pipeline-regression integration seam (P02-B07-A08). */
 export const runVisionerAlternativeRegressionIntegration = runForgeVisionerAlternativeRegressionGate;
 
+export interface ForgeVisionerAlternativeBlockGateResult {
+  passed: boolean;
+  evidence: ReturnType<typeof buildVisionerAlternativeBlockGateEvidence>;
+  handoff: ReturnType<typeof getForgeP02B07ToB08Handoff>;
+  regression: ForgeVisionerAlternativeRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealVisionerAlternativeBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P02-B07 block gate: validate A01–A09 deliverables, regression, guard, and B08 handoff (P02-B07-A10).
+ */
+export function runVisionerAlternativeBlockGate(): ForgeVisionerAlternativeBlockGateResult {
+  const blockGate = getForgeP02B07BlockGate();
+  const handoff = getForgeP02B07ToB08Handoff();
+  const contract = getActiveVisionerAlternativeContract();
+  const fixture = loadVisionerAlternativeBaseline();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateVisionerAlternativeBaseline(fixture);
+  const contractValidation = validateVisionerAlternativeAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A01",
+      "visioner_alternative",
+      fixtureValidation.valid &&
+        contractValidation.valid &&
+        fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid && contractValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeVisionerAlternativeContractCoverage(contract).totalProbes} probes)`
+        : [...fixtureValidation.issues, ...contractValidation.issues].map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeVisionerAlternativeContractCoverage(contract);
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${VISIONER_ALTERNATIVE_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runVisionerAlternativeProductionSlice(fixture);
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runVisionerAlternativeBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runVisionerAlternativeFailureRecoverySlice(fixture);
+  const nogoProbes = listVisionerAlternativeProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgeVisionerAlternativeRegressionGate();
+  const recordValidation = validateVisionerAlternativeRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const propertyFuzz = regression.propertyFuzz;
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A07",
+      "property_fuzz",
+      propertyFuzz.passed,
+      `properties=${propertyFuzz.properties.passed}/${propertyFuzz.properties.total} contractFuzz rejected=${propertyFuzz.contractFuzz.rejected}/${propertyFuzz.contractFuzz.iterations} runFuzz rejected=${propertyFuzz.runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validateVisionerAlternativeBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealVisionerAlternativeBlockAtom(
+      "P02-B07-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildVisionerAlternativeBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runForgeVisionerAlternativeBlockGate = runVisionerAlternativeBlockGate;
+
 export {
   validateVisionerAlternativeAgainstContract,
   validateVisionerAlternativeBoundaryProbeMatrix,
   validateVisionerAlternativeFailureRecoveryProbeMatrix,
+  getForgeP02B07BlockGate,
+  getForgeP02B07ToB08Handoff,
+  validateVisionerAlternativeBlockHandoffContract,
+  buildVisionerAlternativeBlockGateEvidence,
   VISIONER_ALTERNATIVE_FAILURE_RECOVERY_CATEGORIES,
 };
