@@ -62,7 +62,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B04-A06 — Benchmark ve prior-art analizi: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B04-A07 — Benchmark ve prior-art analizi: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B04-A08 — Benchmark ve prior-art analizi: Forge entegrasyonu ile regression testini tamamla
-- [ ] P04-B04-A09 — Benchmark ve prior-art analizi: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P04-B04-A09 — Benchmark ve prior-art analizi: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B04-A10 — Benchmark ve prior-art analizi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B05 — Citation ve provenance graph
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B04-A08
-last_commit: 056e44b
-tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); forge-p04-researcher-benchmark-prior-art.property-fuzz.test.ts (6/6); forge-pipeline-regression.integration.test.ts P04-B04-A08 (5/5); runResearcherBenchmarkPriorArtForgeRegression; runResearcherBenchmarkPriorArtPropertyFuzzSlice
-evidence: runResearcherBenchmarkPriorArtPropertyFuzzSlice wired into runResearcherBenchmarkPriorArtForgeRegression and forge-pipeline-regression integration gate with zero accepted mutations
-next: P04-B04-A09
+last_atom: P04-B04-A09
+last_commit: pending
+tests: PASS — forge-p04-researcher-benchmark-prior-art.guard.test.ts (8/8); forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); forge-p04-researcher-benchmark-prior-art.property-fuzz.test.ts (6/6); forge-pipeline-regression.integration.test.ts P04-B04-A08 guard (5/5); validateForgeResearcherBenchmarkPriorArtGuard; verifyForgeResearcherBenchmarkPriorArtGuard
+evidence: adversarial/performance/cost/safety guard controls reject tampered benchmark prior-art records; orchestrator emits researcher_benchmark_prior_art_guard verification with adversarial=3/3
+next: P04-B04-A10
