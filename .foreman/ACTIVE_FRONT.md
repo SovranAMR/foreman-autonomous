@@ -44,7 +44,7 @@ fallback: Evidence blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B05-A05
-last_commit: pending
+last_commit: c062f21
 tests: PASS — forge-p05-worker-git-worktree-failure-recovery.test.ts (5/5), boundary (5/5), production (6/6), contract (8/8), baseline (8/8)
 evidence: validateGitTransaction + runWorkerGitWorktreeFailureRecoverySlice + orchestrator pre-git validation + WORKER_SYSTEM git contract; failure/recovery matrix 7/7 PASS; 3 NO-GO gaps closed; 1 remaining FAIL gap (worktree_transaction_engine)
 next: P05-B05-A06
