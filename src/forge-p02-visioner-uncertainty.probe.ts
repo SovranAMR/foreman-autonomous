@@ -26,6 +26,8 @@ import {
   listVisionerUncertaintyKnownGaps,
   getActiveVisionerUncertaintyContract,
   validateVisionerUncertaintyProbeMatrix,
+  validateVisionerUncertaintyBoundaryProbeMatrix,
+  listVisionerUncertaintyContractProbesByCategory,
   summarizeVisionerUncertaintyContractCoverage,
   VISIONER_UNCERTAINTY_CATEGORIES,
   VISIONER_UNCERTAINTY_VISION_MAX_LENGTH,
@@ -541,6 +543,39 @@ export function runVisionerUncertaintyProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface VisionerUncertaintyBoundarySliceResult {
+  atom: "P02-B06-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerUncertaintyProbeResult[];
+  boundaryResults: VisionerUncertaintyProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerUncertaintyBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (vision input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runVisionerUncertaintyBoundarySlice(
+  fixture: VisionerUncertaintyBaseline = loadVisionerUncertaintyBaseline(),
+): VisionerUncertaintyBoundarySliceResult {
+  const contract = getActiveVisionerUncertaintyContract();
+  const results = runVisionerUncertaintyProbes(fixture);
+  const boundaryProbes = listVisionerUncertaintyContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateVisionerUncertaintyBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B06-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

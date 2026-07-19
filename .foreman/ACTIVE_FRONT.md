@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B06
-active_atom: P02-B06-A04
+active_atom: P02-B06-A05
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 152/1000
-phase_progress: 51/100
-block_progress: 3/10
+program_progress: 153/1000
+phase_progress: 52/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B06-A04 — Uncertainty ve clarification policy: boundary ve edge-case davranışlarını tamamla.
+P02-B06-A05 — Uncertainty ve clarification policy: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P02-B06-A03 production slice sealed; boundary slice next.
-target: Complete boundary category edge-case probes for vision uncertainty input handling.
-hypothesis: recoverVisionerUncertaintyClarification from A03 enables boundary slice without probe regressions.
-acceptance: boundary probes PASS; zero unexpected mismatches; assessVisionerUncertaintyInputBoundary edge cases verified.
+objective: P02-B06-A04 boundary slice sealed; failure/recovery slice next.
+target: Complete failure_path, recovery_path and nogo_path probe matrix validation for vision uncertainty.
+hypothesis: validateVisionerUncertaintyBoundaryProbeMatrix from A04 enables failure/recovery slice without probe regressions.
+acceptance: failure/recovery probes PASS; zero unexpected mismatches; documented FAIL gaps preserved.
 commands: npx tsx --test src/forge-p02-visioner-uncertainty.test.ts
 blast_radius: src/forge-p02-visioner-uncertainty*, src/orchestrator.ts
-rollback: P02-B06-A04 boundary slice değişikliklerini geri al.
+rollback: P02-B06-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: boundary requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
+fallback: failure/recovery requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B06-A03
-last_commit: 2fca4b6
-tests: PASS — forge-p02-visioner-uncertainty.test.ts (12/12); baseline (3/3)
-evidence: recoverVisionerUncertaintyClarification exported; 23 probes all PASS; gap vunc.structured_clarification_recovery closed; probe matrix zero unexpected mismatches
-next: P02-B06-A04
+last_atom: P02-B06-A04
+last_commit: pending
+tests: PASS — forge-p02-visioner-uncertainty.test.ts (18/18); baseline (3/3)
+evidence: validateVisionerUncertaintyBoundaryProbeMatrix + runVisionerUncertaintyBoundarySlice exported; 6 boundary probes all PASS; assessVisionerUncertaintyInputBoundary edge cases verified; probe matrix zero unexpected mismatches
+next: P02-B06-A05

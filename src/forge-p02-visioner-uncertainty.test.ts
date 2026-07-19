@@ -4,6 +4,7 @@ import {
   loadVisionerUncertaintyBaseline,
   runVisionerUncertaintyProbes,
   runVisionerUncertaintyProductionSlice,
+  runVisionerUncertaintyBoundarySlice,
 } from "./forge-p02-visioner-uncertainty.probe.js";
 import {
   getActiveVisionerUncertaintyContract,
@@ -15,8 +16,12 @@ import {
   validateVisionerUncertaintyContractCoverage,
   validateVisionerUncertaintyAgainstContract,
   validateVisionerUncertaintyProbeMatrix,
+  validateVisionerUncertaintyBoundaryProbeMatrix,
   recoverVisionerUncertaintyClarification,
+  assessVisionerUncertaintyInputBoundary,
+  assessVisionerUncertaintyPresence,
   VISIONER_UNCERTAINTY_CATEGORIES,
+  VISIONER_UNCERTAINTY_VISION_MAX_LENGTH,
   FORGE_VISIONER_UNCERTAINTY_VERSION,
 } from "./forge-p02-visioner-uncertainty.js";
 
@@ -193,5 +198,99 @@ uncertain about target audience demographics`;
       assert.ok(result, `missing probe result: ${contractProbe.id}`);
       assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
     }
+  });
+});
+
+describe("Forge Visioner Uncertainty Boundary Slice — P02-B06-A04", () => {
+  it("assessVisionerUncertaintyInputBoundary handles empty, whitespace-only and oversized vision output", () => {
+    const empty = assessVisionerUncertaintyInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerUncertaintyInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerUncertaintyInputBoundary("vision\x00output");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longVision = "x".repeat(VISIONER_UNCERTAINTY_VISION_MAX_LENGTH + 200);
+    const truncated = assessVisionerUncertaintyInputBoundary(longVision);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedVision.length, VISIONER_UNCERTAINTY_VISION_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("assessVisionerUncertaintyPresence returns clarification need for unacceptable boundary inputs", () => {
+    const presence = assessVisionerUncertaintyPresence("   ");
+    assert.equal(presence.hasConfidence, false);
+    assert.equal(presence.needsClarification, true);
+    assert.equal(presence.confidence, 0);
+  });
+
+  it("recoverVisionerUncertaintyClarification rejects empty and whitespace-only vision output safely", () => {
+    const emptyRecovery = recoverVisionerUncertaintyClarification("");
+    assert.equal(emptyRecovery.recovered, false);
+    assert.deepEqual(emptyRecovery.parseErrors, ["empty_vision"]);
+
+    const whitespaceRecovery = recoverVisionerUncertaintyClarification("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_vision"]);
+  });
+
+  it("defines boundary category with vision input edge-case probes", () => {
+    const boundary = listVisionerUncertaintyContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "vunc.empty_vision_uncertainty_presence",
+      "vunc.known_gaps_documented",
+      "vunc.long_vision_truncation_boundary",
+      "vunc.probe_runner_exported",
+      "vunc.source_block_gate_ref",
+      "vunc.whitespace_vision_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerUncertaintyContract();
+    const slice = runVisionerUncertaintyBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B06-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerUncertaintyContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerUncertaintyBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves full probe alignment while boundary slice passes", () => {
+    const slice = runVisionerUncertaintyBoundarySlice();
+    const recoveryProbe = slice.results.find(r => r.id === "vunc.structured_clarification_recovery");
+
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(slice.results.filter(r => !r.aligned).length, 0);
   });
 });
