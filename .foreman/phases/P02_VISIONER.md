@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 1
-completed_atoms: 16
+completed_atoms: 17
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -35,7 +35,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B02-A05 — Constraint ve non-goal çıkarımı: failure, recovery ve NO-GO yollarını uygula
 - [x] P02-B02-A06 — Constraint ve non-goal çıkarımı: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B02-A07 — Constraint ve non-goal çıkarımı: unit, property ve fuzz doğrulamasını ekle
-- [ ] P02-B02-A08 — Constraint ve non-goal çıkarımı: Forge entegrasyonu ile regression testini tamamla
+- [x] P02-B02-A08 — Constraint ve non-goal çıkarımı: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B02-A09 — Constraint ve non-goal çıkarımı: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B02-A10 — Constraint ve non-goal çıkarımı: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B02-A07
+last_atom: P02-B02-A08
 last_commit: PENDING
-tests: PASS — forge-p02-visioner-constraint*.test.ts (29/29); forge-p02-visioner-intent*.test.ts (43/43); forge-p02-*.test.ts (72/72)
-evidence: runVisionerConstraintPropertyChecks (8/8); runVisionerConstraintFuzzValidation rejected=24/24; runVisionerConstraintRunRecordFuzzValidation mutationsRejected=5+3; harnessVersion=1.0.0-a07
-next: P02-B02-A08
+tests: PASS — forge-p02-visioner-constraint*.test.ts (34/34); forge-p02-visioner-intent*.test.ts (43/43); forge-p02-*.test.ts (77/77); forge-pipeline-regression.integration.test.ts (126/126)
+evidence: runForgeVisionerConstraintRegressionGate (23/23 aligned); detectVisionerConstraintProbeRegression; propertyFuzz properties=8/8 contractFuzz rejected=24/24 runFuzz rejected=3/3; orchestrator verifyForgeVisionerConstraintRegression phase=visioner_constraint_regression
+next: P02-B02-A09

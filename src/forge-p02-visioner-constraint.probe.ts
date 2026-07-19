@@ -40,11 +40,19 @@ import {
   buildVisionerConstraintProbeTelemetry,
   buildVisionerConstraintProvenance,
   buildVisionerConstraintRunRecord,
+  detectVisionerConstraintProbeRegression,
+  runVisionerConstraintPropertyChecks,
+  runVisionerConstraintFuzzValidation,
+  runVisionerConstraintRunRecordFuzzValidation,
+  validateVisionerConstraintRunRecord,
   type VisionerConstraintBaseline,
   type VisionerConstraintCategory,
   type VisionerConstraintProbeResult,
   type VisionerConstraintProbeDisposition,
   type VisionerConstraintRunRecord,
+  type VisionerConstraintProbeRegressionReport,
+  type VisionerConstraintPropertyResult,
+  type VisionerConstraintFuzzValidationResult,
 } from "./forge-p02-visioner-constraint.js";
 
 export type { VisionerConstraintBaseline, VisionerConstraintProbeResult, VisionerConstraintRunRecord } from "./forge-p02-visioner-constraint.js";
@@ -666,3 +674,95 @@ export function runVisionerConstraintFailureRecoverySliceWithRecord(
     sliceCategories: VISIONER_CONSTRAINT_FAILURE_RECOVERY_CATEGORIES,
   });
 }
+
+export interface ForgeVisionerConstraintRegressionPropertyFuzzResult {
+  passed: boolean;
+  properties: VisionerConstraintPropertyResult;
+  contractFuzz: VisionerConstraintFuzzValidationResult;
+  runFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface ForgeVisionerConstraintRegressionResult {
+  passed: boolean;
+  productionSlice: VisionerConstraintProductionSliceResult;
+  record: VisionerConstraintRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: VisionerConstraintProbeRegressionReport | null;
+  propertyFuzz: ForgeVisionerConstraintRegressionPropertyFuzzResult;
+  detail: string;
+}
+
+/**
+ * Execute visioner constraint probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P02-B02-A08).
+ */
+export function runForgeVisionerConstraintRegressionGate(
+  priorRecord?: VisionerConstraintRunRecord,
+): ForgeVisionerConstraintRegressionResult {
+  const fixture = loadVisionerConstraintBaseline();
+  const contract = getActiveVisionerConstraintContract();
+  const productionSlice = runVisionerConstraintProductionSlice(fixture);
+  const record = runVisionerConstraintProbesWithRecord(fixture);
+  const validation = validateVisionerConstraintRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectVisionerConstraintProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const properties = runVisionerConstraintPropertyChecks(contract);
+  const contractFuzz = runVisionerConstraintFuzzValidation(fixture, contract);
+  const runFuzz = runVisionerConstraintRunRecordFuzzValidation(record, contract);
+  const propertyFuzzPassed =
+    properties.allPassed &&
+    contractFuzz.allMutationsRejected &&
+    runFuzz.mutationsAccepted === 0;
+  const propertyFuzz: ForgeVisionerConstraintRegressionPropertyFuzzResult = {
+    passed: propertyFuzzPassed,
+    properties,
+    contractFuzz,
+    runFuzz: {
+      validBaseline: runFuzz.validBaseline,
+      mutationsRejected: runFuzz.mutationsRejected,
+      mutationsAccepted: runFuzz.mutationsAccepted,
+    },
+  };
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const passed = productionSliceOk && recordValid && !alignmentRegression && propertyFuzzPassed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+  );
+
+  return {
+    passed,
+    productionSlice,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    propertyFuzz,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P02-B02-A08). */
+export const runVisionerConstraintRegressionIntegration = runForgeVisionerConstraintRegressionGate;
