@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B04-A08
-last_commit: pending
+last_commit: 8767bba
 tests: PASS — forge-p02-visioner-grounding.test.ts (21/21); forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-visioner-grounding.property-fuzz.test.ts (5/5); forge-pipeline-regression.integration.test.ts P02-B04-A08 (5/5)
 evidence: runForgeVisionerGroundingRegressionGate; runVisionerGroundingRegressionIntegration; detectVisionerGroundingProbeRegression; validateForgeVisionerGroundingGuard; 23/23 probes aligned; propertyFuzz sealed; orchestrator visioner_grounding_regression verification
 next: P02-B04-A09
