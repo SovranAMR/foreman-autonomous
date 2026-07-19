@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
-active_block: P04-B09
-active_atom: P04-B09-A10
+active_block: P04-B10
+active_atom: P04-B10-A01
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 389/1000
-phase_progress: 87/100
-block_progress: 9/10
+program_progress: 390/1000
+phase_progress: 88/100
+block_progress: 10/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B09-A10 — Research-to-worker handoff: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P04-B10-A01 — Araştırmacı phase gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P04-B09-A09 PASS; guard verified with adversarial/perf/cost/safety bounds.
-target: Seal P04-B09 block gate evidence and wire handoff to P04-B10 baseline.
-hypothesis: A09 guard PASS enables A10 block gate sealing with orchestrator verification event.
-acceptance: Block gate passes; sealed evidence recorded; P04-B10 baseline handoff ready.
-commands: npx tsx --test src/forge-p04-researcher-research-to-worker-handoff*.test.ts
-blast_radius: src/forge-p04-researcher-research-to-worker-handoff*.ts
-rollback: P04-B09-A10 block gate değişikliklerini geri al.
+objective: P04-B09-A10 PASS; block gate sealed with B10 handoff contract.
+target: Measure researcher phase gate baseline and create failing baseline fixture wired to P04-B09 block gate.
+hypothesis: Sealed P04-B09 block gate enables P04-B10-A01 baseline with sourceBlockGate from B09-A10.
+acceptance: Baseline fixture loads; documents FAIL gaps; references sealed P04-B09 handoff artifacts.
+commands: npx tsx --test src/forge-p04-researcher-phase-gate*.test.ts
+blast_radius: src/forge-p04-researcher-phase-gate*.ts
+rollback: P04-B10-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Block gate blocked ise BLOCKED raporla.
+fallback: Baseline blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B09-A09
-last_commit: 238af3d
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (58/58); guard adversarial=3/3; perf/cost/safety bounds verified
-evidence: validateForgeResearcherResearchToWorkerHandoffGuard + runResearcherResearchToWorkerHandoffAdversarialGuardChecks + verifyForgeResearcherResearchToWorkerHandoffGuard
-next: P04-B09-A10
+last_atom: P04-B09-A10
+last_commit: pending
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (65/65); block gate seals=10/10; handoff→P04-B10
+evidence: runResearcherResearchToWorkerHandoffBlockGate + validateResearcherResearchToWorkerHandoffBlockHandoffContract + verifyForgeResearcherResearchToWorkerHandoffBlockGate
+next: P04-B10-A01

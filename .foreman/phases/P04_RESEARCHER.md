@@ -2,8 +2,8 @@
 
 phase_id: P04
 phase_status: IN_PROGRESS
-completed_blocks: 5
-completed_atoms: 75
+completed_blocks: 6
+completed_atoms: 76
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -128,7 +128,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B09-A07 — Research-to-worker handoff: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B09-A08 — Research-to-worker handoff: Forge entegrasyonu ile regression testini tamamla
 - [x] P04-B09-A09 — Research-to-worker handoff: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P04-B09-A10 — Research-to-worker handoff: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P04-B09-A10 — Research-to-worker handoff: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B10 — Araştırmacı phase gate
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B09-A09
-last_commit: 238af3d
-tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (58/58); guard adversarial=3/3; perf/cost/safety bounds verified
-evidence: validateForgeResearcherResearchToWorkerHandoffGuard + runResearcherResearchToWorkerHandoffAdversarialGuardChecks + verifyForgeResearcherResearchToWorkerHandoffGuard
-next: P04-B09-A10
+last_atom: P04-B09-A10
+last_commit: pending
+tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (65/65); block gate seals=10/10; handoff→P04-B10
+evidence: runResearcherResearchToWorkerHandoffBlockGate + validateResearcherResearchToWorkerHandoffBlockHandoffContract + verifyForgeResearcherResearchToWorkerHandoffBlockGate
+next: P04-B10-A01
