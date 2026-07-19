@@ -35,7 +35,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B02-A05 — Block üretim kontratı: failure, recovery ve NO-GO yollarını uygula
 - [x] P03-B02-A06 — Block üretim kontratı: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B02-A07 — Block üretim kontratı: unit, property ve fuzz doğrulamasını ekle
-- [ ] P03-B02-A08 — Block üretim kontratı: Forge entegrasyonu ile regression testini tamamla
+- [x] P03-B02-A08 — Block üretim kontratı: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B02-A09 — Block üretim kontratı: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B02-A10 — Block üretim kontratı: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B02-A07
-last_commit: 8a43fb4
-tests: PASS — forge-p03-strategist-block-contract.test.ts (24/24); forge-p03-strategist-block-contract-baseline.test.ts (3/3); property 8/8; contract fuzz 72/72 rejected; run record fuzz 8/8 rejected
-evidence: runStrategistBlockContractPropertyChecks; runStrategistBlockContractFuzzValidation; runStrategistBlockContractPropertyFuzzSlice
-next: P03-B02-A08
+last_atom: P03-B02-A08
+last_commit: ca89ed0
+tests: PASS — forge-p03-strategist-block-contract.test.ts (32/32); regression 23/23 aligned; zero probe regressions
+evidence: runStrategistBlockContractForgeRegression; detectStrategistBlockContractProbeRegression
+next: P03-B02-A09
