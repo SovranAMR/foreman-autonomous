@@ -72,7 +72,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B05-A03 — Research trigger belirleme: en küçük üretim dikey dilimini uygula
 - [x] P02-B05-A04 — Research trigger belirleme: boundary ve edge-case davranışlarını tamamla
 - [x] P02-B05-A05 — Research trigger belirleme: failure, recovery ve NO-GO yollarını uygula
-- [ ] P02-B05-A06 — Research trigger belirleme: evidence, telemetry ve provenance kaydını ekle
+- [x] P02-B05-A06 — Research trigger belirleme: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B05-A07 — Research trigger belirleme: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B05-A08 — Research trigger belirleme: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B05-A09 — Research trigger belirleme: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B05-A05
-last_commit: 8c8950a
-tests: PASS — forge-p02-visioner-research-trigger.test.ts (24/24); forge-p02-visioner-research-trigger-baseline.test.ts (3/3)
-evidence: validateVisionerResearchTriggerFailureRecoveryProbeMatrix; runVisionerResearchTriggerFailureRecoverySlice; failure/recovery/NO-GO probes 6/6 passAligned; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a05
-next: P02-B05-A06
+last_atom: P02-B05-A06
+last_commit: PENDING
+tests: PASS — forge-p02-visioner-research-trigger.test.ts (27/27); forge-p02-visioner-research-trigger-baseline.test.ts (3/3)
+evidence: validateVisionerResearchTriggerFailureRecoveryRunRecord; runVisionerResearchTriggerFailureRecoverySliceWithRecord; runVisionerResearchTriggerProbesWithRecord; failure/recovery/NO-GO probes 6/6 aligned in record gate; FORGE_VISIONER_RESEARCH_TRIGGER_VERSION 1.0.0-a06
+next: P02-B05-A07

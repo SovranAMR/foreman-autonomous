@@ -12,7 +12,7 @@ import {
   summarizeVisionerGroundingContractCoverage,
 } from "./forge-p02-visioner-grounding.js";
 
-export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a05";
+export const FORGE_VISIONER_RESEARCH_TRIGGER_VERSION = "1.0.0-a06";
 
 /** Maximum normalized vision length before truncation (P02-B05-A01 boundary). */
 export const VISIONER_RESEARCH_TRIGGER_VISION_MAX_LENGTH = 32000;
@@ -1244,4 +1244,285 @@ export function listVisionerResearchTriggerKnownGaps(
   results: VisionerResearchTriggerProbeResult[],
 ): VisionerResearchTriggerProbeResult[] {
   return summarizeVisionerResearchTriggerMatrix(results).knownGaps;
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P02-B05-A06). */
+export interface VisionerResearchTriggerProbeEvidence {
+  probeId: string;
+  category: VisionerResearchTriggerCategory;
+  disposition: VisionerResearchTriggerProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for visioner research trigger runs (P02-B05-A06). */
+export interface VisionerResearchTriggerProbeTelemetry {
+  probeId: string;
+  category: VisionerResearchTriggerCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P02-B05-A06). */
+export interface VisionerResearchTriggerProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly VisionerResearchTriggerCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated visioner research trigger run record bundling evidence, telemetry and provenance. */
+export interface VisionerResearchTriggerRunRecord {
+  provenance: VisionerResearchTriggerProvenance;
+  evidence: VisionerResearchTriggerProbeEvidence[];
+  telemetry: VisionerResearchTriggerProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<VisionerResearchTriggerCategory, number>;
+    byDisposition: Record<VisionerResearchTriggerProbeDisposition, number>;
+  };
+}
+
+export interface VisionerResearchTriggerRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface VisionerResearchTriggerRunValidationResult {
+  valid: boolean;
+  issues: VisionerResearchTriggerRunValidationIssue[];
+}
+
+export function buildVisionerResearchTriggerProbeEvidence(
+  probeId: string,
+  category: VisionerResearchTriggerCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: VisionerResearchTriggerProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): VisionerResearchTriggerProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildVisionerResearchTriggerProbeTelemetry(
+  probeId: string,
+  category: VisionerResearchTriggerCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): VisionerResearchTriggerProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildVisionerResearchTriggerProvenance(
+  runId: string,
+  fixture: VisionerResearchTriggerBaseline,
+  contract: VisionerResearchTriggerContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerResearchTriggerCategory[];
+  },
+): VisionerResearchTriggerProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildVisionerResearchTriggerRunRecord(
+  provenance: VisionerResearchTriggerProvenance,
+  evidence: VisionerResearchTriggerProbeEvidence[],
+  telemetry: VisionerResearchTriggerProbeTelemetry[],
+): VisionerResearchTriggerRunRecord {
+  const byCategory = {} as Record<VisionerResearchTriggerCategory, number>;
+  const byDisposition: Record<VisionerResearchTriggerProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of VISIONER_RESEARCH_TRIGGER_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateVisionerResearchTriggerRunRecordAgainstProbeIds(
+  record: VisionerResearchTriggerRunRecord,
+  expectedProbeIds: string[],
+  contract: VisionerResearchTriggerContract,
+): VisionerResearchTriggerRunValidationResult {
+  const issues: VisionerResearchTriggerRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateVisionerResearchTriggerRunRecord(
+  record: VisionerResearchTriggerRunRecord,
+  contract: VisionerResearchTriggerContract = getActiveVisionerResearchTriggerContract(),
+): VisionerResearchTriggerRunValidationResult {
+  return validateVisionerResearchTriggerRunRecordAgainstProbeIds(
+    record,
+    listVisionerResearchTriggerContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateVisionerResearchTriggerFailureRecoveryRunRecord(
+  record: VisionerResearchTriggerRunRecord,
+  contract: VisionerResearchTriggerContract = getActiveVisionerResearchTriggerContract(),
+): VisionerResearchTriggerRunValidationResult {
+  const issues: VisionerResearchTriggerRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P02-B05-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P02-B05-A06`,
+    });
+  }
+
+  const expectedCategories = [...VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateVisionerResearchTriggerRunRecordAgainstProbeIds(
+    record,
+    listVisionerResearchTriggerFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
 }

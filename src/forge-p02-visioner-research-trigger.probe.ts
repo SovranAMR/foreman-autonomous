@@ -5,6 +5,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import visionerResearchTriggerBaseline from "./fixtures/forge-visioner-research-trigger-v1.json" with { type: "json" };
@@ -30,6 +32,10 @@ import {
   validateVisionerResearchTriggerBoundaryProbeMatrix,
   validateVisionerResearchTriggerFailureRecoveryProbeMatrix,
   listVisionerResearchTriggerFailureRecoveryProbeIds,
+  buildVisionerResearchTriggerProbeEvidence,
+  buildVisionerResearchTriggerProbeTelemetry,
+  buildVisionerResearchTriggerProvenance,
+  buildVisionerResearchTriggerRunRecord,
   VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
@@ -37,12 +43,15 @@ import {
   EXPECTED_P02_B04_SEALED_ATOM_COUNT,
   type VisionerResearchTriggerBaseline,
   type VisionerResearchTriggerCategory,
+  type VisionerResearchTriggerProbeDisposition,
   type VisionerResearchTriggerProbeResult,
+  type VisionerResearchTriggerRunRecord,
 } from "./forge-p02-visioner-research-trigger.js";
 
 export type {
   VisionerResearchTriggerBaseline,
   VisionerResearchTriggerProbeResult,
+  VisionerResearchTriggerRunRecord,
 } from "./forge-p02-visioner-research-trigger.js";
 export {
   validateVisionerResearchTriggerBaseline,
@@ -58,6 +67,12 @@ export {
   validateVisionerResearchTriggerBoundaryProbeMatrix,
   validateVisionerResearchTriggerFailureRecoveryProbeMatrix,
   listVisionerResearchTriggerFailureRecoveryProbeIds,
+  buildVisionerResearchTriggerProbeEvidence,
+  buildVisionerResearchTriggerProbeTelemetry,
+  buildVisionerResearchTriggerProvenance,
+  buildVisionerResearchTriggerRunRecord,
+  validateVisionerResearchTriggerRunRecord,
+  validateVisionerResearchTriggerFailureRecoveryRunRecord,
   VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES,
   FORGE_VISIONER_RESEARCH_TRIGGER_VERSION,
   VISIONER_RESEARCH_TRIGGER_CATEGORIES,
@@ -603,4 +618,116 @@ export function runVisionerResearchTriggerFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerResearchTriggerProbeWithTiming(
+  entry: VisionerResearchTriggerBaseline["probes"][number],
+  fixture: VisionerResearchTriggerBaseline,
+  contractProbe:
+    | { criterion: string; disposition: VisionerResearchTriggerProbeDisposition }
+    | undefined,
+): {
+  result: VisionerResearchTriggerProbeResult;
+  durationMs: number;
+  disposition: VisionerResearchTriggerProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerResearchTriggerRecordFromEntries(
+  entries: VisionerResearchTriggerBaseline["probes"],
+  fixture: VisionerResearchTriggerBaseline,
+  contract: ReturnType<typeof getActiveVisionerResearchTriggerContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerResearchTriggerCategory[];
+  },
+): VisionerResearchTriggerRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerResearchTriggerProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerResearchTriggerProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerResearchTriggerProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerResearchTriggerProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerResearchTriggerProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerResearchTriggerProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerResearchTriggerRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner research trigger probes and emit auditable evidence, telemetry and provenance (P02-B05-A06). */
+export function runVisionerResearchTriggerProbesWithRecord(
+  fixture: VisionerResearchTriggerBaseline = loadVisionerResearchTriggerBaseline(),
+): VisionerResearchTriggerRunRecord {
+  const contract = getActiveVisionerResearchTriggerContract();
+  return buildVisionerResearchTriggerRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B05-A06). */
+export function runVisionerResearchTriggerFailureRecoverySliceWithRecord(
+  fixture: VisionerResearchTriggerBaseline = loadVisionerResearchTriggerBaseline(),
+): VisionerResearchTriggerRunRecord {
+  const contract = getActiveVisionerResearchTriggerContract();
+  const failureRecoveryIds = new Set(listVisionerResearchTriggerFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerResearchTriggerRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B05-A06",
+    sliceCategories: VISIONER_RESEARCH_TRIGGER_FAILURE_RECOVERY_CATEGORIES,
+  });
 }
