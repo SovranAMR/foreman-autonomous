@@ -44,7 +44,7 @@ fallback: Boundary slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B04-A03
-last_commit: PENDING
+last_commit: 1f453fc
 tests: PASS — forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
 evidence: validateShellCommand + buildShellProcessTelemetry + TypedBashCall + orchestrator pre-bash validation + WORKER_SYSTEM shell contract + ProcessRegistry thoughtId/layer; 27/27 probes aligned
 next: P05-B04-A04
