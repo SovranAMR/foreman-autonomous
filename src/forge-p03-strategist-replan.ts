@@ -8,6 +8,8 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import strategistReplanBaseline from "./fixtures/forge-strategist-replan-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -1483,6 +1485,456 @@ export function runStrategistReplanFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P03-B08-A06). */
+export interface StrategistReplanProbeEvidence {
+  probeId: string;
+  category: StrategistReplanCategory;
+  disposition: StrategistReplanProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for replan runs (P03-B08-A06). */
+export interface StrategistReplanProbeTelemetry {
+  probeId: string;
+  category: StrategistReplanCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P03-B08-A06). */
+export interface StrategistReplanProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  sliceAtom?: string;
+  sliceCategories?: readonly StrategistReplanCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated replan run record bundling evidence, telemetry and provenance. */
+export interface StrategistReplanRunRecord {
+  provenance: StrategistReplanProvenance;
+  evidence: StrategistReplanProbeEvidence[];
+  telemetry: StrategistReplanProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<StrategistReplanCategory, number>;
+    byDisposition: Record<StrategistReplanProbeDisposition, number>;
+  };
+}
+
+export interface StrategistReplanRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistReplanRunValidationResult {
+  valid: boolean;
+  issues: StrategistReplanRunValidationIssue[];
+}
+
+export function buildStrategistReplanProbeEvidence(
+  probeId: string,
+  category: StrategistReplanCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: StrategistReplanProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): StrategistReplanProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildStrategistReplanProbeTelemetry(
+  probeId: string,
+  category: StrategistReplanCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): StrategistReplanProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildStrategistReplanProvenance(
+  runId: string,
+  fixture: StrategistReplanBaseline,
+  contract: StrategistReplanContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistReplanCategory[];
+  },
+): StrategistReplanProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_STRATEGIST_REPLAN_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildStrategistReplanRunRecord(
+  provenance: StrategistReplanProvenance,
+  evidence: StrategistReplanProbeEvidence[],
+  telemetry: StrategistReplanProbeTelemetry[],
+): StrategistReplanRunRecord {
+  const byCategory = {} as Record<StrategistReplanCategory, number>;
+  const byDisposition: Record<StrategistReplanProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of STRATEGIST_REPLAN_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateStrategistReplanRunRecordAgainstProbeIds(
+  record: StrategistReplanRunRecord,
+  expectedProbeIds: string[],
+  contract: StrategistReplanContract,
+): StrategistReplanRunValidationResult {
+  const issues: StrategistReplanRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateStrategistReplanRunRecord(
+  record: StrategistReplanRunRecord,
+  contract: StrategistReplanContract = getActiveStrategistReplanContract(),
+): StrategistReplanRunValidationResult {
+  return validateStrategistReplanRunRecordAgainstProbeIds(
+    record,
+    listStrategistReplanContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateStrategistReplanFailureRecoveryRunRecord(
+  record: StrategistReplanRunRecord,
+  contract: StrategistReplanContract = getActiveStrategistReplanContract(),
+): StrategistReplanRunValidationResult {
+  const issues: StrategistReplanRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P03-B08-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P03-B08-A06`,
+    });
+  }
+
+  const expectedCategories = [...STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateStrategistReplanRunRecordAgainstProbeIds(
+    record,
+    listStrategistReplanFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface StrategistReplanEvidenceSliceResult {
+  atom: "P03-B08-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: StrategistReplanProbeResult[];
+  evidenceResults: StrategistReplanProbeResult[];
+  matrixValidation: StrategistReplanProbeMatrixValidationResult;
+  record: StrategistReplanRunRecord;
+  recordValidation: StrategistReplanRunValidationResult;
+}
+
+function resolveStrategistReplanGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runStrategistReplanProbeWithTiming(
+  entry: StrategistReplanFixtureEntry,
+  fixture: StrategistReplanBaseline,
+  contractProbe:
+    | { criterion: string; disposition: StrategistReplanProbeDisposition }
+    | undefined,
+): {
+  result: StrategistReplanProbeResult;
+  durationMs: number;
+  disposition: StrategistReplanProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildStrategistReplanRecordFromEntries(
+  entries: StrategistReplanFixtureEntry[],
+  fixture: StrategistReplanBaseline,
+  contract: StrategistReplanContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistReplanCategory[];
+  },
+): StrategistReplanRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: StrategistReplanProbeEvidence[] = [];
+  const telemetry: StrategistReplanProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runStrategistReplanProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildStrategistReplanProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildStrategistReplanProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildStrategistReplanProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveStrategistReplanGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildStrategistReplanRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all replan probes and emit auditable evidence, telemetry and provenance (P03-B08-A06). */
+export function runStrategistReplanProbesWithRecord(
+  fixture: StrategistReplanBaseline = loadStrategistReplanBaseline(),
+): StrategistReplanRunRecord {
+  const contract = getActiveStrategistReplanContract();
+  return buildStrategistReplanRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P03-B08-A06). */
+export function runStrategistReplanFailureRecoverySliceWithRecord(
+  fixture: StrategistReplanBaseline = loadStrategistReplanBaseline(),
+): StrategistReplanRunRecord {
+  const contract = getActiveStrategistReplanContract();
+  const failureRecoveryIds = new Set(listStrategistReplanFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildStrategistReplanRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P03-B08-A06",
+    sliceCategories: STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runStrategistReplanEvidenceSlice(
+  fixture: StrategistReplanBaseline = loadStrategistReplanBaseline(),
+): StrategistReplanEvidenceSliceResult {
+  const contract = getActiveStrategistReplanContract();
+  const results = runStrategistReplanProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_REPLAN_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistReplanContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistReplanFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runStrategistReplanFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateStrategistReplanFailureRecoveryRunRecord(
+    record,
+    contract,
+  );
+
+  return {
+    atom: "P03-B08-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
 

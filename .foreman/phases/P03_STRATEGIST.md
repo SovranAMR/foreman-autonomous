@@ -111,7 +111,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B08-A03 — Replan ve plan repair: en küçük üretim dikey dilimini uygula
 - [x] P03-B08-A04 — Replan ve plan repair: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B08-A05 — Replan ve plan repair: failure, recovery ve NO-GO yollarını uygula
-- [ ] P03-B08-A06 — Replan ve plan repair: evidence, telemetry ve provenance kaydını ekle
+- [x] P03-B08-A06 — Replan ve plan repair: evidence, telemetry ve provenance kaydını ekle
+- [ ] P03-B08-A07 — Replan ve plan repair: property ve fuzz validation ekle
 - [ ] P03-B08-A07 — Replan ve plan repair: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B08-A08 — Replan ve plan repair: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B08-A09 — Replan ve plan repair: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +157,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B08-A05
-last_commit: c72e6a6
-tests: PASS — forge-p03-strategist-replan*.test.ts (20/20); runStrategistReplanFailureRecoverySlice; 8/8 failure-recovery probes aligned
-evidence: validateStrategistReplanFailureRecoveryProbeMatrix; runStrategistReplanFailureRecoverySlice; listStrategistReplanFailureRecoveryProbeIds
-next: P03-B08-A06
+last_atom: P03-B08-A06
+last_commit: pending
+tests: PASS — forge-p03-strategist-replan*.test.ts (24/24); runStrategistReplanEvidenceSlice; validateStrategistReplanFailureRecoveryRunRecord
+evidence: runStrategistReplanFailureRecoverySliceWithRecord; validateStrategistReplanFailureRecoveryRunRecord; runStrategistReplanEvidenceSlice
+next: P03-B08-A07

@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B08
-active_atom: P03-B08-A06
+active_atom: P03-B08-A07
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 274/1000
-phase_progress: 75/100
-block_progress: 5/10
+program_progress: 275/1000
+phase_progress: 76/100
+block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B08-A06 — Replan ve plan repair: evidence, telemetry ve provenance kaydını ekle.
+P03-B08-A07 — Replan ve plan repair: property ve fuzz validation ekle.
 
-objective: P03-B08-A05 PASS; P03-B08-A06 implement evidence/telemetry/provenance for replan failure-recovery slice.
-target: failure-recovery run record, validateStrategistReplanFailureRecoveryRunRecord, evidence slice.
-hypothesis: P03-B08-A06 extends A05 failure-recovery slice with run record and provenance gate.
-acceptance: failure-recovery run record validation PASS; regression suite green.
+objective: P03-B08-A06 PASS; P03-B08-A07 implement property/fuzz validation for replan evidence slice.
+target: run record fuzz validation, structural property checks.
+hypothesis: P03-B08-A07 extends A06 run record with fuzz mutation gates.
+acceptance: property/fuzz validation PASS; regression suite green.
 commands: npx tsx --test src/forge-p03-strategist-replan*.test.ts
 blast_radius: src/forge-p03-strategist-replan.ts
-rollback: P03-B08-A06 evidence slice değişikliklerini geri al.
+rollback: P03-B08-A07 property/fuzz değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Evidence slice blocked ise BLOCKED raporla.
+fallback: Property/fuzz blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B08-A05
-last_commit: c72e6a6
-tests: PASS — forge-p03-strategist-replan*.test.ts (20/20); runStrategistReplanFailureRecoverySlice; 8/8 failure-recovery probes aligned
-evidence: validateStrategistReplanFailureRecoveryProbeMatrix; runStrategistReplanFailureRecoverySlice; listStrategistReplanFailureRecoveryProbeIds
-next: P03-B08-A06
+last_atom: P03-B08-A06
+last_commit: pending
+tests: PASS — forge-p03-strategist-replan*.test.ts (24/24); runStrategistReplanEvidenceSlice; validateStrategistReplanFailureRecoveryRunRecord
+evidence: runStrategistReplanFailureRecoverySliceWithRecord; validateStrategistReplanFailureRecoveryRunRecord; runStrategistReplanEvidenceSlice
+next: P03-B08-A07
