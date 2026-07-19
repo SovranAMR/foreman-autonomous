@@ -60,7 +60,7 @@ describe("Forge Researcher Citation Provenance Graph Contract — P04-B05-A02", 
     }
   });
 
-  it("maps 23 probes with four documented FAIL gaps in typed contract", () => {
+  it("maps 23 probes with two documented FAIL nogo gaps in typed contract", () => {
     const contract = getActiveResearcherCitationProvenanceGraphContract();
     const summary = summarizeResearcherCitationProvenanceGraphContractCoverage(contract);
     const coverage = validateResearcherCitationProvenanceGraphContractCoverage(contract);
@@ -68,10 +68,10 @@ describe("Forge Researcher Citation Provenance Graph Contract — P04-B05-A02", 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateResearcherCitationProvenanceGraphContract().valid, true);
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 19);
-    assert.equal(summary.expectedFail, 4);
-    assert.equal(summary.byDisposition.observed, 15);
-    assert.equal(summary.byDisposition.gap, 2);
+    assert.equal(summary.expectedPass, 21);
+    assert.equal(summary.expectedFail, 2);
+    assert.equal(summary.byDisposition.observed, 17);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
@@ -85,19 +85,16 @@ describe("Forge Researcher Citation Provenance Graph Contract — P04-B05-A02", 
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists documented gap and nogo probes as measurable baseline debt", () => {
+  it("lists documented nogo probes as measurable baseline debt", () => {
     const gaps = listResearcherCitationProvenanceGraphProbesByDisposition("gap");
     const nogos = listResearcherCitationProvenanceGraphProbesByDisposition("nogo");
 
-    assert.deepEqual(
-      gaps.map(g => g.id).sort(),
-      ["rcpg.build_research_citation_graph", "rcpg.researcher_sources_prompt"],
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
     assert.deepEqual(
       nogos.map(g => g.id).sort(),
       ["rcpg.exported_citation_graph_validator", "rcpg.parser_citation_edges"],
     );
-    assert.ok([...gaps, ...nogos].every(p => p.expected === "FAIL"));
+    assert.ok([...nogos].every(p => p.expected === "FAIL"));
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {

@@ -322,6 +322,32 @@ export function recoverCitationProvenanceGraph(
   };
 }
 
+export interface ResearchCitationProvenanceGraphBuildResult {
+  graph: CitationProvenanceGraph;
+  validation: CitationProvenanceGraphCollectionValidationOutcome;
+  recovered: boolean;
+  parseErrors: string[];
+  detail: string;
+}
+
+/**
+ * Build researcher citation→provenance graph from researcher output (P04-B05-A03).
+ */
+export function buildResearchCitationProvenanceGraph(
+  researcherOutput: string,
+  hints: CitationProvenanceGraphRecoveryHints = {},
+): ResearchCitationProvenanceGraphBuildResult {
+  const recovery = recoverCitationProvenanceGraph(researcherOutput, hints);
+  const validation = validateCitationProvenanceGraphCollection(recovery.graph);
+  return {
+    graph: recovery.graph,
+    validation,
+    recovered: recovery.recovered && validation.valid,
+    parseErrors: recovery.parseErrors,
+    detail: recovery.detail,
+  };
+}
+
 export interface ResearcherCitationProvenanceGraphFixtureEntry {
   id: string;
   category: ResearcherCitationProvenanceGraphCategory;
@@ -515,8 +541,8 @@ const RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORY_CONTRACTS: Record<
         category: "citation_signal",
         description:
           "RESEARCHER_SYSTEM prompt requires SOURCES or CITATIONS section in output format",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion:
           "RESEARCHER_SYSTEM prompt requires SOURCES or CITATIONS section in output format",
       },
@@ -554,8 +580,8 @@ const RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORY_CONTRACTS: Record<
         category: "provenance_graph_signal",
         description:
           "buildResearchCitationProvenanceGraph exports researcher citation→provenance graph builder",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion:
           "buildResearchCitationProvenanceGraph exports researcher citation→provenance graph builder",
       },
@@ -1368,8 +1394,21 @@ function probeProvenanceGraphSignal(
       return probe(id, category, expected, ok, `harnessVersion=${provenance.harnessVersion}`);
     }
     case "rcpg.build_research_citation_graph": {
-      const ok = hasProductionExport("buildResearchCitationProvenanceGraph");
-      return probe(id, category, expected, ok, `researchCitationGraph=${ok}`);
+      const sample =
+        "FINDINGS: citation graph wiring\nSOURCES: https://docs.example.com/spec\nCITATIONS: src/research-engine.ts:30";
+      const build = buildResearchCitationProvenanceGraph(sample, { topic: "citation graph" });
+      const ok =
+        hasProductionExport("buildResearchCitationProvenanceGraph") &&
+        build.recovered === true &&
+        build.graph.nodes.length >= 2 &&
+        build.graph.edges.length >= 1;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `researchCitationGraph=${ok}, nodes=${build.graph.nodes.length}, edges=${build.graph.edges.length}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown provenance_graph_signal probe");
@@ -1635,10 +1674,155 @@ export function runResearcherCitationProvenanceGraphProbes(
 ): ResearcherCitationProvenanceGraphProbeResult[] {
   const contract = getActiveResearcherCitationProvenanceGraphContract();
   return fixture.probes.map(entry => {
-    const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
     const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const expected = contractProbe?.expected ?? entry.expected;
+    const result = runSingleProbe(entry.id, entry.category, expected, fixture);
     return contractProbe?.criterion
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface ResearcherCitationProvenanceGraphProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherCitationProvenanceGraphProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ResearcherCitationProvenanceGraphProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateResearcherCitationProvenanceGraphProbeMatrix(
+  results: ResearcherCitationProvenanceGraphProbeResult[],
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): ResearcherCitationProvenanceGraphProbeMatrixValidationResult {
+  const issues: ResearcherCitationProvenanceGraphProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (results.length !== contract.probes.length) {
+    issues.push({
+      kind: "extra_result",
+      detail: `results=${results.length} contract=${contract.probes.length}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface ResearcherCitationProvenanceGraphProductionSliceResult {
+  atom: "P04-B05-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherCitationProvenanceGraphProbeResult[];
+  summary: ResearcherCitationProvenanceGraphProbeSummary;
+  matrixValidation: ResearcherCitationProvenanceGraphProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: buildResearchCitationProvenanceGraph and researcher SOURCES
+ * prompt wired to contract probe execution with zero unexpected mismatches.
+ */
+export function runResearcherCitationProvenanceGraphProductionSlice(
+  fixture: ResearcherCitationProvenanceGraphBaseline = loadResearcherCitationProvenanceGraphBaseline(),
+): ResearcherCitationProvenanceGraphProductionSliceResult {
+  const contract = getActiveResearcherCitationProvenanceGraphContract();
+  const fixtureValidation = validateResearcherCitationProvenanceGraphBaseline(fixture);
+  const contractValidation = validateResearcherCitationProvenanceGraphAgainstContract(
+    fixture,
+    contract,
+  );
+  const results = runResearcherCitationProvenanceGraphProbes(fixture);
+  const summary = summarizeResearcherCitationProvenanceGraphMatrix(results);
+  const matrixValidation = validateResearcherCitationProvenanceGraphProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B05-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

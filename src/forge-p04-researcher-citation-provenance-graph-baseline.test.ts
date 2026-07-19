@@ -3,13 +3,17 @@ import assert from "node:assert/strict";
 import {
   loadResearcherCitationProvenanceGraphBaseline,
   runResearcherCitationProvenanceGraphProbes,
+  runResearcherCitationProvenanceGraphProductionSlice,
   validateResearcherCitationProvenanceGraphBaseline,
+  validateResearcherCitationProvenanceGraphProbeMatrix,
   summarizeResearcherCitationProvenanceGraphMatrix,
   listResearcherCitationProvenanceGraphProbesByExpected,
   listResearcherCitationProvenanceGraphKnownGaps,
   assessCitationProvenanceGraphInputBoundary,
   validateCitationProvenanceGraphCollection,
   recoverCitationProvenanceGraph,
+  buildResearchCitationProvenanceGraph,
+  getActiveResearcherCitationProvenanceGraphContract,
   RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORIES,
   RESEARCHER_CITATION_PROVENANCE_GRAPH_INPUT_MAX_LENGTH,
 } from "./forge-p04-researcher-citation-provenance-graph.js";
@@ -48,9 +52,7 @@ describe("Forge Researcher Citation Provenance Graph — P04-B05-A01", () => {
       "FAIL",
       loadResearcherCitationProvenanceGraphBaseline(),
     );
-    assert.equal(documentedFail.length, 4);
-    assert.ok(documentedFail.some(p => p.id === "rcpg.researcher_sources_prompt"));
-    assert.ok(documentedFail.some(p => p.id === "rcpg.build_research_citation_graph"));
+    assert.equal(documentedFail.length, 2);
     assert.ok(documentedFail.some(p => p.id === "rcpg.parser_citation_edges"));
     assert.ok(documentedFail.some(p => p.id === "rcpg.exported_citation_graph_validator"));
 
@@ -80,10 +82,8 @@ describe("Forge Researcher Citation Provenance Graph — P04-B05-A01", () => {
     const ids = gaps.map(g => g.id).sort();
 
     assert.deepEqual(ids, [
-      "rcpg.build_research_citation_graph",
       "rcpg.exported_citation_graph_validator",
       "rcpg.parser_citation_edges",
-      "rcpg.researcher_sources_prompt",
     ]);
     assert.ok(
       gaps.every(g => RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORIES.includes(g.category)),
@@ -142,5 +142,66 @@ describe("Forge Researcher Citation Provenance Graph — P04-B05-A01", () => {
     assert.ok(recovery.graph.nodes.length >= 2);
     assert.ok(recovery.graph.edges.length >= 1);
     assert.ok(recovery.graph.nodes.some(node => node.kind === "source"));
+  });
+});
+
+describe("Forge Researcher Citation Provenance Graph Production Slice — P04-B05-A03", () => {
+  it("buildResearchCitationProvenanceGraph builds actionable graph from researcher output", () => {
+    const build = buildResearchCitationProvenanceGraph(
+      "FINDINGS: citation graph wiring supports provenance export\nSOURCES: https://docs.example.com/spec\nCITATIONS: src/research-engine.ts:30 export function searchFiles",
+      { topic: "citation provenance graph" },
+    );
+
+    assert.equal(build.recovered, true);
+    assert.equal(build.validation.valid, true);
+    assert.ok(build.graph.nodes.length >= 2);
+    assert.ok(build.graph.edges.length >= 1);
+    assert.ok(build.graph.nodes.some(node => node.kind === "source"));
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveResearcherCitationProvenanceGraphContract();
+    const slice = runResearcherCitationProvenanceGraphProductionSlice();
+
+    assert.equal(slice.atom, "P04-B05-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 21);
+    assert.equal(slice.matrixValidation.gapAligned, 2);
+    assert.equal(slice.summary.knownGaps.length, 2);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateResearcherCitationProvenanceGraphProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const sourcesPromptProbe = slice.results.find(r => r.id === "rcpg.researcher_sources_prompt");
+    assert.ok(sourcesPromptProbe);
+    assert.equal(sourcesPromptProbe!.expected, "PASS");
+    assert.equal(sourcesPromptProbe!.actual, "PASS");
+    assert.equal(sourcesPromptProbe!.aligned, true);
+
+    const buildGraphProbe = slice.results.find(r => r.id === "rcpg.build_research_citation_graph");
+    assert.ok(buildGraphProbe);
+    assert.equal(buildGraphProbe!.expected, "PASS");
+    assert.equal(buildGraphProbe!.actual, "PASS");
+    assert.equal(buildGraphProbe!.aligned, true);
   });
 });

@@ -45,7 +45,7 @@
       "id": "rcpg.researcher_sources_prompt",
       "category": "citation_signal",
       "description": "RESEARCHER_SYSTEM prompt requires SOURCES or CITATIONS section in output format",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rcpg.plan_provenance_graph",
@@ -63,7 +63,7 @@
       "id": "rcpg.build_research_citation_graph",
       "category": "provenance_graph_signal",
       "description": "buildResearchCitationProvenanceGraph exports researcher citation→provenance graph builder",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rcpg.b04_block_handoff_entry",

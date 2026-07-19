@@ -69,7 +69,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P04-B05-A01 — Citation ve provenance graph: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B05-A02 — Citation ve provenance graph: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P04-B05-A03 — Citation ve provenance graph: en küçük üretim dikey dilimini uygula
+- [x] P04-B05-A03 — Citation ve provenance graph: en küçük üretim dikey dilimini uygula
 - [ ] P04-B05-A04 — Citation ve provenance graph: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B05-A05 — Citation ve provenance graph: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B05-A06 — Citation ve provenance graph: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B05-A02
-last_commit: 955cdb9
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (15/15); validateResearcherCitationProvenanceGraphContract; validateResearcherCitationProvenanceGraphAgainstContract fixture↔contract alignment
-evidence: FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_CONTRACT_V1 23 probes; 4 FAIL gaps (2 gap + 2 nogo); disposition/criterion fields wired to probe runner
-next: P04-B05-A03
+last_atom: P04-B05-A03
+last_commit: pending
+tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (17/17); runResearcherCitationProvenanceGraphProductionSlice; gap probes flipped PASS
+evidence: buildResearchCitationProvenanceGraph + RESEARCHER SOURCES prompt; contract 21 PASS / 2 FAIL nogo; matrix gate zero unexpected mismatches
+next: P04-B05-A04
