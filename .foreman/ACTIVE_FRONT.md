@@ -44,7 +44,7 @@ fallback: Run record cannot align after A05 slice ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B10-A05
-last_commit: pending
+last_commit: 2a19975
 tests: PASS — forge-p02-visioner-phase-gate.test.ts (23/23); baseline regression (3/3)
 evidence: validateVisionerPhaseGateFailureRecoveryProbeMatrix; runVisionerPhaseGateFailureRecoverySlice; 7/7 failure/recovery/NO-GO probes aligned; handoff=P02-B10-A05→A06
 next: P02-B10-A06
