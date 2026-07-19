@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B01
-active_atom: P05-B01-A01
+active_atom: P05-B01-A03
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 401/1000
-phase_progress: 1/100
-block_progress: 1/10
+program_progress: 402/1000
+phase_progress: 2/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B01-A02 — Typed tool interface ve dispatch: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P05-B01-A03 — Typed tool interface ve dispatch: en küçük üretim dikey dilimini uygula.
 
-objective: P05-B01-A01 baseline sealed; define typed contract acceptance criteria.
-target: Define measurable acceptance criteria with typed contract for worker tool dispatch.
-hypothesis: Documented A01 FAIL gaps map to contract probes for A02 typed acceptance.
-acceptance: Contract loads, validates, and aligns with baseline probe matrix.
+objective: P05-B01-A02 contract sealed; implement smallest production vertical slice.
+target: Wire typed tool dispatch contract probes to production code paths.
+hypothesis: Six documented A02 gap probes map to minimal TypedToolCall + validator exports.
+acceptance: Gap probes flip PASS with zero unexpected mismatches against contract matrix.
 commands: npx tsx --test src/forge-p05-worker-tool-dispatch*.test.ts
-blast_radius: src/forge-p05-worker-tool-dispatch*.ts
-rollback: P05-B01-A02 contract değişikliklerini geri al.
+blast_radius: src/tools.ts, src/prompts.ts, src/orchestrator.ts, src/forge-p05-worker-tool-dispatch*.ts
+rollback: P05-B01-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Contract blocked ise BLOCKED raporla.
+fallback: Production slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B01-A01
+last_atom: P05-B01-A02
 last_commit: pending
-tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8)
-evidence: loadWorkerToolDispatchBaseline + validateWorkerToolDispatchBaseline + runWorkerToolDispatchProbes + 6 documented FAIL gaps aligned
-next: P05-B01-A02
+tests: PASS — forge-p05-worker-tool-dispatch-baseline.test.ts (8/8), forge-p05-worker-tool-dispatch-contract.test.ts (8/8)
+evidence: FORGE_WORKER_TOOL_DISPATCH_CONTRACT_V1 with 27 typed probes (21 PASS, 6 gap) aligned to A01 baseline matrix; validateWorkerToolDispatchAgainstContract + criterion wiring
+next: P05-B01-A03
