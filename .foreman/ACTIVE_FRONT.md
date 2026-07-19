@@ -44,7 +44,7 @@ fallback: Boundary slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B03-A03
-last_commit: pending
+last_commit: 83e3a62
 tests: PASS — forge-p05-worker-edit-engine-production.test.ts (5/5), baseline (8/8), contract (8/8) — 21 total
 evidence: TypedEditCall + validateSurgicalEdit + buildEditEngineTelemetry + orchestrator pre-edit validation + occurrence dispatch; 6 A02 gap probes closed, 27/27 aligned
 next: P05-B03-A04
