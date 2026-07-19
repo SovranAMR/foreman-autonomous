@@ -45,6 +45,6 @@ fallback: Slice blocked ise BLOCKED raporla.
 
 last_atom: P04-B07-A07
 last_commit: pending
-tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (37/37); property/fuzz 8/8 structural; contract fuzz 72/72 rejected; run-record fuzz 5/5 rejected; zero accepted mutations
+tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (38/38); property/fuzz 8/8 structural; contract fuzz 72/72 rejected; run-record fuzz 5/5 rejected; zero accepted mutations
 evidence: runResearcherRiskTradeoffPropertyValidation + runResearcherRiskTradeoffFuzzValidation + runResearcherRiskTradeoffRunRecordFuzzValidation + runResearcherRiskTradeoffPropertyFuzzSlice; harnessVersion 1.0.0-a07
 next: P04-B07-A08
