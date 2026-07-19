@@ -22,6 +22,7 @@ import {
   EXPECTED_SEALED_BLOCK_COUNT,
   INTEGRATED_FORGE_REGRESSION_METHODS,
   INTEGRATED_FORGE_BLOCK_GATE_METHODS,
+  getActiveIntegratedBaselineContract,
   validateIntegratedBaseline,
   type IntegratedBaseline,
   type IntegratedBaselineCategory,
@@ -36,6 +37,15 @@ export {
   EXPECTED_SEALED_BLOCK_COUNT,
   INTEGRATED_FORGE_REGRESSION_METHODS,
   INTEGRATED_FORGE_BLOCK_GATE_METHODS,
+  FORGE_INTEGRATED_BASELINE_CONTRACT_V1,
+  getActiveIntegratedBaselineContract,
+  getIntegratedBaselineCategoryContract,
+  listIntegratedBaselineContractProbeIds,
+  listIntegratedBaselineProbesByDisposition,
+  listIntegratedBaselineContractProbesByCategory,
+  summarizeIntegratedBaselineContractCoverage,
+  validateIntegratedBaselineContractCoverage,
+  validateIntegratedBaselineAgainstContract,
   validateIntegratedBaseline,
   summarizeIntegratedBaselineMatrix,
   listIntegratedBaselineProbesByExpected,
@@ -546,7 +556,12 @@ export function loadIntegratedBaseline(): IntegratedBaseline {
 export function runIntegratedBaselineProbes(
   fixture: IntegratedBaseline = loadIntegratedBaseline(),
 ): IntegratedBaselineProbeResult[] {
-  return fixture.probes.map(entry =>
-    runSingleProbe(entry.id, entry.category, entry.expected, fixture),
-  );
+  const contract = getActiveIntegratedBaselineContract();
+  return fixture.probes.map(entry => {
+    const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion
+      ? { ...result, criterion: contractProbe.criterion }
+      : result;
+  });
 }

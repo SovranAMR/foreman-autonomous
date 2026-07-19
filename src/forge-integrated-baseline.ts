@@ -181,6 +181,608 @@ export const INTEGRATED_BASELINE_A01_MIN_PROBES: Readonly<
   nogo_path: 2,
 };
 
+export type IntegratedBaselineProbeDisposition =
+  | "observed"
+  | "gap"
+  | "failure"
+  | "recovery"
+  | "nogo";
+
+export interface IntegratedBaselineProbeContract {
+  id: string;
+  category: IntegratedBaselineCategory;
+  description: string;
+  expected: ForgeAcceptanceOutcome;
+  disposition: IntegratedBaselineProbeDisposition;
+  criterion: string;
+}
+
+export interface IntegratedBaselineCategoryAcceptance {
+  invariant: string;
+  minProbeCount: number;
+  requireFullAlignment: true;
+}
+
+export interface IntegratedBaselineCategoryContract {
+  category: IntegratedBaselineCategory;
+  acceptance: IntegratedBaselineCategoryAcceptance;
+  probes: readonly IntegratedBaselineProbeContract[];
+}
+
+export interface IntegratedBaselineContract {
+  version: string;
+  atom: string;
+  purpose: string;
+  categories: Record<IntegratedBaselineCategory, IntegratedBaselineCategoryContract>;
+  probes: readonly IntegratedBaselineProbeContract[];
+}
+
+export interface IntegratedBaselineContractCoverageIssue {
+  kind: "missing_category" | "underflow" | "missing_criterion" | "duplicate_probe" | "coverage_mismatch";
+  probeId?: string;
+  category?: IntegratedBaselineCategory;
+  detail: string;
+}
+
+export interface IntegratedBaselineContractCoverageResult {
+  valid: boolean;
+  issues: IntegratedBaselineContractCoverageIssue[];
+}
+
+function flattenIntegratedBaselineCategoryProbes(
+  categories: Record<IntegratedBaselineCategory, IntegratedBaselineCategoryContract>,
+): readonly IntegratedBaselineProbeContract[] {
+  return INTEGRATED_BASELINE_CATEGORIES.flatMap(category => categories[category].probes);
+}
+
+const INTEGRATED_BASELINE_CATEGORY_CONTRACTS: Record<
+  IntegratedBaselineCategory,
+  IntegratedBaselineCategoryContract
+> = {
+  gate_versioning: {
+    category: "gate_versioning",
+    acceptance: {
+      invariant:
+        "Integrated baseline declares semver version, atom id and exported harness version for cross-block gate measurement.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.version_tagged",
+        category: "gate_versioning",
+        description: "Integrated baseline declares semver version field",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Integrated baseline declares semver version field",
+      },
+      {
+        id: "ibase.atom_tagged",
+        category: "gate_versioning",
+        description: "Integrated baseline declares P01-B10-A01 atom id",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Integrated baseline declares P01-B10-A01 atom id",
+      },
+      {
+        id: "ibase.harness_version_exported",
+        category: "gate_versioning",
+        description: "FORGE_INTEGRATED_BASELINE_VERSION exported for integrated gate harness",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "FORGE_INTEGRATED_BASELINE_VERSION exported for integrated gate harness",
+      },
+    ],
+  },
+  block_inventory: {
+    category: "block_inventory",
+    acceptance: {
+      invariant:
+        "Sealed P01 block inventory exposes nine block-gate methods and fixture registry; unified catalog export is a documented gap.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.nine_blocks_sealed",
+        category: "block_inventory",
+        description: "Orchestrator exposes nine verifyForge*BlockGate methods for sealed P01 blocks",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Orchestrator exposes nine verifyForge*BlockGate methods for sealed P01 blocks",
+      },
+      {
+        id: "ibase.block_fixture_registry",
+        category: "block_inventory",
+        description: "All nine sealed block baseline fixtures exist under src/fixtures",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "All nine sealed block baseline fixtures exist under src/fixtures",
+      },
+      {
+        id: "ibase.unified_block_catalog",
+        category: "block_inventory",
+        description: "Central SealedForgeBlockCatalog type exports canonical block inventory for integrated gate",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Central SealedForgeBlockCatalog type exports canonical block inventory for integrated gate",
+      },
+    ],
+  },
+  regression_integration: {
+    category: "regression_integration",
+    acceptance: {
+      invariant:
+        "Orchestrator exposes nine regression methods including orchestrator seam wiring; unified integrated regression runner is a documented gap.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.nine_regression_methods",
+        category: "regression_integration",
+        description: "Orchestrator exposes nine verifyForge*Regression methods including orchestrator seam",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Orchestrator exposes nine verifyForge*Regression methods including orchestrator seam",
+      },
+      {
+        id: "ibase.orchestrator_seam_regression_wired",
+        category: "regression_integration",
+        description: "verifyForgeOrchestratorSeamRegression lazy-loads orchestrator seam regression gate",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "verifyForgeOrchestratorSeamRegression lazy-loads orchestrator seam regression gate",
+      },
+      {
+        id: "ibase.unified_regression_runner",
+        category: "regression_integration",
+        description: "Orchestrator exposes verifyForgeIntegratedRegression for cross-block integrated baseline gate",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Orchestrator exposes verifyForgeIntegratedRegression for cross-block integrated baseline gate",
+      },
+    ],
+  },
+  guard_integration: {
+    category: "guard_integration",
+    acceptance: {
+      invariant:
+        "Orchestrator exposes verifyForge guard methods for sealed blocks; unified integrated guard sweep is a documented gap.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.orchestrator_guard_methods",
+        category: "guard_integration",
+        description: "Orchestrator exposes verifyForge*Guard methods for sealed block guard gates",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Orchestrator exposes verifyForge*Guard methods for sealed block guard gates",
+      },
+      {
+        id: "ibase.integrated_guard_orchestrator",
+        category: "guard_integration",
+        description: "Orchestrator exposes verifyForgeIntegratedGuard for unified adversarial guard sweep",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Orchestrator exposes verifyForgeIntegratedGuard for unified adversarial guard sweep",
+      },
+    ],
+  },
+  block_gate_integration: {
+    category: "block_gate_integration",
+    acceptance: {
+      invariant:
+        "Orchestrator block gate inventory includes orchestrator seam gate; integrated block gate method sealing P01 phase is a documented gap.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.nine_block_gate_methods",
+        category: "block_gate_integration",
+        description: "Orchestrator block gate inventory includes orchestrator seam block gate",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Orchestrator block gate inventory includes orchestrator seam block gate",
+      },
+      {
+        id: "ibase.integrated_block_gate_method",
+        category: "block_gate_integration",
+        description: "Orchestrator exposes verifyForgeIntegratedBlockGate sealing P01 phase integrated gate",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Orchestrator exposes verifyForgeIntegratedBlockGate sealing P01 phase integrated gate",
+      },
+    ],
+  },
+  orchestrator_seam_link: {
+    category: "orchestrator_seam_link",
+    acceptance: {
+      invariant:
+        "Integrated baseline links to sealed B09 orchestrator seam handoff with aligned probe counts.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.b09_handoff_entry",
+        category: "orchestrator_seam_link",
+        description: "FORGE_P01_B09_TO_B10_HANDOFF_V1 targets P01-B10-A01 entry atom",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "FORGE_P01_B09_TO_B10_HANDOFF_V1 targets P01-B10-A01 entry atom",
+      },
+      {
+        id: "ibase.b09_sealed_probe_count",
+        category: "orchestrator_seam_link",
+        description: "Sealed B09 handoff probeCount matches active orchestrator seam contract",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Sealed B09 handoff probeCount matches active orchestrator seam contract",
+      },
+    ],
+  },
+  boundary: {
+    category: "boundary",
+    acceptance: {
+      invariant:
+        "Baseline fixture references sealed sourceOrchestratorSeam artifacts and documents measurable FAIL integrated gate gaps.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.source_orchestrator_seam_ref",
+        category: "boundary",
+        description: "Baseline fixture references sealed sourceOrchestratorSeam artifacts from B09-A10",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Baseline fixture references sealed sourceOrchestratorSeam artifacts from B09-A10",
+      },
+      {
+        id: "ibase.probe_runner_exported",
+        category: "boundary",
+        description: "runIntegratedBaselineProbes executes contract-wired integrated probe matrix",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "runIntegratedBaselineProbes executes contract-wired integrated probe matrix",
+      },
+      {
+        id: "ibase.known_gaps_documented",
+        category: "boundary",
+        description: "Baseline fixture documents at least one measurable FAIL integrated gate gap",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Baseline fixture documents at least one measurable FAIL integrated gate gap",
+      },
+    ],
+  },
+  failure_path: {
+    category: "failure_path",
+    acceptance: {
+      invariant:
+        "validateIntegratedBaseline rejects invalid versions and enforces per-category minimum probe counts.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.invalid_version_rejected",
+        category: "failure_path",
+        description: "validateIntegratedBaseline rejects unexpected fixture version",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "validateIntegratedBaseline rejects unexpected fixture version",
+      },
+      {
+        id: "ibase.min_category_probes",
+        category: "failure_path",
+        description: "validateIntegratedBaseline enforces per-category minimum probe counts",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "validateIntegratedBaseline enforces per-category minimum probe counts",
+      },
+    ],
+  },
+  recovery_path: {
+    category: "recovery_path",
+    acceptance: {
+      invariant:
+        "Integrated gate harness resets cross-block verification state on recovery; B09 handoff fallback loader is a documented gap.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.recovery_integrated_state_reset",
+        category: "recovery_path",
+        description: "Integrated gate harness resets cross-block verification state on pipeline recovery transition",
+        expected: "FAIL",
+        disposition: "recovery",
+        criterion: "Integrated gate harness resets cross-block verification state on pipeline recovery transition",
+      },
+      {
+        id: "ibase.recovery_missing_b09_handoff_fallback",
+        category: "recovery_path",
+        description: "Recovery loader falls back when B09 handoff artifact is missing or invalid",
+        expected: "FAIL",
+        disposition: "recovery",
+        criterion: "Recovery loader falls back when B09 handoff artifact is missing or invalid",
+      },
+    ],
+  },
+  nogo_path: {
+    category: "nogo_path",
+    acceptance: {
+      invariant:
+        "NO-GO gates halt eval on sealed block inventory drift and reject integrated gate probe signature mismatches.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "ibase.nogo_block_inventory_drift",
+        category: "nogo_path",
+        description: "NO-GO gate halts eval when sealed block inventory drifts from integrated baseline",
+        expected: "FAIL",
+        disposition: "nogo",
+        criterion: "NO-GO gate halts eval when sealed block inventory drifts from integrated baseline",
+      },
+      {
+        id: "ibase.nogo_integrated_gate_mismatch",
+        category: "nogo_path",
+        description: "NO-GO gate rejects run when integrated gate probe signatures mismatch sealed inventory",
+        expected: "FAIL",
+        disposition: "nogo",
+        criterion: "NO-GO gate rejects run when integrated gate probe signatures mismatch sealed inventory",
+      },
+    ],
+  },
+};
+
+/** Typed integrated baseline contract v1 — source of truth for measurable acceptance. */
+export const FORGE_INTEGRATED_BASELINE_CONTRACT_V1: IntegratedBaselineContract = {
+  version: "1.0.0",
+  atom: "P01-B10-A05",
+  purpose:
+    "Measurable acceptance criteria for integrated Forge baseline gate (versioning, block inventory, regression, guard, block gate, B09 link, boundary, failure, recovery, NO-GO).",
+  categories: INTEGRATED_BASELINE_CATEGORY_CONTRACTS,
+  probes: flattenIntegratedBaselineCategoryProbes(INTEGRATED_BASELINE_CATEGORY_CONTRACTS),
+};
+
+export function getActiveIntegratedBaselineContract(): IntegratedBaselineContract {
+  return FORGE_INTEGRATED_BASELINE_CONTRACT_V1;
+}
+
+export function getIntegratedBaselineCategoryContract(
+  category: IntegratedBaselineCategory,
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): IntegratedBaselineCategoryContract {
+  return contract.categories[category];
+}
+
+export function listIntegratedBaselineContractProbeIds(
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listIntegratedBaselineProbesByDisposition(
+  disposition: IntegratedBaselineProbeDisposition,
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): IntegratedBaselineProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listIntegratedBaselineContractProbesByCategory(
+  category: IntegratedBaselineCategory,
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): IntegratedBaselineProbeContract[] {
+  return contract.categories[category].probes;
+}
+
+export function summarizeIntegratedBaselineContractCoverage(
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<IntegratedBaselineCategory, { probeCount: number; invariant: string }>;
+  byDisposition: Record<IntegratedBaselineProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    IntegratedBaselineCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<IntegratedBaselineProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of INTEGRATED_BASELINE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probe of categoryContract.probes) {
+      totalProbes++;
+      if (probe.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probe.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateIntegratedBaselineContractCoverage(
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): IntegratedBaselineContractCoverageResult {
+  const issues: IntegratedBaselineContractCoverageIssue[] = [];
+
+  for (const category of INTEGRATED_BASELINE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < INTEGRATED_BASELINE_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} below A01 baseline ${INTEGRATED_BASELINE_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} has ${categoryContract.probes.length} probes; contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listIntegratedBaselineContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeIntegratedBaselineContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("ibase.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing ibase. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateIntegratedBaselineAgainstContract(
+  fixture: IntegratedBaseline,
+  contract: IntegratedBaselineContract = getActiveIntegratedBaselineContract(),
+): IntegratedBaselineValidationResult {
+  const issues: IntegratedBaselineValidationIssue[] = [];
+  const contractIds = new Set(contract.probes.map(p => p.id));
+  const fixtureIds = new Set(fixture.probes.map(p => p.id));
+
+  if (fixture.contractAtom && fixture.contractAtom !== contract.atom) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `contractAtom mismatch fixture=${fixture.contractAtom} contract=${contract.atom}`,
+    });
+  }
+
+  for (const category of INTEGRATED_BASELINE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    const categoryProbes = fixture.probes.filter(p => p.category === category);
+    if (categoryProbes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} has ${categoryProbes.length} probes; contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+  }
+
+  for (const probe of contract.probes) {
+    if (!fixtureIds.has(probe.id)) {
+      issues.push({ kind: "missing_probe", probeId: probe.id, detail: `fixture missing ${probe.id}` });
+    }
+  }
+
+  for (const entry of fixture.probes) {
+    if (!contractIds.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: `fixture extra ${entry.id}` });
+      continue;
+    }
+    const expected = contract.probes.find(p => p.id === entry.id)!;
+    if (entry.expected !== expected.expected) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `expected mismatch fixture=${entry.expected} contract=${expected.expected}`,
+      });
+    }
+    if (entry.description !== expected.description) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `description mismatch for ${entry.id}`,
+      });
+    }
+    if (entry.category !== expected.category) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
+      });
+    }
+  }
+
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
+  if (expectedFailCount > 0 && failGaps.length === 0) {
+    issues.push({ kind: "missing_category", detail: "fixture must document known FAIL gaps matching contract" });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
+    });
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
 export function buildDefaultIntegratedSourceOrchestratorSeam(): IntegratedBaseline["sourceOrchestratorSeam"] {
   const contract = getActiveOrchestratorSeamContract();
   const coverage = summarizeOrchestratorSeamContractCoverage(contract);

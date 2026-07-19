@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 8
-completed_atoms: 89
+completed_atoms: 90
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -133,7 +133,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P01-B10 — Entegre Forge baseline gate
 
 - [x] P01-B10-A01 — Entegre Forge baseline gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P01-B10-A02 — Entegre Forge baseline gate: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P01-B10-A02 — Entegre Forge baseline gate: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B10-A03 — Entegre Forge baseline gate: en küçük üretim dikey dilimini uygula
 - [ ] P01-B10-A04 — Entegre Forge baseline gate: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B10-A05 — Entegre Forge baseline gate: failure, recovery ve NO-GO yollarını uygula
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B10-A01
-last_commit: b5e7084
-tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (3/3); 24 probes; 8 documented FAIL gaps; B09 handoff aligned
+last_atom: P01-B10-A02
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (9/9); FORGE_INTEGRATED_BASELINE_CONTRACT_V1; 24 probes (16 pass + 8 gap); fixture↔contract aligned
 evidence: |
-  P01-B10-A01: forge-integrated-baseline-v1.json, forge-integrated-baseline.ts,
-  forge-integrated-baseline.probe.ts; runIntegratedBaselineProbes, validateIntegratedBaseline,
-  SEALED_FORGE_BLOCK_INVENTORY (9 blocks B01–B09); sourceOrchestratorSeam from B09-A10 handoff.
-next: P01-B10-A02
+  P01-B10-A02: FORGE_INTEGRATED_BASELINE_CONTRACT_V1 with 10 category contracts,
+  validateIntegratedBaselineContractCoverage, validateIntegratedBaselineAgainstContract,
+  contract-wired probe criteria in runIntegratedBaselineProbes.
+next: P01-B10-A03

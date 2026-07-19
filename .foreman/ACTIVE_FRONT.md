@@ -6,8 +6,8 @@ active_phase: P01
 active_block: P01-B10
 active_atom: P01-B10-A02
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 90/1000
-phase_progress: 89/100
+program_progress: 91/1000
+phase_progress: 90/100
 block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B10-A02 — Entegre Forge baseline gate: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P01-B10-A03 — Entegre Forge baseline gate: en küçük üretim dikey dilimini uygula.
 
-objective: B10-A01 baseline fixture sealed; typed integrated gate contract with measurable acceptance criteria.
-target: FORGE_INTEGRATED_BASELINE_CONTRACT_V1 + category contracts aligned to 24-probe A01 matrix.
-hypothesis: A01 fixture + B09 handoff sufficient to declare typed integrated gate contract.
-acceptance: contract covers all categories; probe ids align with fixture; criteria measurable.
+objective: B10-A02 typed contract sealed; production vertical slice with zero unexpected mismatches.
+target: runIntegratedBaselineProductionSlice + validateIntegratedBaselineProbeMatrix.
+hypothesis: A02 contract + A01 fixture sufficient for contract-wired production slice gate.
+acceptance: slice executes 24 probes; passAligned=16; gapAligned=8; unexpectedMismatches=0.
 commands: npx tsx --test src/forge-integrated-baseline*.test.ts
-blast_radius: src/forge-integrated-baseline.ts
-rollback: B10-A02 contract değişikliklerini geri al.
+blast_radius: src/forge-integrated-baseline.ts, src/forge-integrated-baseline.probe.ts
+rollback: B10-A03 production slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A01 baseline invalid ise BLOCKED raporla.
+fallback: A02 contract invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B10-A01
-last_commit: b5e7084
-tests: PASS — forge-integrated-baseline*.test.ts (3/3); 24 probes; 8 documented FAIL gaps; B09 handoff aligned
-evidence: forge-integrated-baseline-v1.json, runIntegratedBaselineProbes, validateIntegratedBaseline, SEALED_FORGE_BLOCK_INVENTORY
-next: P01-B10-A02
+last_atom: P01-B10-A02
+last_commit: pending
+tests: PASS — forge-integrated-baseline*.test.ts (9/9); FORGE_INTEGRATED_BASELINE_CONTRACT_V1; 24 probes; 16 pass + 8 gap dispositions; fixture↔contract aligned
+evidence: FORGE_INTEGRATED_BASELINE_CONTRACT_V1, validateIntegratedBaselineAgainstContract, validateIntegratedBaselineContractCoverage, contract-wired probe criteria
+next: P01-B10-A03
