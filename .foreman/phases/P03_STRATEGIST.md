@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 5
+completed_atoms: 6
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -20,7 +20,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B01-A03 — Hedef decomposition: en küçük üretim dikey dilimini uygula
 - [x] P03-B01-A04 — Hedef decomposition: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B01-A05 — Hedef decomposition: failure, recovery ve NO-GO yollarını uygula
-- [ ] P03-B01-A06 — Hedef decomposition: evidence, telemetry ve provenance kaydını ekle
+- [x] P03-B01-A06 — Hedef decomposition: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B01-A07 — Hedef decomposition: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B01-A08 — Hedef decomposition: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B01-A09 — Hedef decomposition: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B01-A05
-last_commit: af96616
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (13/13); failure/recovery slice 6/6 probes; 0 unexpected mismatches
-evidence: runStrategistIntentFailureRecoverySlice; validateStrategistIntentFailureRecoveryProbeMatrix; listStrategistIntentFailureRecoveryProbeIds
-next: P03-B01-A06
+last_atom: P03-B01-A06
+last_commit: 9ef17e3
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (17/17); evidence slice 6/6 probes; 0 unexpected mismatches
+evidence: runStrategistIntentEvidenceSlice; validateStrategistIntentEvidenceRunRecord; runStrategistIntentProbesWithRecord
+next: P03-B01-A07

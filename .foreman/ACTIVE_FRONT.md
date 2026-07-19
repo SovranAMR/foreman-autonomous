@@ -6,9 +6,9 @@ active_phase: P03
 active_block: P03-B01
 active_atom: P03-B01-A06
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 204/1000
-phase_progress: 4/100
-block_progress: 5/10
+program_progress: 205/1000
+phase_progress: 5/100
+block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B01-A06 — Hedef decomposition: evidence, telemetry ve provenance kaydını ekle.
+P03-B01-A07 — Hedef decomposition: unit, property ve fuzz doğrulamasını ekle.
 
-objective: P03-B01-A05 PASS; P03-B01-A06 strategist intent evidence/telemetry slice.
-target: runStrategistIntentEvidenceSlice, validateStrategistIntentEvidenceRunRecord.
-hypothesis: P03-B01-A06 completes contract-wired evidence/telemetry/provenance probes with zero unexpected mismatches.
-acceptance: evidence slice probes aligned; run record validation green; baseline regression green.
+objective: P03-B01-A06 PASS; P03-B01-A07 strategist intent property/fuzz slice.
+target: runStrategistIntentPropertyChecks, runStrategistIntentFuzzValidation.
+hypothesis: P03-B01-A07 completes structural property checks and contract fuzz gates with zero accepted mutations.
+acceptance: property checks all pass; contract fuzz rejects tampered inputs; baseline regression green.
 commands: npx tsx --test src/forge-p03-strategist-intent.test.ts
 blast_radius: src/forge-p03-strategist-intent.ts
-rollback: P03-B01-A06 evidence slice değişikliklerini geri al.
+rollback: P03-B01-A07 property/fuzz slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: P03-B01-A05 failure/recovery slice misaligned ise BLOCKED raporla.
+fallback: P03-B01-A06 evidence slice misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B01-A05
-last_commit: af96616
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (13/13); failure/recovery slice 6/6 probes; 0 unexpected mismatches
-evidence: runStrategistIntentFailureRecoverySlice; validateStrategistIntentFailureRecoveryProbeMatrix; listStrategistIntentFailureRecoveryProbeIds
-next: P03-B01-A06
+last_atom: P03-B01-A06
+last_commit: 9ef17e3
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (17/17); evidence slice 6/6 probes; 0 unexpected mismatches
+evidence: runStrategistIntentEvidenceSlice; validateStrategistIntentEvidenceRunRecord; runStrategistIntentProbesWithRecord
+next: P03-B01-A07

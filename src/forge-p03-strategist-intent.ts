@@ -8,6 +8,8 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import strategistIntentBaseline from "./fixtures/forge-strategist-intent-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -18,7 +20,7 @@ import {
 } from "./forge-p02-visioner-phase-gate.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_INTENT_VERSION = "1.0.0-a05";
+export const FORGE_STRATEGIST_INTENT_VERSION = "1.0.0-a06";
 
 /** Maximum normalized vision length before truncation (P03-B01-A01 boundary). */
 export const STRATEGIST_VISION_MAX_LENGTH = 32000;
@@ -516,6 +518,299 @@ export function runStrategistIntentFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P03-B01-A06). */
+export interface StrategistIntentProbeEvidence {
+  probeId: string;
+  category: StrategistIntentCategory;
+  disposition: StrategistIntentProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for strategist intent runs (P03-B01-A06). */
+export interface StrategistIntentProbeTelemetry {
+  probeId: string;
+  category: StrategistIntentCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P03-B01-A06). */
+export interface StrategistIntentProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourcePhaseGateVersion: string;
+  sourcePhaseGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly StrategistIntentCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated strategist intent run record bundling evidence, telemetry and provenance. */
+export interface StrategistIntentRunRecord {
+  provenance: StrategistIntentProvenance;
+  evidence: StrategistIntentProbeEvidence[];
+  telemetry: StrategistIntentProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<StrategistIntentCategory, number>;
+    byDisposition: Record<StrategistIntentProbeDisposition, number>;
+  };
+}
+
+export interface StrategistIntentRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistIntentRunValidationResult {
+  valid: boolean;
+  issues: StrategistIntentRunValidationIssue[];
+}
+
+export function buildStrategistIntentProbeEvidence(
+  probeId: string,
+  category: StrategistIntentCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: StrategistIntentProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): StrategistIntentProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildStrategistIntentProbeTelemetry(
+  probeId: string,
+  category: StrategistIntentCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): StrategistIntentProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildStrategistIntentProvenance(
+  runId: string,
+  fixture: StrategistIntentBaseline,
+  contract: StrategistIntentContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistIntentCategory[];
+  },
+): StrategistIntentProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_STRATEGIST_INTENT_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourcePhaseGateVersion: fixture.sourcePhaseGate.version,
+    sourcePhaseGateAtom: fixture.sourcePhaseGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildStrategistIntentRunRecord(
+  provenance: StrategistIntentProvenance,
+  evidence: StrategistIntentProbeEvidence[],
+  telemetry: StrategistIntentProbeTelemetry[],
+): StrategistIntentRunRecord {
+  const byCategory = {} as Record<StrategistIntentCategory, number>;
+  const byDisposition: Record<StrategistIntentProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of STRATEGIST_INTENT_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateStrategistIntentRunRecordAgainstProbeIds(
+  record: StrategistIntentRunRecord,
+  expectedProbeIds: string[],
+  contract: StrategistIntentContract,
+): StrategistIntentRunValidationResult {
+  const issues: StrategistIntentRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateStrategistIntentRunRecord(
+  record: StrategistIntentRunRecord,
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): StrategistIntentRunValidationResult {
+  return validateStrategistIntentRunRecordAgainstProbeIds(
+    record,
+    listStrategistIntentContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateStrategistIntentEvidenceRunRecord(
+  record: StrategistIntentRunRecord,
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): StrategistIntentRunValidationResult {
+  const issues: StrategistIntentRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P03-B01-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P03-B01-A06`,
+    });
+  }
+
+  const expectedCategories = [...STRATEGIST_INTENT_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateStrategistIntentRunRecordAgainstProbeIds(
+    record,
+    listStrategistIntentFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface StrategistIntentEvidenceSliceResult {
+  atom: "P03-B01-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: StrategistIntentProbeResult[];
+  evidenceResults: StrategistIntentProbeResult[];
+  matrixValidation: StrategistIntentProbeMatrixValidationResult;
+  record: StrategistIntentRunRecord;
+  recordValidation: StrategistIntentRunValidationResult;
 }
 
 export interface StrategistIntentFixtureEntry {
@@ -1728,4 +2023,152 @@ export function runStrategistIntentProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+function resolveStrategistGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runStrategistIntentProbeWithTiming(
+  entry: StrategistIntentFixtureEntry,
+  fixture: StrategistIntentBaseline,
+  contractProbe:
+    | { criterion: string; disposition: StrategistIntentProbeDisposition }
+    | undefined,
+): {
+  result: StrategistIntentProbeResult;
+  durationMs: number;
+  disposition: StrategistIntentProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runStrategistIntentProbe(entry, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildStrategistIntentRecordFromEntries(
+  entries: StrategistIntentFixtureEntry[],
+  fixture: StrategistIntentBaseline,
+  contract: StrategistIntentContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistIntentCategory[];
+  },
+): StrategistIntentRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: StrategistIntentProbeEvidence[] = [];
+  const telemetry: StrategistIntentProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runStrategistIntentProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildStrategistIntentProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildStrategistIntentProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildStrategistIntentProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveStrategistGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildStrategistIntentRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all strategist intent probes and emit auditable evidence, telemetry and provenance (P03-B01-A06). */
+export function runStrategistIntentProbesWithRecord(
+  fixture: StrategistIntentBaseline = loadStrategistIntentBaseline(),
+): StrategistIntentRunRecord {
+  const contract = getActiveStrategistIntentContract();
+  return buildStrategistIntentRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P03-B01-A06). */
+export function runStrategistIntentFailureRecoverySliceWithRecord(
+  fixture: StrategistIntentBaseline = loadStrategistIntentBaseline(),
+): StrategistIntentRunRecord {
+  const contract = getActiveStrategistIntentContract();
+  const failureRecoveryIds = new Set(listStrategistIntentFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildStrategistIntentRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P03-B01-A06",
+    sliceCategories: STRATEGIST_INTENT_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runStrategistIntentEvidenceSlice(
+  fixture: StrategistIntentBaseline = loadStrategistIntentBaseline(),
+): StrategistIntentEvidenceSliceResult {
+  const contract = getActiveStrategistIntentContract();
+  const results = runStrategistIntentProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_INTENT_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistIntentContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistIntentFailureRecoveryProbeMatrix(results, contract);
+  const record = runStrategistIntentFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateStrategistIntentEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P03-B01-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
+  };
 }
