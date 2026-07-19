@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 2
-completed_atoms: 21
+completed_atoms: 22
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -42,7 +42,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P03-B03 — Atomization ve atom boyutu
 
 - [x] P03-B03-A01 — Atomization ve atom boyutu: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P03-B03-A02 — Atomization ve atom boyutu: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P03-B03-A02 — Atomization ve atom boyutu: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B03-A03 — Atomization ve atom boyutu: en küçük üretim dikey dilimini uygula
 - [ ] P03-B03-A04 — Atomization ve atom boyutu: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B03-A05 — Atomization ve atom boyutu: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B03-A01
-last_commit: 5c3e8b3
-tests: PASS — forge-p03-strategist-atomization-baseline.test.ts (3/3); 23 probes; 4 FAIL gaps aligned; B02 handoff→P03-B03
-evidence: loadStrategistAtomizationBaseline; validateStrategistAtomizationBaseline; runStrategistAtomizationProbes
-next: P03-B03-A02
+last_atom: P03-B03-A02
+last_commit: pending
+tests: PASS — forge-p03-strategist-atomization*.test.ts (10/10); contract 23 probes; 4 gap dispositions sealed
+evidence: getActiveStrategistAtomizationContract; validateStrategistAtomizationCoverage; validateStrategistAtomizationAgainstContract
+next: P03-B03-A03

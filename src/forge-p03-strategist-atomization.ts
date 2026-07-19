@@ -18,7 +18,7 @@ import {
 } from "./forge-p03-strategist-block-contract.js";
 import { parseAtomizeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a01";
+export const FORGE_STRATEGIST_ATOMIZATION_VERSION = "1.0.0-a02";
 
 /** Maximum normalized atomize length before truncation (P03-B03-A01 boundary debt). */
 export const STRATEGIST_ATOMIZE_MAX_LENGTH = 32000;
@@ -101,6 +101,583 @@ export interface StrategistAtomizationValidationIssue {
 export interface StrategistAtomizationValidationResult {
   valid: boolean;
   issues: StrategistAtomizationValidationIssue[];
+}
+
+export type StrategistAtomizationProbeDisposition =
+  | "observed"
+  | "gap"
+  | "failure"
+  | "recovery"
+  | "nogo";
+
+export interface StrategistAtomizationProbeContract {
+  id: string;
+  category: StrategistAtomizationCategory;
+  description: string;
+  expected: ForgeAcceptanceOutcome;
+  disposition: StrategistAtomizationProbeDisposition;
+  criterion: string;
+}
+
+export interface StrategistAtomizationCategoryAcceptance {
+  invariant: string;
+  minProbeCount: number;
+  requireFullAlignment: boolean;
+}
+
+export interface StrategistAtomizationCategoryContract {
+  category: StrategistAtomizationCategory;
+  acceptance: StrategistAtomizationCategoryAcceptance;
+  probes: readonly StrategistAtomizationProbeContract[];
+}
+
+export interface StrategistAtomizationContract {
+  version: string;
+  atom: string;
+  purpose: string;
+  categories: Record<StrategistAtomizationCategory, StrategistAtomizationCategoryContract>;
+  probes: readonly StrategistAtomizationProbeContract[];
+}
+
+export interface StrategistAtomizationCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: StrategistAtomizationCategory;
+  detail: string;
+}
+
+export interface StrategistAtomizationCoverageResult {
+  valid: boolean;
+  issues: StrategistAtomizationCoverageIssue[];
+}
+
+function flattenStrategistAtomizationCategoryProbes(
+  categories: Record<StrategistAtomizationCategory, StrategistAtomizationCategoryContract>,
+): readonly StrategistAtomizationProbeContract[] {
+  return STRATEGIST_ATOMIZATION_CATEGORIES.flatMap(category => categories[category].probes);
+}
+
+const STRATEGIST_ATOMIZATION_CATEGORY_CONTRACTS: Record<
+  StrategistAtomizationCategory,
+  StrategistAtomizationCategoryContract
+> = {
+  atom_versioning: {
+    category: "atom_versioning",
+    acceptance: {
+      invariant:
+        "Strategist atomization baseline declares semver version, atom id and exported harness version.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "satom.version_tagged",
+        category: "atom_versioning",
+        description: "Strategist atomization baseline declares semver version field",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Strategist atomization baseline declares semver version field",
+      },
+      {
+        id: "satom.atom_tagged",
+        category: "atom_versioning",
+        description: "Strategist atomization baseline declares P03-B03-A01 atom id",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Strategist atomization baseline declares P03-B03-A01 atom id",
+      },
+      {
+        id: "satom.harness_version_exported",
+        category: "atom_versioning",
+        description: "FORGE_STRATEGIST_ATOMIZATION_VERSION exported for atomization harness",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "FORGE_STRATEGIST_ATOMIZATION_VERSION exported for atomization harness",
+      },
+    ],
+  },
+  atom_structure: {
+    category: "atom_structure",
+    acceptance: {
+      invariant:
+        "Strategist prompt and parser expose ATOMIZE Mode with numbered atom OUTPUT format.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "satom.prompt_atomize_output",
+        category: "atom_structure",
+        description: "STRATEGIST_SYSTEM prompt declares ATOMIZE Mode with OUTPUT section",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "STRATEGIST_SYSTEM prompt declares ATOMIZE Mode with OUTPUT section",
+      },
+      {
+        id: "satom.prompt_atom_format",
+        category: "atom_structure",
+        description: "STRATEGIST_SYSTEM prompt declares numbered atom output format",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "STRATEGIST_SYSTEM prompt declares numbered atom output format",
+      },
+      {
+        id: "satom.parse_atomize_atoms",
+        category: "atom_structure",
+        description: "parseAtomizeResponse extracts structured atoms from atomize output",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "parseAtomizeResponse extracts structured atoms from atomize output",
+      },
+    ],
+  },
+  atom_sizing: {
+    category: "atom_sizing",
+    acceptance: {
+      invariant:
+        "Atom sizing rules enforce max six atoms per block in prompt, parser and orchestrator.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "satom.parser_six_atom_cap",
+        category: "atom_sizing",
+        description: "parseAtomizeResponse enforces max 6 atoms programmatically",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "parseAtomizeResponse enforces max 6 atoms programmatically",
+      },
+      {
+        id: "satom.orchestrator_hard_cap",
+        category: "atom_sizing",
+        description: "Orchestrator hard-caps strategist atomize output at six atoms per block",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Orchestrator hard-caps strategist atomize output at six atoms per block",
+      },
+      {
+        id: "satom.prompt_max_six_atoms",
+        category: "atom_sizing",
+        description: "STRATEGIST_SYSTEM prompt declares ABSOLUTE MAXIMUM 6 atoms sizing rule",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "STRATEGIST_SYSTEM prompt declares ABSOLUTE MAXIMUM 6 atoms sizing rule",
+      },
+    ],
+  },
+  baseline_link: {
+    category: "baseline_link",
+    acceptance: {
+      invariant:
+        "Atomization baseline links to sealed P03-B02 block gate and block contract handoff.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "satom.b02_block_handoff_entry",
+        category: "baseline_link",
+        description: "FORGE_P03_B02_TO_B03_HANDOFF_V1 targets P03-B03-A01 entry atom",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "FORGE_P03_B02_TO_B03_HANDOFF_V1 targets P03-B03-A01 entry atom",
+      },
+      {
+        id: "satom.b02_sealed_block_probes",
+        category: "baseline_link",
+        description: "P03-B02→B03 handoff sealed probeCount matches active block contract",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "P03-B02→B03 handoff sealed probeCount matches active block contract",
+      },
+    ],
+  },
+  boundary: {
+    category: "boundary",
+    acceptance: {
+      invariant:
+        "Atomize boundary assessment handles empty, whitespace-only and atom-cap inputs; probe runner and documented gaps wired.",
+      minProbeCount: 6,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "satom.source_block_gate_ref",
+        category: "boundary",
+        description: "Baseline fixture references sealed P03-B02 block gate source artifacts",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Baseline fixture references sealed P03-B02 block gate source artifacts",
+      },
+      {
+        id: "satom.probe_runner_exported",
+        category: "boundary",
+        description: "runStrategistAtomizationProbes executes contract-wired probe matrix",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "runStrategistAtomizationProbes executes contract-wired probe matrix",
+      },
+      {
+        id: "satom.known_gaps_documented",
+        category: "boundary",
+        description: "Baseline fixture documents measurable FAIL atomization gaps",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Baseline fixture documents measurable FAIL atomization gaps",
+      },
+      {
+        id: "satom.empty_atomize_boundary",
+        category: "boundary",
+        description: "assessStrategistAtomizeInputBoundary rejects empty atomize output",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "assessStrategistAtomizeInputBoundary rejects empty atomize output",
+      },
+      {
+        id: "satom.whitespace_atomize_boundary",
+        category: "boundary",
+        description: "assessStrategistAtomizeInputBoundary rejects whitespace-only atomize output",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "assessStrategistAtomizeInputBoundary rejects whitespace-only atomize output",
+      },
+      {
+        id: "satom.atom_cap_boundary",
+        category: "boundary",
+        description: "parseAtomizeResponse caps over-limit atom lists at six atoms",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "parseAtomizeResponse caps over-limit atom lists at six atoms",
+      },
+    ],
+  },
+  failure_path: {
+    category: "failure_path",
+    acceptance: {
+      invariant: "Malformed atomize guard exists; fixture validation rejects invalid versions.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "satom.invalid_version_rejected",
+        category: "failure_path",
+        description: "validateStrategistAtomizationBaseline rejects unexpected fixture version",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "validateStrategistAtomizationBaseline rejects unexpected fixture version",
+      },
+      {
+        id: "satom.malformed_atomize_guard",
+        category: "failure_path",
+        description: "assessStrategistAtomizeInputBoundary rejects null-byte atomize output safely",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "assessStrategistAtomizeInputBoundary rejects null-byte atomize output safely",
+      },
+    ],
+  },
+  recovery_path: {
+    category: "recovery_path",
+    acceptance: {
+      invariant:
+        "Orchestrator salvages malformed atomize output; recoverStrategistAtomize restructures failed atom parse.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "satom.atomize_salvage_fallback",
+        category: "recovery_path",
+        description: "Orchestrator salvages malformed atomize output via fallbackParseBlocks",
+        expected: "PASS",
+        disposition: "recovery",
+        criterion: "Orchestrator salvages malformed atomize output via fallbackParseBlocks",
+      },
+      {
+        id: "satom.structured_atom_recovery",
+        category: "recovery_path",
+        description: "recoverStrategistAtomize restructures failed atomize parse into contract-compliant plan",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "recoverStrategistAtomize restructures failed atomize parse into contract-compliant plan",
+      },
+    ],
+  },
+  nogo_path: {
+    category: "nogo_path",
+    acceptance: {
+      invariant:
+        "Orchestrator skips zero-atom atomize; worker can BLOCK impossible atoms under block plan.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "satom.orchestrator_zero_atoms_skip",
+        category: "nogo_path",
+        description: "Orchestrator skips block when atomize yields zero extractable atoms",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: "Orchestrator skips block when atomize yields zero extractable atoms",
+      },
+      {
+        id: "satom.worker_impossible_atom",
+        category: "nogo_path",
+        description: "Worker prompt can BLOCK when atom is impossible under block plan",
+        expected: "PASS",
+        disposition: "nogo",
+        criterion: "Worker prompt can BLOCK when atom is impossible under block plan",
+      },
+    ],
+  },
+};
+
+export const FORGE_STRATEGIST_ATOMIZATION_CONTRACT_V1: StrategistAtomizationContract = {
+  version: "1.0.0",
+  atom: "P03-B03-A06",
+  purpose:
+    "Typed strategist atomization contract with measurable probes for structure, sizing, boundary and recovery paths.",
+  categories: STRATEGIST_ATOMIZATION_CATEGORY_CONTRACTS,
+  probes: flattenStrategistAtomizationCategoryProbes(STRATEGIST_ATOMIZATION_CATEGORY_CONTRACTS),
+};
+
+export function getActiveStrategistAtomizationContract(): StrategistAtomizationContract {
+  return FORGE_STRATEGIST_ATOMIZATION_CONTRACT_V1;
+}
+
+export function getStrategistAtomizationCategoryContract(
+  category: StrategistAtomizationCategory,
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationCategoryContract {
+  return contract.categories[category];
+}
+
+export function listStrategistAtomizationContractProbeIds(
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listStrategistAtomizationProbesByDisposition(
+  disposition: StrategistAtomizationProbeDisposition,
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listStrategistAtomizationContractProbesByCategory(
+  category: StrategistAtomizationCategory,
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationProbeContract[] {
+  return contract.categories[category].probes;
+}
+
+export function summarizeStrategistAtomizationCoverage(
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<StrategistAtomizationCategory, { probeCount: number; invariant: string }>;
+  byDisposition: Record<StrategistAtomizationProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    StrategistAtomizationCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<StrategistAtomizationProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of STRATEGIST_ATOMIZATION_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probeEntry of categoryContract.probes) {
+      totalProbes++;
+      if (probeEntry.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probeEntry.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateStrategistAtomizationCoverage(
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationCoverageResult {
+  const issues: StrategistAtomizationCoverageIssue[] = [];
+
+  for (const category of STRATEGIST_ATOMIZATION_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < STRATEGIST_ATOMIZATION_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${STRATEGIST_ATOMIZATION_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probeEntry of categoryContract.probes) {
+      if (probeEntry.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probeEntry.id,
+          detail: `${probeEntry.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listStrategistAtomizationContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeStrategistAtomizationCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probeEntry of contract.probes) {
+    if (!probeEntry.id.startsWith("satom.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probeEntry.id,
+        detail: `${probeEntry.id} missing satom. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateStrategistAtomizationAgainstContract(
+  fixture: StrategistAtomizationBaseline,
+  contract: StrategistAtomizationContract = getActiveStrategistAtomizationContract(),
+): StrategistAtomizationValidationResult {
+  const issues: StrategistAtomizationValidationIssue[] = [];
+  const fixtureIds = new Set(fixture.probes.map(p => p.id));
+  const contractIds = new Set(contract.probes.map(p => p.id));
+
+  for (const category of STRATEGIST_ATOMIZATION_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    const categoryProbes = fixture.probes.filter(p => p.category === category);
+    if (categoryProbes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryProbes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+  }
+
+  for (const probe of contract.probes) {
+    if (!fixtureIds.has(probe.id)) {
+      issues.push({ kind: "missing_probe", probeId: probe.id, detail: `fixture missing ${probe.id}` });
+    }
+  }
+
+  for (const entry of fixture.probes) {
+    if (!contractIds.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: `fixture extra ${entry.id}` });
+      continue;
+    }
+    const expected = contract.probes.find(p => p.id === entry.id)!;
+    if (entry.expected !== expected.expected) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `expected mismatch fixture=${entry.expected} contract=${expected.expected}`,
+      });
+    }
+    if (entry.description !== expected.description) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `description mismatch for ${entry.id}`,
+      });
+    }
+    if (entry.category !== expected.category) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
+      });
+    }
+  }
+
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
+  if (expectedFailCount > 0 && failGaps.length === 0) {
+    issues.push({
+      kind: "missing_category",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
+    });
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 /** A01 baseline probe matrix — fixture and harness must stay aligned. */
@@ -250,6 +827,12 @@ export function validateStrategistAtomizationBaseline(
 
   const matrixAlignment = validateStrategistAtomizationAgainstA01Matrix(fixture);
   issues.push(...matrixAlignment.issues);
+
+  const contractAlignment = validateStrategistAtomizationAgainstContract(
+    fixture,
+    getActiveStrategistAtomizationContract(),
+  );
+  issues.push(...contractAlignment.issues);
 
   return { valid: issues.length === 0, issues };
 }

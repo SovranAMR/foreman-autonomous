@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B03
-active_atom: P03-B03-A02
+active_atom: P03-B03-A03
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 220/1000
-phase_progress: 21/100
-block_progress: 1/10
+program_progress: 221/1000
+phase_progress: 22/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B03-A02 — Atomization ve atom boyutu: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P03-B03-A03 — Atomization ve atom boyutu: en küçük üretim dikey dilimini uygula.
 
-objective: P03-B03-A01 PASS; P03-B03-A02 define typed atomization contract with measurable acceptance criteria.
-target: getActiveStrategistAtomizationContract, validateStrategistAtomizationCoverage.
-hypothesis: P03-B03-A02 seals probe matrix from A01 baseline into typed contract with category invariants.
-acceptance: contract declares all categories; coverage validation passes; fixture aligns to contract probes.
+objective: P03-B03-A02 PASS; P03-B03-A03 implement smallest production vertical slice for atomization gaps.
+target: assessStrategistAtomizeInputBoundary, recoverStrategistAtomize.
+hypothesis: P03-B03-A03 closes documented A01 FAIL gaps via bounded production slice.
+acceptance: gap probes flip to PASS; production slice tests green; no regression on contract coverage.
 commands: npx tsx --test src/forge-p03-strategist-atomization*.test.ts
-blast_radius: src/forge-p03-strategist-atomization.ts
-rollback: P03-B03-A02 contract slice değişikliklerini geri al.
+blast_radius: src/forge-p03-strategist-atomization.ts, src/orchestrator.ts
+rollback: P03-B03-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: A01 baseline misaligned ise BLOCKED raporla.
+fallback: gap closure blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B03-A01
-last_commit: 5c3e8b3
-tests: PASS — forge-p03-strategist-atomization-baseline.test.ts (3/3); 4 documented FAIL gaps; B02 handoff validated
-evidence: loadStrategistAtomizationBaseline; validateStrategistAtomizationBaseline; runStrategistAtomizationProbes
-next: P03-B03-A02
+last_atom: P03-B03-A02
+last_commit: pending
+tests: PASS — forge-p03-strategist-atomization*.test.ts (10/10); contract 23 probes; 4 gap dispositions
+evidence: getActiveStrategistAtomizationContract; validateStrategistAtomizationCoverage; validateStrategistAtomizationAgainstContract
+next: P03-B03-A03
