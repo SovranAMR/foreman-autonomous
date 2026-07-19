@@ -1,0 +1,31 @@
+        createdAt        |               ip                | country | method |        path        |          userId           |  userAgent  
+-------------------------+---------------------------------+---------+--------+--------------------+---------------------------+-------------
+ 2026-04-29 10:47:23.312 | 2a0b:f4c2:1::1                  | DE      | POST   | /api/export        | cmojxkrca0005pk0fhxokxi5q | curl/8.12.1
+ 2026-04-29 10:47:23.308 | 2a0b:f4c2:1::1                  | DE      | POST   | /api/export        | cmojxkrca0005pk0fhxokxi5q | curl/8.12.1
+ 2026-04-29 10:47:22.611 | 2a0b:f4c2:1::1                  | DE      | POST   | /api/export        | cmojxkrca0005pk0fhxokxi5q | curl/8.12.1
+ 2026-04-29 10:47:22.604 | 2a0b:f4c2:1::1                  | DE      | POST   | /api/export        | cmojxkrca0005pk0fhxokxi5q | curl/8.12.1
+ 2026-04-29 10:47:19.42  | 2a0b:f4c2:1::1                  | DE      | POST   | /api/auth/register | cmojxkrca0005pk0fhxokxi5q | curl/8.12.1
+ 2026-04-29 10:44:58.845 | 2a0b:f4c2:1::1                  | DE      | POST   | /api/export        | cmojxhocg0000pk0f9rkhb65a | curl/8.12.1
+ 2026-04-29 10:44:58.836 | 2a0b:f4c2:1::1                  | DE      | POST   | /api/export        | cmojxhocg0000pk0f9rkhb65a | curl/8.12.1
+ 2026-04-29 10:44:55.596 | 2a0b:f4c2:1::1                  | DE      | POST   | /api/auth/register | cmojxhocg0000pk0f9rkhb65a | curl/8.12.1
+ 2026-04-29 10:41:04.317 | 2001:67c:89c:702:1ce:1ce:babe:9 | T1      | POST   | /api/auth/register | cmojxcpwn0005ue0fvnnkdkb2 | curl/8.12.1
+ 2026-04-29 10:39:23.14  | 2001:67c:89c:702:1ce:1ce:babe:9 | T1      | POST   | /api/auth/register | cmojxajtv0000ue0fpcj8vxqu | curl/8.12.1
+ 2026-04-29 10:36:13.046 | 2001:67c:89c:702:1ce:1ce:babe:9 | T1      | POST   | /api/export        | cmojx44iy000xpn0f4k7thztf | curl/8.12.1
+ 2026-04-29 10:34:23.381 | 2a07:6d80:1e01:3a13::           | T1      | POST   | /api/auth/register | cmojx44iy000xpn0f4k7thztf | curl/8.12.1
+ 2026-04-29 10:29:27.81  | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwtkop000epn0f7bt0ti0n | curl/8.12.1
+ 2026-04-29 10:29:25.748 | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwtkop000epn0f7bt0ti0n | curl/8.12.1
+ 2026-04-29 10:28:50.176 | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwtkop000epn0f7bt0ti0n | curl/8.12.1
+ 2026-04-29 10:28:07.625 | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwtkop000epn0f7bt0ti0n | curl/8.12.1
+ 2026-04-29 10:28:05.801 | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwtkop000epn0f7bt0ti0n | curl/8.12.1
+ 2026-04-29 10:27:28.797 | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwtkop000epn0f7bt0ti0n | curl/8.12.1
+ 2026-04-29 10:26:40.156 | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwtkop000epn0f7bt0ti0n | curl/8.12.1
+ 2026-04-29 10:26:11.115 | 2a0b:f4c2::6                    | T1      | POST   | /api/auth/register | cmojwtkop000epn0f7bt0ti0n | curl/8.12.1
+ 2026-04-29 10:25:35.684 | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwnlfs3b8mqo0fw42yo6t9 | curl/8.12.1
+ 2026-04-29 10:25:00.337 | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwnlfs3b8mqo0fw42yo6t9 | curl/8.12.1
+ 2026-04-29 10:24:58.16  | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwnlfs3b8mqo0fw42yo6t9 | curl/8.12.1
+ 2026-04-29 10:24:20.077 | 2a0b:f4c2::6                    | T1      | POST   | /api/export        | cmojwnlfs3b8mqo0fw42yo6t9 | curl/8.12.1
+ 2026-04-29 10:23:22.018 | 172.86.70.20                    | T1      | POST   | /api/export        | cmojwnlfs3b8mqo0fw42yo6t9 | curl/8.12.1
+ 2026-04-29 10:23:19.695 | 172.86.70.20                    | T1      | POST   | /api/export        | cmojwnlfs3b8mqo0fw42yo6t9 | curl/8.12.1
+ 2026-04-29 10:22:36.902 | 172.86.70.20                    | T1      | POST   | /api/export        | cmojwnlfs3b8mqo0fw42yo6t9 | curl/8.12.1
+(27 rows)
+

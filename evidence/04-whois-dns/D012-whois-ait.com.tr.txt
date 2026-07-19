@@ -1,0 +1,37 @@
+** Domain Name: ait.com.tr
+Domain Status: Active
+Frozen Status: -
+Transfer Status: The domain is LOCKED to transfer.
+
+** Registrant:
+A.I.T. BİLGİSAYAR SİSTEMLERİ MAKİNE SANAYİ VE TİCARET LİMİTED ŞİRKETİ
+Hidden upon user request
+Hidden upon user request
+Hidden upon user request
+Hidden upon user request
+
+
+** Registrar:
+NIC Handle		: tyh14
+Organization Name	: Turkticaret.Net Yazılım Hizmetleri Sanayi Ticaret A.Ş.
+Address			: Uludag Universitesi Gorukle Kampusu
+			  Ulutek Tek. Bol. Arge Binasi Yani Ek Bina Nilufer
+			  - Bursa Türkiye
+Phone			: 90-224-2248640
+Fax			: 90-224-2249520 
+
+
+** Domain Servers:
+elinore.ns.cloudflare.com 173.245.58.153
+isaac.ns.cloudflare.com 173.245.59.177
+
+
+** Additional Info:
+Created on..............: 2005-Aug-08.
+Expires on..............: 2028-Aug-07.
+
+
+** Whois Server:
+Last Update Time: 2026-04-28T19:46:49+03:00
+
+

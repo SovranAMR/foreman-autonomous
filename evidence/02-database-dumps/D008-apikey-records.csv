@@ -1,0 +1,3 @@
+id,userId,name,key,prefix,scopes,rateLimit,usageCount,lastUsedAt,expiresAt,isActive,createdAt,updatedAt
+cmoirnn4238ojqo0fo0mdb09w,cmoilcgeq389cqo0f7wk908dj,DISABLED-pentest-key,cb950804c6d69bec2b3df44cfff86e3fae7a31278bd24b12fba0f6edd748cc7a,sk_live__CRP,vectorize,100,0,,,f,2026-04-28 15:13:50.018,2026-04-28 15:15:05.416
+cmoirpomw38olqo0fryadtdgk,cmoilcgeq389cqo0f7wk908dj,DISABLED-admin-key,8958f6602f078095004bfa59928cd858f0ad5a5943506ca127e63cb8d3f6ab02,sk_live_JSTJ,"admin,generate,export,vectorize",10000,0,,,f,2026-04-28 15:15:25.304,2026-04-28 15:15:40.707

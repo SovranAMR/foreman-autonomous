@@ -1,0 +1,367 @@
+[
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "timestamp": "2026-04-29T08:13:51.637513159Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-29T08:13:51.639850676Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "timestamp": "2026-04-29T08:13:51.639876738Z"
+  },
+  {
+    "timestamp": "2026-04-29T08:13:51.642647661Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T08:13:51.642650743Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T08:13:51.644234114Z",
+    "level": "error"
+  },
+  {
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojsajj73aw9qo0fzewj9b3t",
+    "timestamp": "2026-04-29T08:24:41.143799687Z",
+    "level": "error"
+  },
+  {
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojsk4a03awuqo0ffg02gezn",
+    "timestamp": "2026-04-29T08:30:52.763236943Z",
+    "level": "error"
+  },
+  {
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojspobi3axdqo0f15j4zqa0",
+    "level": "error",
+    "timestamp": "2026-04-29T08:31:52.495280413Z"
+  },
+  {
+    "level": "error",
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojspobi3axdqo0f15j4zqa0",
+    "timestamp": "2026-04-29T08:41:56.822276369Z"
+  },
+  {
+    "message": "[Admin Recent Users] Unauthorized access attempt by user cmojspobi3axdqo0f15j4zqa0",
+    "level": "error",
+    "timestamp": "2026-04-29T08:41:56.822287869Z"
+  },
+  {
+    "level": "error",
+    "message": "[Admin Fix Payment] Unauthorized access attempt by user cmojspobi3axdqo0f15j4zqa0",
+    "timestamp": "2026-04-29T08:41:58.932457553Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:2375",
+    "timestamp": "2026-04-29T08:46:09.170629771Z"
+  },
+  {
+    "timestamp": "2026-04-29T08:46:09.170648732Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-29T08:46:09.171819747Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:2376",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T08:46:09.171842496Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-29T08:46:10.379167954Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:4243",
+    "timestamp": "2026-04-29T08:46:10.379212206Z"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-29T08:50:56.385776269Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3001"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-29T08:50:56.386788694Z"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:4000",
+    "timestamp": "2026-04-29T08:50:58.469250617Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T08:50:58.469281873Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T08:51:00.655071106Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8000",
+    "timestamp": "2026-04-29T08:51:00.655145919Z"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8081",
+    "timestamp": "2026-04-29T08:51:02.501686284Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-29T08:51:02.501714236Z"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8888",
+    "timestamp": "2026-04-29T08:51:04.678772894Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-29T08:51:04.678789133Z",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "timestamp": "2026-04-29T08:57:56.135763529Z"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T08:57:56.135793207Z"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:29.789894050Z",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-29T08:58:29.789912326Z",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:29.791826335Z",
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3001",
+    "timestamp": "2026-04-29T08:58:29.791989403Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:4000",
+    "timestamp": "2026-04-29T08:58:29.793485145Z"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:29.795939952Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED ::1:5000",
+    "timestamp": "2026-04-29T08:58:29.795991099Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:29.797853139Z",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:5432",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:29.798130824Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-29T08:58:29.799928897Z"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-29T08:58:29.801296187Z",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:6379"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T08:58:29.801323187Z"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:30.923149703Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:8443"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:30.923174147Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:31.513594449Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:9090"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T08:58:31.513611306Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:32.500568218Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:27017"
+  },
+  {
+    "timestamp": "2026-04-29T08:58:32.500590785Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "timestamp": "2026-04-29T09:02:55.552477069Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-29T09:02:55.552507841Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-29T09:02:55.553892070Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T09:02:55.553926350Z"
+  },
+  {
+    "timestamp": "2026-04-29T09:02:55.556442171Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000"
+  },
+  {
+    "timestamp": "2026-04-29T09:02:55.558569607Z",
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "level": "error",
+    "timestamp": "2026-04-29T09:02:55.558715770Z"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T09:02:55.560564027Z"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "timestamp": "2026-04-29T09:02:55.560706351Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T09:02:55.563038911Z",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "timestamp": "2026-04-29T09:02:55.565301608Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-29T09:02:55.565336112Z",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-29T09:02:55.567169546Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000"
+  },
+  {
+    "timestamp": "2026-04-29T09:02:55.567223303Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-29T09:02:55.569074726Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-29T09:02:55.569117152Z"
+  },
+  {
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojtgrs13az3qo0fba5v67mr",
+    "timestamp": "2026-04-29T09:03:55.751662975Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-29T09:04:15.800535239Z",
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojtgrs13az3qo0fba5v67mr",
+    "level": "error"
+  },
+  {
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojtgrs13az3qo0fba5v67mr",
+    "timestamp": "2026-04-29T09:04:15.800540494Z",
+    "level": "error"
+  },
+  {
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojspobi3axdqo0f15j4zqa0",
+    "timestamp": "2026-04-29T09:04:55.553778952Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-29T09:11:00.211859926Z",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-29T09:11:00.211881761Z",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-29T09:18:59.496455060Z",
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojtgrs13az3qo0fba5v67mr"
+  },
+  {
+    "timestamp": "2026-04-29T09:20:09.619220744Z",
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojtgrs13az3qo0fba5v67mr",
+    "level": "error"
+  },
+  {
+    "message": "[Admin Stats] Unauthorized access attempt by user cmojtgrs13az3qo0fba5v67mr",
+    "level": "error",
+    "timestamp": "2026-04-29T09:31:16.676100177Z"
+  }
+]

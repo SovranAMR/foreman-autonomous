@@ -304,9 +304,9 @@ describe('Inner Monologue', () => {
     state.emotion = { mood: 'serene', intensity: 30, since: Date.now() - 3600000 };
     state.notificationsToday = 3;
     const mono = generateInnerMonologue(state);
-    expect(mono.includes('uyanığım')).toBeTruthy();
+    expect(mono.includes('[Beat #50]')).toBeTruthy();
     expect(mono.includes('serene')).toBeTruthy();
-    expect(mono.includes('3 bildirim')).toBeTruthy();
+    expect(mono.includes('uptime')).toBeTruthy();
   });
 
   it('mentions rising trends', () => {
@@ -315,13 +315,13 @@ describe('Inner Monologue', () => {
     state.emotion = { mood: 'alert', intensity: 50, since: Date.now() };
     state.trends = [{
       key: 'disk_usage',
-      values: [],
+      values: [{ ts: Date.now(), value: 80 }],
       direction: 'rising',
       prediction: 'Disk 48 saat içinde %95\'e ulaşabilir',
     }];
     const mono = generateInnerMonologue(state);
     expect(mono.includes('disk_usage')).toBeTruthy();
-    expect(mono.includes('yükseliyor')).toBeTruthy();
+    expect(mono.includes('↑')).toBeTruthy();
   });
 });
 
@@ -369,8 +369,8 @@ describe('Formatters', () => {
     }];
     const report = formatStatusReport(state);
     expect(report.includes('😌')).toBeTruthy();
-    expect(report.includes('Beat #10')).toBeTruthy();
-    expect(report.includes('Disk')).toBeTruthy();
+    expect(report.includes('Durum Raporu')).toBeTruthy();
+    expect(report.includes('💾')).toBeTruthy();
   });
 
   it('formatJournalForHuman has proper structure', () => {

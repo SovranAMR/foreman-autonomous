@@ -1,0 +1,27 @@
+=== ait.com.tr ===
+ait.com.tr.		300	IN	A	104.21.77.206
+ait.com.tr.		300	IN	A	172.67.211.131
+ait.com.tr.		5751	IN	NS	isaac.ns.cloudflare.com.
+ait.com.tr.		5751	IN	NS	elinore.ns.cloudflare.com.
+ait.com.tr.		300	IN	MX	1 aspmx.l.google.com.
+ait.com.tr.		300	IN	MX	5 alt1.aspmx.l.google.com.
+ait.com.tr.		300	IN	MX	10 alt3.aspmx.l.google.com.
+ait.com.tr.		300	IN	MX	10 alt4.aspmx.l.google.com.
+ait.com.tr.		300	IN	MX	5 alt2.aspmx.l.google.com.
+aitools.ait.com.tr.	64	IN	A	104.21.77.206
+aitools.ait.com.tr.	64	IN	A	172.67.211.131
+=== mirab2b.com ===
+mirab2b.com.		300	IN	A	172.67.142.142
+mirab2b.com.		300	IN	A	104.21.79.64
+mirab2b.com.		1763	IN	NS	marge.ns.cloudflare.com.
+mirab2b.com.		1763	IN	NS	vick.ns.cloudflare.com.
+=== zenmira.com ===
+zenmira.com.		300	IN	A	46.225.125.241
+zenmira.com.		43200	IN	NS	vick.ns.cloudflare.com.
+zenmira.com.		43200	IN	NS	marge.ns.cloudflare.com.
+=== deltajohnsons.com ===
+deltajohnsons.com.	2163	IN	A	51.254.35.55
+deltajohnsons.com.	3220	IN	NS	ns1.dnsowl.com.
+deltajohnsons.com.	3220	IN	NS	ns2.dnsowl.com.
+deltajohnsons.com.	3220	IN	NS	ns3.dnsowl.com.
+deltajohnsons.com.	2163	IN	MX	10 in.mail.tm.

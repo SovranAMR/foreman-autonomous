@@ -1,0 +1,4 @@
+id,userId,name,key_name,scopes,usageCount,isActive,createdAt
+cmoirnn4238ojqo0fo0mdb09w,cmoilcgeq389cqo0f7wk908dj,BANNED-Attacker,DISABLED-pentest-key,vectorize,0,f,2026-04-28 15:13:50.018
+cmoirpomw38olqo0fryadtdgk,cmoilcgeq389cqo0f7wk908dj,BANNED-Attacker,DISABLED-admin-key,"admin,generate,export,vectorize",0,f,2026-04-28 15:15:25.304
+cmojsiazx3awpqo0f3cxolgwx,cmojsajj73aw9qo0fzewj9b3t,BANNED-Test User3,admin-key,"admin,read,write,users:read,users:write",0,f,2026-04-29 08:25:26.829

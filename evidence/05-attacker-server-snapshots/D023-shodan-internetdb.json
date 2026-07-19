@@ -1,0 +1,13 @@
+{
+    "cpes": [
+        "cpe:/a:f5:nginx"
+    ],
+    "hostnames": [],
+    "ip": "84.44.79.182",
+    "ports": [
+        80,
+        5000
+    ],
+    "tags": [],
+    "vulns": []
+}

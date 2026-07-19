@@ -1,0 +1,27 @@
+[
+  {
+    "timestamp": "2026-04-28T13:30:45.749886833Z",
+    "level": "error",
+    "message": "[Admin Stats] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T14:26:16.826908788Z",
+    "message": "[Admin Stats] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj"
+  },
+  {
+    "message": "[Admin Recent Users] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj",
+    "level": "error",
+    "timestamp": "2026-04-28T14:26:16.826918316Z"
+  },
+  {
+    "level": "error",
+    "message": "[Admin Stats] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj",
+    "timestamp": "2026-04-28T14:57:08.342743878Z"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T14:57:08.342750722Z",
+    "message": "[Admin Recent Users] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj"
+  }
+]

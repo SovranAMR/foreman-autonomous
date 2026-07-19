@@ -1,0 +1,677 @@
+[
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T13:01:13.747006501Z",
+    "message": "Engine Error: Error: Prediction failed: 404 Client Error: Not Found for url: http://169.254.169.254/latest/meta-data/hostname"
+  },
+  {
+    "message": "Engine Error: Error: Prediction failed: 404 Client Error: Not Found for url: http://169.254.169.254/latest/",
+    "timestamp": "2026-04-28T13:01:33.370163207Z",
+    "level": "error"
+  },
+  {
+    "message": "Engine Error: Error: Prediction failed: 404 Client Error: Not Found for url: http://169.254.169.254/",
+    "timestamp": "2026-04-28T13:01:37.975590615Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T13:03:11.089397922Z",
+    "level": "error",
+    "message": "Engine Error: Error: Prediction failed: 404 Client Error: Not Found for url: http://169.254.169.254/latest/api/token"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "timestamp": "2026-04-28T13:05:10.101338333Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:05:10.101364309Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T13:05:10.102369024Z",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "timestamp": "2026-04-28T13:05:10.102418140Z"
+  },
+  {
+    "level": "error",
+    "message": "Engine Error: Error: Prediction failed: 404 Client Error: Not Found for url: http://169.254.169.254/latest/meta-data/ami-id",
+    "timestamp": "2026-04-28T13:07:32.695138001Z"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T13:09:58.858730198Z",
+    "message": "Engine Error: Error: Prediction failed: HTTPConnectionPool(host='169.254.170.2', port=80): Max retries exceeded with url: /v2/credentials/ (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7531635bdb50>: Failed to establish a new connection: [Errno 110] Connection timed out'))"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T13:11:59.944379365Z",
+    "message": "Engine Error: Error: Prediction failed: HTTPConnectionPool(host='169.254.170.2', port=80): Max retries exceeded with url: /v2/metadata (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x789f9bc17dc0>: Failed to establish a new connection: [Errno 110] Connection timed out'))"
+  },
+  {
+    "timestamp": "2026-04-28T13:14:52.114063052Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-28T13:14:52.114090965Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "timestamp": "2026-04-28T13:14:52.116003076Z",
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T13:14:52.116064716Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8000",
+    "timestamp": "2026-04-28T13:14:52.119019042Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T13:14:52.121395043Z",
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:5000",
+    "timestamp": "2026-04-28T13:14:52.121492970Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:14:52.124226968Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T13:14:53.044038870Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:9000"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:14:53.044066106Z"
+  },
+  {
+    "level": "error",
+    "message": "Engine Error: Error: Prediction failed: 404 Client Error: Not Found for url: https://webhook.site/e9da1ee6-ded1-4e10-8dc5-0d5ad73352a3/test.png",
+    "timestamp": "2026-04-28T13:20:28.213711898Z"
+  },
+  {
+    "timestamp": "2026-04-28T13:22:58.040051130Z",
+    "message": "Engine Error: Error: Prediction failed: 404 Client Error: Not Found for url: http://169.254.169.254/latest/meta-data/",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T13:40:36.985073301Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:40:36.985099146Z",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3001",
+    "level": "error",
+    "timestamp": "2026-04-28T13:40:36.986693367Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T13:40:36.986709633Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:40:36.988573592Z",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:4000",
+    "timestamp": "2026-04-28T13:40:36.988587745Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:5432",
+    "timestamp": "2026-04-28T13:40:36.990571838Z"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:40:36.990589248Z"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:6379",
+    "timestamp": "2026-04-28T13:40:36.993069173Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T13:40:36.994587703Z",
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T13:40:36.994694608Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8000"
+  },
+  {
+    "timestamp": "2026-04-28T13:40:36.996299196Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8081",
+    "timestamp": "2026-04-28T13:40:36.996342472Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:40:36.998675654Z"
+  },
+  {
+    "timestamp": "2026-04-28T13:40:37.002423724Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8443",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:40:37.002456793Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:9090",
+    "timestamp": "2026-04-28T13:40:37.005782770Z"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:40:37.005808442Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:9200",
+    "timestamp": "2026-04-28T13:40:37.008896570Z"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T13:40:37.008916012Z",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:27017",
+    "timestamp": "2026-04-28T13:40:37.239626989Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:40:37.239657629Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T13:41:12.143549198Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "timestamp": "2026-04-28T13:41:12.143579950Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T13:41:12.360794259Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:41:12.360821456Z"
+  },
+  {
+    "timestamp": "2026-04-28T13:41:13.262914370Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T13:41:13.262938672Z"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T13:41:13.394104582Z"
+  },
+  {
+    "timestamp": "2026-04-28T13:41:13.394147052Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T13:48:42.409349878Z",
+    "level": "error",
+    "message": "Engine Error: Error: Prediction failed: 404 Client Error: Not Found for url: http://169.254.169.254/latest/user-data"
+  },
+  {
+    "timestamp": "2026-04-28T14:01:44.810814255Z",
+    "message": "Engine Error: Error: Prediction failed: 404 Client Error: Not Found for url: https://webhook.site/e9da1ee6-ded1-4e10-8dc5-0d5ad73352a3/valid.png",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:06:06.622318037Z",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:80",
+    "level": "error",
+    "timestamp": "2026-04-28T14:06:06.622380445Z"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T14:15:51.329436874Z",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-28T14:15:51.329523676Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:80",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T14:19:42.011058057Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T14:19:42.011087034Z"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8000",
+    "level": "error",
+    "timestamp": "2026-04-28T14:19:43.108607561Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:19:43.108635125Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T14:19:43.450401533Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:19:43.450484187Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:4000",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:37:00.913468470Z",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "level": "error",
+    "timestamp": "2026-04-28T14:37:00.913521740Z"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "timestamp": "2026-04-28T14:38:54.248556359Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T14:38:54.248584423Z",
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T14:46:25.035027596Z",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:46:25.035051283Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T14:46:25.036472672Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:46:25.036492854Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:6379",
+    "timestamp": "2026-04-28T14:50:30.836662477Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:50:30.836780265Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:5000",
+    "timestamp": "2026-04-28T14:51:04.797439779Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T14:51:04.797458029Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "timestamp": "2026-04-28T14:52:04.687450332Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T14:52:04.687477108Z",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "level": "error",
+    "timestamp": "2026-04-28T14:53:19.589168537Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:53:19.590424945Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T14:53:19.663022039Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:53:19.663039109Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:53:20.572090738Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T14:53:20.572111070Z",
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "timestamp": "2026-04-28T14:53:20.574546925Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:53:20.574567295Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:6379",
+    "timestamp": "2026-04-28T14:53:50.045950387Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:53:50.045974545Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T14:57:52.577289573Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T14:57:52.577321835Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 0.0.0.0:3000",
+    "timestamp": "2026-04-28T14:57:52.866027805Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:57:52.866046776Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T14:59:14.693762275Z"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:80",
+    "level": "error",
+    "timestamp": "2026-04-28T14:59:14.693844698Z"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "level": "error",
+    "timestamp": "2026-04-28T15:00:30.296375777Z"
+  },
+  {
+    "timestamp": "2026-04-28T15:00:30.296393598Z",
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "timestamp": "2026-04-28T15:07:57.860373487Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T15:07:57.860409579Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3306",
+    "timestamp": "2026-04-28T15:08:27.533390116Z"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T15:08:27.537637634Z",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:5432",
+    "timestamp": "2026-04-28T15:08:27.537740468Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T15:08:27.539060116Z"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T15:08:28.305947891Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:27017"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T15:08:28.305980678Z"
+  },
+  {
+    "timestamp": "2026-04-28T15:08:28.310605369Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:9200"
+  },
+  {
+    "timestamp": "2026-04-28T15:08:28.310637399Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:4369",
+    "timestamp": "2026-04-28T15:08:28.618175519Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T15:08:28.618200591Z",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T15:08:29.279562083Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:15672",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T15:08:29.279588309Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:2379",
+    "timestamp": "2026-04-28T15:08:29.300660245Z"
+  },
+  {
+    "timestamp": "2026-04-28T15:08:29.300706604Z",
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error"
+  },
+  {
+    "timestamp": "2026-04-28T15:08:29.619706554Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-28T15:08:29.619768217Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8443"
+  },
+  {
+    "timestamp": "2026-04-28T15:08:30.279706611Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:9090",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T15:08:30.279729737Z",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3001",
+    "timestamp": "2026-04-28T15:08:30.281979274Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T15:08:30.282003252Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T15:08:30.647106848Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:4000"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T15:08:30.647136267Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T15:08:31.199593855Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:8000"
+  },
+  {
+    "timestamp": "2026-04-28T15:08:31.199646440Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  },
+  {
+    "timestamp": "2026-04-28T15:09:00.762250947Z",
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T15:09:00.762280401Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "timestamp": "2026-04-28T15:09:00.764112513Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T15:09:00.764138675Z",
+    "level": "error"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T15:09:00.765982961Z",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000"
+  },
+  {
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T15:09:00.767841872Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED ::1:3000",
+    "timestamp": "2026-04-28T15:09:00.767999608Z"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "timestamp": "2026-04-28T15:09:00.769662061Z",
+    "level": "error"
+  },
+  {
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "timestamp": "2026-04-28T15:09:00.769725862Z",
+    "level": "error"
+  },
+  {
+    "message": "    code: 'ECONNREFUSED',",
+    "level": "error",
+    "timestamp": "2026-04-28T15:09:00.771761069Z"
+  },
+  {
+    "level": "error",
+    "message": "  cause: Error: connect ECONNREFUSED 127.0.0.1:3000",
+    "timestamp": "2026-04-28T15:15:31.590987118Z"
+  },
+  {
+    "timestamp": "2026-04-28T15:15:31.591019873Z",
+    "level": "error",
+    "message": "    code: 'ECONNREFUSED',"
+  }
+]

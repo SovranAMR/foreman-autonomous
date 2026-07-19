@@ -1,0 +1,226 @@
+{
+    "data": [
+        {
+            "uuid": "b8dfceb6-827c-4ab0-a318-2859b1291358",
+            "type": "web",
+            "token_id": "aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "team_id": null,
+            "ip": "131.222.238.224",
+            "country": "United States of America",
+            "country_code": "US",
+            "region": "Georgia",
+            "city": "Atlanta",
+            "hostname": "webhook.site",
+            "method": "GET",
+            "user_agent": "curl/8.12.1",
+            "content": "",
+            "query": null,
+            "headers": {
+                "accept": [
+                    "*/*"
+                ],
+                "user-agent": [
+                    "curl/8.12.1"
+                ],
+                "host": [
+                    "webhook.site"
+                ]
+            },
+            "url": "https://webhook.site/aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "size": 0,
+            "files": [],
+            "created_at": "2026-04-28 20:39:49",
+            "updated_at": "2026-04-28 20:39:49",
+            "sorting": 1777408789129734,
+            "custom_action_output": [],
+            "custom_action_errors": [],
+            "time": 0.0009529590606689453
+        },
+        {
+            "uuid": "af16bb1c-c884-4c45-8da8-debe9bb0d8cf",
+            "type": "web",
+            "token_id": "aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "team_id": null,
+            "ip": "162.220.234.129",
+            "country": "United States of America",
+            "country_code": "US",
+            "region": "Virginia",
+            "city": "Ashburn",
+            "hostname": "webhook.site",
+            "method": "GET",
+            "user_agent": "node",
+            "content": "",
+            "query": null,
+            "headers": {
+                "accept-encoding": [
+                    "br, gzip, deflate"
+                ],
+                "user-agent": [
+                    "node"
+                ],
+                "sec-fetch-mode": [
+                    "cors"
+                ],
+                "accept-language": [
+                    "*"
+                ],
+                "accept": [
+                    "*/*"
+                ],
+                "host": [
+                    "webhook.site"
+                ]
+            },
+            "url": "https://webhook.site/aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "size": 0,
+            "files": [],
+            "created_at": "2026-04-28 20:40:18",
+            "updated_at": "2026-04-28 20:40:18",
+            "sorting": 1777408818221168,
+            "custom_action_output": [],
+            "custom_action_errors": [],
+            "time": 0.0007610321044921875
+        },
+        {
+            "uuid": "00339a45-9b74-4b0c-bd5f-3a4c0f76237c",
+            "type": "web",
+            "token_id": "aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "team_id": null,
+            "ip": "162.220.234.129",
+            "country": "United States of America",
+            "country_code": "US",
+            "region": "Virginia",
+            "city": "Ashburn",
+            "hostname": "webhook.site",
+            "method": "GET",
+            "user_agent": "node",
+            "content": "",
+            "query": null,
+            "headers": {
+                "accept-encoding": [
+                    "br, gzip, deflate"
+                ],
+                "user-agent": [
+                    "node"
+                ],
+                "sec-fetch-mode": [
+                    "cors"
+                ],
+                "accept-language": [
+                    "*"
+                ],
+                "accept": [
+                    "*/*"
+                ],
+                "host": [
+                    "webhook.site"
+                ]
+            },
+            "url": "https://webhook.site/aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "size": 0,
+            "files": [],
+            "created_at": "2026-04-28 20:40:55",
+            "updated_at": "2026-04-28 20:40:55",
+            "sorting": 1777408855561155,
+            "custom_action_output": [],
+            "custom_action_errors": [],
+            "time": 0.0012209415435791016
+        },
+        {
+            "uuid": "7e4b9748-5cdb-4c24-b329-18c6b809b1fe",
+            "type": "web",
+            "token_id": "aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "team_id": null,
+            "ip": "162.220.234.129",
+            "country": "United States of America",
+            "country_code": "US",
+            "region": "Virginia",
+            "city": "Ashburn",
+            "hostname": "webhook.site",
+            "method": "GET",
+            "user_agent": "node",
+            "content": "",
+            "query": null,
+            "headers": {
+                "accept-encoding": [
+                    "br, gzip, deflate"
+                ],
+                "user-agent": [
+                    "node"
+                ],
+                "sec-fetch-mode": [
+                    "cors"
+                ],
+                "accept-language": [
+                    "*"
+                ],
+                "accept": [
+                    "*/*"
+                ],
+                "host": [
+                    "webhook.site"
+                ]
+            },
+            "url": "https://webhook.site/aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "size": 0,
+            "files": [],
+            "created_at": "2026-04-28 20:41:36",
+            "updated_at": "2026-04-28 20:41:36",
+            "sorting": 1777408896322996,
+            "custom_action_output": [],
+            "custom_action_errors": [],
+            "time": 0.0008389949798583984
+        },
+        {
+            "uuid": "33b20bef-ff00-40d4-a3a0-cbd7aa7f0cd3",
+            "type": "web",
+            "token_id": "aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "team_id": null,
+            "ip": "162.220.234.129",
+            "country": "United States of America",
+            "country_code": "US",
+            "region": "Virginia",
+            "city": "Ashburn",
+            "hostname": "webhook.site",
+            "method": "GET",
+            "user_agent": "node",
+            "content": "",
+            "query": null,
+            "headers": {
+                "accept-encoding": [
+                    "br, gzip, deflate"
+                ],
+                "user-agent": [
+                    "node"
+                ],
+                "sec-fetch-mode": [
+                    "cors"
+                ],
+                "accept-language": [
+                    "*"
+                ],
+                "accept": [
+                    "*/*"
+                ],
+                "host": [
+                    "webhook.site"
+                ]
+            },
+            "url": "https://webhook.site/aeae90e6-807e-417d-9c4c-d00c6529f6b1",
+            "size": 0,
+            "files": [],
+            "created_at": "2026-04-28 20:46:45",
+            "updated_at": "2026-04-28 20:46:45",
+            "sorting": 1777409205586061,
+            "custom_action_output": [],
+            "custom_action_errors": [],
+            "time": 0.0009760856628417969
+        }
+    ],
+    "total": 5,
+    "per_page": 50,
+    "current_page": 1,
+    "is_last_page": true,
+    "from": 1,
+    "to": 5
+}

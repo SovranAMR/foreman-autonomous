@@ -1,0 +1,49 @@
+% This is the RIPE Database query service.
+% The objects are in RPSL format.
+%
+% The RIPE Database is subject to Terms and Conditions.
+% See https://docs.db.ripe.net/terms-conditions.html
+
+% Note: this output has been filtered.
+%       To receive output for a database update, use the "-B" flag.
+
+% Information related to '84.44.79.176 - 84.44.79.183'
+
+% Abuse contact for '84.44.79.176 - 84.44.79.183' is 'abuse@vodafone.net.tr'
+
+inetnum:        84.44.79.176 - 84.44.79.183
+netname:        Autoliv-NET
+descr:          Autoliv
+country:        TR
+admin-c:        BB1105-RIPE
+tech-c:         BB1105-RIPE
+status:         ASSIGNED PA
+mnt-by:         MNT-BORUSAN
+mnt-routes:     MNT-BORUSAN
+created:        2010-04-05T08:15:40Z
+last-modified:  2010-04-05T08:15:40Z
+source:         RIPE # Filtered
+
+person:         Babur Bilgehan
+address:        GEBZE GUZELLER ORGANIZE SANAYI BOLGESI  CUMHURIYET CAD. NO:2/B   41400
+address:        Gebze KOCAELI
+phone:          +9 0262 648 47 72
+nic-hdl:        BB1105-RIPE
+mnt-by:         MNT-BORUSAN
+created:        2010-04-05T08:14:21Z
+last-modified:  2010-04-05T08:14:21Z
+source:         RIPE # Filtered
+
+% Information related to '84.44.64.0/19AS15924'
+
+route:          84.44.64.0/19
+descr:          Borusan Telekom
+origin:         AS15924
+mnt-by:         MNT-BORUSAN
+created:        2006-03-09T13:17:23Z
+last-modified:  2006-03-09T13:17:23Z
+source:         RIPE
+
+% This query was served by the RIPE Database Query Service version 1.121.2 (BUSA)
+
+

@@ -1,0 +1,69 @@
+=== PORT 5000 HEADERS ===
+HTTP/1.1 200 OK
+Server: nginx
+Date: Tue, 28 Apr 2026 17:04:56 GMT
+Content-Type: text/html
+Connection: keep-alive
+Access-Control-Allow-Origin: *
+Cache-Control: no-cache
+Etag: W/"abc-KX+LXJTdtG99rasy1tBWXGPofYM"
+X-Content-Type-Options: nosniff
+Access-Control-Allow-Origin: *
+
+
+=== PORT 5001 HEADERS ===
+HTTP/1.1 302 Found
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+Location: /panel
+Vary: Accept, Accept-Encoding
+Content-Type: text/plain; charset=utf-8
+Content-Length: 28
+Date: Tue, 28 Apr 2026 17:04:56 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+
+=== PORT 5001 /panel HEADERS ===
+HTTP/1.1 302 Found
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+Location: login
+Vary: Accept, Accept-Encoding
+Content-Type: text/plain; charset=utf-8
+Content-Length: 27
+Date: Tue, 28 Apr 2026 17:04:56 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+
+=== PORT 80 VERBOSE ===
+*   Trying 84.44.79.182:80...
+* Connected to 84.44.79.182 (84.44.79.182) port 80
+> GET / HTTP/1.1
+> Host: 84.44.79.182
+> User-Agent: curl/8.5.0
+> Accept: */*
+> 
+* Empty reply from server
+* Closing connection
+
+=== PORT 443 SSL VERBOSE ===
+4047DC5E94720000:error:0A000458:SSL routines:ssl3_read_bytes:tlsv1 unrecognized name:../ssl/record/rec_layer_s3.c:1599:SSL alert number 112
+CONNECTED(00000005)
+---
+no peer certificate available
+---
+No client certificate CA names sent
+---
+SSL handshake has read 7 bytes and written 293 bytes
+Verification: OK
+---
+New, (NONE), Cipher is (NONE)
+Secure Renegotiation IS NOT supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+Early data was not sent
+Verify return code: 0 (ok)
+---

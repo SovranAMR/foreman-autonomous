@@ -232,7 +232,8 @@ describe('Learning Engine', () => {
     }));
     const patterns = detectPatterns(thoughts, []);
     expect(patterns.length > 0, 'should detect at least one pattern').toBeTruthy();
-    expect(patterns[0].trigger.sensor === 'disk').toBeTruthy();
+    expect(patterns[0].trigger.sensor).toBe('system');
+    expect(patterns[0].trigger.keyword).toContain('disk');
   });
 
   it('detectPatterns updates existing pattern confidence', () => {
@@ -242,7 +243,7 @@ describe('Learning Engine', () => {
       occurrences: 5,
       firstSeen: Date.now() - 86400000,
       lastSeen: Date.now() - 3600000,
-      trigger: { sensor: 'disk', keyword: 'disk_high' },
+      trigger: { sensor: 'system', keyword: 'disk_high' },
       confidence: 0.5,
       active: true,
     }];

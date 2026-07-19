@@ -1,0 +1,357 @@
+[
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777381329764-0g1aao5db/original.png",
+    "timestamp": "2026-04-28T13:02:11.298604919Z",
+    "level": "info"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777381369394-yscw0a7vf/original.png",
+    "timestamp": "2026-04-28T13:02:51.089250039Z"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777382061406-a065kxati/original.png",
+    "timestamp": "2026-04-28T13:14:22.108579745Z",
+    "level": "info"
+  },
+  {
+    "level": "info",
+    "timestamp": "2026-04-28T13:29:16.633266556Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777382953308-fa6akr3f1/original.png"
+  },
+  {
+    "timestamp": "2026-04-28T13:30:45.749886833Z",
+    "level": "error",
+    "message": "[Admin Stats] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777383066766-319ju2vlw/original.png",
+    "level": "info",
+    "timestamp": "2026-04-28T13:31:08.062129479Z"
+  },
+  {
+    "timestamp": "2026-04-28T13:31:48.454906135Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777383107045-w1w4k7khv/original.png",
+    "level": "info"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777383584995-eqf5uh9mw/original.png",
+    "timestamp": "2026-04-28T13:39:46.713174734Z"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777383703745-xxdf3mkc4/original.png",
+    "timestamp": "2026-04-28T13:41:45.546622118Z"
+  },
+  {
+    "timestamp": "2026-04-28T13:42:15.077204994Z",
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777383732596-sm71a4hi9/original.png"
+  },
+  {
+    "timestamp": "2026-04-28T13:42:57.572051110Z",
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777383776198-eu0hqdufo/original.png"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777383800525-k36dyykrj/original.png",
+    "level": "info",
+    "timestamp": "2026-04-28T13:43:21.997174810Z"
+  },
+  {
+    "timestamp": "2026-04-28T13:49:22.942910075Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777384161738-9mxufn0qa/original.png",
+    "level": "info"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777384375981-domg6i4v6/original.png",
+    "timestamp": "2026-04-28T13:52:58.639217197Z",
+    "level": "info"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777385596340-dncs8srzt/original.png",
+    "timestamp": "2026-04-28T14:13:20.706997044Z",
+    "level": "info"
+  },
+  {
+    "timestamp": "2026-04-28T14:22:25.171050322Z",
+    "level": "info",
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=test_100x100.png bytes=284 preset=standard"
+  },
+  {
+    "level": "error",
+    "timestamp": "2026-04-28T14:22:25.171181224Z",
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj"
+  },
+  {
+    "level": "info",
+    "timestamp": "2026-04-28T14:23:14.895816920Z",
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=proper_test.png bytes=683 preset=standard"
+  },
+  {
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj",
+    "level": "error",
+    "timestamp": "2026-04-28T14:23:35.347288584Z"
+  },
+  {
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=proper_test.png bytes=683 preset=standard",
+    "timestamp": "2026-04-28T14:24:34.693265457Z",
+    "level": "info"
+  },
+  {
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj",
+    "level": "error",
+    "timestamp": "2026-04-28T14:24:54.157033385Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:25:14.155322407Z",
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=proper_test.png bytes=683 preset=standard",
+    "level": "info"
+  },
+  {
+    "level": "error",
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj",
+    "timestamp": "2026-04-28T14:25:34.163034897Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:25:34.163049822Z",
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=proper_test.png bytes=683 preset=standard",
+    "level": "info"
+  },
+  {
+    "timestamp": "2026-04-28T14:25:57.182534826Z",
+    "level": "error",
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj"
+  },
+  {
+    "message": "[Admin Stats] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj",
+    "level": "error",
+    "timestamp": "2026-04-28T14:26:16.826908788Z"
+  },
+  {
+    "level": "error",
+    "message": "[Admin Recent Users] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj",
+    "timestamp": "2026-04-28T14:26:16.826918316Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:29:08.802921428Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777386547689-66ryih3ur/original.png",
+    "level": "info"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777386582612-hxapecom4/original.png",
+    "timestamp": "2026-04-28T14:29:43.242681494Z",
+    "level": "info"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777386626869-8pzrs8pib/original.png",
+    "timestamp": "2026-04-28T14:30:27.721503856Z",
+    "level": "info"
+  },
+  {
+    "timestamp": "2026-04-28T14:30:57.894299314Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777386657003-c5tnbbft9/original.png",
+    "level": "info"
+  },
+  {
+    "timestamp": "2026-04-28T14:31:59.794421699Z",
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777386718030-ytfygybu2/original.png"
+  },
+  {
+    "level": "info",
+    "timestamp": "2026-04-28T14:37:04.697346053Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387023765-v9mlcbanx/original.png"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387060748-fzertuyxe/original.png",
+    "timestamp": "2026-04-28T14:37:44.268506008Z"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387134374-z7gzjuwmc/original.png",
+    "timestamp": "2026-04-28T14:38:55.129669219Z",
+    "level": "info"
+  },
+  {
+    "timestamp": "2026-04-28T14:40:15.086843963Z",
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=gen_img.png bytes=2210766 preset=standard",
+    "level": "info"
+  },
+  {
+    "level": "error",
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj",
+    "timestamp": "2026-04-28T14:40:38.452049348Z"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387245196-e3n8hsjim/original.png",
+    "timestamp": "2026-04-28T14:40:46.454497164Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:41:16.003150553Z",
+    "level": "info",
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=simple.png bytes=67 preset=standard"
+  },
+  {
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj",
+    "level": "error",
+    "timestamp": "2026-04-28T14:41:16.003233744Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:42:16.231706764Z",
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=solid_red.png bytes=75 preset=standard",
+    "level": "info"
+  },
+  {
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj",
+    "level": "error",
+    "timestamp": "2026-04-28T14:42:35.869032597Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:43:06.150986151Z",
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=white50.png bytes=131 preset=standard",
+    "level": "info"
+  },
+  {
+    "timestamp": "2026-04-28T14:43:26.311963991Z",
+    "level": "error",
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387407456-4im4p5fg0/original.png",
+    "timestamp": "2026-04-28T14:43:28.316867824Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:44:11.136056025Z",
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387450043-3ocg4bdo8/original.png"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387484314-wkplrrtu7/original.png",
+    "timestamp": "2026-04-28T14:44:45.407068243Z"
+  },
+  {
+    "level": "info",
+    "message": "[API/Vectorize] Start user=cmoilcgeq389cqo0f7wk908dj file=square.png bytes=440 preset=standard",
+    "timestamp": "2026-04-28T14:47:54.812138039Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:48:20.250017237Z",
+    "level": "error",
+    "message": "[API/Vectorize] Credits refunded user=cmoilcgeq389cqo0f7wk908dj"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387760206-is3mz19x4/original.png",
+    "timestamp": "2026-04-28T14:49:20.892820611Z"
+  },
+  {
+    "message": "\u2705 Upscaled image saved to R2: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/upscale-1777387789267-06r4y3g63/hd.png",
+    "timestamp": "2026-04-28T14:49:50.973193410Z",
+    "level": "info"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Upscaled image saved to R2: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/upscale-1777387862379-rkgmdds89/hd.png",
+    "timestamp": "2026-04-28T14:51:02.908334975Z"
+  },
+  {
+    "level": "info",
+    "timestamp": "2026-04-28T14:52:49.190532127Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387967166-8otkjoqya/original.png"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777387997715-w8mhe4omm/original.png",
+    "timestamp": "2026-04-28T14:53:19.589097793Z"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388031151-s7wtyeq12/original.png",
+    "level": "info",
+    "timestamp": "2026-04-28T14:53:51.978004705Z"
+  },
+  {
+    "timestamp": "2026-04-28T14:54:16.452521020Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388055799-ci8jnpj0z/original.png",
+    "level": "info"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388093298-qfxydwxuf/original.png",
+    "timestamp": "2026-04-28T14:54:56.809691413Z",
+    "level": "info"
+  },
+  {
+    "level": "info",
+    "timestamp": "2026-04-28T14:56:30.552949168Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388189319-dhtir3qkj/original.png"
+  },
+  {
+    "timestamp": "2026-04-28T14:56:38.619128727Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388197250-33xwrspt0/original.png",
+    "level": "info"
+  },
+  {
+    "message": "[Admin Stats] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj",
+    "level": "error",
+    "timestamp": "2026-04-28T14:57:08.342743878Z"
+  },
+  {
+    "message": "[Admin Recent Users] Unauthorized access attempt by user cmoilcgeq389cqo0f7wk908dj",
+    "level": "error",
+    "timestamp": "2026-04-28T14:57:08.342750722Z"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388271265-lj1xj3wtl/original.png",
+    "level": "info",
+    "timestamp": "2026-04-28T14:57:52.536416941Z"
+  },
+  {
+    "level": "info",
+    "timestamp": "2026-04-28T14:58:23.140816741Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388301782-mvjd3dns0/original.png"
+  },
+  {
+    "timestamp": "2026-04-28T14:59:07.419904638Z",
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388346261-7u1s5vfnz/original.png"
+  },
+  {
+    "timestamp": "2026-04-28T14:59:20.439851173Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388359066-uyzqs8ubw/original.png",
+    "level": "info"
+  },
+  {
+    "timestamp": "2026-04-28T15:00:59.755230237Z",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388457880-p1q5g6wcl/original.png",
+    "level": "info"
+  },
+  {
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388493227-6kb33gmnq/original.png",
+    "level": "info",
+    "timestamp": "2026-04-28T15:01:39.796367349Z"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388643340-rdtoak9y6/original.png",
+    "timestamp": "2026-04-28T15:04:04.355022927Z"
+  },
+  {
+    "level": "info",
+    "message": "\u2705 Pattern saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388685077-1hzug8bm0/original.png",
+    "timestamp": "2026-04-28T15:04:46.884987698Z"
+  },
+  {
+    "timestamp": "2026-04-28T15:09:30.905421385Z",
+    "message": "\u2705 Gallery image saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777388963220-cxwhq41x1/original.svg+xml (1KB)",
+    "level": "info"
+  },
+  {
+    "timestamp": "2026-04-28T15:10:20.480208449Z",
+    "message": "\u2705 Gallery image saved to R2 CDN: https://cdn.sapphiresc.com/patterns/cmoilcgeq389cqo0f7wk908dj/pat-1777389016430-8vhebbfdf/original.svg+xml (5KB)",
+    "level": "info"
+  }
+]

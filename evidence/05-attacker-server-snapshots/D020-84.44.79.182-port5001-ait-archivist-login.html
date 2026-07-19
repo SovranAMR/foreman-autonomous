@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<link rel="icon" href="/public/images/edge-logo.png" sizes="32x32" />
+	<title>Archivist</title>
+
+	<!-- CSS page -->
+	<link href="/public/css/page/general/style.min.css" rel="stylesheet" />
+
+	<!-- CSS libs -->
+	<link href="/public/css/libs/font-awesome-5.14.0-all.min.css" rel="stylesheet" />
+
+	<!-- JS libs -->
+	<script src="/public/js/libs/jquery-3.6.0.min.js"></script>
+
+	<!-- JS page -->
+	<script src="/public/js/page/login/login.js"></script>
+</head>
+
+<body>
+	<div class="flex items-center justify-center min-h-screen bg-gray-100">
+		<div class="rounded-xl px-8 py-6 mt-4 text-left bg-white shadow-lg">
+			<div>
+				<img class="mx-auto h-24 w-auto" src="/public/images/rounded-logo.png" alt="AIT" />
+				<h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Sign in to your account</h2>
+			</div>
+			<div class="mt-8 space-y-6">
+				<input type="hidden" name="remember" value="true" />
+				<div class="rounded-md shadow-md -space-y-px">
+					<div>
+						<label for="username" class="sr-only">Username</label>
+						<input id="username" name="username" type="text" autocomplete="username" required
+							class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
+							placeholder="Username" />
+					</div>
+					<div>
+						<label for="password" class="sr-only">Password</label>
+						<input id="password" name="password" type="password" autocomplete="current-password" required
+							class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
+							placeholder="Password" />
+					</div>
+				</div>
+				<div>
+					<button type="submit" id="loginBtn"
+						class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+						<span class="absolute left-0 inset-y-0 flex items-center pl-3">
+							<svg class="h-5 w-5 text-emerald-500 group-hover:text-emerald-400" xmlns="http://www.w3.org/2000/svg"
+								viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+								<path fill-rule="evenodd"
+									d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+									clip-rule="evenodd" />
+							</svg>
+						</span>
+						Sign in
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+
+</html>

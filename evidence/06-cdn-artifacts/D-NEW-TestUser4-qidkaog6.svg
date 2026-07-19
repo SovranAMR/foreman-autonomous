@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="800" height="600"><rect width="800" height="600" fill="white"/><image xlink:href="file:///etc/passwd" x="0" y="0" width="800" height="600"/><text x="10" y="20" font-size="10" fill="red" font-family="monospace">file:///etc/passwd reference</text></svg>
