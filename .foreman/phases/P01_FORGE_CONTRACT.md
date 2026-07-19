@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P01-B09-A08
-last_commit: PENDING
+last_commit: 27d1d1b
 tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts src/forge-pipeline-regression.integration.test.ts` (28/28 seam + 5/5 A08 integration); productionSlice unexpected=0; propertyFuzz sealed; guard adversarial=3/3
 evidence: |
   P01-B09-A08: runForgeOrchestratorSeamRegressionGate, runOrchestratorSeamProbesWithRecord,

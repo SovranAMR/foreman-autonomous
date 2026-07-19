@@ -44,7 +44,7 @@ fallback: A08 regression invalid ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B09-A08
-last_commit: PENDING
+last_commit: 27d1d1b
 tests: PASS — forge-orchestrator-seam*.test.ts (28/28); forge-pipeline-regression.integration.test.ts (5/5 A08); productionSlice unexpected=0; propertyFuzz sealed; guard adversarial=3/3
 evidence: runForgeOrchestratorSeamRegressionGate; runOrchestratorSeamProbesWithRecord; verifyForgeOrchestratorSeamRegression in forge-orchestrator-seam.probe.ts + orchestrator.ts
 next: P01-B09-A09
