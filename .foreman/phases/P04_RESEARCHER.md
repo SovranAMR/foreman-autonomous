@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 63
+completed_atoms: 64
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -97,7 +97,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B07-A02 — Risk ve trade-off araştırması: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B07-A03 — Risk ve trade-off araştırması: en küçük üretim dikey dilimini uygula
 - [x] P04-B07-A04 — Risk ve trade-off araştırması: boundary ve edge-case davranışlarını tamamla
-- [ ] P04-B07-A05 — Risk ve trade-off araştırması: failure, recovery ve NO-GO yollarını uygula
+- [x] P04-B07-A05 — Risk ve trade-off araştırması: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B07-A06 — Risk ve trade-off araştırması: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B07-A07 — Risk ve trade-off araştırması: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B07-A08 — Risk ve trade-off araştırması: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B07-A04
-last_commit: ee98f17
-tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (25/25); boundary slice 6/6 aligned; zero unexpected mismatches
-evidence: validateResearcherRiskTradeoffBoundaryProbeMatrix + runResearcherRiskTradeoffBoundarySlice; edge-case rejection for validate/recover; exact max-length boundary
-next: P04-B07-A05
+last_atom: P04-B07-A05
+last_commit: (pending)
+tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (29/29); failure/recovery slice 6/6 aligned; zero unexpected mismatches
+evidence: validateResearcherRiskTradeoffFailureRecoveryProbeMatrix + runResearcherRiskTradeoffFailureRecoverySlice; invalid fixture/null-byte guard; recoverResearchRiskTradeoffEvidence; orchestrator validateResearchRiskTradeoff gate
+next: P04-B07-A06

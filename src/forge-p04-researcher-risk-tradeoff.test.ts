@@ -25,6 +25,10 @@ import {
   runResearcherRiskTradeoffProductionSlice,
   runResearcherRiskTradeoffBoundarySlice,
   validateResearcherRiskTradeoffBoundaryProbeMatrix,
+  runResearcherRiskTradeoffFailureRecoverySlice,
+  validateResearcherRiskTradeoffFailureRecoveryProbeMatrix,
+  listResearcherRiskTradeoffFailureRecoveryProbeIds,
+  RESEARCHER_RISK_TRADEOFF_FAILURE_RECOVERY_CATEGORIES,
   RESEARCHER_RISK_TRADEOFF_CATEGORIES,
   RESEARCHER_RISK_TRADEOFF_INPUT_MAX_LENGTH,
   FORGE_RESEARCHER_RISK_TRADEOFF_CONTRACT_V1,
@@ -436,5 +440,142 @@ describe("Forge Researcher Risk Trade-off Boundary Slice — P04-B07-A04", () =>
       },
     ]);
     assert.equal(collection.valid, true, collection.issues.join("; "));
+  });
+});
+
+describe("Forge Researcher Risk Trade-off Failure/Recovery Slice — P04-B07-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three path categories", () => {
+    const contract = getActiveResearcherRiskTradeoffContract();
+    const failure = listResearcherRiskTradeoffContractProbesByCategory(
+      "failure_path",
+      contract,
+    );
+    const recovery = listResearcherRiskTradeoffContractProbesByCategory(
+      "recovery_path",
+      contract,
+    );
+    const nogo = listResearcherRiskTradeoffContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_RISK_TRADEOFF_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveResearcherRiskTradeoffContract();
+    const slice = runResearcherRiskTradeoffFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B07-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of RESEARCHER_RISK_TRADEOFF_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherRiskTradeoffContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherRiskTradeoffFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with risk trade-off recovery and orchestrator wiring", () => {
+    const slice = runResearcherRiskTradeoffFailureRecoverySlice();
+    const probeIds = listResearcherRiskTradeoffFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "rrto.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const malformedInput = slice.failureRecoveryResults.find(
+      r => r.id === "rrto.malformed_research_guard",
+    );
+    assert.ok(malformedInput);
+    assert.equal(malformedInput!.expected, "PASS");
+    assert.equal(malformedInput!.actual, "PASS");
+
+    const riskRepair = slice.failureRecoveryResults.find(
+      r => r.id === "rrto.recovery_risk_tradeoff_repair",
+    );
+    assert.ok(riskRepair);
+    assert.equal(riskRepair!.expected, "PASS");
+    assert.equal(riskRepair!.actual, "PASS");
+
+    const tradeoffFallback = slice.failureRecoveryResults.find(
+      r => r.id === "rrto.recovery_tradeoff_dimension_fallback",
+    );
+    assert.ok(tradeoffFallback);
+    assert.equal(tradeoffFallback!.expected, "PASS");
+    assert.equal(tradeoffFallback!.actual, "PASS");
+
+    const orchestratorGate = slice.failureRecoveryResults.find(
+      r => r.id === "rrto.orchestrator_risk_tradeoff_gate",
+    );
+    assert.ok(orchestratorGate);
+    assert.equal(orchestratorGate!.expected, "PASS");
+    assert.equal(orchestratorGate!.actual, "PASS");
+
+    const validatorExport = slice.failureRecoveryResults.find(
+      r => r.id === "rrto.exported_risk_tradeoff_validator",
+    );
+    assert.ok(validatorExport);
+    assert.equal(validatorExport!.expected, "PASS");
+    assert.equal(validatorExport!.actual, "PASS");
+  });
+
+  it("recoverResearchRiskTradeoffEvidence and validateResearchRiskTradeoff handle failure inputs safely", () => {
+    const unrecoverable = recoverResearchRiskTradeoffEvidence("");
+    assert.equal(unrecoverable.recovered, false);
+    assert.ok(unrecoverable.parseErrors.includes("empty"));
+
+    const nullByteRecovery = recoverResearchRiskTradeoffEvidence("research\0parse");
+    assert.equal(nullByteRecovery.recovered, false);
+    assert.equal(nullByteRecovery.parseErrors[0], "contains_null_byte");
+
+    const invalidFixture = validateResearcherRiskTradeoffBaseline({
+      ...loadResearcherRiskTradeoffBaseline(),
+      version: "9.9.9",
+    });
+    assert.equal(invalidFixture.valid, false);
+
+    const malformed = `RISK: Unbounded concurrency (high)
+tradeoff: latency vs throughput
+FINDINGS: partial parse`;
+    const recovery = recoverResearchRiskTradeoffEvidence(malformed);
+    assert.equal(recovery.recovered, true);
+    assert.ok(recovery.researchPlan.risks.length >= 1);
+    assert.ok(recovery.researchPlan.tradeoffs.length >= 1);
+
+    const validation = validateResearchRiskTradeoff(
+      "RISKS: complexity (medium)\nTRADEOFFS:\n1. sync vs async latency",
+    );
+    assert.equal(validation.valid, true, validation.issues.join("; "));
   });
 });
