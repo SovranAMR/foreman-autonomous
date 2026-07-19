@@ -4,10 +4,10 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B10
-active_atom: P01-B10-A04
+active_atom: P01-B10-A06
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 93/1000
-phase_progress: 92/100
+program_progress: 94/1000
+phase_progress: 93/100
 block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B10-A05 — Entegre Forge baseline gate: failure, recovery ve NO-GO yollarını uygula.
+P01-B10-A06 — Entegre Forge baseline gate: evidence, telemetry ve provenance kaydını ekle.
 
-objective: A04 boundary slice sealed; failure/recovery/NO-GO category probes with zero unexpected mismatches.
-target: runIntegratedBaselineFailureRecoverySlice + validateIntegratedBaselineFailureRecoveryProbeMatrix.
-hypothesis: A04 boundary gate + failure/recovery contract probes sufficient for failure slice.
-acceptance: failure/recovery slice executes 6 probes; passAligned=2; gapAligned=4; unexpectedMismatches=0.
+objective: A05 failure/recovery slice sealed; evidence/telemetry/provenance run record for integrated gate probes.
+target: runIntegratedBaselineFailureRecoverySliceWithRecord + validateIntegratedBaselineFailureRecoveryRunRecord.
+hypothesis: A05 failure/recovery contract probes + run record validation sufficient for evidence slice.
+acceptance: failure/recovery run record validates 6 probes with disposition, criterion and aligned outcomes.
 commands: npx tsx --test src/forge-integrated-baseline*.test.ts
 blast_radius: src/forge-integrated-baseline.ts, src/forge-integrated-baseline.probe.ts
-rollback: B10-A05 failure/recovery slice değişikliklerini geri al.
+rollback: B10-A06 evidence slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A04 boundary matrix invalid ise BLOCKED raporla.
+fallback: A05 failure/recovery matrix invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B10-A04
+last_atom: P01-B10-A05
 last_commit: pending
-tests: PASS — forge-integrated-baseline*.test.ts (13/13); runIntegratedBaselineBoundarySlice; validateIntegratedBaselineBoundaryProbeMatrix; 3 boundary probes; passAligned=3; gapAligned=0; unexpectedMismatches=0
-evidence: runIntegratedBaselineBoundarySlice, validateIntegratedBaselineBoundaryProbeMatrix, contract-wired A04 boundary vertical slice gate
-next: P01-B10-A05
+tests: PASS — forge-integrated-baseline*.test.ts (16/16); runIntegratedBaselineFailureRecoverySlice; validateIntegratedBaselineFailureRecoveryProbeMatrix; 6 failure/recovery probes; passAligned=2; gapAligned=4; unexpectedMismatches=0
+evidence: runIntegratedBaselineFailureRecoverySlice, validateIntegratedBaselineFailureRecoveryProbeMatrix, contract-wired A05 failure/recovery/NO-GO vertical slice gate
+next: P01-B10-A06

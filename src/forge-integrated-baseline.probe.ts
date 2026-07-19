@@ -28,6 +28,9 @@ import {
   validateIntegratedBaselineAgainstContract,
   validateIntegratedBaselineProbeMatrix,
   validateIntegratedBaselineBoundaryProbeMatrix,
+  validateIntegratedBaselineFailureRecoveryProbeMatrix,
+  INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES,
+  listIntegratedBaselineFailureRecoveryProbeIds,
   summarizeIntegratedBaselineMatrix,
   type IntegratedBaseline,
   type IntegratedBaselineCategory,
@@ -54,6 +57,9 @@ export {
   validateIntegratedBaseline,
   validateIntegratedBaselineProbeMatrix,
   validateIntegratedBaselineBoundaryProbeMatrix,
+  validateIntegratedBaselineFailureRecoveryProbeMatrix,
+  INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES,
+  listIntegratedBaselineFailureRecoveryProbeIds,
   summarizeIntegratedBaselineMatrix,
   listIntegratedBaselineProbesByExpected,
   listIntegratedBaselineKnownGaps,
@@ -637,6 +643,41 @@ export function runIntegratedBaselineBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface IntegratedBaselineFailureRecoverySliceResult {
+  atom: "P01-B10-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: IntegratedBaselineProbeResult[];
+  failureRecoveryResults: IntegratedBaselineProbeResult[];
+  matrixValidation: ReturnType<typeof validateIntegratedBaselineFailureRecoveryProbeMatrix>;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runIntegratedBaselineFailureRecoverySlice(
+  fixture: IntegratedBaseline = loadIntegratedBaseline(),
+): IntegratedBaselineFailureRecoverySliceResult {
+  const contract = getActiveIntegratedBaselineContract();
+  const results = runIntegratedBaselineProbes(fixture);
+  const failureRecoveryProbes = INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listIntegratedBaselineContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateIntegratedBaselineFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B10-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

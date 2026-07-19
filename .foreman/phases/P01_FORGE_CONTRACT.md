@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 8
-completed_atoms: 92
+completed_atoms: 93
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -136,7 +136,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B10-A02 — Entegre Forge baseline gate: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B10-A03 — Entegre Forge baseline gate: en küçük üretim dikey dilimini uygula
 - [x] P01-B10-A04 — Entegre Forge baseline gate: boundary ve edge-case davranışlarını tamamla
-- [ ] P01-B10-A05 — Entegre Forge baseline gate: failure, recovery ve NO-GO yollarını uygula
+- [x] P01-B10-A05 — Entegre Forge baseline gate: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B10-A06 — Entegre Forge baseline gate: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B10-A07 — Entegre Forge baseline gate: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B10-A08 — Entegre Forge baseline gate: Forge entegrasyonu ile regression testini tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B10-A04
+last_atom: P01-B10-A05
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (13/13); runIntegratedBaselineBoundarySlice; validateIntegratedBaselineBoundaryProbeMatrix; passAligned=3; gapAligned=0; unexpectedMismatches=0
+tests: PASS — `npx tsx --test src/forge-integrated-baseline*.test.ts` (16/16); runIntegratedBaselineFailureRecoverySlice; validateIntegratedBaselineFailureRecoveryProbeMatrix; passAligned=2; gapAligned=4; unexpectedMismatches=0
 evidence: |
-  P01-B10-A04: runIntegratedBaselineBoundarySlice wires contract-wired boundary probes
-  (sourceOrchestratorSeam ref, probe runner, known gaps) with validateIntegratedBaselineBoundaryProbeMatrix
-  (3 boundary probes, 3 PASS aligned, zero unexpected mismatches).
-next: P01-B10-A05
+  P01-B10-A05: runIntegratedBaselineFailureRecoverySlice wires contract-wired failure_path,
+  recovery_path and nogo_path probes with validateIntegratedBaselineFailureRecoveryProbeMatrix
+  (6 failure/recovery probes, 2 PASS aligned, 4 gap aligned, zero unexpected mismatches).
+next: P01-B10-A06

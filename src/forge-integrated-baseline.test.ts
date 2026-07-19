@@ -5,6 +5,7 @@ import {
   runIntegratedBaselineProbes,
   runIntegratedBaselineProductionSlice,
   runIntegratedBaselineBoundarySlice,
+  runIntegratedBaselineFailureRecoverySlice,
   validateIntegratedBaseline,
   summarizeIntegratedBaselineMatrix,
   listIntegratedBaselineProbesByExpected,
@@ -20,6 +21,9 @@ import {
   validateIntegratedBaselineAgainstContract,
   validateIntegratedBaselineProbeMatrix,
   validateIntegratedBaselineBoundaryProbeMatrix,
+  validateIntegratedBaselineFailureRecoveryProbeMatrix,
+  INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES,
+  listIntegratedBaselineFailureRecoveryProbeIds,
 } from "./forge-integrated-baseline.probe.js";
 
 function formatMismatchReport(
@@ -310,5 +314,83 @@ describe("Forge Integrated Baseline Boundary Slice — P01-B10-A04", () => {
     assert.equal(knownGaps!.expected, "PASS");
     assert.equal(knownGaps!.actual, "PASS");
     assert.match(knownGaps!.detail, /documentedFailGaps=8/);
+  });
+});
+
+describe("Forge Integrated Baseline Failure/Recovery Slice — P01-B10-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveIntegratedBaselineContract();
+    const failure = listIntegratedBaselineContractProbesByCategory("failure_path", contract);
+    const recovery = listIntegratedBaselineContractProbesByCategory("recovery_path", contract);
+    const nogo = listIntegratedBaselineContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveIntegratedBaselineContract();
+    const slice = runIntegratedBaselineFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P01-B10-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 2);
+    assert.equal(slice.matrixValidation.gapAligned, 4);
+
+    for (const category of INTEGRATED_BASELINE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listIntegratedBaselineContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateIntegratedBaselineFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented gaps while exercising failure/recovery/NO-GO paths", () => {
+    const slice = runIntegratedBaselineFailureRecoverySlice();
+    const probeIds = listIntegratedBaselineFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "ibase.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const recoveryGap = slice.failureRecoveryResults.find(
+      r => r.id === "ibase.recovery_integrated_state_reset",
+    );
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+
+    const nogoGap = slice.failureRecoveryResults.find(
+      r => r.id === "ibase.nogo_block_inventory_drift",
+    );
+    assert.ok(nogoGap);
+    assert.equal(nogoGap!.expected, "FAIL");
+    assert.equal(nogoGap!.actual, "FAIL");
   });
 });
