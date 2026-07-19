@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B05
-active_atom: P04-B05-A02
+active_atom: P04-B05-A03
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 341/1000
-phase_progress: 41/100
-block_progress: 1/10
+program_progress: 342/1000
+phase_progress: 42/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B05-A02 — Citation ve provenance graph: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P04-B05-A03 — Citation ve provenance graph: en küçük üretim dikey dilimini uygula.
 
-objective: P04-B05-A01 PASS; baseline fixture with 4 documented FAIL gaps and probe matrix aligned.
-target: Forge citation provenance graph typed contract v1 wired to baseline probe matrix.
-hypothesis: Contract declares measurable citation/provenance graph probes with disposition and criterion fields.
-acceptance: getActiveResearcherCitationProvenanceGraphContract validates; fixture↔contract alignment gate PASS.
+objective: P04-B05-A02 PASS; typed contract v1 with 23 probes, 4 FAIL gaps, fixture↔contract alignment gate.
+target: Forge citation provenance graph production slice closing at least one documented FAIL gap.
+hypothesis: Minimal vertical slice wires one citation/provenance export with probe alignment.
+acceptance: At least one FAIL gap probe flips PASS; regression suite stays green.
 commands: npx tsx --test src/forge-p04-researcher-citation-provenance-graph*.test.ts
-blast_radius: src/forge-p04-researcher-citation-provenance-graph*.ts
-rollback: P04-B05-A02 contract değişikliklerini geri al.
+blast_radius: src/forge-p04-researcher-citation-provenance-graph*.ts, src/prompts.ts, src/parser.ts
+rollback: P04-B05-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B05-A01
+last_atom: P04-B05-A02
 last_commit: pending
-tests: PASS — forge-p04-researcher-citation-provenance-graph-baseline.test.ts (7/7); loadResearcherCitationProvenanceGraphBaseline; runResearcherCitationProvenanceGraphProbes; 4 documented FAIL gaps aligned
-evidence: baseline 23 probes; gaps=rcpg.researcher_sources_prompt,rcpg.build_research_citation_graph,rcpg.parser_citation_edges,rcpg.exported_citation_graph_validator; handoff from P04-B04-A10 sealed
-next: P04-B05-A02
+tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (15/15); validateResearcherCitationProvenanceGraphContract; fixture↔contract alignment gate PASS
+evidence: contract v1 23 probes (19 PASS / 4 FAIL); gap=rcpg.researcher_sources_prompt,rcpg.build_research_citation_graph; nogo=rcpg.parser_citation_edges,rcpg.exported_citation_graph_validator
+next: P04-B05-A03

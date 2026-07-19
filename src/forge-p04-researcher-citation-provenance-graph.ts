@@ -729,7 +729,7 @@ const RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description: "parseResearchCitationGraph exports citation→source edges from researcher output",
         expected: "FAIL",
-        disposition: "gap",
+        disposition: "nogo",
         criterion:
           "parseResearchCitationGraph exports citation→source edges from researcher output",
       },
@@ -739,7 +739,7 @@ const RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORY_CONTRACTS: Record<
         description:
           "validateCitationProvenanceGraph exported for orchestrator citation graph checks",
         expected: "FAIL",
-        disposition: "gap",
+        disposition: "nogo",
         criterion:
           "validateCitationProvenanceGraph exported for orchestrator citation graph checks",
       },
@@ -763,50 +763,190 @@ export function getActiveResearcherCitationProvenanceGraphContract(): Researcher
   return FORGE_RESEARCHER_CITATION_PROVENANCE_GRAPH_CONTRACT_V1;
 }
 
+export function getResearcherCitationProvenanceGraphCategoryContract(
+  category: ResearcherCitationProvenanceGraphCategory,
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): ResearcherCitationProvenanceGraphCategoryContract {
+  return contract.categories[category];
+}
+
 export function listResearcherCitationProvenanceGraphContractProbeIds(
   contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
 ): string[] {
   return contract.probes.map(p => p.id);
 }
 
+export function listResearcherCitationProvenanceGraphProbesByDisposition(
+  disposition: ResearcherCitationProvenanceGraphProbeDisposition,
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): ResearcherCitationProvenanceGraphProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
 export function listResearcherCitationProvenanceGraphContractProbesByCategory(
   category: ResearcherCitationProvenanceGraphCategory,
   contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
 ): readonly ResearcherCitationProvenanceGraphProbeContract[] {
-  return contract.categories[category]?.probes ?? [];
+  return [...contract.categories[category].probes];
 }
 
 export function summarizeResearcherCitationProvenanceGraphContractCoverage(
   contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
 ): {
   totalProbes: number;
+  expectedPass: number;
   expectedFail: number;
-  byCategory: Record<ResearcherCitationProvenanceGraphCategory, number>;
+  byCategory: Record<
+    ResearcherCitationProvenanceGraphCategory,
+    { probeCount: number; invariant: string }
+  >;
   byDisposition: Record<ResearcherCitationProvenanceGraphProbeDisposition, number>;
 } {
-  const byCategory = {} as Record<ResearcherCitationProvenanceGraphCategory, number>;
-  const byDisposition = {
+  const byCategory = {} as Record<
+    ResearcherCitationProvenanceGraphCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<ResearcherCitationProvenanceGraphProbeDisposition, number> = {
     observed: 0,
     gap: 0,
     failure: 0,
     recovery: 0,
     nogo: 0,
-  } satisfies Record<ResearcherCitationProvenanceGraphProbeDisposition, number>;
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
 
   for (const category of RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORIES) {
-    byCategory[category] = contract.categories[category]?.probes.length ?? 0;
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probe of categoryContract.probes) {
+      totalProbes++;
+      if (probe.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probe.disposition]++;
+    }
   }
 
-  for (const probeEntry of contract.probes) {
-    byDisposition[probeEntry.disposition]++;
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export interface ResearcherCitationProvenanceGraphContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: ResearcherCitationProvenanceGraphCategory;
+  detail: string;
+}
+
+export interface ResearcherCitationProvenanceGraphContractCoverageResult {
+  valid: boolean;
+  issues: ResearcherCitationProvenanceGraphContractCoverageIssue[];
+}
+
+export function validateResearcherCitationProvenanceGraphContractCoverage(
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): ResearcherCitationProvenanceGraphContractCoverageResult {
+  const issues: ResearcherCitationProvenanceGraphContractCoverageIssue[] = [];
+
+  for (const category of RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({
+        kind: "missing_category",
+        category,
+        detail: `missing category contract: ${category}`,
+      });
+      continue;
+    }
+    if (
+      categoryContract.acceptance.minProbeCount <
+      RESEARCHER_CITATION_PROVENANCE_GRAPH_A01_MIN_PROBES[category]
+    ) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${RESEARCHER_CITATION_PROVENANCE_GRAPH_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
   }
 
-  return {
-    totalProbes: contract.probes.length,
-    expectedFail: contract.probes.filter(p => p.expected === "FAIL").length,
-    byCategory,
-    byDisposition,
-  };
+  const ids = listResearcherCitationProvenanceGraphContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeResearcherCitationProvenanceGraphContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("rcpg.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing rcpg. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherCitationProvenanceGraphContract(
+  contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
+): ResearcherCitationProvenanceGraphContractCoverageResult {
+  return validateResearcherCitationProvenanceGraphContractCoverage(contract);
 }
 
 export function validateResearcherCitationProvenanceGraphAgainstContract(
@@ -814,6 +954,8 @@ export function validateResearcherCitationProvenanceGraphAgainstContract(
   contract: ResearcherCitationProvenanceGraphContract = getActiveResearcherCitationProvenanceGraphContract(),
 ): ResearcherCitationProvenanceGraphValidationResult {
   const issues: ResearcherCitationProvenanceGraphValidationIssue[] = [];
+  const fixtureIds = new Set(fixture.probes.map(p => p.id));
+  const contractIds = new Set(contract.probes.map(p => p.id));
 
   if (fixture.contractAtom && fixture.contractAtom !== contract.atom) {
     issues.push({
@@ -822,28 +964,55 @@ export function validateResearcherCitationProvenanceGraphAgainstContract(
     });
   }
 
-  for (const contractProbe of contract.probes) {
-    const entry = fixture.probes.find(p => p.id === contractProbe.id);
-    if (!entry) {
+  for (const category of RESEARCHER_CITATION_PROVENANCE_GRAPH_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    const categoryProbes = fixture.probes.filter(p => p.category === category);
+    if (categoryProbes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryProbes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+  }
+
+  for (const probeEntry of contract.probes) {
+    if (!fixtureIds.has(probeEntry.id)) {
       issues.push({
         kind: "missing_probe",
-        probeId: contractProbe.id,
-        detail: `missing probe ${contractProbe.id}`,
+        probeId: probeEntry.id,
+        detail: `fixture missing ${probeEntry.id}`,
       });
+    }
+  }
+
+  for (const entry of fixture.probes) {
+    if (!contractIds.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: `fixture extra ${entry.id}` });
       continue;
     }
-    if (entry.expected !== contractProbe.expected) {
+    const expected = contract.probes.find(p => p.id === entry.id)!;
+    if (entry.expected !== expected.expected) {
       issues.push({
         kind: "missing_probe",
         probeId: entry.id,
-        detail: `expected mismatch fixture=${entry.expected} contract=${contractProbe.expected}`,
+        detail: `expected mismatch fixture=${entry.expected} contract=${expected.expected}`,
       });
     }
-    if (entry.category !== contractProbe.category) {
+    if (entry.category !== expected.category) {
       issues.push({
         kind: "missing_probe",
         probeId: entry.id,
-        detail: `category mismatch fixture=${entry.category} contract=${contractProbe.category}`,
+        detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
+      });
+    }
+    if (entry.description !== expected.description) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `description mismatch for ${entry.id}`,
       });
     }
   }
