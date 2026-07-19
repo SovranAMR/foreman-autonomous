@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B01-A01
-last_commit: e1a5e0c
+last_commit: 6b9bb9c
 tests: PASS — forge-p04-researcher-question-decomposition-baseline.test.ts (5/5); runResearcherQuestionDecompositionProbes 25 probes / 6 documented FAIL gaps
 evidence: baseline v1.0.0 loads; P03-PHASE-GATE handoff valid; probe matrix 19 PASS + 6 aligned FAIL gaps (prompt/parser/orchestrator/decompose/nogo)
 next: P04-B01-A02

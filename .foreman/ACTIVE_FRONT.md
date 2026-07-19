@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B01-A01
-last_commit: e1a5e0c
+last_commit: 6b9bb9c
 tests: PASS — forge-p04-researcher-question-decomposition-baseline.test.ts (5/5); 25 probes / 6 FAIL gaps aligned
 evidence: forge-researcher-question-decomposition-v1.json; assessResearchQuestionInputBoundary + assessResearchQuestionDecompositionPresence; P03-PHASE-GATE handoff valid
 next: P04-B01-A02
