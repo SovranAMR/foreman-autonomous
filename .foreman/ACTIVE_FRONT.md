@@ -44,7 +44,7 @@ fallback: Failure/recovery blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B05-A04
-last_commit: 7a5f1b4
+last_commit: 8aad354
 tests: PASS — forge-p05-worker-git-worktree-boundary.test.ts (5/5), production (5/5), contract (8/8), baseline (8/8)
 evidence: normalizeGitCommitRequest + validateWorkerGitWorktreeBoundaryProbeMatrix + runWorkerGitWorktreeBoundarySlice; boundary matrix 7/7 PASS; 4 remaining FAIL gaps
 next: P05-B05-A05
