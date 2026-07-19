@@ -571,6 +571,28 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner uncertainty guard gate (adversarial/perf/cost/safety) and emit verification event (P02-B06-A09).
+   */
+  async verifyForgeVisionerUncertaintyGuard(
+    priorRecord?: import("./forge-p02-visioner-uncertainty.js").VisionerUncertaintyRunRecord,
+  ): Promise<import("./forge-p02-visioner-uncertainty.probe.js").ForgeVisionerUncertaintyRegressionResult> {
+    const { runForgeVisionerUncertaintyRegressionGate } = await import(
+      "./forge-p02-visioner-uncertainty.probe.js"
+    );
+    const result = runForgeVisionerUncertaintyRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "visioner_uncertainty_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B01 block gate and emit verification event with B02 handoff (P02-B01-A10).
    */
   async verifyForgeVisionerIntentBlockGate(): Promise<import("./forge-p02-visioner-intent.probe.js").ForgeVisionerIntentBlockGateResult> {

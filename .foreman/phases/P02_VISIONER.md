@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 56
+completed_atoms: 57
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -88,7 +88,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B06-A06 — Uncertainty ve clarification policy: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B06-A07 — Uncertainty ve clarification policy: unit, property ve fuzz doğrulamasını ekle
 - [x] P02-B06-A08 — Uncertainty ve clarification policy: Forge entegrasyonu ile regression testini tamamla
-- [ ] P02-B06-A09 — Uncertainty ve clarification policy: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P02-B06-A09 — Uncertainty ve clarification policy: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B06-A10 — Uncertainty ve clarification policy: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P02-B07 — Alternatif vizyon üretimi
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B06-A08
-last_commit: 7fb076f
-tests: PASS — forge-pipeline-regression.integration.test.ts (79/79); uncertainty unit (24/24); property-fuzz (5/5)
-evidence: detectVisionerUncertaintyProbeRegression flags aligned→misaligned probes; runForgeVisionerUncertaintyRegressionGate 23/23 aligned with productionSlice unexpected=0 and propertyFuzz PASS; prior-record comparison hasRegression=false; zero unexpected mismatches preserved
-next: P02-B06-A09
+last_atom: P02-B06-A09
+last_commit: pending
+tests: PASS — forge-p02-visioner-uncertainty.guard.test.ts (8/8); forge-pipeline-regression.integration.test.ts (87/87)
+evidence: validateForgeVisionerUncertaintyGuard adversarial=3/3 rejected; runForgeVisionerUncertaintyRegressionGate guard PASS with perf/cost metrics; orchestrator verifyForgeVisionerUncertaintyGuard emits visioner_uncertainty_guard verification
+next: P02-B06-A10

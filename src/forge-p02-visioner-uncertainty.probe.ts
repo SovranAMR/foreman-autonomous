@@ -45,6 +45,7 @@ import {
   validateVisionerUncertaintyRunRecord,
   validateVisionerUncertaintyFailureRecoveryRunRecord,
   detectVisionerUncertaintyProbeRegression,
+  validateForgeVisionerUncertaintyGuard,
   runVisionerUncertaintyPropertyChecks,
   runVisionerUncertaintyFuzzValidation,
   runVisionerUncertaintyRunRecordFuzzValidation,
@@ -95,6 +96,7 @@ export {
   validateVisionerUncertaintyRunRecord,
   validateVisionerUncertaintyFailureRecoveryRunRecord,
   detectVisionerUncertaintyProbeRegression,
+  validateForgeVisionerUncertaintyGuard,
   runVisionerUncertaintyPropertyChecks,
   runVisionerUncertaintyFuzzValidation,
   runVisionerUncertaintyRunRecordFuzzValidation,
@@ -779,6 +781,7 @@ export interface ForgeVisionerUncertaintyRegressionResult {
   recordValid: boolean;
   validationIssues: string[];
   probeRegression: VisionerUncertaintyProbeRegressionReport | null;
+  guard: ReturnType<typeof validateForgeVisionerUncertaintyGuard>;
   propertyFuzz: ForgeVisionerUncertaintyRegressionPropertyFuzzResult;
   detail: string;
 }
@@ -802,6 +805,7 @@ export function runForgeVisionerUncertaintyRegressionGate(
     ? detectVisionerUncertaintyProbeRegression(priorRecord, record)
     : null;
   const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeVisionerUncertaintyGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
 
   const properties = runVisionerUncertaintyPropertyChecks(contract);
   const contractFuzz = runVisionerUncertaintyFuzzValidation(fixture, contract);
@@ -823,7 +827,8 @@ export function runForgeVisionerUncertaintyRegressionGate(
 
   const productionSliceOk =
     productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
-  const passed = productionSliceOk && recordValid && !alignmentRegression && propertyFuzzPassed;
+  const passed =
+    productionSliceOk && recordValid && !alignmentRegression && guard.passed && propertyFuzzPassed;
 
   const detailParts: string[] = [];
   detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
@@ -837,6 +842,15 @@ export function runForgeVisionerUncertaintyRegressionGate(
   detailParts.push(
     `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
   );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
 
   return {
     passed,
@@ -845,6 +859,7 @@ export function runForgeVisionerUncertaintyRegressionGate(
     recordValid,
     validationIssues,
     probeRegression,
+    guard,
     propertyFuzz,
     detail: detailParts.join(" | "),
   };

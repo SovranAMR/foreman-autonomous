@@ -1483,9 +1483,12 @@ describe("Forge Visioner Uncertainty Regression Integration — P02-B06-A08", ()
     assert.equal(result.propertyFuzz.passed, true);
     assert.equal(result.productionSlice.matrixValid, true);
     assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.guard.passed, true);
     assert.ok(result.detail.includes("23/23 probes aligned"));
     assert.ok(result.detail.includes("productionSlice:"));
     assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
   });
 
   it("runVisionerUncertaintyRegressionIntegration alias matches regression gate", () => {
@@ -1496,6 +1499,7 @@ describe("Forge Visioner Uncertainty Regression Integration — P02-B06-A08", ()
     assert.equal(integration.recordValid, gate.recordValid);
     assert.equal(integration.propertyFuzz.passed, gate.propertyFuzz.passed);
     assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.equal(integration.guard.passed, gate.guard.passed);
     assert.ok(integration.detail.includes("23/23 probes aligned"));
     assert.equal(integration.record.summary.total, 23);
   });
