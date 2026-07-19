@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B06-A04
-last_commit: 8c411d5
+last_commit: fb390dd
 tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (24/24); boundary slice 6/6 probes PASS; validateResearcherContradictionFreshnessBoundaryProbeMatrix + runResearcherContradictionFreshnessBoundarySlice
 evidence: boundary-category slice gate + exact max-length edge cases + resolveResearchContradictions/validateResearchFreshness invalid input rejection
 next: P04-B06-A05

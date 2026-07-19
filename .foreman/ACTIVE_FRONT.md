@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B06-A04
-last_commit: 8c411d5
+last_commit: fb390dd
 tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (24/24); boundary slice 6/6 probes PASS; 23/23 full matrix PASS
 evidence: validateResearcherContradictionFreshnessBoundaryProbeMatrix + runResearcherContradictionFreshnessBoundarySlice + exact max-length boundary edge cases
 next: P04-B06-A05
