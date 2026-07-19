@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 68
+completed_atoms: 69
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -120,7 +120,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P03-B09 — Plan provenance ve drift
 
 - [x] P03-B09-A01 — Plan provenance ve drift: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P03-B09-A02 — Plan provenance ve drift: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P03-B09-A02 — Plan provenance ve drift: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B09-A03 — Plan provenance ve drift: en küçük üretim dikey dilimini uygula
 - [ ] P03-B09-A04 — Plan provenance ve drift: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B09-A05 — Plan provenance ve drift: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B09-A01
-last_commit: 8bd8344
-tests: PASS — forge-p03-strategist-provenance-baseline.test.ts (3/3); loadStrategistProvenanceBaseline; runStrategistProvenanceProbes; validateStrategistProvenanceBaseline
-evidence: runStrategistProvenanceProbes; getForgeP03B08ToB09Handoff; summarizeStrategistProvenanceMatrix; listStrategistProvenanceKnownGaps (6 documented FAIL gaps)
-next: P03-B09-A02
+last_atom: P03-B09-A02
+last_commit: f02c308
+tests: PASS — forge-p03-strategist-provenance.test.ts (9/9); forge-p03-strategist-provenance-baseline.test.ts (3/3); getActiveStrategistProvenanceContract; validateStrategistProvenanceCoverage; validateStrategistProvenanceAgainstContract
+evidence: FORGE_STRATEGIST_PROVENANCE_CONTRACT_V1; summarizeStrategistProvenanceCoverage (28 probes, 6 FAIL gaps); listStrategistProvenanceProbesByDisposition
+next: P03-B09-A03
