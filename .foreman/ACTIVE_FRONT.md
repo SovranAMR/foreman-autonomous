@@ -44,7 +44,7 @@ fallback: A09 guard misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B02-A09
-last_commit: pending
+last_commit: f6e90ab
 tests: PASS — forge-p03-strategist-block-contract.test.ts (35/35); adversarial 3/3 rejected; guard passed
 evidence: runStrategistBlockContractAdversarialGuardChecks; validateForgeStrategistBlockContractGuard
 next: P03-B02-A10
