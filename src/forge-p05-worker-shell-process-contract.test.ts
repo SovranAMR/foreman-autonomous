@@ -61,7 +61,7 @@ describe("Forge Worker Shell Process Contract — P05-B04-A02", () => {
     }
   });
 
-  it("maps 27 probes with five A01 FAIL gaps as gap disposition", () => {
+  it("maps 27 probes with zero documented FAIL gaps after A03 production slice", () => {
     const contract = getActiveWorkerShellProcessContract();
     const summary = summarizeWorkerShellProcessContractCoverage(contract);
     const coverage = validateWorkerShellProcessContractCoverage(contract);
@@ -69,10 +69,10 @@ describe("Forge Worker Shell Process Contract — P05-B04-A02", () => {
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateWorkerShellProcessContract().valid, true);
     assert.equal(summary.totalProbes, 27);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 5);
-    assert.equal(summary.byDisposition.observed, 18);
-    assert.equal(summary.byDisposition.gap, 5);
+    assert.equal(summary.expectedPass, 27);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 23);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 0);
@@ -86,19 +86,9 @@ describe("Forge Worker Shell Process Contract — P05-B04-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
 
-  it("lists five gap probes mapped from A01 documented FAIL gaps", () => {
+  it("lists zero gap probes after A03 production slice", () => {
     const gaps = listWorkerShellProcessProbesByDisposition("gap");
-    assert.deepEqual(
-      gaps.map(p => p.id).sort(),
-      [
-        "wsp.exported_shell_validator",
-        "wsp.orchestrator_pre_shell_validation",
-        "wsp.thought_scoped_process_tracking",
-        "wsp.typed_shell_call_union",
-        "wsp.worker_prompt_shell_contract",
-      ],
-    );
-    assert.ok(gaps.every(probe => probe.expected === "FAIL"));
+    assert.equal(gaps.length, 0);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -151,7 +141,7 @@ describe("Forge Worker Shell Process Contract — P05-B04-A02", () => {
     assert.equal(FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1.atom, "P05-B04-A02");
     assert.equal(FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_SHELL_PROCESS_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_SHELL_PROCESS_VERSION, "1.0.0-a03");
     assert.equal(contract.version, FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1.version);
   });
 });

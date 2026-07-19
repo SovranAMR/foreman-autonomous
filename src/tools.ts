@@ -1087,6 +1087,18 @@ export type TypedEditCall = {
   };
 };
 
+/** Discriminated union narrowing bash args before shell process dispatch (P05-B04-A03). */
+export type TypedBashCall = {
+  name: "bash";
+  args: {
+    explanation?: string;
+    command: string;
+    timeout_ms?: number;
+    yield_ms?: number;
+    background?: boolean;
+  };
+};
+
 /**
  * Creates a tool executor bound to a project root via ExecutionEngine.
  * All file operations go through the engine's security checks.

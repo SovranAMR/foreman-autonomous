@@ -591,6 +591,8 @@ export class ExecutionEngine {
       timeoutMs?: number;
       env?: Record<string, string>;
       cwd?: string;
+      thoughtId?: string;
+      layer?: Layer;
     } = {},
   ): AsyncShellHandle {
     if (this.isDangerous(command)) {
@@ -727,6 +729,8 @@ export class ExecutionEngine {
         command,
         pid: child.pid,
         cwd: options.cwd ?? this.projectRoot,
+        thoughtId: options.thoughtId,
+        layer: options.layer,
       });
     }
 
@@ -900,6 +904,8 @@ export class ExecutionEngine {
       timeoutMs?: number;
       env?: Record<string, string>;
       cwd?: string;
+      thoughtId?: string;
+      layer?: Layer;
     } = {},
   ): Promise<BackgroundExecResult> {
     // Calculate effective yield window
@@ -912,6 +918,8 @@ export class ExecutionEngine {
       timeoutMs: options.timeoutMs,
       env: options.env,
       cwd: options.cwd,
+      thoughtId: options.thoughtId,
+      layer: options.layer,
     });
 
     // If blocked by security, handle resolves immediately

@@ -41,21 +41,19 @@ describe("Forge Worker Shell Process — P05-B04-A01", () => {
     assert.equal(handoff.targetBlock.entryAtom, "P05-B04-A01");
   });
 
-  it("measures shell process probes with documented FAIL gaps from B03 sealed handoff", () => {
+  it("measures shell process probes with full alignment after A03 production slice", () => {
     const results = runWorkerShellProcessProbes();
     const summary = summarizeWorkerShellProcessMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 27);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listWorkerShellProcessProbesByExpected(
       "FAIL",
       loadWorkerShellProcessBaseline(),
     );
-    assert.equal(documentedFail.length, 5);
-    assert.ok(documentedFail.some(p => p.id === "wsp.typed_shell_call_union"));
-    assert.ok(documentedFail.some(p => p.id === "wsp.worker_prompt_shell_contract"));
+    assert.equal(documentedFail.length, 0);
 
     for (const gap of summary.knownGaps) {
       assert.equal(gap.expected, "FAIL");
@@ -76,21 +74,9 @@ describe("Forge Worker Shell Process — P05-B04-A01", () => {
     );
   });
 
-  it("documents shell process gaps as measurable baseline debt", () => {
+  it("documents zero remaining shell process gaps after production slice", () => {
     const gaps = listWorkerShellProcessKnownGaps(runWorkerShellProcessProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "wsp.exported_shell_validator",
-      "wsp.orchestrator_pre_shell_validation",
-      "wsp.thought_scoped_process_tracking",
-      "wsp.typed_shell_call_union",
-      "wsp.worker_prompt_shell_contract",
-    ]);
-    assert.ok(
-      gaps.every(g => WORKER_SHELL_PROCESS_CATEGORIES.includes(g.category)),
-      "documented gaps are shell process probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 
   it("assessShellCommandInputBoundary rejects empty and null-byte commands", () => {
@@ -131,6 +117,6 @@ describe("Forge Worker Shell Process — P05-B04-A01", () => {
   });
 
   it("exports harness version for shell process baseline", () => {
-    assert.equal(FORGE_WORKER_SHELL_PROCESS_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_SHELL_PROCESS_VERSION, "1.0.0-a03");
   });
 });

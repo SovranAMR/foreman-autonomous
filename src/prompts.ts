@@ -246,6 +246,13 @@ Every edit_file invocation must satisfy the surgical edit engine contract before
 - Use occurrence selector when old_string appears multiple times (1-indexed integer or "all").
 - Invalid or malformed edit calls are rejected before dispatch — do not retry the same broken call.
 
+## SHELL AND PROCESS LIFECYCLE
+Every bash invocation must satisfy the shell and process lifecycle contract before execution:
+- Command must be non-empty after normalization; null-byte segments are rejected.
+- Oversized commands are truncated to the worker shell process max length before dispatch.
+- Background/yield_ms bash calls register on ProcessRegistry for lifecycle tracking.
+- Invalid or malformed bash calls are rejected before dispatch — do not retry the same broken call.
+
 ## Internal Systems You Can Leverage
 - **Edit Engine**: Whitespace-insensitive text matching (4-tier cascade: exact → trim → normalize → fuzzy). Your edit_file operations are automatically enhanced — partial whitespace mismatches won't cause failures.
 - **Code Extraction**: SEARCH/REPLACE block parsing, FIM extraction, language-aware code fence extraction. The orchestrator auto-extracts your code blocks.

@@ -15,9 +15,9 @@ import {
   summarizeWorkerEditEngineContractCoverage,
   getActiveWorkerEditEngineContract,
 } from "./forge-p05-worker-edit-engine.js";
-import { TOOL_DEFINITIONS } from "./tools.js";
+import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 
-export const FORGE_WORKER_SHELL_PROCESS_VERSION = "1.0.0-a02";
+export const FORGE_WORKER_SHELL_PROCESS_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P05_B03_SEALED_ATOM_COUNT = 10;
 
@@ -246,8 +246,8 @@ const WORKER_SHELL_PROCESS_CATEGORY_CONTRACTS: Record<
         id: "wsp.typed_shell_call_union",
         category: "shell_signal",
         description: "TypedBashCall discriminated union narrows command and timeout args before shell dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "TypedBashCall discriminated union narrows command and timeout args before shell dispatch",
       },
     ],
@@ -289,8 +289,8 @@ const WORKER_SHELL_PROCESS_CATEGORY_CONTRACTS: Record<
         id: "wsp.thought_scoped_process_tracking",
         category: "process_signal",
         description: "Async shell spawn registers thoughtId and layer on ProcessRegistry sessions",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Async shell spawn registers thoughtId and layer on ProcessRegistry sessions",
       },
     ],
@@ -454,24 +454,24 @@ const WORKER_SHELL_PROCESS_CATEGORY_CONTRACTS: Record<
         id: "wsp.worker_prompt_shell_contract",
         category: "nogo_path",
         description: "WORKER_SYSTEM prompt declares shell and process lifecycle contract for worker execution",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "WORKER_SYSTEM prompt declares shell and process lifecycle contract for worker execution",
       },
       {
         id: "wsp.orchestrator_pre_shell_validation",
         category: "nogo_path",
         description: "Orchestrator validates shell command boundary before bash tool dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Orchestrator validates shell command boundary before bash tool dispatch",
       },
       {
         id: "wsp.exported_shell_validator",
         category: "nogo_path",
         description: "validateShellCommand exported for orchestrator shell process checks",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "validateShellCommand exported for orchestrator shell process checks",
       },
     ],
@@ -860,6 +860,72 @@ export function recoverShellCommandRequest(
   };
 }
 
+export interface ShellCommandValidationResult {
+  valid: boolean;
+  errors: string[];
+  command?: string;
+  timeoutMs?: number;
+}
+
+export interface ShellProcessTelemetry {
+  toolName: string;
+  command: string;
+  sequenceIndex: number;
+  validated: boolean;
+  validatedAt: string;
+  contractVersion: string;
+  harnessVersion: string;
+  errors: string[];
+}
+
+/**
+ * Validate bash tool call boundary before orchestrator dispatch (P05-B04-A03).
+ */
+export function validateShellCommand(call: ToolCall): ShellCommandValidationResult {
+  if (call.name !== "bash") {
+    return { valid: true, errors: [] };
+  }
+
+  const recovery = recoverShellCommandRequest(call.args.command, call.args.timeout_ms);
+  if (!recovery.recovered) {
+    return { valid: false, errors: [recovery.detail], command: recovery.command };
+  }
+
+  return {
+    valid: true,
+    errors: [],
+    command: recovery.command,
+    timeoutMs: recovery.timeoutMs,
+  };
+}
+
+/**
+ * Record shell process provenance for worker tool loop telemetry (P05-B04-A03).
+ */
+export function buildShellProcessTelemetry(
+  call: ToolCall,
+  options: {
+    sequenceIndex?: number;
+    validation?: ShellCommandValidationResult;
+  } = {},
+): ShellProcessTelemetry {
+  const validation = options.validation ?? validateShellCommand(call);
+  const command =
+    validation.command ??
+    (typeof call.args.command === "string" ? call.args.command : "");
+
+  return {
+    toolName: call.name,
+    command,
+    sequenceIndex: options.sequenceIndex ?? 0,
+    validated: validation.valid,
+    validatedAt: new Date().toISOString(),
+    contractVersion: FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1.version,
+    harnessVersion: FORGE_WORKER_SHELL_PROCESS_VERSION,
+    errors: validation.errors,
+  };
+}
+
 export const FORGE_WORKER_SHELL_PROCESS_A01_PROBE_MATRIX: readonly WorkerShellProcessFixtureEntry[] =
   workerShellProcessBaseline.probes as WorkerShellProcessFixtureEntry[];
 
@@ -1210,15 +1276,16 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "wsp.known_gaps_documented": {
-      const expectedFail = getWorkerShellProcessA01ExpectedFailCount();
+      const contract = getActiveWorkerShellProcessContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
         expected,
         ok,
-        `documentedFail=${failCount}, matrixExpectedFail=${expectedFail}`,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
       );
     }
     case "wsp.empty_command_boundary": {
@@ -1420,6 +1487,121 @@ export function listWorkerShellProcessKnownGaps(
   results: WorkerShellProcessProbeResult[] = runWorkerShellProcessProbes(),
 ): WorkerShellProcessProbeResult[] {
   return summarizeWorkerShellProcessMatrix(results).knownGaps;
+}
+
+export interface WorkerShellProcessProbeMatrixValidationIssue {
+  kind: "missing_result" | "criterion_mismatch" | "pass_mismatch" | "gap_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface WorkerShellProcessProbeMatrixValidationResult {
+  valid: boolean;
+  issues: WorkerShellProcessProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+export function validateWorkerShellProcessProbeMatrix(
+  results: WorkerShellProcessProbeResult[],
+  contract: WorkerShellProcessContract = getActiveWorkerShellProcessContract(),
+): WorkerShellProcessProbeMatrixValidationResult {
+  const issues: WorkerShellProcessProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+      continue;
+    }
+
+    if (result.aligned) {
+      gapAligned++;
+    } else {
+      issues.push({
+        kind: "gap_mismatch",
+        probeId: contractProbe.id,
+        detail: `FAIL probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface WorkerShellProcessProductionSliceResult {
+  atom: "P05-B04-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: WorkerShellProcessProbeResult[];
+  summary: WorkerShellProcessProbeSummary;
+  matrixValidation: WorkerShellProcessProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: shell process contract wired to probe matrix
+ * with zero unexpected mismatches against the sealed contract matrix.
+ */
+export function runWorkerShellProcessProductionSlice(
+  fixture: WorkerShellProcessBaseline = loadWorkerShellProcessBaseline(),
+): WorkerShellProcessProductionSliceResult {
+  const contract = getActiveWorkerShellProcessContract();
+  const fixtureValidation = validateWorkerShellProcessBaseline(fixture);
+  const contractValidation = validateWorkerShellProcessAgainstContract(fixture, contract);
+  const results = runWorkerShellProcessProbes(fixture);
+  const summary = summarizeWorkerShellProcessMatrix(results);
+  const matrixValidation = validateWorkerShellProcessProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B04-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 export function probeDangerousShellCommandBlocked(): boolean {

@@ -51,7 +51,7 @@
       "id": "wsp.typed_shell_call_union",
       "category": "shell_signal",
       "description": "TypedBashCall discriminated union narrows command and timeout args before shell dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wsp.process_registry_exported",
@@ -75,7 +75,7 @@
       "id": "wsp.thought_scoped_process_tracking",
       "category": "process_signal",
       "description": "Async shell spawn registers thoughtId and layer on ProcessRegistry sessions",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wsp.b03_handoff_entry",
@@ -159,19 +159,19 @@
       "id": "wsp.worker_prompt_shell_contract",
       "category": "nogo_path",
       "description": "WORKER_SYSTEM prompt declares shell and process lifecycle contract for worker execution",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wsp.orchestrator_pre_shell_validation",
       "category": "nogo_path",
       "description": "Orchestrator validates shell command boundary before bash tool dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wsp.exported_shell_validator",
       "category": "nogo_path",
       "description": "validateShellCommand exported for orchestrator shell process checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

@@ -56,7 +56,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P05-B04-A01 — Shell ve process lifecycle: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P05-B04-A02 — Shell ve process lifecycle: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P05-B04-A03 — Shell ve process lifecycle: en küçük üretim dikey dilimini uygula
+- [x] P05-B04-A03 — Shell ve process lifecycle: en küçük üretim dikey dilimini uygula
 - [ ] P05-B04-A04 — Shell ve process lifecycle: boundary ve edge-case davranışlarını tamamla
 - [ ] P05-B04-A05 — Shell ve process lifecycle: failure, recovery ve NO-GO yollarını uygula
 - [ ] P05-B04-A06 — Shell ve process lifecycle: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B04-A02
+last_atom: P05-B04-A03
 last_commit: PENDING
-tests: PASS — forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
-evidence: FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1; 27 probes with 5 gap disposition from A01 FAIL gaps; validateWorkerShellProcessAgainstContract; criterion wired in runWorkerShellProcessProbes
-next: P05-B04-A03
+tests: PASS — forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
+evidence: validateShellCommand + buildShellProcessTelemetry + TypedBashCall + orchestrator pre-bash validation + WORKER_SYSTEM shell contract + ProcessRegistry thoughtId/layer; 27/27 probes aligned, 5 A02 gaps closed
+next: P05-B04-A04

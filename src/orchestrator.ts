@@ -32,6 +32,10 @@ import {
   validateSurgicalEdit,
   buildEditEngineTelemetry,
 } from "./forge-p05-worker-edit-engine.js";
+import {
+  validateShellCommand,
+  buildShellProcessTelemetry,
+} from "./forge-p05-worker-shell-process.js";
 import { formatProjectContext } from "./project-detector.js";
 import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
@@ -3541,6 +3545,20 @@ ${visionOutput}`,
                       };
                     }
                   }
+                  if (call.name === "bash") {
+                    const shellValidation = validateShellCommand(call);
+                    buildShellProcessTelemetry(call, {
+                      sequenceIndex: toolCallCount,
+                      validation: shellValidation,
+                    });
+                    if (!shellValidation.valid) {
+                      return {
+                        name: call.name,
+                        content: `Shell command validation failed: ${shellValidation.errors.join("; ")}`,
+                        isError: true,
+                      };
+                    }
+                  }
                   const result = await toolExecutor(call);
                   if (!result.isError && call.name === "read_file" && grounding.path) {
                     groundedReadPaths.add(grounding.path);
@@ -4545,6 +4563,20 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                               return {
                                 name: call.name,
                                 content: `Surgical edit validation failed: ${editValidation.errors.join("; ")}`,
+                                isError: true,
+                              };
+                            }
+                          }
+                          if (call.name === "bash") {
+                            const shellValidation = validateShellCommand(call);
+                            buildShellProcessTelemetry(call, {
+                              sequenceIndex: reToolCallCount,
+                              validation: shellValidation,
+                            });
+                            if (!shellValidation.valid) {
+                              return {
+                                name: call.name,
+                                content: `Shell command validation failed: ${shellValidation.errors.join("; ")}`,
                                 isError: true,
                               };
                             }
