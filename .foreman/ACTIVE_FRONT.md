@@ -44,7 +44,7 @@ fallback: Block gate blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B09-A09
-last_commit: PENDING
+last_commit: 238af3d
 tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (58/58); guard adversarial=3/3; perf/cost/safety bounds verified
 evidence: validateForgeResearcherResearchToWorkerHandoffGuard + runResearcherResearchToWorkerHandoffAdversarialGuardChecks + verifyForgeResearcherResearchToWorkerHandoffGuard
 next: P04-B09-A10
