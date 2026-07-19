@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B04
-active_atom: P02-B04-A07
+active_atom: P02-B04-A08
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 135/1000
-phase_progress: 35/100
-block_progress: 6/10
+program_progress: 136/1000
+phase_progress: 36/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B04-A07 — Repo ve kullanıcı bağlamı grounding: unit, property ve fuzz doğrulamasını ekle.
+P02-B04-A08 — Repo ve kullanıcı bağlamı grounding: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P02-B04-A06 evidence/telemetry slice sealed; property/fuzz validation next.
-target: Add structural property checks and run-record fuzz validation for visioner grounding contract.
-hypothesis: A06 auditable run records provide stable substrate for A07 property and fuzz gates.
-acceptance: property checks export; run record fuzz rejects tampered records; contract structural invariants pass.
+objective: P02-B04-A07 property/fuzz slice sealed; regression gate next.
+target: Wire visioner grounding property/fuzz into Forge regression integration and block gate probe matrix.
+hypothesis: A07 structural properties and fuzz gates provide stable substrate for A08 regression detection.
+acceptance: regression gate passes; probe alignment preserved; property/fuzz sealed in block gate evidence.
 commands: npx tsx --test src/forge-p02-visioner-grounding*.test.ts
-blast_radius: src/forge-p02-visioner-grounding.ts
-rollback: P02-B04-A07 property/fuzz slice değişikliklerini geri al.
+blast_radius: src/forge-p02-visioner-grounding.probe.ts
+rollback: P02-B04-A08 regression slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: property suite requires new schema dependency ise BLOCKED raporla.
+fallback: regression integration requires unrelated harness refactor ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B04-A06
-last_commit: 31ec85c
-tests: PASS — forge-p02-visioner-grounding.test.ts (21/21); forge-p02-visioner-grounding-baseline.test.ts (3/3)
-evidence: buildVisionerGroundingRunRecord export; validateVisionerGroundingFailureRecoveryRunRecord; runVisionerGroundingFailureRecoverySliceWithRecord; 6/6 failure/recovery slice evidence aligned; full run 23/23 probes with telemetry
-next: P02-B04-A07
+last_atom: P02-B04-A07
+last_commit: pending
+tests: PASS — forge-p02-visioner-grounding.test.ts (21/21); forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-visioner-grounding.property-fuzz.test.ts (5/5)
+evidence: runVisionerGroundingPropertyChecks export; runVisionerGroundingFuzzValidation; runVisionerGroundingRunRecordFuzzValidation; 8/8 structural properties pass; fixture fuzz 72/72 rejected; run record fuzz 8/8 tampered mutations rejected
+next: P02-B04-A08
