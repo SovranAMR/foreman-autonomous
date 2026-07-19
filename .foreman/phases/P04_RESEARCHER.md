@@ -140,7 +140,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B10-A06 — Araştırmacı phase gate: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B10-A07 — Araştırmacı phase gate: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B10-A08 — Araştırmacı phase gate: Forge entegrasyonu ile regression testini tamamla
-- [ ] P04-B10-A09 — Araştırmacı phase gate: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P04-B10-A09 — Araştırmacı phase gate: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B10-A10 — Araştırmacı phase gate: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## Phase acceptance
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B10-A08
-last_commit: d5b0a86
-tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (16/16); forge-p04-researcher-phase-gate.property-fuzz.test.ts (6/6); forge-p04-researcher-phase-gate.regression.test.ts (7/7)
-evidence: runForgeResearcherPhaseGateRegressionGate + detectResearcherPhaseGateProbeRegression + validateForgeResearcherPhaseGateGuard + runResearcherPhaseGateRegressionIntegration
-next: P04-B10-A09
+last_atom: P04-B10-A09
+last_commit: pending
+tests: PASS — forge-p04-researcher-phase-gate.guard.test.ts (9/9); forge-p04-researcher-phase-gate*.test.ts (54/54)
+evidence: runForgeResearcherPhaseGateGuardGate + validateForgeResearcherPhaseGateGuard + verifyForgeResearcherPhaseGateGuard + runResearcherPhaseGateAdversarialGuardChecks
+next: P04-B10-A10
