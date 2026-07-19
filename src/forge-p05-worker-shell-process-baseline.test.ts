@@ -117,6 +117,6 @@ describe("Forge Worker Shell Process — P05-B04-A01", () => {
   });
 
   it("exports harness version for shell process baseline", () => {
-    assert.equal(FORGE_WORKER_SHELL_PROCESS_VERSION, "1.0.0-a04");
+    assert.equal(FORGE_WORKER_SHELL_PROCESS_VERSION, "1.0.0-a05");
   });
 });
