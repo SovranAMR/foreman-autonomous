@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
-active_block: P02-B09
-active_atom: P02-B09-A10
+active_block: P02-B10
+active_atom: P02-B10-A01
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 188/1000
-phase_progress: 87/100
-block_progress: 9/10
+program_progress: 189/1000
+phase_progress: 88/100
+block_progress: 10/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B09-A10 — Kullanıcı approval ve steering: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P02-B10-A01 — Vizyoner phase gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P02-B09-A09 PASS; seal P02-B09 block gate with full atom inventory and B10 handoff.
-target: forge-p02-visioner-approval block gate seal and orchestrator verification.
-hypothesis: runForgeVisionerApprovalBlockGate seals all 10 atoms with guard+regression evidence.
-acceptance: block gate passes with atomSeals=10/10 and handoff=PASS→P02-B10.
-commands: npx tsx --test src/forge-p02-visioner-approval-block-gate.test.ts src/forge-pipeline-regression.integration.test.ts
-blast_radius: src/forge-p02-visioner-approval*, src/forge-pipeline-regression*, src/orchestrator.ts
-rollback: P02-B09-A10 block gate değişikliklerini geri al.
+objective: P02-B09-A10 PASS; establish visioner phase gate baseline from sealed P02-B09 block gate.
+target: forge-p02-visioner-phase-gate baseline fixture and probe harness.
+hypothesis: versioned baseline fixture captures visioner phase gate behavior with measurable probes.
+acceptance: baseline loads, contract alignment validates, probe matrix executes with evidence.
+commands: npx tsx --test src/forge-p02-visioner-phase-gate-baseline.test.ts
+blast_radius: src/forge-p02-visioner-phase-gate*, src/fixtures/forge-visioner-phase-gate-v1.json
+rollback: P02-B10-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: Block gate cannot align ise BLOCKED raporla.
+fallback: Baseline cannot align with sealed B09 handoff ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B09-A09
-last_commit: ce33079
-tests: PASS — forge-p02-visioner-approval.guard.test.ts (8/8), forge-p02-visioner-approval.test.ts (26/26), forge-pipeline-regression.integration.test.ts (+2 P02-B09-A09, 127 total in run)
-evidence: validateForgeVisionerApprovalGuard; runVisionerApprovalAdversarialGuardChecks; verifyForgeVisionerApprovalGuard; guard integration adversarial=3/3
-next: P02-B09-A10
+last_atom: P02-B09-A10
+last_commit: 4d30dc1
+tests: PASS — forge-p02-visioner-approval-block-gate.test.ts (6/6), forge-pipeline-regression.integration.test.ts (+2 P02-B09-A10, 104 total in run)
+evidence: runForgeVisionerApprovalBlockGate; verifyForgeVisionerApprovalBlockGate; atomSeals=10/10; handoff=PASS→P02-B10
+next: P02-B10-A01

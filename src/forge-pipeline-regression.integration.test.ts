@@ -104,6 +104,7 @@ import {
   runForgeVisionerApprovalRegressionGate,
   runVisionerApprovalProbesWithRecord,
   runVisionerApprovalRegressionIntegration,
+  runForgeVisionerApprovalBlockGate,
 } from "./forge-p02-visioner-approval.probe.js";
 import { detectVisionerApprovalProbeRegression } from "./forge-p02-visioner-approval.js";
 import { Orchestrator } from "./orchestrator.js";
@@ -1865,6 +1866,50 @@ describe("Forge Visioner Approval Guard Integration — P02-B09-A09", () => {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("guard PASS"));
       assert.ok(verification.detail.includes("adversarial=3/3"));
+    }
+  });
+});
+
+describe("Forge Visioner Approval Block Gate Integration — P02-B09-A10", () => {
+  it("runForgeVisionerApprovalBlockGate passes with 10/10 atom seals and B10 handoff", () => {
+    const result = runForgeVisionerApprovalBlockGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.atomSeals.length, 10);
+    assert.ok(result.atomSeals.every(seal => seal.passed));
+    assert.equal(result.evidence.handoffValid, true);
+    assert.ok(result.detail.includes("handoff=PASS→P02-B10"));
+    assert.equal(result.handoff.targetBlock.blockId, "P02-B10");
+    assert.equal(result.handoff.targetBlock.entryAtom, "P02-B10-A01");
+  });
+
+  it("orchestrator verifyForgeVisionerApprovalBlockGate emits visioner_approval_block_gate verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-approval-block-gate-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-approval" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeVisionerApprovalBlockGate();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_approval_block_gate",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("handoff=PASS→P02-B10"));
+      assert.ok(verification.detail.includes("seals=10/10"));
     }
   });
 });
