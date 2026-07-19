@@ -44,7 +44,7 @@ fallback: boundary slice requires orchestrator seam change ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B04-A03
-last_commit: pending
+last_commit: f5e2584
 tests: PASS — forge-p02-visioner-grounding.test.ts (10/10); forge-p02-visioner-grounding-baseline.test.ts (3/3)
 evidence: recoverVisionerGrounding export; vgrd.structured_grounding_recovery PASS; 23/23 probes aligned; zero gaps
 next: P02-B04-A04
