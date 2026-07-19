@@ -2,8 +2,8 @@
 
 phase_id: P04
 phase_status: IN_PROGRESS
-completed_blocks: 3
-completed_atoms: 40
+completed_blocks: 4
+completed_atoms: 50
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -76,7 +76,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B05-A07 — Citation ve provenance graph: unit, property ve fuzz doğrulamasını ekle
 - [x] P04-B05-A08 — Citation ve provenance graph: Forge entegrasyonu ile regression testini tamamla
 - [x] P04-B05-A09 — Citation ve provenance graph: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P04-B05-A10 — Citation ve provenance graph: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P04-B05-A10 — Citation ve provenance graph: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P04-B06 — Contradiction ve freshness çözümü
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B05-A09
-last_commit: 72f89da
-tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (48/48); guard adversarial=3/3; performance/cost/safety violations flagged; orchestrator verifyForgeResearcherCitationProvenanceGraphGuard researcher_citation_provenance_graph_guard
-evidence: forge-p04-researcher-citation-provenance-graph.guard.test.ts + validateForgeResearcherCitationProvenanceGraphGuard + runResearcherCitationProvenanceGraphAdversarialGuardChecks + orchestrator guard verification seam
-next: P04-B05-A10
+last_atom: P04-B05-A10
+last_commit: bbbb9b9
+tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (55/55); block gate 10/10 atom seals; handoff→P04-B06; orchestrator verifyForgeResearcherCitationProvenanceGraphBlockGate researcher_citation_provenance_graph_block_gate
+evidence: forge-p04-researcher-citation-provenance-graph-block-gate.test.ts + runResearcherCitationProvenanceGraphBlockGate + FORGE_P04_B05_TO_B06_HANDOFF_V1 + orchestrator block gate verification seam
+next: P04-B06-A01
