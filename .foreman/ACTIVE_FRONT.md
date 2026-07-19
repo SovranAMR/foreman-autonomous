@@ -44,7 +44,7 @@ fallback: Baseline blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B08-A10
-last_commit: pending
+last_commit: 2a951cf
 tests: PASS — forge-p04-researcher-spike-falsification*.test.ts (65/65); block gate seals=10/10; handoff→P04-B09; orchestrator verifyForgeResearcherSpikeFalsificationBlockGate
 evidence: runResearcherSpikeFalsificationBlockGate + FORGE_P04_B08_TO_B09_HANDOFF_V1
 next: P04-B09-A01
