@@ -23,6 +23,10 @@ import {
   runResearcherContradictionFreshnessProductionSlice,
   validateResearcherContradictionFreshnessBoundaryProbeMatrix,
   runResearcherContradictionFreshnessBoundarySlice,
+  validateResearcherContradictionFreshnessFailureRecoveryProbeMatrix,
+  runResearcherContradictionFreshnessFailureRecoverySlice,
+  listResearcherContradictionFreshnessFailureRecoveryProbeIds,
+  RESEARCHER_CONTRADICTION_FRESHNESS_FAILURE_RECOVERY_CATEGORIES,
   resolveResearchContradictions,
   validateResearchFreshness,
   RESEARCHER_CONTRADICTION_FRESHNESS_CATEGORIES,
@@ -441,5 +445,144 @@ describe("Forge Researcher Contradiction Freshness Boundary Slice — P04-B06-A0
       { claim: "exact max length topic accepted", source: "https://example.com/spec" },
     ]);
     assert.equal(collection.valid, true, collection.issues.join("; "));
+  });
+});
+
+describe("Forge Researcher Contradiction Freshness Failure/Recovery Slice — P04-B06-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three path categories", () => {
+    const contract = getActiveResearcherContradictionFreshnessContract();
+    const failure = listResearcherContradictionFreshnessContractProbesByCategory(
+      "failure_path",
+      contract,
+    );
+    const recovery = listResearcherContradictionFreshnessContractProbesByCategory(
+      "recovery_path",
+      contract,
+    );
+    const nogo = listResearcherContradictionFreshnessContractProbesByCategory(
+      "nogo_path",
+      contract,
+    );
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_CONTRADICTION_FRESHNESS_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveResearcherContradictionFreshnessContract();
+    const slice = runResearcherContradictionFreshnessFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B06-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of RESEARCHER_CONTRADICTION_FRESHNESS_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherContradictionFreshnessContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherContradictionFreshnessFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with contradiction recovery and orchestrator wiring", () => {
+    const slice = runResearcherContradictionFreshnessFailureRecoverySlice();
+    const probeIds = listResearcherContradictionFreshnessFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "rcfr.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const malformedInput = slice.failureRecoveryResults.find(
+      r => r.id === "rcfr.malformed_evidence_guard",
+    );
+    assert.ok(malformedInput);
+    assert.equal(malformedInput!.expected, "PASS");
+    assert.equal(malformedInput!.actual, "PASS");
+
+    const contradictionRepair = slice.failureRecoveryResults.find(
+      r => r.id === "rcfr.recovery_contradiction_plan_repair",
+    );
+    assert.ok(contradictionRepair);
+    assert.equal(contradictionRepair!.expected, "PASS");
+    assert.equal(contradictionRepair!.actual, "PASS");
+
+    const staleFallback = slice.failureRecoveryResults.find(
+      r => r.id === "rcfr.recovery_stale_source_fallback",
+    );
+    assert.ok(staleFallback);
+    assert.equal(staleFallback!.expected, "PASS");
+    assert.equal(staleFallback!.actual, "PASS");
+
+    const resolveConflicts = slice.failureRecoveryResults.find(
+      r => r.id === "rcfr.resolve_contradiction_conflicts",
+    );
+    assert.ok(resolveConflicts);
+    assert.equal(resolveConflicts!.expected, "PASS");
+    assert.equal(resolveConflicts!.actual, "PASS");
+
+    const freshnessValidator = slice.failureRecoveryResults.find(
+      r => r.id === "rcfr.exported_freshness_validator",
+    );
+    assert.ok(freshnessValidator);
+    assert.equal(freshnessValidator!.expected, "PASS");
+    assert.equal(freshnessValidator!.actual, "PASS");
+  });
+
+  it("recoverContradictionFreshnessEvidence and resolveResearchContradictions handle failure inputs safely", () => {
+    const unrecoverable = recoverContradictionFreshnessEvidence("");
+    assert.equal(unrecoverable.recovered, false);
+    assert.ok(unrecoverable.parseErrors.includes("empty"));
+
+    const nullByteRecovery = recoverContradictionFreshnessEvidence("evidence\0input");
+    assert.equal(nullByteRecovery.recovered, false);
+    assert.equal(nullByteRecovery.parseErrors[0], "contains_null_byte");
+
+    const invalidFixture = validateResearcherContradictionFreshnessBaseline({
+      ...loadResearcherContradictionFreshnessBaseline(),
+      version: "9.9.9",
+    });
+    assert.equal(invalidFixture.valid, false);
+
+    const resolution = resolveResearchContradictions(
+      "CONTRADICTION: claim A vs claim B\nFRESHNESS: pm",
+      { topic: "failure recovery slice" },
+    );
+    assert.equal(resolution.resolved, true);
+    assert.ok(resolution.edges.length >= 1);
+
+    const freshness = validateResearchFreshness(
+      "FINDINGS: benchmark\nFRESHNESS: pm\nSOURCES: https://example.com/spec",
+    );
+    assert.equal(freshness.valid, true, freshness.issues.join("; "));
   });
 });
