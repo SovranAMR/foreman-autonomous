@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B03-A01
-last_commit: PENDING
+last_commit: 0b612fb
 tests: PASS — forge-p05-worker-edit-engine-baseline.test.ts (8/8)
 evidence: loadWorkerEditEngineBaseline + runWorkerEditEngineProbes; 27 probes, 6 documented FAIL gaps aligned to P05-B02 handoff (entry=P05-B03-A01)
 next: P05-B03-A02
