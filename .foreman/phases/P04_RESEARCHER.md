@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B10-A02
-last_commit: pending
+last_commit: 8abbe4e
 tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); contract probes=24; FAIL gaps=2/2 preserved
 evidence: getActiveResearcherPhaseGateContract + validateResearcherPhaseGateContractCoverage + validateResearcherPhaseGateAgainstContract + summarizeResearcherPhaseGateContractCoverage
 next: P04-B10-A03
