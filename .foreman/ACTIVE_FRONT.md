@@ -44,7 +44,7 @@ fallback: slice requires unrelated harness refactor ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B05-A02
-last_commit: 0a76169
+last_commit: bf879b0
 tests: PASS — forge-p02-visioner-research-trigger.test.ts (9/9); forge-p02-visioner-research-trigger-baseline.test.ts (3/3); forge-p02-visioner-grounding*.test.ts (43/43 regression)
 evidence: FORGE_VISIONER_RESEARCH_TRIGGER_CONTRACT_V1; validateVisionerResearchTriggerContractCoverage; validateVisionerResearchTriggerProbeMatrix (22 passAligned, 1 gapAligned); probe criteria wired from contract
 next: P02-B05-A03
