@@ -122,7 +122,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B09-A01 — Plan provenance ve drift: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P03-B09-A02 — Plan provenance ve drift: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P03-B09-A03 — Plan provenance ve drift: en küçük üretim dikey dilimini uygula
-- [ ] P03-B09-A04 — Plan provenance ve drift: boundary ve edge-case davranışlarını tamamla
+- [x] P03-B09-A04 — Plan provenance ve drift: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B09-A05 — Plan provenance ve drift: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B09-A06 — Plan provenance ve drift: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B09-A07 — Plan provenance ve drift: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B09-A03
-last_commit: 7ca50ba
-tests: PASS — forge-p03-strategist-provenance.test.ts (11/11); forge-p03-strategist-provenance-baseline.test.ts (3/3); validatePlanDrift; runStrategistProvenanceProductionSlice (28/28 aligned, 6 gaps closed)
-evidence: validatePlanDrift + rejectUndetectedPlanDrift in orchestrator; planProvenance parser field; PLAN PROVENANCE prompt; buildPlanProvenanceGraph
-next: P03-B09-A04
+last_atom: P03-B09-A04
+last_commit: pending
+tests: PASS — forge-p03-strategist-provenance.test.ts (15/15); forge-p03-strategist-provenance-baseline.test.ts (3/3); runStrategistProvenanceBoundarySlice (6/6 boundary probes aligned)
+evidence: validateStrategistProvenanceBoundaryProbeMatrix; assessStrategistProvenanceInputBoundary; validatePlanDrift boundary rejection; rejectUndetectedPlanDrift threshold
+next: P03-B09-A05

@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B09
-active_atom: P03-B09-A04
+active_atom: P03-B09-A05
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 282/1000
-phase_progress: 82/100
-block_progress: 3/10
+program_progress: 283/1000
+phase_progress: 83/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B09-A03 — Plan provenance ve drift: en küçük üretim dikey dilimini uygula.
+P03-B09-A05 — Plan provenance ve drift: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P03-B09-A02 PASS; P03-B09-A03 implement smallest production vertical slice.
-target: production slice, validatePlanDrift or planProvenance seam wiring.
-hypothesis: P03-B09-A03 closes at least one documented FAIL gap from A02 contract.
-acceptance: Production slice runs; at least one gap probe flips PASS or slice validates.
+objective: P03-B09-A04 PASS; P03-B09-A05 implement failure/recovery/NO-GO vertical slice.
+target: failure_path, recovery_path, nogo_path probe matrix and slice wiring.
+hypothesis: P03-B09-A05 closes failure/recovery/NO-GO category probes with zero mismatches.
+acceptance: Failure/recovery slice runs; failure_path + recovery_path + nogo_path matrix valid.
 commands: npx tsx --test src/forge-p03-strategist-provenance*.test.ts
-blast_radius: src/forge-p03-strategist-provenance.ts, src/parser.ts, src/orchestrator.ts
-rollback: P03-B09-A03 production slice değişikliklerini geri al.
+blast_radius: src/forge-p03-strategist-provenance.ts, src/orchestrator.ts
+rollback: P03-B09-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B09-A03
-last_commit: 7ca50ba
-tests: PASS — forge-p03-strategist-provenance.test.ts (11/11); forge-p03-strategist-provenance-baseline.test.ts (3/3)
-evidence: validatePlanDrift; rejectUndetectedPlanDrift; runStrategistProvenanceProductionSlice; buildPlanProvenanceGraph; orchestrator pre-exec drift gate
-next: P03-B09-A04
+last_atom: P03-B09-A04
+last_commit: pending
+tests: PASS — forge-p03-strategist-provenance.test.ts (15/15); forge-p03-strategist-provenance-baseline.test.ts (3/3)
+evidence: runStrategistProvenanceBoundarySlice; validateStrategistProvenanceBoundaryProbeMatrix; assessStrategistProvenanceInputBoundary edge cases; validatePlanDrift boundary rejection
+next: P03-B09-A05

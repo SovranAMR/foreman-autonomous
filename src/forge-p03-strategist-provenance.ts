@@ -1443,3 +1443,57 @@ export function runStrategistProvenanceProductionSlice(
     matrixValidation,
   };
 }
+
+export interface StrategistProvenanceBoundarySliceResult {
+  atom: "P03-B09-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistProvenanceProbeResult[];
+  boundaryResults: StrategistProvenanceProbeResult[];
+  matrixValidation: StrategistProvenanceProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateStrategistProvenanceBoundaryProbeMatrix(
+  results: StrategistProvenanceProbeResult[],
+  contract: StrategistProvenanceContract = getActiveStrategistProvenanceContract(),
+): StrategistProvenanceProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistProvenanceContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistProvenanceContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistProvenanceProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (decompose input edge cases, probe runner,
+ * documented gaps, source block gate refs) with zero unexpected mismatches.
+ */
+export function runStrategistProvenanceBoundarySlice(
+  fixture: StrategistProvenanceBaseline = loadStrategistProvenanceBaseline(),
+): StrategistProvenanceBoundarySliceResult {
+  const contract = getActiveStrategistProvenanceContract();
+  const results = runStrategistProvenanceProbes(fixture);
+  const boundaryProbes = listStrategistProvenanceContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistProvenanceBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B09-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}

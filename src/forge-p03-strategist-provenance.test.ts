@@ -13,9 +13,15 @@ import {
   validateStrategistProvenanceAgainstContract,
   validateStrategistProvenanceBaseline,
   validateStrategistProvenanceProbeMatrix,
+  validateStrategistProvenanceBoundaryProbeMatrix,
   validatePlanDrift,
+  rejectUndetectedPlanDrift,
+  assessStrategistProvenanceInputBoundary,
   runStrategistProvenanceProductionSlice,
+  runStrategistProvenanceBoundarySlice,
   STRATEGIST_PROVENANCE_CATEGORIES,
+  STRATEGIST_PROVENANCE_DECOMPOSE_MAX_LENGTH,
+  PLAN_DRIFT_THRESHOLD,
   FORGE_STRATEGIST_PROVENANCE_CONTRACT_V1,
 } from "./forge-p03-strategist-provenance.js";
 
@@ -219,3 +225,120 @@ CONFIDENCE: 0.8`;
     );
   });
 });
+
+describe("Forge Strategist Plan Provenance Boundary Slice — P03-B09-A04", () => {
+  it("assessStrategistProvenanceInputBoundary handles decompose edge cases including truncation", () => {
+    const empty = assessStrategistProvenanceInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistProvenanceInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistProvenanceInputBoundary("bad\0decompose");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const valid = assessStrategistProvenanceInputBoundary(SAMPLE_BLOCK_DECOMPOSE);
+    assert.equal(valid.disposition, "valid");
+    assert.equal(valid.acceptable, true);
+
+    const longDecompose = "x".repeat(STRATEGIST_PROVENANCE_DECOMPOSE_MAX_LENGTH + 500);
+    const truncated = assessStrategistProvenanceInputBoundary(longDecompose);
+    assert.equal(truncated.disposition, "exceeds_max_length");
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedDecompose.length, STRATEGIST_PROVENANCE_DECOMPOSE_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("validatePlanDrift rejects unacceptable decompose input and respects drift threshold", () => {
+    const emptyDrift = validatePlanDrift("");
+    assert.equal(emptyDrift.valid, false);
+    assert.equal(emptyDrift.driftDetected, false);
+    assert.ok(emptyDrift.issues.length > 0);
+
+    const whitespaceDrift = validatePlanDrift("   ");
+    assert.equal(whitespaceDrift.valid, false);
+    assert.equal(whitespaceDrift.driftDetected, false);
+
+    const missingProvenance = `REASONING: No provenance
+OUTPUT:
+Block 1: Wire plan lineage types
+DEPENDENCIES: none
+CONFIDENCE: 0.8`;
+    const missingResult = validatePlanDrift(missingProvenance);
+    assert.equal(missingResult.hasPlanProvenance, false);
+    assert.ok(missingResult.driftScore >= 0.35);
+    assert.equal(rejectUndetectedPlanDrift(missingResult), missingResult.driftDetected);
+    assert.equal(PLAN_DRIFT_THRESHOLD, 0.65);
+
+    const aligned = validatePlanDrift(
+      SAMPLE_BLOCK_DECOMPOSE,
+      "vision lineage preserved for audit trail and execution",
+    );
+    assert.equal(aligned.valid, true);
+    assert.equal(aligned.driftDetected, false);
+    assert.equal(aligned.driftThreshold, PLAN_DRIFT_THRESHOLD);
+  });
+
+  it("defines boundary category with decompose input edge-case probes", () => {
+    const boundary = listStrategistProvenanceContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "sprov.empty_decompose_boundary",
+      "sprov.known_gaps_documented",
+      "sprov.long_decompose_truncation_boundary",
+      "sprov.probe_runner_exported",
+      "sprov.source_block_gate_ref",
+      "sprov.whitespace_decompose_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistProvenanceContract();
+    const slice = runStrategistProvenanceBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B09-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistProvenanceContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistProvenanceBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+});
+
+const SAMPLE_BLOCK_DECOMPOSE = `REASONING: Plan provenance baseline
+OUTPUT:
+Block 1: Wire plan lineage types
+Block 2: Add drift detection seam
+Block 3: Seal provenance baseline tests
+DEPENDENCIES: 2→1, 3→1,2
+REPLAN PLAN: preserve lineage on block failure
+PLAN PROVENANCE: vision→blocks lineage preserved for audit
+CONFIDENCE: 0.85`;
