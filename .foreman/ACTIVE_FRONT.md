@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B06
-active_atom: P02-B06-A02
+active_atom: P02-B06-A03
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 150/1000
-phase_progress: 50/100
-block_progress: 1/10
+program_progress: 151/1000
+phase_progress: 51/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B06-A02 — Uncertainty ve clarification policy: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P02-B06-A03 — Uncertainty ve clarification policy: en küçük üretim dikey dilimini uygula.
 
-objective: P02-B06-A01 baseline sealed; typed contract slice next.
-target: Define measurable acceptance criteria with typed contract for uncertainty and clarification policy.
-hypothesis: Documented vunc.structured_clarification_recovery FAIL gap provides stable contract entry for B06-A02.
-acceptance: contract declares all categories; probe matrix aligned to fixture; zero unexpected mismatches.
+objective: P02-B06-A02 contract sealed; production recovery slice next.
+target: Implement recoverVisionerUncertaintyClarification production slice to close vunc.structured_clarification_recovery gap.
+hypothesis: Typed contract from B06-A02 provides stable probe wiring for clarification recovery implementation.
+acceptance: recoverVisionerUncertaintyClarification exported; gap probe PASS; zero unexpected mismatches.
 commands: npx tsx --test src/forge-p02-visioner-uncertainty.test.ts
 blast_radius: src/forge-p02-visioner-uncertainty*, src/orchestrator.ts
-rollback: P02-B06-A02 contract değişikliklerini geri al.
+rollback: P02-B06-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: B06 contract unrelated orchestrator refactor gerektirirse BLOCKED raporla.
+fallback: recovery requires orchestrator refactor beyond slice scope ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B06-A01
-last_commit: 77a97a3
-tests: PASS — forge-p02-visioner-uncertainty-baseline.test.ts (3/3)
-evidence: baseline fixture v1.0.0 loads; 23 probes; 1 documented FAIL gap (vunc.structured_clarification_recovery); P02-B05 handoff validated
-next: P02-B06-A02
+last_atom: P02-B06-A02
+last_commit: PENDING
+tests: PASS — forge-p02-visioner-uncertainty.test.ts (9/9)
+evidence: contract declares 8 categories; 23 probes (22 PASS + 1 documented FAIL gap); probe matrix zero unexpected mismatches; fixture ↔ contract aligned
+next: P02-B06-A03

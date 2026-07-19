@@ -296,6 +296,23 @@ export interface VisionerUncertaintyValidationResult {
   issues: VisionerUncertaintyValidationIssue[];
 }
 
+export interface VisionerUncertaintyContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: VisionerUncertaintyCategory;
+  detail: string;
+}
+
+export interface VisionerUncertaintyContractCoverageResult {
+  valid: boolean;
+  issues: VisionerUncertaintyContractCoverageIssue[];
+}
+
 export type VisionerUncertaintyProbeDisposition =
   | "observed"
   | "gap"
@@ -658,6 +675,26 @@ export function getActiveVisionerUncertaintyContract(): VisionerUncertaintyContr
   return FORGE_VISIONER_UNCERTAINTY_CONTRACT_V1;
 }
 
+export function getVisionerUncertaintyCategoryContract(
+  category: VisionerUncertaintyCategory,
+  contract: VisionerUncertaintyContract = getActiveVisionerUncertaintyContract(),
+): VisionerUncertaintyCategoryContract {
+  return contract.categories[category];
+}
+
+export function listVisionerUncertaintyContractProbeIds(
+  contract: VisionerUncertaintyContract = getActiveVisionerUncertaintyContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listVisionerUncertaintyProbesByDisposition(
+  disposition: VisionerUncertaintyProbeDisposition,
+  contract: VisionerUncertaintyContract = getActiveVisionerUncertaintyContract(),
+): VisionerUncertaintyProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
 export function listVisionerUncertaintyContractProbesByCategory(
   category: VisionerUncertaintyCategory,
   contract: VisionerUncertaintyContract = getActiveVisionerUncertaintyContract(),
@@ -667,7 +704,17 @@ export function listVisionerUncertaintyContractProbesByCategory(
 
 export function summarizeVisionerUncertaintyContractCoverage(
   contract: VisionerUncertaintyContract = getActiveVisionerUncertaintyContract(),
-): { totalProbes: number; byDisposition: Record<VisionerUncertaintyProbeDisposition, number> } {
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<VisionerUncertaintyCategory, { probeCount: number; invariant: string }>;
+  byDisposition: Record<VisionerUncertaintyProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    VisionerUncertaintyCategory,
+    { probeCount: number; invariant: string }
+  >;
   const byDisposition: Record<VisionerUncertaintyProbeDisposition, number> = {
     observed: 0,
     gap: 0,
@@ -675,10 +722,106 @@ export function summarizeVisionerUncertaintyContractCoverage(
     recovery: 0,
     nogo: 0,
   };
-  for (const probe of contract.probes) {
-    byDisposition[probe.disposition]++;
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of VISIONER_UNCERTAINTY_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probe of categoryContract.probes) {
+      totalProbes++;
+      if (probe.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probe.disposition]++;
+    }
   }
-  return { totalProbes: contract.probes.length, byDisposition };
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateVisionerUncertaintyContractCoverage(
+  contract: VisionerUncertaintyContract = getActiveVisionerUncertaintyContract(),
+): VisionerUncertaintyContractCoverageResult {
+  const issues: VisionerUncertaintyContractCoverageIssue[] = [];
+
+  for (const category of VISIONER_UNCERTAINTY_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < VISIONER_UNCERTAINTY_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} below A01 baseline ${VISIONER_UNCERTAINTY_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} has ${categoryContract.probes.length} probes; contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listVisionerUncertaintyContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeVisionerUncertaintyContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("vunc.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing vunc. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export function validateVisionerUncertaintyAgainstContract(
