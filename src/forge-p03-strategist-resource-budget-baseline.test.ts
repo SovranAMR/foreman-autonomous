@@ -7,6 +7,12 @@ import {
   summarizeStrategistResourceBudgetMatrix,
   listStrategistResourceBudgetProbesByExpected,
   listStrategistResourceBudgetKnownGaps,
+  recoverStrategistResourceBudget,
+  validateStrategistResourceBudget,
+  runStrategistResourceBudgetProductionSlice,
+  validateStrategistResourceBudgetProbeMatrix,
+  getActiveStrategistResourceBudgetContract,
+  assessStrategistResourceBudgetInputBoundary,
   STRATEGIST_RESOURCE_BUDGET_CATEGORIES,
 } from "./forge-p03-strategist-resource-budget.js";
 
@@ -45,8 +51,8 @@ describe("Forge Strategist Resource Budget — P03-B06-A01", () => {
       "FAIL",
       loadStrategistResourceBudgetBaseline(),
     );
-    assert.equal(documentedFail.length, 6);
-    assert.ok(documentedFail.some(p => p.id === "sbudget.parser_resource_plan_fields"));
+    assert.equal(documentedFail.length, 4);
+    assert.ok(documentedFail.some(p => p.id === "sbudget.orchestrator_pre_exec_budget_gate"));
     assert.ok(documentedFail.some(p => p.id === "sbudget.exported_orchestrator_budget_validator"));
 
     for (const gap of summary.knownGaps) {
@@ -76,13 +82,127 @@ describe("Forge Strategist Resource Budget — P03-B06-A01", () => {
       "sbudget.exported_orchestrator_budget_validator",
       "sbudget.nogo_budget_recovery_halt",
       "sbudget.orchestrator_pre_exec_budget_gate",
-      "sbudget.parser_resource_plan_fields",
       "sbudget.prompt_atom_resource_estimate",
-      "sbudget.prompt_decompose_resource_plan",
     ]);
     assert.ok(
       gaps.every(g => STRATEGIST_RESOURCE_BUDGET_CATEGORIES.includes(g.category)),
       "documented gaps are resource budget probes",
     );
+  });
+});
+
+describe("Forge Strategist Resource Budget Production Slice — P03-B06-A03", () => {
+  it("recoverStrategistResourceBudget restructures malformed decompose into resource-budget plan", () => {
+    const malformed = `REASONING: Need resource-aware decomposition
+Here are the steps:
+Block 1: Setup resource budget baseline types
+Block 2: Wire token budget seam
+Block 3: Add resource budget tests
+DEPENDENCIES: 2→1, 3→1,2
+CONFIDENCE: 0.8`;
+    const recovery = recoverStrategistResourceBudget(malformed);
+
+    assert.equal(recovery.recovered, true);
+    assert.equal(recovery.resourceBudgetCompliant, true);
+    assert.ok(recovery.blockCount >= 3);
+    assert.match(recovery.composedDecompose, /RESOURCE PLAN:/i);
+    assert.match(recovery.composedDecompose, /TOKEN BUDGET:/i);
+    assert.ok(recovery.blocks.some(block => block.includes("resource budget baseline types")));
+    assert.ok(recovery.blocks.some(block => block.includes("token budget seam")));
+    assert.ok(recovery.blocks.some(block => block.includes("resource budget tests")));
+  });
+
+  it("recoverStrategistResourceBudget rejects null-byte decompose output safely", () => {
+    const recovery = recoverStrategistResourceBudget("decompose\0output");
+    assert.equal(recovery.recovered, false);
+    assert.equal(recovery.resourceBudgetCompliant, false);
+    assert.deepEqual(recovery.parseErrors, ["null_byte_in_decompose"]);
+  });
+
+  it("recoverStrategistResourceBudget injects resource plan when strategist omits RESOURCE PLAN and TOKEN BUDGET", () => {
+    const missingResourcePlan = `REASONING: Blocks without explicit resource metadata
+OUTPUT:
+Block 1: Root resource baseline block
+Block 2: Wire token budget seam
+Block 3: Final budget integration
+DEPENDENCIES: none
+CONFIDENCE: 0.75`;
+    const recovery = recoverStrategistResourceBudget(missingResourcePlan);
+
+    assert.equal(recovery.recovered, true);
+    assert.equal(recovery.resourceBudgetCompliant, true);
+    assert.equal(recovery.hasResourcePlan, true);
+    assert.equal(recovery.hasTokenBudget, true);
+    assert.ok(recovery.parseErrors.includes("resource_plan_injected"));
+    assert.ok(recovery.parseErrors.includes("token_budget_injected"));
+  });
+
+  it("validateStrategistResourceBudget accepts decompose with resource plan and token budget", () => {
+    const valid = `REASONING: Resource-aware plan
+OUTPUT:
+Block 1: Setup types
+DEPENDENCIES: none
+RESOURCE PLAN: Block 1 lightweight
+TOKEN BUDGET: perThought=4096
+CONFIDENCE: 0.9`;
+    const validation = validateStrategistResourceBudget(valid);
+    assert.equal(validation.valid, true);
+    assert.equal(validation.hasResourcePlan, true);
+    assert.equal(validation.hasTokenBudget, true);
+    assert.equal(validation.blockCount, 1);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after recovery slice", () => {
+    const contract = getActiveStrategistResourceBudgetContract();
+    const slice = runStrategistResourceBudgetProductionSlice();
+
+    assert.equal(slice.atom, "P03-B06-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 27);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 4);
+    assert.equal(slice.summary.knownGaps.length, 4);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const flippedGaps = slice.results.filter(
+      r =>
+        (r.id === "sbudget.prompt_decompose_resource_plan" ||
+          r.id === "sbudget.parser_resource_plan_fields") &&
+        r.expected === "PASS" &&
+        r.actual === "PASS",
+    );
+    assert.equal(flippedGaps.length, 2, "A03 closes prompt and parser resource budget gaps");
+
+    const matrixValidation = validateStrategistResourceBudgetProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("assessStrategistResourceBudgetInputBoundary handles decompose edge cases", () => {
+    const empty = assessStrategistResourceBudgetInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistResourceBudgetInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistResourceBudgetInputBoundary("bad\0decompose");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
   });
 });

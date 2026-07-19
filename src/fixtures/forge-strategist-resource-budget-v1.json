@@ -51,7 +51,7 @@
       "id": "sbudget.prompt_decompose_resource_plan",
       "category": "token_budget",
       "description": "STRATEGIST decompose format declares RESOURCE PLAN and TOKEN BUDGET sections",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sbudget.orchestrator_pre_exec_budget_gate",
@@ -75,7 +75,7 @@
       "id": "sbudget.parser_resource_plan_fields",
       "category": "cost_budget",
       "description": "parseDecomposeResponse exports resource plan and token budget fields",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sbudget.prompt_atom_resource_estimate",

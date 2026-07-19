@@ -23,6 +23,10 @@ export interface DecomposeParseResult {
   blocks: string[];
   /** Per-block dependency indices (0-based). Empty array = no dependencies = can run in parallel. */
   blockDeps: number[][];
+  /** Strategist-declared phase-level resource allocation (P03-B06 resource budget). */
+  resourcePlan?: string;
+  /** Strategist-declared token budget estimate for this decomposition. */
+  tokenBudget?: string;
   confidence: number;
 }
 
@@ -102,6 +106,13 @@ export function parseNumberedList(text: string): string[] {
   return items;
 }
 
+function extractLineField(text: string, field: string): string | null {
+  const pattern = new RegExp(`(?:^|\\n)${field}\\s*[:.]\\s*([^\\n]+)`, "i");
+  const match = text.match(pattern);
+  const value = match?.[1]?.trim();
+  return value && value.length > 0 ? value : null;
+}
+
 // ─── LAYER-SPECIFIC PARSERS ──────────────────────────────────
 
 /**
@@ -140,7 +151,9 @@ export function parseVisionResponse(text: string): { ok: true; data: VisionParse
  */
 export function parseDecomposeResponse(text: string): { ok: true; data: DecomposeParseResult } | { ok: false; error: ParseError } {
   const reasoning = extractField(text, "REASONING", ["OUTPUT", "CONFIDENCE"]);
-  const outputRaw = extractField(text, "OUTPUT", ["CONFIDENCE", "NEEDS_RESEARCH"]);
+  const outputRaw = extractField(text, "OUTPUT", ["DEPENDENCIES", "CONFIDENCE", "NEEDS_RESEARCH"]);
+  const resourcePlan = extractLineField(text, "RESOURCE PLAN");
+  const tokenBudget = extractLineField(text, "TOKEN BUDGET");
   const confidence = extractNumber(text, "CONFIDENCE");
 
   const missing: string[] = [];
@@ -175,6 +188,8 @@ export function parseDecomposeResponse(text: string): { ok: true; data: Decompos
       reasoning: reasoning!,
       blocks,
       blockDeps,
+      resourcePlan: resourcePlan ?? undefined,
+      tokenBudget: tokenBudget ?? undefined,
       confidence: confidence ?? 0.7,
     },
   };

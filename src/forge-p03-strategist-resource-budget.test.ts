@@ -42,17 +42,17 @@ describe("Forge Strategist Resource Budget Contract — P03-B06-A02", () => {
     }
   });
 
-  it("maps 27 probes with six documented FAIL gaps aligned to A01 baseline", () => {
+  it("maps 27 probes with four documented FAIL gaps aligned to A01 baseline", () => {
     const contract = getActiveStrategistResourceBudgetContract();
     const summary = summarizeStrategistResourceBudgetCoverage(contract);
     const coverage = validateStrategistResourceBudgetCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 27);
-    assert.equal(summary.expectedPass, 21);
-    assert.equal(summary.expectedFail, 6);
-    assert.equal(summary.byDisposition.observed, 16);
-    assert.equal(summary.byDisposition.gap, 4);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 4);
+    assert.equal(summary.byDisposition.observed, 18);
+    assert.equal(summary.byDisposition.gap, 2);
     assert.equal(summary.byDisposition.failure, 3);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
@@ -66,13 +66,11 @@ describe("Forge Strategist Resource Budget Contract — P03-B06-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists six gap and nogo probes matching documented resource budget debt", () => {
+  it("lists two remaining gap probes matching documented resource budget debt", () => {
     const gaps = listStrategistResourceBudgetProbesByDisposition("gap");
     assert.deepEqual(gaps.map(p => p.id).sort(), [
       "sbudget.orchestrator_pre_exec_budget_gate",
-      "sbudget.parser_resource_plan_fields",
       "sbudget.prompt_atom_resource_estimate",
-      "sbudget.prompt_decompose_resource_plan",
     ]);
 
     const nogoGaps = listStrategistResourceBudgetProbesByDisposition("nogo").filter(

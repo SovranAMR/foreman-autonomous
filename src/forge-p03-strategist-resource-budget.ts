@@ -16,9 +16,13 @@ import {
   getActiveStrategistRiskReversibilityContract,
   FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION,
 } from "./forge-p03-strategist-risk-reversibility.js";
+import {
+  recoverStrategistDecompose,
+  type StrategistDecomposeRecoveryHints,
+} from "./forge-p03-strategist-intent.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_RESOURCE_BUDGET_VERSION = "1.0.0-a01";
+export const FORGE_STRATEGIST_RESOURCE_BUDGET_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P03_B05_SEALED_ATOM_COUNT = 10;
 
@@ -80,6 +84,193 @@ export function assessStrategistResourceBudgetInputBoundary(
     detail: truncated
       ? `decompose truncated to ${STRATEGIST_RESOURCE_BUDGET_DECOMPOSE_MAX_LENGTH} characters`
       : "valid decompose output",
+  };
+}
+
+export interface StrategistResourceBudgetRecoveryHints extends StrategistDecomposeRecoveryHints {
+  resourcePlan?: string;
+  tokenBudget?: string;
+}
+
+export interface StrategistResourceBudgetRecoveryResult {
+  recovered: boolean;
+  resourceBudgetCompliant: boolean;
+  composedDecompose: string;
+  blocks: string[];
+  blockCount: number;
+  hasResourcePlan: boolean;
+  hasTokenBudget: boolean;
+  resourcePlan?: string;
+  tokenBudget?: string;
+  parseErrors: string[];
+  detail: string;
+}
+
+const DEFAULT_STRATEGIST_RESOURCE_PLAN =
+  "Block 1 lightweight setup; Block 2 moderate wiring; Block 3 integration tests";
+const DEFAULT_STRATEGIST_TOKEN_BUDGET =
+  "perThought=4096, perChain=50000, session cap per orchestrator MAX_TOKENS_SESSION";
+
+function resourceBudgetSectionPresence(text: string): {
+  hasResourcePlan: boolean;
+  hasTokenBudget: boolean;
+} {
+  return {
+    hasResourcePlan: /RESOURCE PLAN:/i.test(text),
+    hasTokenBudget: /TOKEN BUDGET:/i.test(text),
+  };
+}
+
+function injectStrategistResourceBudgetSections(
+  decompose: string,
+  resourcePlan: string,
+  tokenBudget: string,
+): string {
+  const confidenceMatch = decompose.match(/\nCONFIDENCE:\s*[\d.]+/);
+  if (confidenceMatch && confidenceMatch.index !== undefined) {
+    const before = decompose.slice(0, confidenceMatch.index);
+    const after = decompose.slice(confidenceMatch.index);
+    return `${before}\nRESOURCE PLAN: ${resourcePlan}\nTOKEN BUDGET: ${tokenBudget}${after}`;
+  }
+  return `${decompose}\nRESOURCE PLAN: ${resourcePlan}\nTOKEN BUDGET: ${tokenBudget}`;
+}
+
+/**
+ * Restructure failed decompose parse into resource-budget compliant plan (P03-B06-A03).
+ */
+export function recoverStrategistResourceBudget(
+  failedParse: string,
+  hints: StrategistResourceBudgetRecoveryHints = {},
+): StrategistResourceBudgetRecoveryResult {
+  const boundary = assessStrategistResourceBudgetInputBoundary(failedParse);
+  if (!boundary.acceptable) {
+    const parseErrors =
+      boundary.disposition === "contains_null_byte"
+        ? ["null_byte_in_decompose"]
+        : boundary.disposition === "empty"
+          ? ["empty_decompose"]
+          : ["whitespace_only_decompose"];
+    return {
+      recovered: false,
+      resourceBudgetCompliant: false,
+      composedDecompose: "",
+      blocks: [],
+      blockCount: 0,
+      hasResourcePlan: false,
+      hasTokenBudget: false,
+      parseErrors,
+      detail: boundary.detail,
+    };
+  }
+
+  const decomposeRecovery = recoverStrategistDecompose(boundary.normalizedDecompose, hints);
+  if (!decomposeRecovery.recovered) {
+    return {
+      recovered: false,
+      resourceBudgetCompliant: false,
+      composedDecompose: decomposeRecovery.composedDecompose,
+      blocks: decomposeRecovery.blocks,
+      blockCount: decomposeRecovery.blockCount,
+      hasResourcePlan: false,
+      hasTokenBudget: false,
+      parseErrors: decomposeRecovery.parseErrors,
+      detail: decomposeRecovery.detail,
+    };
+  }
+
+  let composed = decomposeRecovery.composedDecompose;
+  let { hasResourcePlan, hasTokenBudget } = resourceBudgetSectionPresence(composed);
+  const parseErrors = [...decomposeRecovery.parseErrors];
+
+  if (!hasResourcePlan || !hasTokenBudget) {
+    composed = injectStrategistResourceBudgetSections(
+      composed,
+      hints.resourcePlan ?? DEFAULT_STRATEGIST_RESOURCE_PLAN,
+      hints.tokenBudget ?? DEFAULT_STRATEGIST_TOKEN_BUDGET,
+    );
+    ({ hasResourcePlan, hasTokenBudget } = resourceBudgetSectionPresence(composed));
+    if (!resourceBudgetSectionPresence(decomposeRecovery.composedDecompose).hasResourcePlan) {
+      parseErrors.push("resource_plan_injected");
+    }
+    if (!resourceBudgetSectionPresence(decomposeRecovery.composedDecompose).hasTokenBudget) {
+      parseErrors.push("token_budget_injected");
+    }
+  }
+
+  const reparsed = parseDecomposeResponse(composed);
+  const resourceBudgetCompliant =
+    hasResourcePlan &&
+    hasTokenBudget &&
+    boundary.acceptable &&
+    reparsed.ok === true &&
+    reparsed.data.blocks.length >= 1 &&
+    (reparsed.data.resourcePlan !== undefined || reparsed.data.tokenBudget !== undefined);
+
+  return {
+    recovered: decomposeRecovery.recovered,
+    resourceBudgetCompliant,
+    composedDecompose: resourceBudgetCompliant ? composed : "",
+    blocks: reparsed.ok ? reparsed.data.blocks : decomposeRecovery.blocks,
+    blockCount: reparsed.ok ? reparsed.data.blocks.length : decomposeRecovery.blockCount,
+    hasResourcePlan,
+    hasTokenBudget,
+    resourcePlan: reparsed.ok ? reparsed.data.resourcePlan : undefined,
+    tokenBudget: reparsed.ok ? reparsed.data.tokenBudget : undefined,
+    parseErrors,
+    detail: resourceBudgetCompliant
+      ? `resource-budget compliant decompose with ${reparsed.ok ? reparsed.data.blocks.length : 0} blocks`
+      : `recovery incomplete: ${parseErrors.join(", ") || decomposeRecovery.detail}`,
+  };
+}
+
+export interface StrategistResourceBudgetValidationOutcome {
+  valid: boolean;
+  hasResourcePlan: boolean;
+  hasTokenBudget: boolean;
+  blockCount: number;
+  issues: string[];
+}
+
+/**
+ * Validate strategist decompose output declares resource plan and token budget (P03-B06-A03).
+ */
+export function validateStrategistResourceBudget(
+  decomposeOutput: string,
+): StrategistResourceBudgetValidationOutcome {
+  const boundary = assessStrategistResourceBudgetInputBoundary(decomposeOutput);
+  if (!boundary.acceptable) {
+    return {
+      valid: false,
+      hasResourcePlan: false,
+      hasTokenBudget: false,
+      blockCount: 0,
+      issues: [boundary.detail],
+    };
+  }
+
+  const parsed = parseDecomposeResponse(boundary.normalizedDecompose);
+  if (!parsed.ok) {
+    return {
+      valid: false,
+      hasResourcePlan: false,
+      hasTokenBudget: false,
+      blockCount: 0,
+      issues: parsed.error.missing,
+    };
+  }
+
+  const { hasResourcePlan, hasTokenBudget } = resourceBudgetSectionPresence(boundary.normalizedDecompose);
+  const issues: string[] = [];
+  if (!hasResourcePlan) issues.push("missing_resource_plan");
+  if (!hasTokenBudget) issues.push("missing_token_budget");
+  if (parsed.data.blocks.length === 0) issues.push("missing_blocks");
+
+  return {
+    valid: issues.length === 0,
+    hasResourcePlan,
+    hasTokenBudget,
+    blockCount: parsed.data.blocks.length,
+    issues,
   };
 }
 
@@ -283,8 +474,8 @@ const STRATEGIST_RESOURCE_BUDGET_CATEGORY_CONTRACTS: Record<
         id: "sbudget.prompt_decompose_resource_plan",
         category: "token_budget",
         description: "STRATEGIST decompose format declares RESOURCE PLAN and TOKEN BUDGET sections",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "STRATEGIST decompose format declares RESOURCE PLAN and TOKEN BUDGET sections",
       },
       {
@@ -326,8 +517,8 @@ const STRATEGIST_RESOURCE_BUDGET_CATEGORY_CONTRACTS: Record<
         id: "sbudget.parser_resource_plan_fields",
         category: "cost_budget",
         description: "parseDecomposeResponse exports resource plan and token budget fields",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "parseDecomposeResponse exports resource plan and token budget fields",
       },
       {
@@ -1008,6 +1199,8 @@ Block 1: Setup resource budget baseline types
 Block 2: Wire token budget seam
 Block 3: Add resource budget tests
 DEPENDENCIES: 2→1, 3→1,2
+RESOURCE PLAN: Block 1 lightweight setup; Block 2 moderate wiring; Block 3 integration tests
+TOKEN BUDGET: perThought=4096, perChain=50000, session cap per orchestrator MAX_TOKENS_SESSION
 CONFIDENCE: 0.85`;
 
 function decomposeFormatSection(): string {
@@ -1145,7 +1338,8 @@ function probeCostBudget(
       const ok =
         parsed.ok === true &&
         data !== null &&
-        ("resourcePlan" in data || "tokenBudget" in data || "budgetPlan" in data);
+        data.resourcePlan !== undefined &&
+        data.tokenBudget !== undefined;
       return probe(id, category, expected, ok, `resourcePlanFields=${ok}`);
     }
     case "sbudget.prompt_atom_resource_estimate": {
@@ -1414,4 +1608,127 @@ export function runStrategistResourceBudgetProbes(
     const contractProbe = contract.probes.find(p => p.id === entry.id);
     return contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
   });
+}
+
+export interface StrategistResourceBudgetProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistResourceBudgetProbeMatrixValidationResult {
+  valid: boolean;
+  issues: StrategistResourceBudgetProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateStrategistResourceBudgetProbeMatrix(
+  results: StrategistResourceBudgetProbeResult[],
+  contract: StrategistResourceBudgetContract = getActiveStrategistResourceBudgetContract(),
+): StrategistResourceBudgetProbeMatrixValidationResult {
+  const issues: StrategistResourceBudgetProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface StrategistResourceBudgetProductionSliceResult {
+  atom: "P03-B06-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: StrategistResourceBudgetProbeResult[];
+  summary: StrategistResourceBudgetProbeSummary;
+  matrixValidation: StrategistResourceBudgetProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: recoverStrategistResourceBudget wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runStrategistResourceBudgetProductionSlice(
+  fixture: StrategistResourceBudgetBaseline = loadStrategistResourceBudgetBaseline(),
+): StrategistResourceBudgetProductionSliceResult {
+  const contract = getActiveStrategistResourceBudgetContract();
+  const fixtureValidation = validateStrategistResourceBudgetBaseline(fixture);
+  const contractValidation = validateStrategistResourceBudgetAgainstContract(fixture, contract);
+  const results = runStrategistResourceBudgetProbes(fixture);
+  const summary = summarizeStrategistResourceBudgetMatrix(results);
+  const matrixValidation = validateStrategistResourceBudgetProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B06-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
