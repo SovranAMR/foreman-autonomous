@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B06-A10
-last_commit: pending
+last_commit: b7cc435
 tests: PASS — forge-p02-visioner-uncertainty-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts
 evidence: runVisionerUncertaintyBlockGate seals 10/10 atom seals with regression/guard PASS; FORGE_P02_B06_TO_B07_HANDOFF_V1 valid; orchestrator verifyForgeVisionerUncertaintyBlockGate emits visioner_uncertainty_block_gate verification
 next: P02-B07-A01

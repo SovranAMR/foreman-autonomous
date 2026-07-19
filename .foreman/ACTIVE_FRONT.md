@@ -44,7 +44,7 @@ fallback: baseline requires orchestrator refactor beyond slice scope ise BLOCKED
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B06-A10
-last_commit: pending
+last_commit: b7cc435
 tests: PASS — forge-p02-visioner-uncertainty-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts
 evidence: runVisionerUncertaintyBlockGate seals 10/10 atom seals; handoff=PASS→P02-B07; orchestrator verifyForgeVisionerUncertaintyBlockGate emits visioner_uncertainty_block_gate verification
 next: P02-B07-A01
