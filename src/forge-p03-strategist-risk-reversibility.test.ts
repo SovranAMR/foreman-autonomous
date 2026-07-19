@@ -33,6 +33,9 @@ import {
   runStrategistRiskReversibilityFuzzValidation,
   runStrategistRiskReversibilityRunRecordFuzzValidation,
   runStrategistRiskReversibilityPropertyFuzzSlice,
+  runStrategistRiskReversibilityForgeRegression,
+  detectStrategistRiskReversibilityProbeRegression,
+  applyStrategistRiskReversibilityRunRecordFuzzMutation,
   createStrategistRiskReversibilityFuzzRng,
   STRATEGIST_RISK_REVERSIBILITY_CATEGORIES,
   STRATEGIST_RISK_REVERSIBILITY_FAILURE_RECOVERY_CATEGORIES,
@@ -524,7 +527,7 @@ describe("Forge Strategist Risk Reversibility Evidence — P03-B05-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_RISK_REVERSIBILITY_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -558,7 +561,7 @@ describe("Forge Strategist Risk Reversibility Evidence — P03-B05-A06", () => {
     assert.equal(record.evidence.length, 27);
     assert.equal(record.telemetry.length, 27);
     assert.equal(record.provenance.totalProbes, 27);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a06");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 27);
@@ -683,5 +686,86 @@ describe("Forge Strategist Risk Reversibility Property/Fuzz — P03-B05-A07", ()
     assert.equal(slice.contractFuzz.allMutationsRejected, true);
     assert.equal(slice.contractFuzz.accepted, 0);
     assert.equal(slice.runRecordFuzz.mutationsAccepted, 0);
+  });
+});
+
+describe("Forge Strategist Risk Reversibility Regression — P03-B05-A08", () => {
+  it("runStrategistRiskReversibilityForgeRegression passes on canonical risk reversibility matrix", () => {
+    const result = runStrategistRiskReversibilityForgeRegression();
+
+    assert.equal(result.atom, "P03-B05-A08");
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 27);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.propertyFuzzSlice.contractFuzzRejected, true);
+    assert.equal(result.propertyFuzzSlice.runRecordFuzzRejected, true);
+    assert.ok(result.detail.includes("27/27 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+  });
+
+  it("detectStrategistRiskReversibilityProbeRegression flags newly misaligned probes", () => {
+    const prior = runStrategistRiskReversibilityProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistRiskReversibilityProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runStrategistRiskReversibilityForgeRegression compares against prior record without false regression", () => {
+    const prior = runStrategistRiskReversibilityProbesWithRecord();
+    const result = runStrategistRiskReversibilityForgeRegression(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+
+  it("runStrategistRiskReversibilityForgeRegression rejects tampered prior records", () => {
+    const prior = runStrategistRiskReversibilityProbesWithRecord();
+    const tamperedPrior = applyStrategistRiskReversibilityRunRecordFuzzMutation(prior, {
+      kind: "drop_evidence",
+      probeId: prior.evidence[0]?.probeId,
+    });
+
+    assert.equal(validateStrategistRiskReversibilityRunRecord(tamperedPrior).valid, false);
+
+    const result = runStrategistRiskReversibilityForgeRegression(tamperedPrior);
+    assert.equal(result.priorRecordValid, false);
+    assert.equal(result.passed, false);
+    assert.ok(result.detail.includes("priorValidation:"));
+  });
+
+  it("runStrategistRiskReversibilityForgeRegression fails when probe alignment regresses", () => {
+    const prior = runStrategistRiskReversibilityProbesWithRecord();
+    const tamperedCurrent = structuredClone(prior);
+    const target = tamperedCurrent.evidence[0]!;
+    target.aligned = false;
+    target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+    tamperedCurrent.summary = {
+      ...tamperedCurrent.summary,
+      aligned: tamperedCurrent.summary.aligned - 1,
+      mismatches: tamperedCurrent.summary.mismatches + 1,
+    };
+
+    const report = detectStrategistRiskReversibilityProbeRegression(prior, tamperedCurrent);
+    assert.equal(report.hasRegression, true);
   });
 });
