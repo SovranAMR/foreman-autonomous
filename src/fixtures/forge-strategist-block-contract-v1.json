@@ -135,7 +135,7 @@
       "id": "sblk.structured_block_recovery",
       "category": "recovery_path",
       "description": "recoverStrategistBlockProduction restructures failed block parse into contract-compliant plan",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sblk.strategist_empty_blocks_block",

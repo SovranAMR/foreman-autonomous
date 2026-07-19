@@ -14,10 +14,12 @@ import {
   getForgeP03B01ToB02Handoff,
   getActiveStrategistIntentContract,
   summarizeStrategistIntentContractCoverage,
+  recoverStrategistDecompose,
+  type StrategistDecomposeRecoveryHints,
 } from "./forge-p03-strategist-intent.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION = "1.0.0-a02";
+export const FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION = "1.0.0-a03";
 
 /** Maximum normalized decompose length before truncation (P03-B02-A01 boundary). */
 export const STRATEGIST_BLOCK_DECOMPOSE_MAX_LENGTH = 64000;
@@ -96,6 +98,198 @@ export function assessStrategistBlockInputBoundary(
     detail: truncated
       ? `decompose truncated to ${STRATEGIST_BLOCK_DECOMPOSE_MAX_LENGTH} characters`
       : "valid decompose output",
+  };
+}
+
+export interface StrategistBlockProductionRecoveryResult {
+  recovered: boolean;
+  contractCompliant: boolean;
+  composedDecompose: string;
+  blocks: string[];
+  blockCount: number;
+  parseErrors: string[];
+  detail: string;
+}
+
+/**
+ * Restructure failed block parse into contract-compliant production plan (P03-B02-A03).
+ */
+export function recoverStrategistBlockProduction(
+  failedParse: string,
+  hints: StrategistDecomposeRecoveryHints = {},
+): StrategistBlockProductionRecoveryResult {
+  const recovery = recoverStrategistDecompose(failedParse, hints);
+  if (!recovery.recovered) {
+    return {
+      recovered: false,
+      contractCompliant: false,
+      composedDecompose: recovery.composedDecompose,
+      blocks: recovery.blocks,
+      blockCount: recovery.blockCount,
+      parseErrors: recovery.parseErrors,
+      detail: recovery.detail,
+    };
+  }
+
+  const boundary = assessStrategistBlockInputBoundary(recovery.composedDecompose);
+  const parsed = parseDecomposeResponse(recovery.composedDecompose);
+  const contractCompliant =
+    boundary.acceptable &&
+    parsed.ok === true &&
+    parsed.data.blocks.length >= 1 &&
+    parsed.data.blocks.length <= 8;
+
+  return {
+    recovered: recovery.recovered,
+    contractCompliant,
+    composedDecompose: contractCompliant ? recovery.composedDecompose : "",
+    blocks: parsed.ok ? parsed.data.blocks : recovery.blocks,
+    blockCount: parsed.ok ? parsed.data.blocks.length : recovery.blockCount,
+    parseErrors: recovery.parseErrors,
+    detail: contractCompliant
+      ? `contract-compliant block plan with ${parsed.ok ? parsed.data.blocks.length : 0} blocks`
+      : `recovery incomplete: ${recovery.detail}`,
+  };
+}
+
+export interface StrategistBlockContractProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistBlockContractProbeMatrixValidationResult {
+  valid: boolean;
+  issues: StrategistBlockContractProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateStrategistBlockContractProbeMatrix(
+  results: StrategistBlockContractProbeResult[],
+  contract: StrategistBlockContractContract = getActiveStrategistBlockContract(),
+): StrategistBlockContractProbeMatrixValidationResult {
+  const issues: StrategistBlockContractProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(probe => probe.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface StrategistBlockContractProductionSliceResult {
+  atom: "P03-B02-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: StrategistBlockContractProbeResult[];
+  summary: StrategistBlockContractProbeSummary;
+  matrixValidation: StrategistBlockContractProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: recoverStrategistBlockProduction wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runStrategistBlockContractProductionSlice(
+  fixture: StrategistBlockContractBaseline = loadStrategistBlockContractBaseline(),
+): StrategistBlockContractProductionSliceResult {
+  const contract = getActiveStrategistBlockContract();
+  const fixtureValidation = validateStrategistBlockContractBaseline(fixture);
+  const contractValidation = validateStrategistBlockContractAgainstContract(fixture, contract);
+  const results = runStrategistBlockContractProbes(fixture);
+  const summary = summarizeStrategistBlockContractMatrix(results);
+  const matrixValidation = validateStrategistBlockContractProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B02-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
   };
 }
 
@@ -434,7 +628,7 @@ const STRATEGIST_BLOCK_CONTRACT_CATEGORY_CONTRACTS: Record<
     category: "recovery_path",
     acceptance: {
       invariant:
-        "Pipeline resume reuses checkpoint blocks; structured block recovery gap documented for A03 slice.",
+        "Pipeline resume reuses checkpoint blocks; recoverStrategistBlockProduction restructures failed block parse.",
       minProbeCount: 2,
       requireFullAlignment: true,
     },
@@ -451,8 +645,8 @@ const STRATEGIST_BLOCK_CONTRACT_CATEGORY_CONTRACTS: Record<
         id: "sblk.structured_block_recovery",
         category: "recovery_path",
         description: "recoverStrategistBlockProduction restructures failed block parse into contract-compliant plan",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion: "recoverStrategistBlockProduction restructures failed block parse into contract-compliant plan",
       },
     ],
@@ -809,14 +1003,6 @@ export function validateStrategistBlockContractBaseline(
     });
   }
 
-  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length < 1) {
-    issues.push({
-      kind: "missing_category",
-      detail: "A01 fixture must document at least one known FAIL gap",
-    });
-  }
-
   const contractAlignment = validateStrategistBlockContractAgainstContract(
     fixture,
     getActiveStrategistBlockContract(),
@@ -1111,7 +1297,7 @@ function probeBoundary(
       const contract = getActiveStrategistBlockContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -1204,13 +1390,27 @@ function probeRecoveryPath(
       return probe(id, category, expected, ok, `checkpointBlocks=${ok}`);
     }
     case "sblk.structured_block_recovery": {
-      const ok = hasProductionExport("recoverStrategistBlockProduction");
+      const malformed = `REASONING: Need block production plan
+Here are the steps:
+Block 1: Setup block contract types
+Block 2: Wire block production seam
+Block 3: Add block contract baseline tests
+CONFIDENCE: 0.8`;
+      const recovery = recoverStrategistBlockProduction(malformed);
+      const ok =
+        hasProductionExport("recoverStrategistBlockProduction") &&
+        recovery.recovered === true &&
+        recovery.contractCompliant === true &&
+        recovery.blockCount >= 3 &&
+        recovery.blocks.some(block => block.includes("block contract types")) &&
+        recovery.blocks.some(block => block.includes("block production seam")) &&
+        recovery.blocks.some(block => block.includes("block contract baseline"));
       return probe(
         id,
         category,
         expected,
         ok,
-        `recoverStrategistBlockProduction=${ok}`,
+        `recovered=${recovery.recovered}, compliant=${recovery.contractCompliant}, blocks=${recovery.blockCount}, ${recovery.detail}`,
       );
     }
     default:

@@ -32,26 +32,19 @@ describe("Forge Strategist Block Contract — P03-B02-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures block contract probes with documented FAIL gaps from P03-B01 sealed handoff", () => {
+  it("measures block contract probes with full alignment after A03 recovery slice", () => {
     const results = runStrategistBlockContractProbes();
     const summary = summarizeStrategistBlockContractMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listStrategistBlockContractProbesByExpected(
       "FAIL",
       loadStrategistBlockContractBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(documentedFail.some(p => p.id === "sblk.structured_block_recovery"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of STRATEGIST_BLOCK_CONTRACT_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -66,14 +59,8 @@ describe("Forge Strategist Block Contract — P03-B02-A01", () => {
     );
   });
 
-  it("documents remaining block contract gaps as measurable baseline debt", () => {
+  it("documents zero remaining block contract gaps after structured recovery slice", () => {
     const gaps = listStrategistBlockContractKnownGaps(runStrategistBlockContractProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, ["sblk.structured_block_recovery"]);
-    assert.ok(
-      gaps.every(g => STRATEGIST_BLOCK_CONTRACT_CATEGORIES.includes(g.category)),
-      "documented gaps are block contract probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 });
