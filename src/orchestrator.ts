@@ -600,6 +600,21 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P01-B09 block gate and emit verification event with B10 handoff (P01-B09-A10).
+   */
+  async verifyForgeOrchestratorSeamBlockGate(): Promise<import("./forge-orchestrator-seam.probe.js").ForgeOrchestratorSeamBlockGateResult> {
+    const { runForgeOrchestratorSeamBlockGate } = await import("./forge-orchestrator-seam.probe.js");
+    const result = runForgeOrchestratorSeamBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "orchestrator_seam_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

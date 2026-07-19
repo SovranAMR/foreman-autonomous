@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import orchestratorSeamBaseline from "./fixtures/forge-orchestrator-seam-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type { ForgeAcceptanceOutcome, ForgeBlockAtomSeal } from "./forge-baseline-contract.js";
 import {
   getForgeP01B08ToB09Handoff,
   getActiveEvidenceArtifactContract,
@@ -50,6 +50,12 @@ import {
   runOrchestratorSeamPropertyChecks,
   runOrchestratorSeamFuzzValidation,
   runOrchestratorSeamRunRecordFuzzValidation,
+  getForgeP01B09BlockGate,
+  getForgeP01B09ToB10Handoff,
+  buildOrchestratorSeamBlockGateEvidence,
+  validateOrchestratorSeamBlockHandoffContract,
+  listOrchestratorSeamProbesByDisposition,
+  summarizeOrchestratorSeamContractCoverage,
   type OrchestratorSeamPropertyResult,
   type OrchestratorSeamFuzzValidationResult,
   type OrchestratorSeamGuardCheckResult,
@@ -93,6 +99,10 @@ export {
   runOrchestratorSeamPropertyChecks,
   runOrchestratorSeamFuzzValidation,
   runOrchestratorSeamRunRecordFuzzValidation,
+  getForgeP01B09BlockGate,
+  getForgeP01B09ToB10Handoff,
+  buildOrchestratorSeamBlockGateEvidence,
+  validateOrchestratorSeamBlockHandoffContract,
 } from "./forge-orchestrator-seam.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -906,3 +916,186 @@ export function runForgeOrchestratorSeamRegressionGate(
 
 /** Alias for forge-pipeline-regression integration seam (P01-B09-A08). */
 export const runOrchestratorSeamRegressionIntegration = runForgeOrchestratorSeamRegressionGate;
+
+export interface ForgeOrchestratorSeamBlockGateResult {
+  passed: boolean;
+  evidence: import("./forge-orchestrator-seam.js").OrchestratorSeamBlockGateEvidence;
+  handoff: import("./forge-orchestrator-seam.js").OrchestratorSeamBlockHandoffContract;
+  regression: ForgeOrchestratorSeamRegressionResult;
+  atomSeals: ForgeBlockAtomSeal[];
+  detail: string;
+}
+
+function sealOrchestratorSeamBlockAtom(
+  atomId: string,
+  capability: string,
+  passed: boolean,
+  detail: string,
+): ForgeBlockAtomSeal {
+  return { atomId, capability, passed, detail };
+}
+
+/**
+ * Seal P01-B09 block gate: validate A01–A09 deliverables, regression, guard, and B10 handoff (P01-B09-A10).
+ */
+export function runOrchestratorSeamBlockGate(): ForgeOrchestratorSeamBlockGateResult {
+  const blockGate = getForgeP01B09BlockGate();
+  const handoff = getForgeP01B09ToB10Handoff();
+  const contract = getActiveOrchestratorSeamContract();
+  const fixture = loadOrchestratorSeamBaseline();
+  const atomSeals: ForgeBlockAtomSeal[] = [];
+
+  const fixtureValidation = validateOrchestratorSeamBaselineAgainstContract(fixture, contract);
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A01",
+      "orchestrator_seam",
+      fixtureValidation.valid && fixture.version === handoff.sealedArtifacts.fixtureVersion,
+      fixtureValidation.valid
+        ? `fixture v${fixture.version} aligned (${summarizeOrchestratorSeamContractCoverage(contract).totalProbes} probes)`
+        : fixtureValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const coverage = summarizeOrchestratorSeamContractCoverage(contract);
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A02",
+      "typed_contract",
+      contract.version === handoff.sealedArtifacts.contractVersion && coverage.totalProbes > 0,
+      `${coverage.totalProbes} probes across ${ORCHESTRATOR_SEAM_CATEGORIES.length} categories`,
+    ),
+  );
+
+  const productionSlice = runOrchestratorSeamProductionSlice(fixture);
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A03",
+      "probe_matrix",
+      productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0,
+      `${productionSlice.summary.aligned}/${productionSlice.summary.total} probes aligned`,
+    ),
+  );
+
+  const boundarySlice = runOrchestratorSeamBoundarySlice(fixture);
+  const dispositionOk =
+    coverage.byDisposition.observed > 0 &&
+    coverage.byDisposition.gap > 0 &&
+    coverage.byDisposition.failure > 0 &&
+    coverage.byDisposition.recovery > 0 &&
+    coverage.byDisposition.nogo > 0;
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A04",
+      "boundary_dispositions",
+      boundarySlice.matrixValid && dispositionOk,
+      `boundary=${boundarySlice.boundaryProbeCount} observed=${coverage.byDisposition.observed} gap=${coverage.byDisposition.gap} failure=${coverage.byDisposition.failure} recovery=${coverage.byDisposition.recovery} nogo=${coverage.byDisposition.nogo}`,
+    ),
+  );
+
+  const failureRecoverySlice = runOrchestratorSeamFailureRecoverySlice(fixture);
+  const nogoProbes = listOrchestratorSeamProbesByDisposition("nogo", contract);
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A05",
+      "failure_recovery_nogo",
+      failureRecoverySlice.matrixValid && nogoProbes.length > 0,
+      `${failureRecoverySlice.failureRecoveryProbeCount} failure/recovery probes; ${nogoProbes.length} NO-GO probes`,
+    ),
+  );
+
+  const regression = runForgeOrchestratorSeamRegressionGate();
+  const recordValidation = validateOrchestratorSeamRunRecord(regression.record, contract);
+  const evidenceOk =
+    regression.record.evidence.length === coverage.totalProbes &&
+    regression.record.telemetry.length === coverage.totalProbes &&
+    recordValidation.valid;
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A06",
+      "evidence_provenance",
+      evidenceOk,
+      evidenceOk
+        ? `evidence=${regression.record.evidence.length} telemetry=${regression.record.telemetry.length}`
+        : recordValidation.issues.map(i => i.detail).join("; "),
+    ),
+  );
+
+  const properties = runOrchestratorSeamPropertyChecks(contract);
+  const contractFuzz = runOrchestratorSeamFuzzValidation(fixture, contract);
+  const runFuzz = runOrchestratorSeamRunRecordFuzzValidation(regression.record, contract);
+  const fuzzOk = properties.allPassed && contractFuzz.allMutationsRejected && runFuzz.mutationsAccepted === 0;
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A07",
+      "property_fuzz",
+      fuzzOk,
+      `properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+    ),
+  );
+
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A08",
+      "regression_gate",
+      regression.passed,
+      regression.detail,
+    ),
+  );
+
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A09",
+      "guard_controls",
+      regression.guard.passed,
+      regression.guard.passed
+        ? `adversarial=${regression.guard.metrics.adversarialScenariosRejected}/${regression.guard.metrics.adversarialScenariosTotal}`
+        : regression.guard.issues.map(i => i.code).join(", "),
+    ),
+  );
+
+  const handoffValidation = validateOrchestratorSeamBlockHandoffContract(handoff, {
+    probeCount: regression.record.summary.total,
+    regressionPassed: regression.passed,
+    guardPassed: regression.guard.passed,
+  });
+  const priorSealsPass = atomSeals.every(seal => seal.passed);
+  const blockGatePass = priorSealsPass && handoffValidation.valid;
+  atomSeals.push(
+    sealOrchestratorSeamBlockAtom(
+      "P01-B09-A10",
+      "block_gate_handoff",
+      blockGatePass,
+      blockGatePass
+        ? `handoff→${handoff.targetBlock.blockId} entry=${handoff.targetBlock.entryAtom}`
+        : handoffValidation.issues.join("; ") || "prior atom seals failed",
+    ),
+  );
+
+  const evidence = buildOrchestratorSeamBlockGateEvidence(
+    atomSeals,
+    regression.passed,
+    regression.guard.passed,
+    regression.record.summary.total,
+    resolveGitCommit(),
+  );
+
+  const detailParts = [
+    `block=${blockGate.blockId} seals=${atomSeals.filter(s => s.passed).length}/${atomSeals.length}`,
+    `regression=${regression.passed ? "PASS" : "FAIL"}`,
+    `guard=${regression.guard.passed ? "PASS" : "FAIL"}`,
+    `handoff=${evidence.handoffValid ? "PASS" : "FAIL"}→${handoff.targetBlock.blockId}`,
+  ];
+
+  return {
+    passed: blockGatePass && evidence.handoffValid,
+    evidence,
+    handoff,
+    regression,
+    atomSeals,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const runForgeOrchestratorSeamBlockGate = runOrchestratorSeamBlockGate;
