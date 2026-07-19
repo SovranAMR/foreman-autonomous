@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   loadOrchestratorSeamBaseline,
   runOrchestratorSeamProbes,
+  runOrchestratorSeamProductionSlice,
 } from "./forge-orchestrator-seam.probe.js";
 import {
   getActiveOrchestratorSeamContract,
@@ -12,8 +13,17 @@ import {
   summarizeOrchestratorSeamContractCoverage,
   validateOrchestratorSeamContractCoverage,
   validateOrchestratorSeamBaselineAgainstContract,
+  validateOrchestratorSeamProbeMatrix,
   ORCHESTRATOR_SEAM_CATEGORIES,
 } from "./forge-orchestrator-seam.js";
+
+function formatMismatchReport(
+  mismatches: { id: string; expected: string; actual: string; detail: string }[],
+): string {
+  return mismatches
+    .map(m => `  ${m.id}: expected=${m.expected} actual=${m.actual} (${m.detail})`)
+    .join("\n");
+}
 
 describe("Forge Orchestrator Seam Contract — P01-B09-A02", () => {
   it("defines typed acceptance for all nine orchestrator seam categories", () => {
@@ -110,5 +120,52 @@ describe("Forge Orchestrator Seam Contract — P01-B09-A02", () => {
       assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
       assert.equal(result.criterion, contractProbe.criterion);
     }
+  });
+});
+
+describe("Forge Orchestrator Seam Production Slice — P01-B09-A03", () => {
+  it("executes contract-wired probes with zero unexpected mismatches", () => {
+    const contract = getActiveOrchestratorSeamContract();
+    const slice = runOrchestratorSeamProductionSlice();
+
+    assert.equal(slice.atom, "P01-B09-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 16);
+    assert.equal(slice.matrixValidation.gapAligned, 7);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateOrchestratorSeamProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 7);
+    assert.deepEqual(
+      slice.summary.knownGaps.map(g => g.id).sort(),
+      [
+        "oseam.extracted_seam_interface",
+        "oseam.guard_methods_inventory",
+        "oseam.nogo_seam_inventory_drift",
+        "oseam.nogo_verification_method_mismatch",
+        "oseam.recovery_missing_handoff_fallback",
+        "oseam.recovery_seam_state_reset",
+        "oseam.unified_lazy_import_registry",
+      ],
+    );
   });
 });

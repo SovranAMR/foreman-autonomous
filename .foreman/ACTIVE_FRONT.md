@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B09
-active_atom: P01-B09-A03
+active_atom: P01-B09-A04
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 81/1000
-phase_progress: 80/100
-block_progress: 2/10
+program_progress: 82/1000
+phase_progress: 81/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B09-A03 — Orchestrator seam ve modülerleşme: en küçük üretim dikey dilimini uygula.
+P01-B09-A04 — Orchestrator seam ve modülerleşme: boundary ve edge-case davranışlarını tamamla.
 
-objective: A02 contract sealed; smallest production vertical slice for orchestrator seam modularization.
-target: forge-orchestrator-seam.ts production slice; probe matrix wired to typed contract.
-hypothesis: A02 typed contract + A01 baseline probes yeterli A03 production slice sağlar.
-acceptance: production slice executes 23 probes; zero unexpected mismatches; gapAligned=7.
-commands: npx tsx --test src/forge-orchestrator-seam*.test.ts (A03 suite when present)
+objective: A03 production slice sealed; boundary category probes with zero unexpected mismatches.
+target: forge-orchestrator-seam.ts boundary slice; edge probes wired to typed contract.
+hypothesis: A03 matrix gate + boundary category contract yeterli A04 boundary slice sağlar.
+acceptance: boundary slice executes 3 boundary probes; zero unexpected mismatches; documented FAIL gaps preserved.
+commands: npx tsx --test src/forge-orchestrator-seam*.test.ts (A04 suite when present)
 blast_radius: forge-orchestrator-seam*.ts
-rollback: A03 production slice değişikliklerini geri al.
+rollback: A04 boundary slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A02 contract invalid ise BLOCKED raporla.
+fallback: A03 production slice invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B09-A02
+last_atom: P01-B09-A03
 last_commit: pending
-tests: PASS — forge-orchestrator-seam*.test.ts (9/9); 23 probes mapped; 9 categories; disposition+criterion per probe
-evidence: getActiveOrchestratorSeamContract; validateOrchestratorSeamBaselineAgainstContract; runOrchestratorSeamProbes criterion wiring
-next: P01-B09-A03
+tests: PASS — forge-orchestrator-seam*.test.ts (10/10); 23 probes; gapAligned=7; unexpectedMismatches=0
+evidence: runOrchestratorSeamProductionSlice; validateOrchestratorSeamProbeMatrix; passAligned=16 gapAligned=7
+next: P01-B09-A04

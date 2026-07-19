@@ -21,6 +21,8 @@ import {
   EXPECTED_ORCHESTRATOR_FORGE_GUARD_METHOD_COUNT,
   getActiveOrchestratorSeamContract,
   validateOrchestratorSeamBaseline,
+  validateOrchestratorSeamBaselineAgainstContract,
+  validateOrchestratorSeamProbeMatrix,
   summarizeOrchestratorSeamMatrix,
   listOrchestratorSeamProbesByExpected,
   listOrchestratorSeamKnownGaps,
@@ -46,6 +48,7 @@ export {
   summarizeOrchestratorSeamContractCoverage,
   validateOrchestratorSeamContractCoverage,
   validateOrchestratorSeamBaselineAgainstContract,
+  validateOrchestratorSeamProbeMatrix,
   FORGE_ORCHESTRATOR_SEAM_VERSION,
   ORCHESTRATOR_SEAM_CATEGORIES,
   ORCHESTRATOR_FORGE_REGRESSION_METHODS,
@@ -546,4 +549,39 @@ export function runOrchestratorSeamProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface OrchestratorSeamProductionSliceResult {
+  atom: "P01-B09-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: OrchestratorSeamProbeResult[];
+  summary: ReturnType<typeof summarizeOrchestratorSeamMatrix>;
+  matrixValidation: ReturnType<typeof validateOrchestratorSeamProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: fixture ↔ contract validation, contract-wired probe
+ * execution, and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runOrchestratorSeamProductionSlice(
+  fixture: OrchestratorSeamBaseline = loadOrchestratorSeamBaseline(),
+): OrchestratorSeamProductionSliceResult {
+  const contract = getActiveOrchestratorSeamContract();
+  const fixtureValidation = validateOrchestratorSeamBaseline(fixture);
+  const contractValidation = validateOrchestratorSeamBaselineAgainstContract(fixture, contract);
+  const results = runOrchestratorSeamProbes(fixture);
+  const summary = summarizeOrchestratorSeamMatrix(results);
+  const matrixValidation = validateOrchestratorSeamProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B09-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
