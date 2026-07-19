@@ -7,6 +7,10 @@ import {
   summarizeStrategistIntentMatrix,
   listStrategistIntentProbesByExpected,
   listStrategistIntentKnownGaps,
+  recoverStrategistDecompose,
+  runStrategistIntentProductionSlice,
+  validateStrategistIntentProbeMatrix,
+  getActiveStrategistIntentContract,
   STRATEGIST_INTENT_CATEGORIES,
 } from "./forge-p03-strategist-intent.js";
 
@@ -32,20 +36,19 @@ describe("Forge Strategist Intent — P03-B01-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures strategist intent probes with documented FAIL gaps from P02 sealed handoff", () => {
+  it("measures strategist intent probes with full alignment after A03 recovery slice", () => {
     const results = runStrategistIntentProbes();
     const summary = summarizeStrategistIntentMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listStrategistIntentProbesByExpected(
       "FAIL",
       loadStrategistIntentBaseline(),
     );
-    assert.equal(documentedFail.length, 1);
-    assert.ok(documentedFail.some(p => p.id === "sint.structured_decompose_recovery"));
+    assert.equal(documentedFail.length, 0);
 
     for (const gap of summary.knownGaps) {
       assert.equal(gap.expected, "FAIL");
@@ -66,14 +69,71 @@ describe("Forge Strategist Intent — P03-B01-A01", () => {
     );
   });
 
-  it("documents remaining strategist intent gaps as measurable baseline debt", () => {
+  it("documents zero remaining strategist intent gaps after structured recovery slice", () => {
     const gaps = listStrategistIntentKnownGaps(runStrategistIntentProbes());
-    const ids = gaps.map(g => g.id).sort();
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
+  });
+});
 
-    assert.deepEqual(ids, ["sint.structured_decompose_recovery"]);
-    assert.ok(
-      gaps.every(g => STRATEGIST_INTENT_CATEGORIES.includes(g.category)),
-      "documented gaps are strategist intent probes",
+describe("Forge Strategist Intent Production Slice — P03-B01-A03", () => {
+  it("recoverStrategistDecompose restructures malformed decompose into actionable block plan", () => {
+    const malformed = `REASONING: Need implementation plan
+Here are the steps:
+Block 1: Setup core types
+Block 2: Wire orchestrator seam
+Block 3: Add strategist intent tests
+CONFIDENCE: 0.8`;
+    const recovery = recoverStrategistDecompose(malformed);
+
+    assert.equal(recovery.recovered, true);
+    assert.ok(recovery.blockCount >= 3);
+    assert.match(recovery.composedDecompose, /REASONING:/);
+    assert.match(recovery.composedDecompose, /OUTPUT:/);
+    assert.ok(recovery.blocks.some(block => block.includes("core types")));
+    assert.ok(recovery.blocks.some(block => block.includes("orchestrator seam")));
+    assert.ok(recovery.blocks.some(block => block.includes("intent tests")));
+  });
+
+  it("recoverStrategistDecompose rejects null-byte decompose output safely", () => {
+    const recovery = recoverStrategistDecompose("decompose\0output");
+    assert.equal(recovery.recovered, false);
+    assert.deepEqual(recovery.parseErrors, ["null_byte_in_decompose"]);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after recovery slice", () => {
+    const contract = getActiveStrategistIntentContract();
+    const slice = runStrategistIntentProductionSlice();
+
+    assert.equal(slice.atom, "P03-B01-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateStrategistIntentProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+
+    const recoveryProbe = slice.results.find(r => r.id === "sint.structured_decompose_recovery");
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
   });
 });

@@ -135,7 +135,7 @@
       "id": "sint.structured_decompose_recovery",
       "category": "recovery_path",
       "description": "recoverStrategistDecompose restructures failed decompose parse into actionable block plan",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "sint.strategist_contradiction_block",

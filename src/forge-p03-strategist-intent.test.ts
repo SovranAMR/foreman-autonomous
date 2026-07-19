@@ -41,19 +41,19 @@ describe("Forge Strategist Intent Contract — P03-B01-A02", () => {
     }
   });
 
-  it("maps 23 probes with one documented gap from sealed P03-B01-A01 baseline", () => {
+  it("maps 23 probes with zero remaining gaps after A03 recovery slice", () => {
     const contract = getActiveStrategistIntentContract();
     const summary = summarizeStrategistIntentContractCoverage(contract);
     const coverage = validateStrategistIntentContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 22);
-    assert.equal(summary.expectedFail, 1);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
     assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 1);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
-    assert.equal(summary.byDisposition.recovery, 1);
+    assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.intent_versioning.probeCount, 3);
     assert.equal(summary.byCategory.task_signal.probeCount, 3);
@@ -65,11 +65,9 @@ describe("Forge Strategist Intent Contract — P03-B01-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists one remaining gap probe from strategist intent contract", () => {
+  it("lists zero remaining gap probes after A03 recovery slice", () => {
     const gaps = listStrategistIntentProbesByDisposition("gap");
-    const ids = gaps.map(p => p.id).sort();
-    assert.deepEqual(ids, ["sint.structured_decompose_recovery"]);
-    assert.ok(gaps.every(p => p.expected === "FAIL"));
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {

@@ -18,7 +18,7 @@ import {
 } from "./forge-p02-visioner-phase-gate.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_INTENT_VERSION = "1.0.0-a01";
+export const FORGE_STRATEGIST_INTENT_VERSION = "1.0.0-a03";
 
 /** Maximum normalized vision length before truncation (P03-B01-A01 boundary). */
 export const STRATEGIST_VISION_MAX_LENGTH = 32000;
@@ -97,6 +97,293 @@ export function assessStrategistVisionInputBoundary(
     detail: truncated
       ? `vision truncated to ${STRATEGIST_VISION_MAX_LENGTH} characters`
       : "valid vision input",
+  };
+}
+
+export interface StrategistDecomposeRecoveryHints {
+  blocks?: string[];
+  reasoning?: string;
+  confidence?: number;
+}
+
+export interface StrategistDecomposeRecoveryResult {
+  recovered: boolean;
+  composedDecompose: string;
+  blocks: string[];
+  blockCount: number;
+  parseErrors: string[];
+  detail: string;
+}
+
+const INFORMAL_BLOCK_LINE =
+  /^block\s*(\d+)\s*[:=\-]\s*(.+)$/i;
+
+/**
+ * Restructure failed decompose parse into actionable block plan (P03-B01-A03).
+ */
+export function recoverStrategistDecompose(
+  failedParse: string,
+  hints: StrategistDecomposeRecoveryHints = {},
+): StrategistDecomposeRecoveryResult {
+  const parseErrors: string[] = [];
+
+  if (failedParse.includes("\0")) {
+    return {
+      recovered: false,
+      composedDecompose: "",
+      blocks: [],
+      blockCount: 0,
+      parseErrors: ["null_byte_in_decompose"],
+      detail: "cannot recover null-byte decompose output",
+    };
+  }
+
+  const trimmed = failedParse.trim();
+  if (trimmed.length === 0) {
+    return {
+      recovered: false,
+      composedDecompose: "",
+      blocks: [],
+      blockCount: 0,
+      parseErrors: ["empty_decompose"],
+      detail: "cannot recover empty decompose output",
+    };
+  }
+
+  const direct = parseDecomposeResponse(failedParse);
+  if (direct.ok) {
+    return {
+      recovered: true,
+      composedDecompose: failedParse,
+      blocks: direct.data.blocks,
+      blockCount: direct.data.blocks.length,
+      parseErrors,
+      detail: `direct parse succeeded with ${direct.data.blocks.length} blocks`,
+    };
+  }
+
+  let blocks = [...(hints.blocks ?? [])];
+  let reasoning = hints.reasoning;
+  const confidence = hints.confidence ?? 0.75;
+
+  const reasoningMatch = failedParse.match(
+    /REASONING:\s*(.+?)(?:\n(?:OUTPUT|Block\s*\d|CONFIDENCE|DEPENDENCIES|\d+\.)|$)/is,
+  );
+  if (reasoningMatch && !reasoning) {
+    reasoning = reasoningMatch[1].trim();
+  }
+
+  for (const line of failedParse.split("\n")) {
+    const candidate = line.trim();
+    if (!candidate) continue;
+
+    const blockMatch = candidate.match(INFORMAL_BLOCK_LINE);
+    if (blockMatch) {
+      blocks.push(blockMatch[2].trim());
+      continue;
+    }
+
+    const numberedMatch = candidate.match(/^(\d+)\.\s*(.+)$/);
+    if (numberedMatch) {
+      blocks.push(numberedMatch[2].trim());
+      continue;
+    }
+
+    const bulletMatch = candidate.match(/^[-*•]\s*(.+)$/);
+    if (bulletMatch && bulletMatch[1].length > 5) {
+      blocks.push(bulletMatch[1].trim());
+    }
+  }
+
+  blocks = [...new Set(blocks.map(block => block.trim()).filter(block => block.length > 0))];
+  if (blocks.length > 8) {
+    blocks = blocks.slice(0, 8);
+  }
+
+  if (blocks.length === 0) {
+    const looseLines = failedParse
+      .split("\n")
+      .map(line => line.trim())
+      .filter(
+        line =>
+          line.length >= 10 &&
+          !/^(REASONING|OUTPUT|CONFIDENCE|DEPENDENCIES|Here are the steps)/i.test(line),
+      );
+    if (looseLines.length > 0) {
+      blocks = looseLines.slice(0, 8);
+      parseErrors.push("informal_block_extraction");
+    } else {
+      parseErrors.push("missing_blocks");
+      blocks = ["Recovered block pending strategist refinement"];
+    }
+  }
+
+  const outputLines = blocks.map((block, index) => {
+    const cleaned = block.replace(/^Block\s*\d+\s*:\s*/i, "");
+    return `Block ${index + 1}: ${cleaned}`;
+  });
+
+  const composedDecompose = [
+    `REASONING: ${reasoning ?? "Recovered from failed decompose parse"}`,
+    "OUTPUT:",
+    ...outputLines,
+    "DEPENDENCIES: none",
+    `CONFIDENCE: ${confidence}`,
+  ].join("\n");
+
+  const parsed = parseDecomposeResponse(composedDecompose);
+  const recovered = parsed.ok === true && parsed.data.blocks.length >= 1;
+
+  return {
+    recovered,
+    composedDecompose: recovered ? composedDecompose : "",
+    blocks: parsed.ok ? parsed.data.blocks : blocks,
+    blockCount: parsed.ok ? parsed.data.blocks.length : blocks.length,
+    parseErrors,
+    detail: recovered
+      ? `recovered ${parsed.ok ? parsed.data.blocks.length : 0} blocks from failed parse`
+      : `recovery failed: ${parseErrors.join(", ")}`,
+  };
+}
+
+export interface StrategistIntentProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistIntentProbeMatrixValidationResult {
+  valid: boolean;
+  issues: StrategistIntentProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateStrategistIntentProbeMatrix(
+  results: StrategistIntentProbeResult[],
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): StrategistIntentProbeMatrixValidationResult {
+  const issues: StrategistIntentProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(probe => probe.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface StrategistIntentProductionSliceResult {
+  atom: "P03-B01-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: StrategistIntentProbeResult[];
+  summary: StrategistIntentProbeSummary;
+  matrixValidation: StrategistIntentProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: recoverStrategistDecompose wired to contract probe execution
+ * and matrix alignment gate with zero unexpected mismatches.
+ */
+export function runStrategistIntentProductionSlice(
+  fixture: StrategistIntentBaseline = loadStrategistIntentBaseline(),
+): StrategistIntentProductionSliceResult {
+  const contract = getActiveStrategistIntentContract();
+  const fixtureValidation = validateStrategistIntentBaseline(fixture);
+  const contractValidation = validateStrategistIntentAgainstContract(fixture, contract);
+  const results = runStrategistIntentProbes(fixture);
+  const summary = summarizeStrategistIntentMatrix(results);
+  const matrixValidation = validateStrategistIntentProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B01-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
   };
 }
 
@@ -450,7 +737,8 @@ const STRATEGIST_INTENT_CATEGORY_CONTRACTS: Record<
   recovery_path: {
     category: "recovery_path",
     acceptance: {
-      invariant: "Checkpoint resume reuses decompose blocks; structured decompose recovery is a documented gap.",
+      invariant:
+        "Checkpoint resume reuses decompose blocks; recoverStrategistDecompose restructures failed decompose parse.",
       minProbeCount: 2,
       requireFullAlignment: true,
     },
@@ -467,8 +755,8 @@ const STRATEGIST_INTENT_CATEGORY_CONTRACTS: Record<
         id: "sint.structured_decompose_recovery",
         category: "recovery_path",
         description: "recoverStrategistDecompose restructures failed decompose parse into actionable block plan",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "recovery",
         criterion: "recoverStrategistDecompose restructures failed decompose parse into actionable block plan",
       },
     ],
@@ -813,10 +1101,13 @@ export function validateStrategistIntentBaseline(
   }
 
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length < 1) {
+  const expectedFailCount = getActiveStrategistIntentContract().probes.filter(
+    p => p.expected === "FAIL",
+  ).length;
+  if (failGaps.length !== expectedFailCount) {
     issues.push({
-      kind: "missing_category",
-      detail: "A01 fixture must document at least one known FAIL gap",
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 
@@ -1096,8 +1387,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "sint.known_gaps_documented": {
+      const contract = getActiveStrategistIntentContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      return probe(id, category, expected, failCount >= 1, `documentedFail=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "sint.empty_vision_boundary": {
       const result = assessStrategistVisionInputBoundary("");
@@ -1196,8 +1496,27 @@ function probeRecoveryPath(
       return probe(id, category, expected, ok, `decomposeCheckpointResume=${ok}`);
     }
     case "sint.structured_decompose_recovery": {
-      const ok = hasProductionExport("recoverStrategistDecompose");
-      return probe(id, category, expected, ok, `recoverStrategistDecompose=${ok}`);
+      const malformed = `REASONING: Need implementation plan
+Here are the steps:
+Block 1: Setup core types
+Block 2: Wire orchestrator seam
+Block 3: Add strategist intent tests
+CONFIDENCE: 0.8`;
+      const recovery = recoverStrategistDecompose(malformed);
+      const ok =
+        hasProductionExport("recoverStrategistDecompose") &&
+        recovery.recovered === true &&
+        recovery.blockCount >= 3 &&
+        recovery.blocks.some(block => block.includes("core types")) &&
+        recovery.blocks.some(block => block.includes("orchestrator seam")) &&
+        recovery.blocks.some(block => block.includes("intent tests"));
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `recovered=${recovery.recovered}, blocks=${recovery.blockCount}, ${recovery.detail}`,
+      );
     }
     default:
       return probe(id, category, expected, false, "unknown recovery_path probe");
