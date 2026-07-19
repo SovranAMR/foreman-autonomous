@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P03-B04-A01",
+  "contractAtom": "P03-B04-A06",
+  "purpose": "Strategist dependency DAG baseline measured from sealed P03-B03 atomization block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P03-B03-A10",
+    "contractVersion": "1.0.0-a10",
+    "atomizationProbeCount": 24,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "sdag.version_tagged",
+      "category": "dag_versioning",
+      "description": "Strategist dependency DAG baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.atom_tagged",
+      "category": "dag_versioning",
+      "description": "Strategist dependency DAG baseline declares P03-B04-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.harness_version_exported",
+      "category": "dag_versioning",
+      "description": "FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION exported for dependency DAG harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.parser_block_deps",
+      "category": "block_dag",
+      "description": "parseDecomposeResponse exports blockDeps dependency graph from DEPENDENCIES field",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.prompt_block_dependencies",
+      "category": "block_dag",
+      "description": "STRATEGIST_SYSTEM prompt declares DEPENDENCIES section for block ordering",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.orchestrator_block_waves",
+      "category": "block_dag",
+      "description": "Orchestrator computeBlockWaves derives execution waves from blockDeps graph",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.task_topological_sort",
+      "category": "block_dag",
+      "description": "TaskManager topologicalSort orders block tasks by dependsOn edges",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.parser_atom_deps",
+      "category": "atom_dag",
+      "description": "parseAtomizeResponse exports atomDeps dependency graph from atomize output",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sdag.prompt_atom_dependencies",
+      "category": "atom_dag",
+      "description": "STRATEGIST_SYSTEM prompt declares ATOM DEPENDENCIES section for atom ordering",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sdag.orchestrator_atom_waves",
+      "category": "atom_dag",
+      "description": "Orchestrator computeAtomWaves derives execution waves from atom dependency graph",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sdag.b03_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P03_B03_TO_B04_HANDOFF_V1 targets P03-B04-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.b03_sealed_atomization_probes",
+      "category": "baseline_link",
+      "description": "P03-B03→B04 handoff sealed probeCount matches active atomization contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P03-B03 atomization block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.probe_runner_exported",
+      "category": "boundary",
+      "description": "runStrategistDependencyDagProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL dependency DAG gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.out_of_range_dep_filtered",
+      "category": "boundary",
+      "description": "parseBlockDependencies filters out-of-range and self-referential block indices",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateStrategistDependencyDagBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.min_category_probes",
+      "category": "failure_path",
+      "description": "validateStrategistDependencyDagBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.recovery_dag_repair",
+      "category": "recovery_path",
+      "description": "recoverStrategistDependencyDag restructures malformed dependency graph into valid DAG plan",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sdag.recovery_missing_deps_fallback",
+      "category": "recovery_path",
+      "description": "Dependency recovery falls back when DEPENDENCIES field is missing from decompose output",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sdag.nogo_cycle_block_halt",
+      "category": "nogo_path",
+      "description": "Pipeline halts decompose when block dependency graph contains a cycle",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sdag.nogo_invalid_dep_graph",
+      "category": "nogo_path",
+      "description": "NO-GO gate rejects run when dependency graph references non-existent block indices",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sdag.exported_dag_validator",
+      "category": "nogo_path",
+      "description": "validateStrategistDependencyDag exported for orchestrator dependency graph checks",
+      "expected": "FAIL"
+    }
+  ]
+}

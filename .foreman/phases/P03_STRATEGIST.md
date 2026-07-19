@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 3
-completed_atoms: 30
+completed_atoms: 31
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -54,7 +54,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P03-B04 — Dependency DAG
 
-- [ ] P03-B04-A01 — Dependency DAG: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P03-B04-A01 — Dependency DAG: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P03-B04-A02 — Dependency DAG: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B04-A03 — Dependency DAG: en küçük üretim dikey dilimini uygula
 - [ ] P03-B04-A04 — Dependency DAG: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B03-A10
-last_commit: 5602a6f
-tests: PASS — forge-p03-strategist-atomization*.test.ts (48/48); block gate 7/7; handoff→P03-B04
-evidence: runStrategistAtomizationBlockGate; validateStrategistAtomizationBlockHandoffContract; verifyForgeStrategistAtomizationBlockGate
-next: P03-B04-A01
+last_atom: P03-B04-A01
+last_commit: 39e16f5
+tests: PASS — forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); 23 probes; 8 FAIL gaps; B03 handoff aligned
+evidence: loadStrategistDependencyDagBaseline; validateStrategistDependencyDagBaseline; runStrategistDependencyDagProbes
+next: P03-B04-A02
