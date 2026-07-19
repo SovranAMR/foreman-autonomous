@@ -23,7 +23,7 @@ import { TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
-export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a07";
+export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a08";
 
 export const EXPECTED_P05_B01_SEALED_ATOM_COUNT = 10;
 
@@ -2934,3 +2934,297 @@ export function runWorkerFilesystemGroundingPropertyFuzzSlice(
     runRecordFuzz,
   };
 }
+
+// ─── Forge integration regression (P05-B02-A08) ─────────────────────────────
+
+export interface WorkerFilesystemGroundingProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare worker filesystem grounding run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectWorkerFilesystemGroundingProbeRegression(
+  prior: WorkerFilesystemGroundingRunRecord,
+  current: WorkerFilesystemGroundingRunRecord,
+): WorkerFilesystemGroundingProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+export interface WorkerFilesystemGroundingIntegrationSliceResult {
+  atom: "P05-B02-A08";
+  passed: boolean;
+  productionSlice: WorkerFilesystemGroundingProductionSliceResult;
+  boundarySlice: WorkerFilesystemGroundingBoundarySliceResult;
+  failureRecoverySlice: WorkerFilesystemGroundingFailureRecoverySliceResult;
+  evidenceSlice: WorkerFilesystemGroundingEvidenceSliceResult;
+  propertyFuzzSlice: WorkerFilesystemGroundingPropertyFuzzSliceResult;
+  record: WorkerFilesystemGroundingRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: WorkerFilesystemGroundingProbeRegressionReport | null;
+  matrixValid: boolean;
+  matrixValidation: WorkerFilesystemGroundingIntegrationProbeMatrixValidationResult;
+  detail: string;
+}
+
+export interface WorkerFilesystemGroundingIntegrationProbeMatrixValidationResult {
+  valid: boolean;
+  issues: WorkerFilesystemGroundingProbeMatrixValidationIssue[];
+  slicesAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate integration slice sub-gates — all prior A03–A07 slices with zero unexpected mismatches.
+ */
+export function validateWorkerFilesystemGroundingIntegrationProbeMatrix(
+  slice: WorkerFilesystemGroundingIntegrationSliceResult,
+): WorkerFilesystemGroundingIntegrationProbeMatrixValidationResult {
+  const issues: WorkerFilesystemGroundingProbeMatrixValidationIssue[] = [];
+  let slicesAligned = 0;
+  let unexpectedMismatches = 0;
+
+  if (slice.atom !== "P05-B02-A08") {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: `slice atom=${slice.atom} expected=P05-B02-A08`,
+    });
+    unexpectedMismatches++;
+  }
+
+  const sliceChecks: Array<{ name: string; ok: boolean; detail: string }> = [
+    {
+      name: "production",
+      ok:
+        slice.productionSlice.matrixValid &&
+        slice.productionSlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `production unexpected=${slice.productionSlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "boundary",
+      ok:
+        slice.boundarySlice.matrixValid &&
+        slice.boundarySlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `boundary unexpected=${slice.boundarySlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "failure_recovery",
+      ok:
+        slice.failureRecoverySlice.matrixValid &&
+        slice.failureRecoverySlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `failureRecovery unexpected=${slice.failureRecoverySlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "evidence",
+      ok:
+        slice.evidenceSlice.matrixValid &&
+        slice.evidenceSlice.recordValid &&
+        slice.evidenceSlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `evidence unexpected=${slice.evidenceSlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "property_fuzz",
+      ok:
+        slice.propertyFuzzSlice.propertyChecksPassed &&
+        slice.propertyFuzzSlice.contractFuzzRejected &&
+        slice.propertyFuzzSlice.runRecordFuzzRejected,
+      detail: `propertyFuzz properties=${slice.propertyFuzzSlice.propertyResult.passed}/${slice.propertyFuzzSlice.propertyResult.total}`,
+    },
+    {
+      name: "record",
+      ok: slice.recordValid && slice.record.summary.mismatches === 0,
+      detail: `record mismatches=${slice.record.summary.mismatches}`,
+    },
+  ];
+
+  for (const check of sliceChecks) {
+    if (check.ok) {
+      slicesAligned++;
+    } else {
+      issues.push({ kind: "pass_mismatch", detail: `${check.name}: ${check.detail}` });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (slice.probeRegression?.hasRegression) {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: `probe regression: ${slice.probeRegression.summary}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  if (!slice.priorRecordValid && slice.probeRegression !== null) {
+    issues.push({ kind: "pass_mismatch", detail: "prior record validation failed" });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    slicesAligned,
+    unexpectedMismatches,
+  };
+}
+
+/**
+ * A08 integration slice: wire production, boundary, failure/recovery, evidence and property/fuzz
+ * gates with full run record and optional prior-run regression detection — zero unexpected mismatches.
+ */
+export function runWorkerFilesystemGroundingIntegrationSlice(
+  priorRecord?: WorkerFilesystemGroundingRunRecord,
+): WorkerFilesystemGroundingIntegrationSliceResult {
+  const fixture = loadWorkerFilesystemGroundingBaseline();
+  const contract = getActiveWorkerFilesystemGroundingContract();
+  const productionSlice = runWorkerFilesystemGroundingProductionSlice(fixture);
+  const boundarySlice = runWorkerFilesystemGroundingBoundarySlice(fixture);
+  const failureRecoverySlice = runWorkerFilesystemGroundingFailureRecoverySlice(fixture);
+  const evidenceSlice = runWorkerFilesystemGroundingEvidenceSlice(fixture);
+  const propertyFuzzSlice = runWorkerFilesystemGroundingPropertyFuzzSlice(fixture);
+  const record = runWorkerFilesystemGroundingProbesWithRecord(fixture);
+  const validation = validateWorkerFilesystemGroundingRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateWorkerFilesystemGroundingRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectWorkerFilesystemGroundingProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const boundarySliceOk =
+    boundarySlice.matrixValid && boundarySlice.matrixValidation.unexpectedMismatches === 0;
+  const failureRecoverySliceOk =
+    failureRecoverySlice.matrixValid &&
+    failureRecoverySlice.matrixValidation.unexpectedMismatches === 0;
+  const evidenceSliceOk =
+    evidenceSlice.matrixValid &&
+    evidenceSlice.recordValid &&
+    evidenceSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk &&
+    boundarySliceOk &&
+    failureRecoverySliceOk &&
+    evidenceSliceOk &&
+    propertyFuzzOk &&
+    recordValid &&
+    priorRecordValid &&
+    !alignmentRegression;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  detailParts.push(`boundarySlice: unexpected=${boundarySlice.matrixValidation.unexpectedMismatches}`);
+  detailParts.push(
+    `failureRecoverySlice: unexpected=${failureRecoverySlice.matrixValidation.unexpectedMismatches}`,
+  );
+  detailParts.push(`evidenceSlice: unexpected=${evidenceSlice.matrixValidation.unexpectedMismatches}`);
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(`priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+
+  const partial: WorkerFilesystemGroundingIntegrationSliceResult = {
+    atom: "P05-B02-A08",
+    passed,
+    productionSlice,
+    boundarySlice,
+    failureRecoverySlice,
+    evidenceSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    matrixValid: false,
+    matrixValidation: {
+      valid: false,
+      issues: [],
+      slicesAligned: 0,
+      unexpectedMismatches: 0,
+    },
+    detail: detailParts.join(" | "),
+  };
+
+  const matrixValidation = validateWorkerFilesystemGroundingIntegrationProbeMatrix(partial);
+  return {
+    ...partial,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    matrixValidation,
+    passed: passed && matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    detail:
+      passed && matrixValidation.valid
+        ? detailParts.join(" | ")
+        : `${detailParts.join(" | ")} | integrationMatrix: unexpected=${matrixValidation.unexpectedMismatches}`,
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P05-B02-A08). */
+export const runWorkerFilesystemGroundingRegressionIntegration =
+  runWorkerFilesystemGroundingIntegrationSlice;
