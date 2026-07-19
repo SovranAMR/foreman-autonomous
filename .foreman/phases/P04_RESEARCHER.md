@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B06-A01
-last_commit: pending
+last_commit: 2eacf1a
 tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (7/7); 23-probe matrix with 2 documented FAIL gaps; B05 handoff contract validated
 evidence: forge-researcher-contradiction-freshness-v1.json + forge-p04-researcher-contradiction-freshness.ts + assessContradictionFreshnessInputBoundary + recoverContradictionFreshnessEvidence + runResearcherContradictionFreshnessProbes
 next: P04-B06-A02

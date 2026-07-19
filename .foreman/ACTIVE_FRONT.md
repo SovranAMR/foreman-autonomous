@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B06-A01
-last_commit: pending
+last_commit: 2eacf1a
 tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (7/7); 23-probe matrix; 2 FAIL gaps aligned
 evidence: forge-researcher-contradiction-freshness-v1.json + forge-p04-researcher-contradiction-freshness.ts + runResearcherContradictionFreshnessProbes + B05 handoff validation
 next: P04-B06-A02
