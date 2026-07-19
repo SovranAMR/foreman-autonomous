@@ -11,7 +11,12 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import researcherInRepoEvidenceBaseline from "./fixtures/forge-researcher-in-repo-evidence-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP04B01ToB02Handoff,
   getActiveResearcherQuestionDecompositionContract,
@@ -3244,4 +3249,245 @@ export function runResearcherInRepoEvidenceProbes(
       fixture,
     ),
   );
+}
+
+// ─── Block gate and handoff (P04-B02-A10) ─────────────────────────────────────
+
+export interface ResearcherInRepoEvidenceBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface ResearcherInRepoEvidenceBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    inRepoEvidenceCategories: readonly ResearcherInRepoEvidenceCategory[];
+    sourceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    inRepoEvidenceRecordRequired: true;
+  };
+}
+
+export const FORGE_P04_B02_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P04-B02-A10",
+  blockId: "P04-B02",
+  title: "Repo içi kanıt toplama",
+  requiredAtomIds: [
+    "P04-B02-A01",
+    "P04-B02-A02",
+    "P04-B02-A03",
+    "P04-B02-A04",
+    "P04-B02-A05",
+    "P04-B02-A06",
+    "P04-B02-A07",
+    "P04-B02-A08",
+    "P04-B02-A09",
+    "P04-B02-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P04-B02-A01",
+      description:
+        "In-repo evidence baseline aligns with typed contract and P04-B01 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P04-B02-A02",
+      description: "Contract declares measurable probes for all in-repo evidence categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P04-B02-A03",
+      description: "In-repo evidence probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P04-B02-A04",
+      description:
+        "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P04-B02-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P04-B02-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P04-B02-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P04-B02-A08",
+      description: "Regression gate passes on canonical in-repo evidence matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P04-B02-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P04-B02-A10",
+      description: "Block gate evidence sealed with valid B03 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P04_B02_TO_B03_HANDOFF_V1: ResearcherInRepoEvidenceBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P04-B02-A10",
+  sourceBlock: {
+    blockId: "P04-B02",
+    title: "Repo içi kanıt toplama",
+    completedAtoms: FORGE_P04_B02_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P04-B03",
+    title: "Web ve primary-source araştırma",
+    entryAtom: "P04-B03-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1.version,
+    harnessVersion: FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION,
+    probeCount: summarizeResearcherInRepoEvidenceContractCoverage(
+      FORGE_RESEARCHER_IN_REPO_EVIDENCE_CONTRACT_V1,
+    ).totalProbes,
+    inRepoEvidenceCategories: RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES,
+    sourceBlockGateAtom: "P04-B01-A10",
+  },
+  prerequisites: [
+    "In-repo evidence contract v1 with measurable repo signal, citation and guard probes",
+    "Versioned in-repo evidence baseline aligned to contract probe matrix and sealed P04-B01 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P04-B01 question decomposition block gate referenced by sourceBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P04-B03-A01 formalizes web and primary-source research using sealed in-repo evidence artifacts",
+    requiresBlockGatePass: true,
+    inRepoEvidenceRecordRequired: true,
+  },
+};
+
+export function getForgeP04B02BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P04_B02_BLOCK_GATE_V1;
+}
+
+export function getForgeP04B02ToB03Handoff(): ResearcherInRepoEvidenceBlockHandoffContract {
+  return FORGE_P04_B02_TO_B03_HANDOFF_V1;
+}
+
+export function validateResearcherInRepoEvidenceBlockHandoffContract(
+  handoff: ResearcherInRepoEvidenceBlockHandoffContract,
+  evidence: Pick<
+    ResearcherInRepoEvidenceBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeResearcherInRepoEvidenceContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_RESEARCHER_IN_REPO_EVIDENCE_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.inRepoEvidenceCategories.length !==
+    RESEARCHER_IN_REPO_EVIDENCE_CATEGORIES.length
+  ) {
+    issues.push("handoff inRepoEvidenceCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceBlockGateAtom !== "P04-B01-A10") {
+    issues.push(`unexpected source block gate atom: ${handoff.sealedArtifacts.sourceBlockGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P04-B03-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildResearcherInRepoEvidenceBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P04_B02_BLOCK_GATE_V1.blockId,
+): ResearcherInRepoEvidenceBlockGateEvidence {
+  const handoff = getForgeP04B02ToB03Handoff();
+  const handoffValid = validateResearcherInRepoEvidenceBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P04-B02-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
 }

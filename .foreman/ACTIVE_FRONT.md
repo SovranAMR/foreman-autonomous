@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
-active_block: P04-B02
-active_atom: P04-B02-A10
+active_block: P04-B03
+active_atom: P04-B03-A01
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 319/1000
-phase_progress: 19/100
-block_progress: 8/10
+program_progress: 320/1000
+phase_progress: 20/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B02-A10 — Repo içi kanıt toplama: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P04-B03-A01 — Web ve primary-source araştırma: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P04-B02-A09 PASS; seal in-repo evidence block gate and emit B03 handoff.
-target: block gate runner, orchestrator block gate hook, B03 handoff contract.
-hypothesis: Block gate passes on canonical matrix + guard + regression; handoff exposes B03 entry atom.
-acceptance: block gate PASS; orchestrator block gate verification emits event; B03 handoff sealed.
+objective: P04-B02-A10 PASS; measure web/primary-source research behavior and create failing baseline fixture.
+target: web research engine, primary-source fetch, baseline fixture v1.
+hypothesis: Current web/primary-source paths expose measurable gaps via typed baseline probes.
+acceptance: baseline fixture loads; probes run; at least one documented FAIL gap remains before A03 slice.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
-blast_radius: src/forge-p04-researcher-in-repo-evidence*.ts
-rollback: P04-B02-A10 block gate slice değişikliklerini geri al.
+blast_radius: src/forge-p04-researcher-web-primary-source*.ts
+rollback: P04-B03-A01 baseline slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B02-A09
-last_commit: ec78dc5
-tests: PASS — forge-p04-researcher*.test.ts (106/106); guard adversarial=3/3; perf/cost/safety PASS; orchestrator guard verification PASS
-evidence: validateForgeResearcherInRepoEvidenceGuard; runResearcherInRepoEvidenceAdversarialGuardChecks; verifyForgeResearcherInRepoEvidenceGuard; forge-p04-researcher-in-repo-evidence.guard.test.ts
-next: P04-B02-A10
+last_atom: P04-B02-A10
+last_commit: b0253ed
+tests: PASS — forge-p04-researcher*.test.ts (113/113); block gate seals=10/10; handoff→P04-B03; orchestrator block gate verification PASS
+evidence: runResearcherInRepoEvidenceBlockGate; getForgeP04B02ToB03Handoff; verifyForgeResearcherInRepoEvidenceBlockGate; forge-p04-researcher-in-repo-evidence-block-gate.test.ts
+next: P04-B03-A01
