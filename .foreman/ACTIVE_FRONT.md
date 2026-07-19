@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B04
-active_atom: P02-B04-A01
+active_atom: P02-B04-A02
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 129/1000
-phase_progress: 29/100
-block_progress: 0/10
+program_progress: 130/1000
+phase_progress: 30/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B04-A01 — Repo ve kullanıcı bağlamı grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P02-B04-A02 — Repo ve kullanıcı bağlamı grounding: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P02-B03 block gate sealed; B04 baseline measurement next.
-target: Measure repo/user context grounding baseline from sealed P02-B03 synthesis block gate artifacts.
-hypothesis: Sealed synthesis handoff provides stable anchor for B04 baseline without scope creep.
-acceptance: baseline fixture loads, probes run with documented gaps, contract alignment validated.
-commands: npx tsx --test src/forge-p02-*.test.ts
-blast_radius: src/forge-p02-visioner-grounding.ts, src/forge-p02-visioner-grounding.probe.ts
-rollback: P02-B04-A01 baseline değişikliklerini geri al.
+objective: P02-B04-A01 baseline sealed; typed contract coverage next.
+target: Declare measurable grounding contract probes aligned to baseline fixture matrix.
+hypothesis: A01 baseline matrix provides stable probe ids for A02 contract declaration.
+acceptance: contract declares all categories, coverage validates, zero unexpected mismatches.
+commands: npx tsx --test src/forge-p02-visioner-grounding*.test.ts
+blast_radius: src/forge-p02-visioner-grounding.ts
+rollback: P02-B04-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
+fallback: contract cannot align to baseline without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B03-A10
-last_commit: 7a1c984
-tests: PASS — forge-p02-visioner-synthesis-block-gate.test.ts (6/6); forge-p02-visioner-synthesis*.test.ts (40/40); forge-p02-*.test.ts (129/129)
-evidence: runVisionerSynthesisBlockGate passed=true handoffValid=true regression=PASS guard=PASS handoff→P02-B04 entry=P02-B04-A01; harnessVersion=1.0.0-a10
-next: P02-B04-A01
+last_atom: P02-B04-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-*.test.ts (132/132)
+evidence: runVisionerGroundingProbes aligned=22/23 knownGap=vgrd.structured_grounding_recovery handoff→P02-B03-A10; harnessVersion=1.0.0-a01
+next: P02-B04-A02

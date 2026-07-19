@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 28
+completed_atoms: 29
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -54,7 +54,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P02-B04 — Repo ve kullanıcı bağlamı grounding
 
-- [ ] P02-B04-A01 — Repo ve kullanıcı bağlamı grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P02-B04-A01 — Repo ve kullanıcı bağlamı grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P02-B04-A02 — Repo ve kullanıcı bağlamı grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B04-A03 — Repo ve kullanıcı bağlamı grounding: en küçük üretim dikey dilimini uygula
 - [ ] P02-B04-A04 — Repo ve kullanıcı bağlamı grounding: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B03-A10
-last_commit: 7a1c984
-tests: PASS — forge-p02-visioner-synthesis-block-gate.test.ts (6/6); forge-p02-visioner-synthesis*.test.ts (40/40); forge-p02-*.test.ts (129/129)
-evidence: runVisionerSynthesisBlockGate passed=true handoffValid=true regression=PASS guard=PASS handoff→P02-B04 entry=P02-B04-A01; harnessVersion=1.0.0-a10
-next: P02-B04-A01
+last_atom: P02-B04-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-*.test.ts (132/132)
+evidence: runVisionerGroundingProbes aligned=22/23 knownGap=vgrd.structured_grounding_recovery handoff→P02-B03-A10; harnessVersion=1.0.0-a01
+next: P02-B04-A02

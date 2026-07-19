@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B04-A01",
+  "contractAtom": "P02-B04-A05",
+  "purpose": "Repo and user context grounding baseline measured from sealed P02-B03 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P02-B03-A10",
+    "contractVersion": "1.0.0",
+    "visionerSynthesisProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "vgrd.version_tagged",
+      "category": "grounding_versioning",
+      "description": "Visioner grounding baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.atom_tagged",
+      "category": "grounding_versioning",
+      "description": "Visioner grounding baseline declares P02-B04-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.harness_version_exported",
+      "category": "grounding_versioning",
+      "description": "FORGE_VISIONER_GROUNDING_VERSION exported for grounding harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.orchestrator_project_context",
+      "category": "repo_signal",
+      "description": "Orchestrator vision phase injects formatProjectContext into vision prompt",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.project_detector_exported",
+      "category": "repo_signal",
+      "description": "project-detector exports detectProject and formatProjectContext for repo grounding",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.vision_prompt_project_wiring",
+      "category": "repo_signal",
+      "description": "buildVisionPromptForDepth receives projectContext from orchestrator vision phase",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.identity_context_injection",
+      "category": "user_signal",
+      "description": "Orchestrator vision phase injects identity buildContextInjection into vision prompt",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.prompt_context_sections",
+      "category": "user_signal",
+      "description": "VISIONER_SYSTEM prompt declares PROJECT MEMORY, SESSION CONTEXT and IDENTITY CONTEXT sections",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.build_context_text_session",
+      "category": "user_signal",
+      "description": "buildContextText injects sessionContext into thought prompts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.b03_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_B03_TO_B04_HANDOFF_V1 targets P02-B04-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.b03_sealed_synthesis_probes",
+      "category": "baseline_link",
+      "description": "P02-B03→B04 handoff sealed probeCount matches active visioner synthesis contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02-B03 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerGroundingProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL grounding gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.empty_context_boundary",
+      "category": "boundary",
+      "description": "assessVisionerGroundingInputBoundary rejects empty context input",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.whitespace_context_boundary",
+      "category": "boundary",
+      "description": "assessVisionerGroundingInputBoundary rejects whitespace-only context input",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.long_context_truncation_boundary",
+      "category": "boundary",
+      "description": "assessVisionerGroundingInputBoundary truncates context exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerGroundingBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.malformed_context_guard",
+      "category": "failure_path",
+      "description": "assessVisionerGroundingPresence rejects null-byte context input safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.vision_checkpoint_grounding",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses checkpoint vision output while preserving grounding wiring",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.structured_grounding_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerGrounding restructures failed context parse into actionable repo/user grounding",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vgrd.intent_ambiguity_nogo",
+      "category": "nogo_path",
+      "description": "Orchestrator blocks ambiguous tasks before vision when grounding signals are insufficient",
+      "expected": "PASS"
+    },
+    {
+      "id": "vgrd.reflection_memory_context",
+      "category": "nogo_path",
+      "description": "Reflection prompt declares MEMORY context for vision-aware grounding checks",
+      "expected": "PASS"
+    }
+  ]
+}
