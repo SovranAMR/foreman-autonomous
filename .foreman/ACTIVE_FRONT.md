@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B07
-active_atom: P01-B07-A04
+active_atom: P01-B07-A05
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 62/1000
-phase_progress: 61/100
-block_progress: 3/10
+program_progress: 63/1000
+phase_progress: 62/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B07-A04 — Reproducible fixture sistemi: boundary ve edge-case davranışlarını tamamla.
+P01-B07-A05 — Reproducible fixture sistemi: failure, recovery ve NO-GO yollarını uygula.
 
-objective: A03 production slice üzerine boundary ve edge-case davranışlarını uygula.
-target: runReproducibleFixtureBoundarySlice; contract-wired boundary probe execution.
-hypothesis: Boundary slice closes edge-case gaps without regressions on PASS probes.
-acceptance: boundary slice test PASS; contract alignment preserved.
+objective: A04 boundary slice üzerine failure/recovery/NO-GO davranışlarını uygula.
+target: runReproducibleFixtureFailureRecoverySlice; contract-wired failure/recovery/NO-GO probe execution.
+hypothesis: Failure/recovery slice closes path gaps without regressions on PASS probes.
+acceptance: failure/recovery slice test PASS; contract alignment preserved.
 commands: npx tsx --test src/forge-reproducible-fixture-baseline.test.ts
 blast_radius: forge-reproducible-fixture*.ts
-rollback: A04 boundary slice değişikliklerini geri al.
+rollback: A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
 fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B07-A03
+last_atom: P01-B07-A04
 last_commit: pending
-tests: PASS — forge-reproducible-fixture-baseline.test.ts (11/11)
-evidence: runReproducibleFixtureProductionSlice; validateReproducibleFixtureProbeMatrix; canonicalFixtureHash SHA-256; fix.canonical_fixture_hash gap closed (7→6 documented FAIL gaps)
-next: P01-B07-A04
+tests: PASS — forge-reproducible-fixture-baseline.test.ts (14/14)
+evidence: runReproducibleFixtureBoundarySlice; validateReproducibleFixtureBoundaryProbeMatrix; boundaryProbeCount=3; matrixValid=true; unexpectedMismatches=0
+next: P01-B07-A05

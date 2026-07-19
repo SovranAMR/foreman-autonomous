@@ -18,8 +18,10 @@ import {
   SEALED_FORGE_FIXTURE_FILES,
   validateReproducibleFixtureBaseline,
   getActiveReproducibleFixtureContract,
+  listReproducibleFixtureProbesByCategory,
   canonicalFixtureHash,
   validateReproducibleFixtureProbeMatrix,
+  validateReproducibleFixtureBoundaryProbeMatrix,
   summarizeReproducibleFixtureMatrix,
   validateReproducibleFixtureBaselineAgainstContract,
   type ReproducibleFixtureBaseline,
@@ -44,6 +46,7 @@ export {
   validateReproducibleFixtureContractCoverage,
   validateReproducibleFixtureBaselineAgainstContract,
   validateReproducibleFixtureProbeMatrix,
+  validateReproducibleFixtureBoundaryProbeMatrix,
   canonicalFixtureHash,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
   SEALED_FORGE_FIXTURE_FILES,
@@ -565,6 +568,39 @@ export function runReproducibleFixtureProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface ReproducibleFixtureBoundarySliceResult {
+  atom: "P01-B07-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ReproducibleFixtureProbeResult[];
+  boundaryResults: ReproducibleFixtureProbeResult[];
+  matrixValidation: ReproducibleFixtureProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (sourceBenchmarkEval ref,
+ * probe runner, known gaps) with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runReproducibleFixtureBoundarySlice(
+  fixture: ReproducibleFixtureBaseline = loadReproducibleFixtureBaseline(),
+): ReproducibleFixtureBoundarySliceResult {
+  const contract = getActiveReproducibleFixtureContract();
+  const results = runReproducibleFixtureProbes(fixture);
+  const boundaryProbes = listReproducibleFixtureProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateReproducibleFixtureBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B07-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

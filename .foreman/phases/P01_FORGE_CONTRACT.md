@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 61
+completed_atoms: 62
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -96,7 +96,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B07-A01 — Reproducible fixture sistemi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P01-B07-A02 — Reproducible fixture sistemi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B07-A03 — Reproducible fixture sistemi: en küçük üretim dikey dilimini uygula
-- [ ] P01-B07-A04 — Reproducible fixture sistemi: boundary ve edge-case davranışlarını tamamla
+- [x] P01-B07-A04 — Reproducible fixture sistemi: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B07-A05 — Reproducible fixture sistemi: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B07-A06 — Reproducible fixture sistemi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B07-A07 — Reproducible fixture sistemi: unit, property ve fuzz doğrulamasını ekle
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B07-A03
+last_atom: P01-B07-A04
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (11/11)
+tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (14/14)
 evidence: |
-  P01-B07-A03 production slice: runReproducibleFixtureProductionSlice + validateReproducibleFixtureProbeMatrix;
-  canonicalFixtureHash SHA-256 over fixture content; fix.canonical_fixture_hash gap closed (15 PASS / 6 documented FAIL gaps);
-  matrixValid=true, unexpectedMismatches=0, contract alignment preserved.
-next: P01-B07-A04
+  P01-B07-A04 boundary slice: runReproducibleFixtureBoundarySlice + validateReproducibleFixtureBoundaryProbeMatrix;
+  boundaryProbeCount=3 (fix.source_benchmark_eval_ref, fix.probe_runner_exported, fix.known_gaps_documented);
+  matrixValid=true, unexpectedMismatches=0, passAligned=3; sealed B06 handoff ref and documented FAIL gaps validated.
+next: P01-B07-A05

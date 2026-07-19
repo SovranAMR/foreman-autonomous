@@ -14,7 +14,7 @@ import {
   BENCHMARK_EVAL_CATEGORIES,
 } from "./forge-benchmark-eval-harness.js";
 
-export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a03";
+export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a04";
 
 export const REPRODUCIBLE_FIXTURE_CATEGORIES = [
   "fixture_versioning",
@@ -911,4 +911,26 @@ export function validateReproducibleFixtureProbeMatrix(
     gapAligned,
     unexpectedMismatches,
   };
+}
+
+/**
+ * Validate boundary category probe matrix — A04 slice gate.
+ * PASS boundary probes must align; documented FAIL gaps in boundary category preserved.
+ */
+export function validateReproducibleFixtureBoundaryProbeMatrix(
+  results: ReproducibleFixtureProbeResult[],
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixtureProbeMatrixValidationResult {
+  const boundaryProbes = listReproducibleFixtureProbesByCategory("boundary", contract);
+  const boundaryContract: ReproducibleFixtureContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateReproducibleFixtureProbeMatrix(boundaryResults, boundaryContract);
 }

@@ -4,6 +4,7 @@ import {
   loadReproducibleFixtureBaseline,
   runReproducibleFixtureProbes,
   runReproducibleFixtureProductionSlice,
+  runReproducibleFixtureBoundarySlice,
   validateReproducibleFixtureBaseline,
   summarizeReproducibleFixtureMatrix,
   listReproducibleFixtureProbesByExpected,
@@ -12,10 +13,12 @@ import {
   getReproducibleFixtureCategoryContract,
   listReproducibleFixtureContractProbeIds,
   listReproducibleFixtureProbesByDisposition,
+  listReproducibleFixtureProbesByCategory,
   summarizeReproducibleFixtureContractCoverage,
   validateReproducibleFixtureContractCoverage,
   validateReproducibleFixtureBaselineAgainstContract,
   validateReproducibleFixtureProbeMatrix,
+  validateReproducibleFixtureBoundaryProbeMatrix,
   canonicalFixtureHash,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
 } from "./forge-reproducible-fixture.probe.js";
@@ -255,5 +258,71 @@ describe("Forge Reproducible Fixture Production Slice — P01-B07-A03", () => {
     assert.equal(closedGap!.expected, "PASS");
     assert.equal(closedGap!.actual, "PASS");
     assert.equal(closedGap!.aligned, true);
+  });
+});
+
+describe("Forge Reproducible Fixture Boundary Slice — P01-B07-A04", () => {
+  it("defines boundary category with sourceBenchmarkEval ref and probe runner probes", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    const boundary = listReproducibleFixtureProbesByCategory("boundary", contract);
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 3);
+    assert.deepEqual(ids, [
+      "fix.known_gaps_documented",
+      "fix.probe_runner_exported",
+      "fix.source_benchmark_eval_ref",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+    assert.ok(boundary.every(p => p.disposition === "observed"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    const slice = runReproducibleFixtureBoundarySlice();
+
+    assert.equal(slice.atom, "P01-B07-A04");
+    assert.equal(slice.boundaryProbeCount, 3);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 3);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 3);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listReproducibleFixtureProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateReproducibleFixtureBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("confirms boundary probes validate sealed B06 handoff and documented FAIL gaps", () => {
+    const slice = runReproducibleFixtureBoundarySlice();
+    const sourceRef = slice.boundaryResults.find(r => r.id === "fix.source_benchmark_eval_ref");
+    const probeRunner = slice.boundaryResults.find(r => r.id === "fix.probe_runner_exported");
+    const knownGaps = slice.boundaryResults.find(r => r.id === "fix.known_gaps_documented");
+
+    assert.ok(sourceRef);
+    assert.equal(sourceRef!.expected, "PASS");
+    assert.equal(sourceRef!.actual, "PASS");
+    assert.match(sourceRef!.detail, /probes=26/);
+
+    assert.ok(probeRunner);
+    assert.equal(probeRunner!.expected, "PASS");
+    assert.equal(probeRunner!.actual, "PASS");
+
+    assert.ok(knownGaps);
+    assert.equal(knownGaps!.expected, "PASS");
+    assert.equal(knownGaps!.actual, "PASS");
+    assert.match(knownGaps!.detail, /documentedFail=6/);
   });
 });
