@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B06-A01",
+  "contractAtom": "P02-B06-A06",
+  "purpose": "Visioner uncertainty and clarification policy baseline measured from sealed P02-B05 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P02-B05-A10",
+    "contractVersion": "1.0.0",
+    "visionerResearchTriggerProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "vunc.version_tagged",
+      "category": "uncertainty_versioning",
+      "description": "Visioner uncertainty baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.atom_tagged",
+      "category": "uncertainty_versioning",
+      "description": "Visioner uncertainty baseline declares P02-B06-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.harness_version_exported",
+      "category": "uncertainty_versioning",
+      "description": "FORGE_VISIONER_UNCERTAINTY_VERSION exported for uncertainty harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.prompt_confidence_field",
+      "category": "uncertainty_signal",
+      "description": "VISIONER_SYSTEM prompt declares CONFIDENCE output field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.parser_confidence_extract",
+      "category": "uncertainty_signal",
+      "description": "parseVisionResponse extracts CONFIDENCE numeric score from vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.engine_visioner_confidence_threshold",
+      "category": "uncertainty_signal",
+      "description": "Engine declares visioner warn/block confidence thresholds",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.visioner_uncertainty_guidance",
+      "category": "clarification_signal",
+      "description": "VISIONER_SYSTEM prompt instructs visioner to explain uncertainty below 0.7 confidence",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.assess_uncertainty_presence",
+      "category": "clarification_signal",
+      "description": "assessVisionerUncertaintyPresence detects confidence and clarification need in vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.orchestrator_low_confidence_block",
+      "category": "clarification_signal",
+      "description": "Orchestrator checkBlock emits block_detected when engine confidence level is block",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.b05_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_B05_TO_B06_HANDOFF_V1 targets P02-B06-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.b05_sealed_research_trigger_probes",
+      "category": "baseline_link",
+      "description": "P02-B05→B06 handoff sealed probeCount matches active visioner research trigger contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02-B05 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerUncertaintyProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL uncertainty gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.empty_vision_uncertainty_presence",
+      "category": "boundary",
+      "description": "assessVisionerUncertaintyInputBoundary rejects empty vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.whitespace_vision_boundary",
+      "category": "boundary",
+      "description": "assessVisionerUncertaintyInputBoundary rejects whitespace-only vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.long_vision_truncation_boundary",
+      "category": "boundary",
+      "description": "assessVisionerUncertaintyInputBoundary truncates vision exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerUncertaintyBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.malformed_vision_uncertainty_guard",
+      "category": "failure_path",
+      "description": "assessVisionerUncertaintyPresence rejects null-byte vision output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.vision_checkpoint_uncertainty_wiring",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses checkpoint vision output while preserving confidence wiring",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.structured_clarification_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerUncertaintyClarification restructures failed clarification parse into actionable request",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vunc.visioner_confidence_block_gate",
+      "category": "nogo_path",
+      "description": "Orchestrator checkBlock blocks vision phase when confidence evaluateConfidence returns block",
+      "expected": "PASS"
+    },
+    {
+      "id": "vunc.intent_ambiguity_nogo",
+      "category": "nogo_path",
+      "description": "checkVisionerIntentAmbiguity NO-GO gate blocks ambiguous tasks before vision spend",
+      "expected": "PASS"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 5
-completed_atoms: 49
+completed_atoms: 50
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -80,7 +80,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P02-B06 — Uncertainty ve clarification policy
 
-- [ ] P02-B06-A01 — Uncertainty ve clarification policy: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P02-B06-A01 — Uncertainty ve clarification policy: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P02-B06-A02 — Uncertainty ve clarification policy: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B06-A03 — Uncertainty ve clarification policy: en küçük üretim dikey dilimini uygula
 - [ ] P02-B06-A04 — Uncertainty ve clarification policy: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B05-A10
-last_commit: 713a51c
-tests: PASS — forge-p02-visioner-research-trigger-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts P02-B05-A10 (2/2)
-evidence: runForgeVisionerResearchTriggerBlockGate seals 10/10 atom seals; handoff=PASS→P02-B06; orchestrator visioner_research_trigger_block_gate verification PASS
-next: P02-B06-A01
+last_atom: P02-B06-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-uncertainty-baseline.test.ts (3/3)
+evidence: baseline fixture v1.0.0 loads; 23 probes; 1 documented FAIL gap (vunc.structured_clarification_recovery); P02-B05 handoff validated
+next: P02-B06-A02
