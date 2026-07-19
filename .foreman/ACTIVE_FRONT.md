@@ -4,7 +4,7 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B10
-active_atom: P01-B10-A01
+active_atom: P01-B10-A02
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
 program_progress: 90/1000
 phase_progress: 89/100
