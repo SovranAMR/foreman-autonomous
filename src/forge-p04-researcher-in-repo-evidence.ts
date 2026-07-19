@@ -2352,6 +2352,537 @@ export function runResearcherInRepoEvidencePropertyFuzzSlice(
   };
 }
 
+// ─── Probe regression detection (P04-B02-A08) ────────────────────────────────
+
+export interface ResearcherInRepoEvidenceProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare in-repo evidence run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectResearcherInRepoEvidenceProbeRegression(
+  prior: ResearcherInRepoEvidenceRunRecord,
+  current: ResearcherInRepoEvidenceRunRecord,
+): ResearcherInRepoEvidenceProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+export interface ResearcherInRepoEvidenceForgeRegressionResult {
+  atom: "P04-B02-A08";
+  passed: boolean;
+  productionSlice: ResearcherInRepoEvidenceProductionSliceResult;
+  propertyFuzzSlice: ResearcherInRepoEvidencePropertyFuzzSliceResult;
+  record: ResearcherInRepoEvidenceRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: ResearcherInRepoEvidenceProbeRegressionReport | null;
+  guard: ResearcherInRepoEvidenceGuardCheckResult;
+  detail: string;
+}
+
+/**
+ * Execute in-repo evidence probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P04-B02-A08).
+ */
+export function runResearcherInRepoEvidenceForgeRegression(
+  priorRecord?: ResearcherInRepoEvidenceRunRecord,
+): ResearcherInRepoEvidenceForgeRegressionResult {
+  const fixture = loadResearcherInRepoEvidenceBaseline();
+  const contract = getActiveResearcherInRepoEvidenceContract();
+  const productionSlice = runResearcherInRepoEvidenceProductionSlice(fixture);
+  const propertyFuzzSlice = runResearcherInRepoEvidencePropertyFuzzSlice(fixture);
+  const record = runResearcherInRepoEvidenceProbesWithRecord(fixture);
+  const validation = validateResearcherInRepoEvidenceRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateResearcherInRepoEvidenceRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectResearcherInRepoEvidenceProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeResearcherInRepoEvidenceGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk &&
+    recordValid &&
+    priorRecordValid &&
+    !alignmentRegression &&
+    propertyFuzzOk &&
+    guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(`priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    atom: "P04-B02-A08",
+    passed,
+    productionSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    guard,
+    detail: detailParts.join(" | "),
+  };
+}
+
+// ─── Guard controls (P04-B02-A09 foundation, used by A08 regression gate) ────
+
+export interface ForgeResearcherInRepoEvidenceGuardControls {
+  atom: string;
+  adversarial: {
+    rejectTamperedRecords: true;
+    rejectFalseAlignment: true;
+    rejectSummaryEvidenceMismatch: true;
+  };
+  performance: {
+    maxSuiteDurationMs: number;
+    maxProbeDurationMs: number;
+    maxWallClockMs: number;
+  };
+  cost: {
+    maxTotalCostUsd: number;
+    maxLlmCalls: number;
+  };
+  safety: {
+    maxDetailLength: number;
+    forbiddenPatterns: readonly RegExp[];
+  };
+}
+
+export interface ResearcherInRepoEvidenceGuardCheckIssue {
+  domain: "adversarial" | "performance" | "cost" | "safety";
+  code: string;
+  detail: string;
+}
+
+export interface ResearcherInRepoEvidenceGuardCheckResult {
+  passed: boolean;
+  issues: ResearcherInRepoEvidenceGuardCheckIssue[];
+  metrics: {
+    suiteDurationMs: number;
+    wallClockMs: number;
+    maxProbeDurationMs: number;
+    totalCostUsd: number;
+    llmCalls: number;
+    adversarialScenariosRejected: number;
+    adversarialScenariosTotal: number;
+  };
+}
+
+export interface ResearcherInRepoEvidenceAdversarialGuardScenario {
+  id: string;
+  description: string;
+  build: (record: ResearcherInRepoEvidenceRunRecord) => ResearcherInRepoEvidenceRunRecord;
+  expectRejected: true;
+}
+
+export const FORGE_RESEARCHER_IN_REPO_EVIDENCE_GUARD_CONTROLS_V1: ForgeResearcherInRepoEvidenceGuardControls =
+  {
+    atom: "P04-B02-A09",
+    adversarial: {
+      rejectTamperedRecords: true,
+      rejectFalseAlignment: true,
+      rejectSummaryEvidenceMismatch: true,
+    },
+    performance: {
+      maxSuiteDurationMs: 30_000,
+      maxProbeDurationMs: 5_000,
+      maxWallClockMs: 45_000,
+    },
+    cost: {
+      maxTotalCostUsd: 0,
+      maxLlmCalls: 0,
+    },
+    safety: {
+      maxDetailLength: 4096,
+      forbiddenPatterns: [
+        /sk-[a-zA-Z0-9]{20,}/,
+        /api[_-]?key\s*[:=]\s*\S+/i,
+        /Bearer\s+[a-zA-Z0-9._-]{20,}/i,
+        /password\s*[:=]\s*\S+/i,
+        /-----BEGIN (RSA |EC )?PRIVATE KEY-----/,
+      ],
+    },
+  };
+
+export function getForgeResearcherInRepoEvidenceGuardControls(): ForgeResearcherInRepoEvidenceGuardControls {
+  return FORGE_RESEARCHER_IN_REPO_EVIDENCE_GUARD_CONTROLS_V1;
+}
+
+function parseResearcherInRepoEvidenceIsoDurationMs(
+  startedAt: string,
+  completedAt: string,
+): number {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(completedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
+  return end - start;
+}
+
+export function summarizeResearcherInRepoEvidenceTelemetry(
+  telemetry: ResearcherInRepoEvidenceProbeTelemetry[],
+): {
+  suiteDurationMs: number;
+  maxProbeDurationMs: number;
+} {
+  let suiteDurationMs = 0;
+  let maxProbeDurationMs = 0;
+  for (const item of telemetry) {
+    suiteDurationMs += item.durationMs;
+    if (item.durationMs > maxProbeDurationMs) maxProbeDurationMs = item.durationMs;
+  }
+  return { suiteDurationMs, maxProbeDurationMs };
+}
+
+export function detectResearcherInRepoEvidenceEvidenceSummaryMismatch(
+  record: ResearcherInRepoEvidenceRunRecord,
+): string | null {
+  let alignedCount = 0;
+  for (const item of record.evidence) {
+    if (item.aligned) alignedCount++;
+  }
+  const mismatches = record.evidence.length - alignedCount;
+  if (record.summary.aligned !== alignedCount) {
+    return `summary.aligned=${record.summary.aligned} evidence=${alignedCount}`;
+  }
+  if (record.summary.mismatches !== mismatches) {
+    return `summary.mismatches=${record.summary.mismatches} evidence=${mismatches}`;
+  }
+  if (record.summary.total !== record.evidence.length) {
+    return `summary.total=${record.summary.total} evidence=${record.evidence.length}`;
+  }
+  return null;
+}
+
+export function detectResearcherInRepoEvidenceFalseAlignment(
+  record: ResearcherInRepoEvidenceRunRecord,
+): string[] {
+  const violations: string[] = [];
+  for (const item of record.evidence) {
+    const shouldAlign = item.actual === item.expected;
+    if (item.aligned !== shouldAlign) {
+      violations.push(
+        `${item.probeId}: aligned=${item.aligned} actual=${item.actual} expected=${item.expected}`,
+      );
+    }
+    if (item.aligned && item.actual !== item.expected) {
+      violations.push(`${item.probeId}: false PASS claim`);
+    }
+  }
+  return violations;
+}
+
+export function validateResearcherInRepoEvidenceSafety(
+  record: ResearcherInRepoEvidenceRunRecord,
+  controls: ForgeResearcherInRepoEvidenceGuardControls = getForgeResearcherInRepoEvidenceGuardControls(),
+): ResearcherInRepoEvidenceGuardCheckIssue[] {
+  const issues: ResearcherInRepoEvidenceGuardCheckIssue[] = [];
+  for (const item of record.evidence) {
+    if (item.detail.length > controls.safety.maxDetailLength) {
+      issues.push({
+        domain: "safety",
+        code: "detail_too_long",
+        detail: `${item.probeId} detail length=${item.detail.length}`,
+      });
+    }
+    for (const pattern of controls.safety.forbiddenPatterns) {
+      if (pattern.test(item.detail) || pattern.test(item.criterion)) {
+        issues.push({
+          domain: "safety",
+          code: "forbidden_pattern",
+          detail: `${item.probeId} matched ${pattern.source}`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+export function validateResearcherInRepoEvidencePerformance(
+  record: ResearcherInRepoEvidenceRunRecord,
+  controls: ForgeResearcherInRepoEvidenceGuardControls = getForgeResearcherInRepoEvidenceGuardControls(),
+): ResearcherInRepoEvidenceGuardCheckIssue[] {
+  const issues: ResearcherInRepoEvidenceGuardCheckIssue[] = [];
+  const { suiteDurationMs, maxProbeDurationMs } = summarizeResearcherInRepoEvidenceTelemetry(
+    record.telemetry,
+  );
+  const wallClockMs = parseResearcherInRepoEvidenceIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  if (suiteDurationMs > controls.performance.maxSuiteDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "suite_duration_exceeded",
+      detail: `${suiteDurationMs}ms > ${controls.performance.maxSuiteDurationMs}ms`,
+    });
+  }
+  if (maxProbeDurationMs > controls.performance.maxProbeDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "probe_duration_exceeded",
+      detail: `${maxProbeDurationMs}ms > ${controls.performance.maxProbeDurationMs}ms`,
+    });
+  }
+  if (wallClockMs > controls.performance.maxWallClockMs) {
+    issues.push({
+      domain: "performance",
+      code: "wall_clock_exceeded",
+      detail: `${wallClockMs}ms > ${controls.performance.maxWallClockMs}ms`,
+    });
+  }
+  return issues;
+}
+
+export function validateResearcherInRepoEvidenceCost(
+  totalCostUsd: number,
+  llmCalls: number,
+  controls: ForgeResearcherInRepoEvidenceGuardControls = getForgeResearcherInRepoEvidenceGuardControls(),
+): ResearcherInRepoEvidenceGuardCheckIssue[] {
+  const issues: ResearcherInRepoEvidenceGuardCheckIssue[] = [];
+  if (totalCostUsd > controls.cost.maxTotalCostUsd) {
+    issues.push({
+      domain: "cost",
+      code: "cost_exceeded",
+      detail: `$${totalCostUsd.toFixed(4)} > $${controls.cost.maxTotalCostUsd}`,
+    });
+  }
+  if (llmCalls > controls.cost.maxLlmCalls) {
+    issues.push({
+      domain: "cost",
+      code: "llm_calls_exceeded",
+      detail: `${llmCalls} > ${controls.cost.maxLlmCalls}`,
+    });
+  }
+  return issues;
+}
+
+export function buildResearcherInRepoEvidenceAdversarialGuardScenarios(): ResearcherInRepoEvidenceAdversarialGuardScenario[] {
+  return [
+    {
+      id: "adversarial.false_alignment_claim",
+      description: "Evidence claims aligned while actual !== expected",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = true;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.summary_mismatch",
+      description: "Summary reports zero mismatches while evidence is tampered",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = false;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        cloned.summary = { ...cloned.summary, aligned: cloned.summary.total, mismatches: 0 };
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.dropped_probe",
+      description: "Run record omits required probe evidence",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        cloned.evidence = cloned.evidence.slice(1);
+        cloned.telemetry = cloned.telemetry.slice(1);
+        cloned.summary = {
+          ...cloned.summary,
+          total: cloned.evidence.length,
+          aligned: cloned.evidence.filter(item => item.aligned).length,
+          mismatches: cloned.evidence.filter(item => !item.aligned).length,
+        };
+        return cloned;
+      },
+    },
+  ];
+}
+
+export function runResearcherInRepoEvidenceAdversarialGuardChecks(
+  fixtureRecord: ResearcherInRepoEvidenceRunRecord,
+  contract: ResearcherInRepoEvidenceContract = getActiveResearcherInRepoEvidenceContract(),
+): { rejected: number; total: number; failures: string[] } {
+  const scenarios = buildResearcherInRepoEvidenceAdversarialGuardScenarios();
+  const failures: string[] = [];
+  let rejected = 0;
+
+  for (const scenario of scenarios) {
+    const tampered = scenario.build(fixtureRecord);
+    const validation = validateResearcherInRepoEvidenceRunRecord(tampered, contract);
+    const falseAlignment = detectResearcherInRepoEvidenceFalseAlignment(tampered);
+    const summaryMismatch = detectResearcherInRepoEvidenceEvidenceSummaryMismatch(tampered);
+    const rejectedByGuard =
+      !validation.valid || falseAlignment.length > 0 || summaryMismatch !== null;
+
+    if (rejectedByGuard) rejected++;
+    else failures.push(`${scenario.id}: tampered record was not rejected`);
+  }
+
+  return { rejected, total: scenarios.length, failures };
+}
+
+export function validateForgeResearcherInRepoEvidenceGuard(
+  record: ResearcherInRepoEvidenceRunRecord,
+  options: {
+    totalCostUsd?: number;
+    llmCalls?: number;
+    contract?: ResearcherInRepoEvidenceContract;
+    controls?: ForgeResearcherInRepoEvidenceGuardControls;
+  } = {},
+): ResearcherInRepoEvidenceGuardCheckResult {
+  const controls = options.controls ?? getForgeResearcherInRepoEvidenceGuardControls();
+  const contract = options.contract ?? getActiveResearcherInRepoEvidenceContract();
+  const totalCostUsd = options.totalCostUsd ?? 0;
+  const llmCalls = options.llmCalls ?? 0;
+  const issues: ResearcherInRepoEvidenceGuardCheckIssue[] = [];
+
+  issues.push(...validateResearcherInRepoEvidencePerformance(record, controls));
+  issues.push(...validateResearcherInRepoEvidenceCost(totalCostUsd, llmCalls, controls));
+  issues.push(...validateResearcherInRepoEvidenceSafety(record, controls));
+
+  const falseAlignment = detectResearcherInRepoEvidenceFalseAlignment(record);
+  if (falseAlignment.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "false_alignment",
+      detail: falseAlignment.join("; "),
+    });
+  }
+  const summaryMismatch = detectResearcherInRepoEvidenceEvidenceSummaryMismatch(record);
+  if (summaryMismatch) {
+    issues.push({
+      domain: "adversarial",
+      code: "summary_evidence_mismatch",
+      detail: summaryMismatch,
+    });
+  }
+
+  const adversarial = runResearcherInRepoEvidenceAdversarialGuardChecks(record, contract);
+  if (adversarial.failures.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "scenario_not_rejected",
+      detail: adversarial.failures.join("; "),
+    });
+  }
+
+  const telemetrySummary = summarizeResearcherInRepoEvidenceTelemetry(record.telemetry);
+  const wallClockMs = parseResearcherInRepoEvidenceIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  return {
+    passed: issues.length === 0 && adversarial.rejected === adversarial.total,
+    issues,
+    metrics: {
+      suiteDurationMs: telemetrySummary.suiteDurationMs,
+      wallClockMs,
+      maxProbeDurationMs: telemetrySummary.maxProbeDurationMs,
+      totalCostUsd,
+      llmCalls,
+      adversarialScenariosRejected: adversarial.rejected,
+      adversarialScenariosTotal: adversarial.total,
+    },
+  };
+}
+
 export function summarizeResearcherInRepoEvidenceMatrix(
   results: ResearcherInRepoEvidenceProbeResult[],
 ): ResearcherInRepoEvidenceProbeSummary {

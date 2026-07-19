@@ -1613,6 +1613,27 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher in-repo evidence regression gate and emit verification event (P04-B02-A08).
+   */
+  async verifyForgeResearcherInRepoEvidenceRegression(
+    priorRecord?: import("./forge-p04-researcher-in-repo-evidence.js").ResearcherInRepoEvidenceRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-in-repo-evidence.probe.js").ForgeResearcherInRepoEvidenceRegressionGateResult
+  > {
+    const { runForgeResearcherInRepoEvidenceRegressionGate } = await import(
+      "./forge-p04-researcher-in-repo-evidence.probe.js"
+    );
+    const result = runForgeResearcherInRepoEvidenceRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "researcher_in_repo_evidence_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

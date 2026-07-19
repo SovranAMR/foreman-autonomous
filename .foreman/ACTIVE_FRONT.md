@@ -6,8 +6,8 @@ active_phase: P04
 active_block: P04-B02
 active_atom: P04-B02-A08
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 317/1000
-phase_progress: 17/100
+program_progress: 318/1000
+phase_progress: 18/100
 block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B02-A08 — Repo içi kanıt toplama: Forge entegrasyonu ile regression testini tamamla.
+P04-B02-A09 — Repo içi kanıt toplama: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P04-B02-A07 PASS; add Forge integration regression test for in-repo evidence collection.
-target: probe regression detection, forge regression gate, orchestrator verification hook.
-hypothesis: Forge regression gate rejects tampered prior records and alignment regressions.
-acceptance: regression probes PASS; forge gate rejects tampered prior and probe regressions.
+objective: P04-B02-A08 PASS; add adversarial/perf/cost/safety guard controls for in-repo evidence collection.
+target: guard validation, adversarial scenarios, orchestrator guard hook.
+hypothesis: Guard rejects tampered records, false alignment and budget violations on canonical matrix.
+acceptance: guard checks PASS; adversarial scenarios rejected; orchestrator guard verification emits event.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
-blast_radius: src/forge-p04-researcher-*.ts
-rollback: P04-B02-A08 regression slice değişikliklerini geri al.
+blast_radius: src/forge-p04-researcher-in-repo-evidence*.ts
+rollback: P04-B02-A09 guard slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B02-A07
-last_commit: 8cd237b
-tests: PASS — forge-p04-researcher*.test.ts (90/90); property/fuzz slice 8 properties; contractFuzz rejected=24/24; runRecordFuzz mutationsAccepted=0
-evidence: runResearcherInRepoEvidencePropertyFuzzSlice; runResearcherInRepoEvidencePropertyChecks; runResearcherInRepoEvidenceFuzzValidation; runResearcherInRepoEvidenceRunRecordFuzzValidation; property/fuzz slice PASS
-next: P04-B02-A08
+last_atom: P04-B02-A08
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts (98/98); regression gate 23/23 aligned; adversarial=3/3; propertyFuzz rejected=24/24; runFuzz rejected=5
+evidence: runForgeResearcherInRepoEvidenceRegressionGate; detectResearcherInRepoEvidenceProbeRegression; validateForgeResearcherInRepoEvidenceGuard; verifyForgeResearcherInRepoEvidenceRegression
+next: P04-B02-A09
