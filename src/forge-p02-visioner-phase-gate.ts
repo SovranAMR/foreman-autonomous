@@ -4,7 +4,12 @@
  * Measures P02 visioner phase acceptance from sealed P02-B09 block gate artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import { P02_PHASE_ID } from "./forge-p01-phase-gate.js";
 import {
   getForgeP02B09ToB10Handoff,
@@ -30,11 +35,14 @@ export const P02_VISIONER_PHASE_BLOCK_INVENTORY = [
   { blockId: "P02-B07", title: "Alternatif vizyon üretimi", runner: "runForgeVisionerAlternativeBlockGate" },
   { blockId: "P02-B08", title: "Vizyon scoring ve trade-off", runner: "runForgeVisionerScoringBlockGate" },
   { blockId: "P02-B09", title: "Kullanıcı approval ve steering", runner: "runForgeVisionerApprovalBlockGate" },
-  { blockId: "P02-B10", title: "Vizyoner phase gate", runner: "runForgeVisionerPhaseGate" },
+  { blockId: "P02-B10", title: "Vizyoner phase gate", runner: "runForgeVisionerPhaseGateBlockGate" },
 ] as const;
 
 export const P02_VISIONER_PHASE_BLOCK_COUNT = P02_VISIONER_PHASE_BLOCK_INVENTORY.length;
 export const P02_VISIONER_PHASE_ATOM_COUNT = P02_VISIONER_PHASE_BLOCK_COUNT * 10;
+
+/** Prior P02 visioner block gates B01–B09 sealed before B10 block gate (P02-B10-A10). */
+export const EXPECTED_P02_VISIONER_PRIOR_BLOCK_GATE_COUNT = P02_VISIONER_PHASE_BLOCK_COUNT - 1;
 
 export const P02_VISIONER_PHASE_GATE_CHECKS = [
   { id: "block_gates_pass", description: "All ten P02 visioner block gates PASS with sealed atom evidence" },
@@ -2635,4 +2643,237 @@ export function validateForgeVisionerPhaseGateGuard(
       adversarialScenariosTotal: adversarial.total,
     },
   };
+}
+
+// ─── Block gate and handoff (P02-B10-A10) ─────────────────────────────────────
+
+export interface VisionerPhaseGateBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  sealedBlockCount: number;
+  gitCommit?: string;
+}
+
+export interface VisionerPhaseGateBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    visionerPhaseGateCategories: readonly VisionerPhaseGateCategory[];
+    sealedBlockInventoryCount: number;
+    sourceVisionerApprovalBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    visionerPhaseGateRecordRequired: true;
+  };
+}
+
+export const FORGE_P02_B10_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P02-B10-A10",
+  blockId: "P02-B10",
+  title: "Vizyoner phase gate",
+  requiredAtomIds: [
+    "P02-B10-A01",
+    "P02-B10-A02",
+    "P02-B10-A03",
+    "P02-B10-A04",
+    "P02-B10-A05",
+    "P02-B10-A06",
+    "P02-B10-A07",
+    "P02-B10-A08",
+    "P02-B10-A09",
+    "P02-B10-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P02-B10-A01", description: "Visioner phase gate baseline aligns with typed contract and P02-B09 block gate handoff" },
+    { id: "typed_contract_coverage", atomId: "P02-B10-A02", description: "Contract declares measurable probes for all visioner phase gate categories" },
+    { id: "probe_matrix_aligned", atomId: "P02-B10-A03", description: "Visioner phase gate probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P02-B10-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P02-B10-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P02-B10-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P02-B10-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P02-B10-A08", description: "Regression gate passes on canonical visioner phase gate matrix" },
+    { id: "guard_controls", atomId: "P02-B10-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P02-B10-A10", description: "Block gate evidence sealed with valid P03 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P02_B10_TO_P03_HANDOFF_V1: VisionerPhaseGateBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P02-B10-A10",
+  sourceBlock: {
+    blockId: "P02-B10",
+    title: "Vizyoner phase gate",
+    completedAtoms: FORGE_P02_B10_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P03-B01",
+    title: "Stratejist intent ve görev anlamlandırma",
+    entryAtom: "P03-B01-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_VISIONER_PHASE_GATE_CONTRACT_V1.version,
+    harnessVersion: FORGE_VISIONER_PHASE_GATE_VERSION,
+    probeCount: summarizeVisionerPhaseGateContractCoverage(FORGE_VISIONER_PHASE_GATE_CONTRACT_V1).totalProbes,
+    visionerPhaseGateCategories: VISIONER_PHASE_GATE_CATEGORIES,
+    sealedBlockInventoryCount: P02_VISIONER_PHASE_BLOCK_COUNT,
+    sourceVisionerApprovalBlockGateAtom: "P02-B09-A10",
+  },
+  prerequisites: [
+    "Visioner phase gate contract v1 with measurable block gate signal, phase inventory and guard probes",
+    "Versioned visioner phase gate baseline aligned to contract probe matrix and sealed P02-B09 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Nine sealed P02 visioner block gates referenced by phase block inventory",
+  ],
+  entryCriteria: {
+    description:
+      "P03-B01-A01 formalizes strategist intent baseline using sealed P02 visioner phase gate artifacts",
+    requiresBlockGatePass: true,
+    visionerPhaseGateRecordRequired: true,
+  },
+};
+
+export function getForgeP02B10BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P02_B10_BLOCK_GATE_V1;
+}
+
+export function getForgeP02B10ToP03Handoff(): VisionerPhaseGateBlockHandoffContract {
+  return FORGE_P02_B10_TO_P03_HANDOFF_V1;
+}
+
+export function validateVisionerPhaseGateBlockHandoffContract(
+  handoff: VisionerPhaseGateBlockHandoffContract,
+  evidence: Pick<
+    VisionerPhaseGateBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed" | "sealedBlockCount"
+  >,
+  contract: VisionerPhaseGateContract = getActiveVisionerPhaseGateContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeVisionerPhaseGateContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.visionerPhaseGateCategories.length !== VISIONER_PHASE_GATE_CATEGORIES.length) {
+    issues.push("handoff visionerPhaseGateCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sealedBlockInventoryCount !== P02_VISIONER_PHASE_BLOCK_COUNT) {
+    issues.push(
+      `handoff sealedBlockInventoryCount=${handoff.sealedArtifacts.sealedBlockInventoryCount} expected=${P02_VISIONER_PHASE_BLOCK_COUNT}`,
+    );
+  }
+  if (handoff.targetBlock.entryAtom !== "P03-B01-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+  if (evidence.sealedBlockCount !== EXPECTED_P02_VISIONER_PRIOR_BLOCK_GATE_COUNT) {
+    issues.push(
+      `evidence sealedBlockCount=${evidence.sealedBlockCount} expected=${EXPECTED_P02_VISIONER_PRIOR_BLOCK_GATE_COUNT}`,
+    );
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildVisionerPhaseGateBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P02_B10_BLOCK_GATE_V1.blockId,
+): VisionerPhaseGateBlockGateEvidence {
+  const handoff = getForgeP02B10ToP03Handoff();
+  const handoffValid = validateVisionerPhaseGateBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+    sealedBlockCount: EXPECTED_P02_VISIONER_PRIOR_BLOCK_GATE_COUNT,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P02-B10-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    sealedBlockCount: EXPECTED_P02_VISIONER_PRIOR_BLOCK_GATE_COUNT,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}
+
+/** Validate sealed visioner phase gate block evidence against P03 handoff contract. */
+export function validateForgeP02VisionerPhaseGateBlockGate(
+  evidence: VisionerPhaseGateBlockGateEvidence,
+  handoff: VisionerPhaseGateBlockHandoffContract = getForgeP02B10ToP03Handoff(),
+  contract: VisionerPhaseGateContract = getActiveVisionerPhaseGateContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+
+  if (evidence.blockId !== handoff.sourceBlock.blockId) {
+    issues.push(`evidence blockId=${evidence.blockId} handoff=${handoff.sourceBlock.blockId}`);
+  }
+  if (evidence.atom !== handoff.atom) {
+    issues.push(`evidence atom=${evidence.atom} handoff=${handoff.atom}`);
+  }
+  if (evidence.atomSeals.length !== handoff.sourceBlock.completedAtoms.length) {
+    issues.push(
+      `atom seal count=${evidence.atomSeals.length} expected=${handoff.sourceBlock.completedAtoms.length}`,
+    );
+  }
+  if (!evidence.atomSeals.every(seal => seal.passed)) {
+    issues.push("one or more atom seals failed");
+  }
+  if (!evidence.handoffValid) {
+    issues.push("evidence handoffValid=false");
+  }
+
+  const handoffValidation = validateVisionerPhaseGateBlockHandoffContract(handoff, evidence, contract);
+  issues.push(...handoffValidation.issues);
+
+  return { valid: issues.length === 0, issues };
 }

@@ -111,6 +111,7 @@ import {
   runForgeVisionerPhaseGateRegressionGate,
   runVisionerPhaseGateProbesWithRecord,
   runVisionerPhaseGateRegressionIntegration,
+  runForgeVisionerPhaseGateBlockGate,
 } from "./forge-p02-visioner-phase-gate.probe.js";
 import { detectVisionerPhaseGateProbeRegression, validateForgeVisionerPhaseGateGuard } from "./forge-p02-visioner-phase-gate.js";
 import { Orchestrator } from "./orchestrator.js";
@@ -2053,6 +2054,50 @@ describe("Forge Visioner Phase Gate Guard Integration — P02-B10-A09", () => {
     if (verification?.type === "verification") {
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("guard PASS"));
+    }
+  });
+});
+
+describe("Forge Visioner Phase Gate Block Gate Integration — P02-B10-A10", () => {
+  it("runForgeVisionerPhaseGateBlockGate passes with 10/10 atom seals and P03 handoff", () => {
+    const result = runForgeVisionerPhaseGateBlockGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.atomSeals.length, 10);
+    assert.ok(result.atomSeals.every(seal => seal.passed));
+    assert.equal(result.evidence.handoffValid, true);
+    assert.ok(result.detail.includes("handoff=PASS→P03-B01"));
+    assert.equal(result.handoff.targetBlock.blockId, "P03-B01");
+    assert.equal(result.handoff.targetBlock.entryAtom, "P03-B01-A01");
+  });
+
+  it("orchestrator verifyForgeP02VisionerPhaseGateBlockGate emits visioner_phase_gate_block_gate verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-phase-block-gate-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-phase-gate" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeP02VisionerPhaseGateBlockGate();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_phase_gate_block_gate",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("handoff=PASS→P03-B01"));
+      assert.ok(verification.detail.includes("seals=10/10"));
     }
   });
 });
