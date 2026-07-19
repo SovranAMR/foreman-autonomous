@@ -15,9 +15,13 @@ import {
   assessStrategistRiskReversibilityInputBoundary,
   runStrategistRiskReversibilityProductionSlice,
   runStrategistRiskReversibilityBoundarySlice,
+  runStrategistRiskReversibilityFailureRecoverySlice,
   validateStrategistRiskReversibilityProbeMatrix,
   validateStrategistRiskReversibilityBoundaryProbeMatrix,
+  validateStrategistRiskReversibilityFailureRecoveryProbeMatrix,
+  listStrategistRiskReversibilityFailureRecoveryProbeIds,
   STRATEGIST_RISK_REVERSIBILITY_CATEGORIES,
+  STRATEGIST_RISK_REVERSIBILITY_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_RISK_REVERSIBILITY_DECOMPOSE_MAX_LENGTH,
   FORGE_STRATEGIST_RISK_REVERSIBILITY_CONTRACT_V1,
 } from "./forge-p03-strategist-risk-reversibility.js";
@@ -310,5 +314,93 @@ describe("Forge Strategist Risk Reversibility Boundary Slice — P03-B05-A04", (
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Risk Reversibility Failure/Recovery Slice — P03-B05-A05", () => {
+  it("defines failure/recovery categories with seven contract-wired probes", () => {
+    const contract = getActiveStrategistRiskReversibilityContract();
+    const probeIds = listStrategistRiskReversibilityFailureRecoveryProbeIds(contract);
+
+    assert.equal(STRATEGIST_RISK_REVERSIBILITY_FAILURE_RECOVERY_CATEGORIES.length, 3);
+    assert.equal(probeIds.length, 7);
+    assert.deepEqual(probeIds.sort(), [
+      "srisk.exported_orchestrator_risk_validator",
+      "srisk.invalid_version_rejected",
+      "srisk.malformed_decompose_guard",
+      "srisk.min_category_probes",
+      "srisk.nogo_irreversible_halt",
+      "srisk.recovery_vision_violation_rollback_block",
+      "srisk.recovery_worker_failure_rollback",
+    ].sort());
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistRiskReversibilityContract();
+    const slice = runStrategistRiskReversibilityFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B05-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 5);
+    assert.equal(slice.matrixValidation.gapAligned, 2);
+
+    for (const category of STRATEGIST_RISK_REVERSIBILITY_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistRiskReversibilityContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistRiskReversibilityFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves NO-GO gaps while exercising failure/recovery paths", () => {
+    const slice = runStrategistRiskReversibilityFailureRecoverySlice();
+    const probeIds = listStrategistRiskReversibilityFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 7);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "srisk.malformed_decompose_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const workerRollback = slice.failureRecoveryResults.find(
+      r => r.id === "srisk.recovery_worker_failure_rollback",
+    );
+    assert.ok(workerRollback);
+    assert.equal(workerRollback!.expected, "PASS");
+    assert.equal(workerRollback!.actual, "PASS");
+
+    const nogoHalt = slice.failureRecoveryResults.find(r => r.id === "srisk.nogo_irreversible_halt");
+    assert.ok(nogoHalt);
+    assert.equal(nogoHalt!.expected, "FAIL");
+    assert.equal(nogoHalt!.actual, "FAIL");
+
+    const riskValidatorGap = slice.failureRecoveryResults.find(
+      r => r.id === "srisk.exported_orchestrator_risk_validator",
+    );
+    assert.ok(riskValidatorGap);
+    assert.equal(riskValidatorGap!.expected, "FAIL");
+    assert.equal(riskValidatorGap!.actual, "FAIL");
   });
 });

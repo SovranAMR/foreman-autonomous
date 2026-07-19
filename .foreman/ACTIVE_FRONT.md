@@ -6,9 +6,9 @@ active_phase: P03
 active_block: P03-B05
 active_atom: P03-B05-A05
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 243/1000
-phase_progress: 44/100
-block_progress: 4/10
+program_progress: 244/1000
+phase_progress: 45/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B05-A05 — Risk ve reversibility planı: failure, recovery ve NO-GO yollarını uygula.
+P03-B05-A06 — Risk ve reversibility planı: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P03-B05-A04 PASS; P03-B05-A05 implement failure/recovery slice for risk/reversibility edge cases.
-target: runStrategistRiskReversibilityFailureRecoverySlice, validateStrategistRiskReversibilityFailureRecoveryProbeMatrix.
-hypothesis: P03-B05-A05 wires failure/recovery/NO-GO probes into recoverable production seam with zero unexpected mismatches.
-acceptance: failure/recovery slice runs; contract-aligned probes pass; zero unexpected mismatches on PASS probes; documented FAIL gaps preserved.
+objective: P03-B05-A05 PASS; P03-B05-A06 implement evidence/telemetry slice for risk/reversibility run records.
+target: runStrategistRiskReversibilityFailureRecoverySliceWithRecord, validateStrategistRiskReversibilityFailureRecoveryRunRecord, runStrategistRiskReversibilityEvidenceSlice.
+hypothesis: P03-B05-A06 wires evidence/telemetry/provenance into recoverable production seam with zero unexpected mismatches.
+acceptance: evidence slice runs; contract-aligned run record validates; zero unexpected mismatches on PASS probes; documented FAIL gaps preserved.
 commands: npx tsx --test src/forge-p03-strategist-risk-reversibility*.test.ts
 blast_radius: src/forge-p03-strategist-risk-reversibility.ts
-rollback: P03-B05-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P03-B05-A06 evidence/telemetry slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: failure/recovery slice blocked ise BLOCKED raporla.
+fallback: evidence slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B05-A04
+last_atom: P03-B05-A05
 last_commit: pending
-tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (16/16); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); boundary slice 6 pass / 0 unexpected mismatches
-evidence: runStrategistRiskReversibilityBoundarySlice; validateStrategistRiskReversibilityBoundaryProbeMatrix; assessStrategistRiskReversibilityInputBoundary
-next: P03-B05-A05
+tests: PASS — forge-p03-strategist-risk-reversibility.test.ts (19/19); forge-p03-strategist-risk-reversibility-baseline.test.ts (3/3); failure/recovery slice 7 pass / 2 gap aligned / 0 unexpected mismatches
+evidence: runStrategistRiskReversibilityFailureRecoverySlice; validateStrategistRiskReversibilityFailureRecoveryProbeMatrix
+next: P03-B05-A06
