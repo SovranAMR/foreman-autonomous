@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 86
+completed_atoms: 87
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -137,7 +137,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B10-A03 — Vizyoner phase gate: en küçük üretim dikey dilimini uygula
 - [x] P02-B10-A04 — Vizyoner phase gate: boundary ve edge-case davranışlarını tamamla
 - [x] P02-B10-A05 — Vizyoner phase gate: failure, recovery ve NO-GO yollarını uygula
-- [ ] P02-B10-A06 — Vizyoner phase gate: evidence, telemetry ve provenance kaydını ekle
+- [x] P02-B10-A06 — Vizyoner phase gate: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B10-A07 — Vizyoner phase gate: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B10-A08 — Vizyoner phase gate: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B10-A09 — Vizyoner phase gate: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B10-A05
-last_commit: 2a19975
-tests: PASS — forge-p02-visioner-phase-gate.test.ts (23/23); baseline regression (3/3)
-evidence: validateVisionerPhaseGateFailureRecoveryProbeMatrix; runVisionerPhaseGateFailureRecoverySlice; 7/7 failure/recovery/NO-GO probes aligned; handoff=P02-B10-A05→A06
-next: P02-B10-A06
+last_atom: P02-B10-A06
+last_commit: pending
+tests: PASS — forge-p02-visioner-phase-gate.test.ts (26/26); baseline regression (3/3)
+evidence: validateVisionerPhaseGateFailureRecoveryRunRecord; runVisionerPhaseGateFailureRecoverySliceWithRecord; runVisionerPhaseGateProbesWithRecord; 7/7 failure/recovery evidence aligned; handoff=P02-B10-A06→A07
+next: P02-B10-A07

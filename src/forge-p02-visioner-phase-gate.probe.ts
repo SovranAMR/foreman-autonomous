@@ -5,6 +5,9 @@
  */
 
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
+import { performance } from "node:perf_hooks";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import visionerPhaseGateBaseline from "./fixtures/forge-visioner-phase-gate-v1.json" with { type: "json" };
@@ -33,6 +36,11 @@ import {
   VISIONER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
   listVisionerPhaseGateProbesByExpected,
   listVisionerPhaseGateKnownGaps,
+  buildVisionerPhaseGateProbeEvidence,
+  buildVisionerPhaseGateProbeTelemetry,
+  buildVisionerPhaseGateProvenance,
+  buildVisionerPhaseGateRunRecord,
+  validateVisionerPhaseGateRunRecord,
   FORGE_VISIONER_PHASE_GATE_VERSION,
   VISIONER_PHASE_GATE_MANIFEST_MAX_LENGTH,
   VISIONER_PHASE_GATE_CATEGORIES,
@@ -43,7 +51,9 @@ import {
   EXPECTED_P02_B09_SEALED_ATOM_COUNT,
   type VisionerPhaseGateBaseline,
   type VisionerPhaseGateCategory,
+  type VisionerPhaseGateProbeDisposition,
   type VisionerPhaseGateProbeResult,
+  type VisionerPhaseGateRunRecord,
 } from "./forge-p02-visioner-phase-gate.js";
 
 export type { VisionerPhaseGateBaseline, VisionerPhaseGateProbeResult } from "./forge-p02-visioner-phase-gate.js";
@@ -600,3 +610,119 @@ export function runVisionerPhaseGateFailureRecoverySlice(
 }
 
 export const runForgeVisionerPhaseGateFailureRecoverySlice = runVisionerPhaseGateFailureRecoverySlice;
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerPhaseGateProbeWithTiming(
+  entry: VisionerPhaseGateBaseline["probes"][number],
+  fixture: VisionerPhaseGateBaseline,
+  contractProbe:
+    | { criterion: string; disposition: VisionerPhaseGateProbeDisposition }
+    | undefined,
+): {
+  result: VisionerPhaseGateProbeResult;
+  durationMs: number;
+  disposition: VisionerPhaseGateProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerPhaseGateRecordFromEntries(
+  entries: VisionerPhaseGateBaseline["probes"],
+  fixture: VisionerPhaseGateBaseline,
+  contract: ReturnType<typeof getActiveVisionerPhaseGateContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerPhaseGateCategory[];
+  },
+): VisionerPhaseGateRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerPhaseGateProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerPhaseGateProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerPhaseGateProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerPhaseGateProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerPhaseGateProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerPhaseGateProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerPhaseGateRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner phase gate probes and emit auditable evidence, telemetry and provenance (P02-B10-A06). */
+export function runVisionerPhaseGateProbesWithRecord(
+  fixture: VisionerPhaseGateBaseline = loadVisionerPhaseGateBaseline(),
+): VisionerPhaseGateRunRecord {
+  const contract = getActiveVisionerPhaseGateContract();
+  return buildVisionerPhaseGateRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B10-A06). */
+export function runVisionerPhaseGateFailureRecoverySliceWithRecord(
+  fixture: VisionerPhaseGateBaseline = loadVisionerPhaseGateBaseline(),
+): VisionerPhaseGateRunRecord {
+  const contract = getActiveVisionerPhaseGateContract();
+  const failureRecoveryIds = new Set(listVisionerPhaseGateFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerPhaseGateRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B10-A06",
+    sliceCategories: VISIONER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+export const runForgeVisionerPhaseGateProbesWithRecord = runVisionerPhaseGateProbesWithRecord;
+export const runForgeVisionerPhaseGateFailureRecoverySliceWithRecord =
+  runVisionerPhaseGateFailureRecoverySliceWithRecord;
