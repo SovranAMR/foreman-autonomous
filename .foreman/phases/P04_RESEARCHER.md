@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B09-A10
-last_commit: pending
+last_commit: 1bb7ec5
 tests: PASS — forge-p04-researcher-research-to-worker-handoff*.test.ts (65/65); block gate seals=10/10; handoff→P04-B10
 evidence: runResearcherResearchToWorkerHandoffBlockGate + validateResearcherResearchToWorkerHandoffBlockHandoffContract + verifyForgeResearcherResearchToWorkerHandoffBlockGate
 next: P04-B10-A01
