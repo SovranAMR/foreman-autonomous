@@ -284,6 +284,26 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge reproducible fixture guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B07-A09).
+   */
+  async verifyForgeReproducibleFixtureGuard(
+    priorRecord?: import("./forge-reproducible-fixture.js").ReproducibleFixtureRunRecord,
+  ): Promise<import("./forge-reproducible-fixture.probe.js").ForgeReproducibleFixtureRegressionResult> {
+    const { runForgeReproducibleFixtureRegressionGate } = await import("./forge-reproducible-fixture.probe.js");
+    const result = runForgeReproducibleFixtureRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "reproducible_fixture_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge benchmark eval harness guard gate (adversarial/perf/cost/safety) and emit verification event (P01-B06-A09).
    */
   async verifyForgeBenchmarkEvalGuard(
