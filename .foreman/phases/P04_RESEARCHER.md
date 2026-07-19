@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B07-A05
-last_commit: (pending)
+last_commit: 33370b1
 tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (29/29); failure/recovery slice 6/6 aligned; zero unexpected mismatches
 evidence: validateResearcherRiskTradeoffFailureRecoveryProbeMatrix + runResearcherRiskTradeoffFailureRecoverySlice; invalid fixture/null-byte guard; recoverResearchRiskTradeoffEvidence; orchestrator validateResearchRiskTradeoff gate
 next: P04-B07-A06
