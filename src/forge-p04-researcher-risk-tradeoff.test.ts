@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { parseResearchTradeoffs } from "./parser.js";
 import {
   loadResearcherRiskTradeoffBaseline,
   runResearcherRiskTradeoffProbes,
@@ -19,7 +20,9 @@ import {
   summarizeResearcherRiskTradeoffContractCoverage,
   validateResearcherRiskTradeoffContract,
   validateResearcherRiskTradeoffContractCoverage,
+  validateResearchRiskTradeoff,
   validateResearcherRiskTradeoffAgainstContract,
+  runResearcherRiskTradeoffProductionSlice,
   RESEARCHER_RISK_TRADEOFF_CATEGORIES,
   RESEARCHER_RISK_TRADEOFF_INPUT_MAX_LENGTH,
   FORGE_RESEARCHER_RISK_TRADEOFF_CONTRACT_V1,
@@ -31,12 +34,12 @@ const REQUIRE_FULL_ALIGNMENT: Record<
 > = {
   evidence_versioning: true,
   risk_signal: true,
-  tradeoff_signal: false,
+  tradeoff_signal: true,
   baseline_link: true,
   boundary: true,
   failure_path: true,
   recovery_path: true,
-  nogo_path: false,
+  nogo_path: true,
 };
 
 function formatMismatchReport(
@@ -62,7 +65,7 @@ describe("Forge Researcher Risk Trade-off — P04-B07-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures risk trade-off probes with documented FAIL gaps from B06 sealed handoff", () => {
+  it("measures risk trade-off probes with full alignment after A03 production slice", () => {
     const results = runResearcherRiskTradeoffProbes();
     const summary = summarizeResearcherRiskTradeoffMatrix(results);
     const contract = getActiveResearcherRiskTradeoffContract();
@@ -70,22 +73,14 @@ describe("Forge Researcher Risk Trade-off — P04-B07-A01", () => {
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
-    assert.equal(matrixValidation.unexpectedMismatches, 0);
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listResearcherRiskTradeoffProbesByExpected(
       "FAIL",
       loadResearcherRiskTradeoffBaseline(),
     );
-    assert.equal(documentedFail.length, 4);
-    assert.ok(documentedFail.some(p => p.id === "rrto.researcher_tradeoffs_output_field"));
-    assert.ok(documentedFail.some(p => p.id === "rrto.exported_risk_tradeoff_validator"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
+    assert.equal(matrixValidation.unexpectedMismatches, 0);
 
     for (const cat of RESEARCHER_RISK_TRADEOFF_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -100,20 +95,9 @@ describe("Forge Researcher Risk Trade-off — P04-B07-A01", () => {
     );
   });
 
-  it("documents risk trade-off gaps as measurable baseline debt", () => {
+  it("documents zero remaining risk trade-off gaps after A03 production slice", () => {
     const gaps = listResearcherRiskTradeoffKnownGaps(runResearcherRiskTradeoffProbes());
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "rrto.exported_risk_tradeoff_validator",
-      "rrto.orchestrator_risk_tradeoff_gate",
-      "rrto.parse_research_tradeoffs",
-      "rrto.researcher_tradeoffs_output_field",
-    ]);
-    assert.ok(
-      gaps.every(g => RESEARCHER_RISK_TRADEOFF_CATEGORIES.includes(g.category)),
-      "documented gaps are risk trade-off probes",
-    );
+    assert.equal(gaps.length, 0);
   });
 
   it("assessResearchRiskTradeoffInputBoundary rejects empty and null-byte research inputs", () => {
@@ -209,7 +193,7 @@ describe("Forge Researcher Risk Trade-off Contract — P04-B07-A02", () => {
     }
   });
 
-  it("maps 23 probes with four documented FAIL gaps wired to risk, trade-off and nogo paths", () => {
+  it("maps 23 probes with zero remaining gaps after A03 production slice", () => {
     const contract = getActiveResearcherRiskTradeoffContract();
     const summary = summarizeResearcherRiskTradeoffContractCoverage(contract);
     const coverage = validateResearcherRiskTradeoffContractCoverage(contract);
@@ -217,13 +201,13 @@ describe("Forge Researcher Risk Trade-off Contract — P04-B07-A02", () => {
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateResearcherRiskTradeoffContract().valid, true);
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 19);
-    assert.equal(summary.expectedFail, 4);
-    assert.equal(summary.byDisposition.observed, 15);
-    assert.equal(summary.byDisposition.gap, 2);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 19);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
-    assert.equal(summary.byDisposition.nogo, 2);
+    assert.equal(summary.byDisposition.nogo, 0);
     assert.equal(summary.byCategory.evidence_versioning.probeCount, 3);
     assert.equal(summary.byCategory.risk_signal.probeCount, 3);
     assert.equal(summary.byCategory.tradeoff_signal.probeCount, 3);
@@ -234,18 +218,11 @@ describe("Forge Researcher Risk Trade-off Contract — P04-B07-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists four gap and nogo probes with measurable FAIL dispositions", () => {
+  it("lists zero remaining gap and nogo probes after A03 production slice", () => {
     const gaps = listResearcherRiskTradeoffProbesByDisposition("gap");
     const nogos = listResearcherRiskTradeoffProbesByDisposition("nogo");
-    assert.deepEqual(gaps.map(g => g.id).sort(), [
-      "rrto.parse_research_tradeoffs",
-      "rrto.researcher_tradeoffs_output_field",
-    ]);
-    assert.deepEqual(nogos.map(g => g.id).sort(), [
-      "rrto.exported_risk_tradeoff_validator",
-      "rrto.orchestrator_risk_tradeoff_gate",
-    ]);
-    assert.ok([...gaps, ...nogos].every(p => p.expected === "FAIL"));
+    assert.equal(gaps.length, 0);
+    assert.equal(nogos.length, 0);
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -294,5 +271,60 @@ describe("Forge Researcher Risk Trade-off Contract — P04-B07-A02", () => {
   it("exports stable contract v1 reference for downstream block handoff", () => {
     assert.equal(FORGE_RESEARCHER_RISK_TRADEOFF_CONTRACT_V1.version, "1.0.0");
     assert.equal(FORGE_RESEARCHER_RISK_TRADEOFF_CONTRACT_V1.probes.length, 23);
+  });
+});
+
+describe("Forge Researcher Risk Trade-off Production Slice — P04-B07-A03", () => {
+  it("parseResearchTradeoffs extracts structured trade-off dimensions", () => {
+    const parsed = parseResearchTradeoffs(
+      "FINDINGS: async reduces blocking\nTRADEOFFS:\n1. sync vs async latency\nRISKS: complexity (medium) — bounded pool",
+    );
+
+    assert.equal(parsed.ok, true);
+    if (parsed.ok) {
+      assert.ok(parsed.data.dimensions.some(d => d.dimension.includes("sync")));
+    }
+  });
+
+  it("validateResearchRiskTradeoff accepts risk and trade-off signals in researcher output", () => {
+    const validation = validateResearchRiskTradeoff(
+      "FINDINGS: benchmark supports caching\nTRADEOFFS:\n1. memory vs latency\nRISKS: stale cache (low) — TTL invalidation",
+    );
+
+    assert.equal(validation.valid, true, validation.issues.join("; "));
+    assert.equal(validation.riskPresent, true);
+    assert.ok(validation.tradeoffCount >= 1);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveResearcherRiskTradeoffContract();
+    const slice = runResearcherRiskTradeoffProductionSlice();
+
+    assert.equal(slice.atom, "P04-B07-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    const matrixValidation = validateResearcherRiskTradeoffProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const tradeoffProbe = slice.results.find(r => r.id === "rrto.parse_research_tradeoffs");
+    assert.ok(tradeoffProbe);
+    assert.equal(tradeoffProbe!.expected, "PASS");
+    assert.equal(tradeoffProbe!.actual, "PASS");
+
+    const validatorProbe = slice.results.find(r => r.id === "rrto.exported_risk_tradeoff_validator");
+    assert.ok(validatorProbe);
+    assert.equal(validatorProbe!.expected, "PASS");
+    assert.equal(validatorProbe!.actual, "PASS");
   });
 });

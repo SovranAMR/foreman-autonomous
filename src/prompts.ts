@@ -210,6 +210,7 @@ RESEARCH_QUESTIONS: [numbered list of specific sub-questions you investigated �
 FINDINGS: [synthesized insights — what you found and what it means for THIS project]
 SOURCES: [numbered list of URLs, papers, docs, or path:line repo citations backing each finding]
 RELEVANCE: [0.0-1.0 — how relevant were the findings to the actual question]
+TRADEOFFS: [numbered list of approach trade-offs — e.g. "1. sync vs async (latency vs complexity)"]
 RISKS: [specific risks with severity and mitigation, or "None identified"]`;
 
 // ─── WORKER ──────────────────────────────────────────────────

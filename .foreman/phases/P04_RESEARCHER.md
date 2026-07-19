@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 61
+completed_atoms: 62
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -95,7 +95,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 - [x] P04-B07-A01 — Risk ve trade-off araştırması: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B07-A02 — Risk ve trade-off araştırması: typed contract ile ölçülebilir acceptance kriterini tanımla
-- [ ] P04-B07-A03 — Risk ve trade-off araştırması: en küçük üretim dikey dilimini uygula
+- [x] P04-B07-A03 — Risk ve trade-off araştırması: en küçük üretim dikey dilimini uygula
 - [ ] P04-B07-A04 — Risk ve trade-off araştırması: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B07-A05 — Risk ve trade-off araştırması: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B07-A06 — Risk ve trade-off araştırması: evidence, telemetry ve provenance kaydını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B07-A02
+last_atom: P04-B07-A03
 last_commit: pending
-tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (17/17); contract coverage validates; fixture aligned; documented FAIL gaps=4
-evidence: getActiveResearcherRiskTradeoffContract + validateResearcherRiskTradeoffContractCoverage + validateResearcherRiskTradeoffAgainstContract + forge-p04-researcher-risk-tradeoff.test.ts A02 suite; risk_signal/tradeoff_signal/nogo_path dispositions wired
-next: P04-B07-A03
+tests: PASS — forge-p04-researcher-risk-tradeoff*.test.ts (20/20); production slice 23/23 aligned; zero FAIL gaps
+evidence: parseResearchTradeoffs + validateResearchRiskTradeoff + runResearcherRiskTradeoffProductionSlice; orchestrator wired; TRADEOFFS prompt field
+next: P04-B07-A04

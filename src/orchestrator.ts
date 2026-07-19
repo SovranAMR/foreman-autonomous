@@ -72,6 +72,9 @@ import {
 import {
   validateResearchFreshness,
 } from "./forge-p04-researcher-contradiction-freshness.js";
+import {
+  validateResearchRiskTradeoff,
+} from "./forge-p04-researcher-risk-tradeoff.js";
 
 /** Canonical ordered pipeline phases for behavior-map probes and downstream tooling. */
 export const FORGE_PIPELINE_PHASES = FORGE_PIPELINE_CORE_PHASES;
@@ -2695,6 +2698,15 @@ ${visionOutput}`,
         if (!freshnessValidation.valid) {
           this.engine.streaming.warning(
             `[forge] validateResearchFreshness: ${freshnessValidation.issues.join(", ")}`,
+          );
+        }
+
+        const riskTradeoffValidation = validateResearchRiskTradeoff(
+          researchResult.thought.output ?? "",
+        );
+        if (!riskTradeoffValidation.valid) {
+          this.engine.streaming.warning(
+            `[forge] validateResearchRiskTradeoff: ${riskTradeoffValidation.issues.join(", ")}`,
           );
         }
 

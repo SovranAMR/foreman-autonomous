@@ -57,13 +57,13 @@
       "id": "rrto.researcher_tradeoffs_output_field",
       "category": "tradeoff_signal",
       "description": "RESEARCHER output format declares dedicated TRADEOFFS section",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rrto.parse_research_tradeoffs",
       "category": "tradeoff_signal",
       "description": "parseResearchTradeoffs exports structured trade-off dimensions from researcher output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rrto.b06_block_handoff_entry",
@@ -141,13 +141,13 @@
       "id": "rrto.orchestrator_risk_tradeoff_gate",
       "category": "nogo_path",
       "description": "Orchestrator validates researcher risk and trade-off completeness before worker handoff",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rrto.exported_risk_tradeoff_validator",
       "category": "nogo_path",
       "description": "validateResearchRiskTradeoff exported for orchestrator pre-worker research checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

@@ -34,11 +34,23 @@ export interface DecomposeParseResult {
   confidence: number;
 }
 
+export interface ResearchTradeoffDimension {
+  left: string;
+  right: string;
+  dimension: string;
+}
+
+export interface ResearchTradeoffParseResult {
+  dimensions: ResearchTradeoffDimension[];
+  raw: string;
+}
+
 export interface ResearchParseResult {
   reasoning: string;
   researchQuestions: string[];
   findings: string;
   relevance: number;
+  tradeoffs: ResearchTradeoffDimension[];
   risks: string;
 }
 
@@ -274,9 +286,57 @@ function parseBlockDependencies(text: string, blockCount: number): number[][] {
 
 const NUMBERED_RESEARCH_QUESTION_LINE = /^\s*(?:\d+[.)]|[-*])\s+(.+)$/;
 
+const NUMBERED_TRADEOFF_LINE = /^\s*(?:\d+[.)]|[-*])\s+(.+)$/;
+
+function parseTradeoffDimensionLine(line: string): ResearchTradeoffDimension | null {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) return null;
+
+  const numbered = trimmed.match(NUMBERED_TRADEOFF_LINE);
+  const content = numbered ? numbered[1].trim() : trimmed;
+  const vsMatch = content.match(/(.+?)\s+(?:vs\.?|versus)\s+(.+)/i);
+  if (vsMatch) {
+    const left = vsMatch[1].trim();
+    const right = vsMatch[2].trim();
+    return { left, right, dimension: `${left} vs ${right}` };
+  }
+
+  return { left: content, right: "", dimension: content };
+}
+
+function parseResearchTradeoffsField(text: string): ResearchTradeoffDimension[] {
+  const tradeoffsRaw = extractField(text, "TRADEOFFS", ["RISKS", "REASONING"]);
+  if (!tradeoffsRaw) return [];
+
+  const dimensions: ResearchTradeoffDimension[] = [];
+  for (const line of tradeoffsRaw.split("\n")) {
+    const dimension = parseTradeoffDimensionLine(line);
+    if (dimension) dimensions.push(dimension);
+  }
+  return dimensions;
+}
+
+/**
+ * Parse structured trade-off dimensions from researcher output (P04-B07-A03).
+ */
+export function parseResearchTradeoffs(
+  text: string,
+): { ok: true; data: ResearchTradeoffParseResult } | { ok: false; error: ParseError } {
+  const dimensions = parseResearchTradeoffsField(text);
+  if (dimensions.length === 0) {
+    return { ok: false, error: { missing: ["TRADEOFFS"], raw: text } };
+  }
+
+  const tradeoffsRaw = extractField(text, "TRADEOFFS", ["RISKS", "REASONING"]) ?? "";
+  return {
+    ok: true,
+    data: { dimensions, raw: tradeoffsRaw },
+  };
+}
+
 function parseResearchQuestionsField(text: string): string[] {
   const sectionMatch = text.match(
-    /RESEARCH_QUESTIONS:\s*([\s\S]*?)(?:\n(?:FINDINGS|RELEVANCE|RISKS|REASONING)|$)/i,
+    /RESEARCH_QUESTIONS:\s*([\s\S]*?)(?:\n(?:FINDINGS|RELEVANCE|TRADEOFFS|RISKS|REASONING)|$)/i,
   );
   const source = sectionMatch?.[1]?.trim() ?? "";
   if (source.length === 0) {
@@ -306,10 +366,11 @@ function parseResearchQuestionsField(text: string): string[] {
  * REASONING optional (researcher sometimes goes directly to findings)
  */
 export function parseResearchResponse(text: string): { ok: true; data: ResearchParseResult } | { ok: false; error: ParseError } {
-  const reasoning = extractField(text, "REASONING", ["RESEARCH_QUESTIONS", "FINDINGS", "RELEVANCE", "RISKS"]);
+  const reasoning = extractField(text, "REASONING", ["RESEARCH_QUESTIONS", "FINDINGS", "RELEVANCE", "TRADEOFFS", "RISKS"]);
   const researchQuestions = parseResearchQuestionsField(text);
-  const findings = extractField(text, "FINDINGS", ["RELEVANCE", "RISKS"]);
+  const findings = extractField(text, "FINDINGS", ["RELEVANCE", "TRADEOFFS", "RISKS"]);
   const relevance = extractNumber(text, "RELEVANCE");
+  const tradeoffs = parseResearchTradeoffsField(text);
   const risks = extractField(text, "RISKS", []);
 
   const missing: string[] = [];
@@ -326,6 +387,7 @@ export function parseResearchResponse(text: string): { ok: true; data: ResearchP
       researchQuestions,
       findings: findings!,
       relevance: relevance ?? 0.7,
+      tradeoffs,
       risks: risks ?? "None identified",
     },
   };

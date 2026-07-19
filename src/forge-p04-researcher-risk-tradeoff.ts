@@ -16,9 +16,9 @@ import {
   summarizeResearcherContradictionFreshnessContractCoverage,
   FORGE_RESEARCHER_CONTRADICTION_FRESHNESS_CONTRACT_V1,
 } from "./forge-p04-researcher-contradiction-freshness.js";
-import { parseResearchResponse } from "./parser.js";
+import { parseResearchResponse, parseResearchTradeoffs } from "./parser.js";
 
-export const FORGE_RESEARCHER_RISK_TRADEOFF_VERSION = "1.0.0-a02";
+export const FORGE_RESEARCHER_RISK_TRADEOFF_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P04_B06_SEALED_ATOM_COUNT = 10;
 
@@ -148,6 +148,56 @@ export function validateResearchRiskTradeoffCollection(
   }
 
   return { valid: issues.length === 0, findingCount, issues };
+}
+
+export interface ResearchRiskTradeoffValidationOutcome {
+  valid: boolean;
+  tradeoffCount: number;
+  riskPresent: boolean;
+  issues: string[];
+}
+
+/**
+ * Validate researcher output declares actionable risk and trade-off signals (P04-B07-A03).
+ */
+export function validateResearchRiskTradeoff(
+  researchOutput: string,
+): ResearchRiskTradeoffValidationOutcome {
+  const boundary = assessResearchRiskTradeoffInputBoundary(researchOutput);
+  if (!boundary.acceptable) {
+    return {
+      valid: false,
+      tradeoffCount: 0,
+      riskPresent: false,
+      issues: [boundary.detail],
+    };
+  }
+
+  const issues: string[] = [];
+  const normalized = boundary.normalizedInput;
+  const riskPresent = /RISKS\s*[:=\-.]/i.test(normalized);
+  if (!riskPresent) {
+    issues.push("missing_risks_section");
+  }
+
+  const tradeoffParse = parseResearchTradeoffs(normalized);
+  const tradeoffCount = tradeoffParse.ok ? tradeoffParse.data.dimensions.length : 0;
+  if (tradeoffCount === 0) {
+    const recovery = recoverResearchRiskTradeoffEvidence(normalized);
+    if (recovery.researchPlan.tradeoffs.length === 0) {
+      issues.push("missing_tradeoff_dimensions");
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    tradeoffCount:
+      tradeoffCount > 0
+        ? tradeoffCount
+        : recoverResearchRiskTradeoffEvidence(normalized).researchPlan.tradeoffs.length,
+    riskPresent,
+    issues,
+  };
 }
 
 export interface ResearchRiskTradeoffRecoveryHints {
@@ -406,9 +456,9 @@ const RESEARCHER_RISK_TRADEOFF_CATEGORY_CONTRACTS: Record<
     category: "tradeoff_signal",
     acceptance: {
       invariant:
-        "Researcher trade-off analysis requires structured output and parser exports; documented gaps remain.",
+        "Researcher trade-off analysis requires structured output and parser exports trade-off dimensions.",
       minProbeCount: 3,
-      requireFullAlignment: false,
+      requireFullAlignment: true,
     },
     probes: [
       {
@@ -425,8 +475,8 @@ const RESEARCHER_RISK_TRADEOFF_CATEGORY_CONTRACTS: Record<
         id: "rrto.researcher_tradeoffs_output_field",
         category: "tradeoff_signal",
         description: "RESEARCHER output format declares dedicated TRADEOFFS section",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "RESEARCHER output format declares dedicated TRADEOFFS section",
       },
       {
@@ -434,8 +484,8 @@ const RESEARCHER_RISK_TRADEOFF_CATEGORY_CONTRACTS: Record<
         category: "tradeoff_signal",
         description:
           "parseResearchTradeoffs exports structured trade-off dimensions from researcher output",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion:
           "parseResearchTradeoffs exports structured trade-off dimensions from researcher output",
       },
@@ -598,7 +648,7 @@ const RESEARCHER_RISK_TRADEOFF_CATEGORY_CONTRACTS: Record<
       invariant:
         "Orchestrator risk/trade-off gate and validator exports gate pre-worker NO-GO wiring.",
       minProbeCount: 2,
-      requireFullAlignment: false,
+      requireFullAlignment: true,
     },
     probes: [
       {
@@ -606,8 +656,8 @@ const RESEARCHER_RISK_TRADEOFF_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description:
           "Orchestrator validates researcher risk and trade-off completeness before worker handoff",
-        expected: "FAIL",
-        disposition: "nogo",
+        expected: "PASS",
+        disposition: "observed",
         criterion:
           "Orchestrator validates researcher risk and trade-off completeness before worker handoff",
       },
@@ -616,8 +666,8 @@ const RESEARCHER_RISK_TRADEOFF_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description:
           "validateResearchRiskTradeoff exported for orchestrator pre-worker research checks",
-        expected: "FAIL",
-        disposition: "nogo",
+        expected: "PASS",
+        disposition: "observed",
         criterion:
           "validateResearchRiskTradeoff exported for orchestrator pre-worker research checks",
       },
@@ -1294,7 +1344,14 @@ function runSingleProbe(
     }
     case "rrto.parse_research_tradeoffs": {
       const parser = readSrc("parser.ts");
-      const ok = /\bexport function parseResearchTradeoffs\b/.test(parser);
+      const sample = `${SAMPLE_RESEARCH_OUTPUT}
+TRADEOFFS:
+1. sync vs async latency`;
+      const parsed = parseResearchTradeoffs(sample);
+      const ok =
+        /\bexport function parseResearchTradeoffs\b/.test(parser) &&
+        parsed.ok &&
+        parsed.data.dimensions.length >= 1;
       return probe(id, category, expected, ok, `parseResearchTradeoffs=${ok}`);
     }
     case "rrto.b06_block_handoff_entry": {
@@ -1350,7 +1407,7 @@ function runSingleProbe(
       const contract = getActiveResearcherRiskTradeoffContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -1429,7 +1486,7 @@ FINDINGS: partial parse`;
     case "rrto.orchestrator_risk_tradeoff_gate": {
       const orchestrator = readSrc("orchestrator.ts");
       const ok =
-        orchestrator.includes("validateResearchRiskTradeoff") ||
+        orchestrator.includes("validateResearchRiskTradeoff(") ||
         orchestrator.includes("verifyResearchRiskTradeoff");
       return probe(id, category, expected, ok, `orchestratorGate=${ok}`);
     }
@@ -1451,4 +1508,39 @@ export function runResearcherRiskTradeoffProbes(
     const contractProbe = contract.probes.find(p => p.id === entry.id);
     return contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
   });
+}
+
+export interface ResearcherRiskTradeoffProductionSliceResult {
+  atom: "P04-B07-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherRiskTradeoffProbeResult[];
+  summary: ResearcherRiskTradeoffProbeSummary;
+  matrixValidation: ResearcherRiskTradeoffProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: parseResearchTradeoffs and validateResearchRiskTradeoff
+ * wired to contract probe execution with zero unexpected mismatches.
+ */
+export function runResearcherRiskTradeoffProductionSlice(
+  fixture: ResearcherRiskTradeoffBaseline = loadResearcherRiskTradeoffBaseline(),
+): ResearcherRiskTradeoffProductionSliceResult {
+  const contract = getActiveResearcherRiskTradeoffContract();
+  const fixtureValidation = validateResearcherRiskTradeoffBaseline(fixture);
+  const contractValidation = validateResearcherRiskTradeoffAgainstContract(fixture, contract);
+  const results = runResearcherRiskTradeoffProbes(fixture);
+  const summary = summarizeResearcherRiskTradeoffMatrix(results);
+  const matrixValidation = validateResearcherRiskTradeoffProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B07-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
