@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B01
-active_atom: P04-B01-A01
+active_atom: P04-B01-A02
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 300/1000
-phase_progress: 0/100
-block_progress: 0/10
+program_progress: 301/1000
+phase_progress: 1/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B01-A01 — Research question decomposition: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P04-B01-A02 — Research question decomposition: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P03-PHASE-GATE PASS; P04 researcher entry baseline.
-target: Research question decomposition baseline fixture with failing probe matrix for P04-B01-A01.
-hypothesis: Sealed P03 phase gate artifacts enable P04-B01-A01 researcher question baseline.
-acceptance: baseline fixture loads; probe matrix defined; handoff from P03-PHASE-GATE valid.
+objective: P04-B01-A01 PASS; typed contract for researcher question decomposition.
+target: Research question decomposition typed contract with measurable acceptance criteria for P04-B01-A02.
+hypothesis: P04-B01-A01 baseline probe matrix enables typed contract coverage gate.
+acceptance: contract declares all categories; probes wired; coverage validation passes.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-*.ts
-rollback: P04-B01-A01 baseline slice değişikliklerini geri al.
+rollback: P04-B01-A02 contract slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-PHASE-GATE
-last_commit: 99bc622
-tests: PASS — forge-p03-phase-gate.test.ts (6/6); runForgeP03PhaseGate blocks=10/10 atoms=100/100; verifyForgeP03PhaseGate orchestrator wiring
-evidence: runForgeP03PhaseGate seals all ten P03 block gates; validateForgeP03StrategistPhaseGateEvidence P04-B01 entry; parser blockDeps fix; handoff=PASS→P04-B01
-next: P04-B01-A01
+last_atom: P04-B01-A01
+last_commit: e1a5e0c
+tests: PASS — forge-p04-researcher-question-decomposition-baseline.test.ts (5/5); 25 probes / 6 FAIL gaps aligned
+evidence: forge-researcher-question-decomposition-v1.json; assessResearchQuestionInputBoundary + assessResearchQuestionDecompositionPresence; P03-PHASE-GATE handoff valid
+next: P04-B01-A02

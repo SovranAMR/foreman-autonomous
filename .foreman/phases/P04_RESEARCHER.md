@@ -1,9 +1,9 @@
 # P04 — Araştırmacı — Kanıt, Kaynak ve Deney
 
 phase_id: P04
-phase_status: QUEUED
+phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 0
+completed_atoms: 1
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -15,7 +15,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P04-B01 — Research question decomposition
 
-- [ ] P04-B01-A01 — Research question decomposition: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P04-B01-A01 — Research question decomposition: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P04-B01-A02 — Research question decomposition: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B01-A03 — Research question decomposition: en küçük üretim dikey dilimini uygula
 - [ ] P04-B01-A04 — Research question decomposition: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: NONE
-last_commit: NONE
-tests: NOT-RUN
-evidence: Phase backlog initialized
-next: P04-B01-A01
+last_atom: P04-B01-A01
+last_commit: e1a5e0c
+tests: PASS — forge-p04-researcher-question-decomposition-baseline.test.ts (5/5); runResearcherQuestionDecompositionProbes 25 probes / 6 documented FAIL gaps
+evidence: baseline v1.0.0 loads; P03-PHASE-GATE handoff valid; probe matrix 19 PASS + 6 aligned FAIL gaps (prompt/parser/orchestrator/decompose/nogo)
+next: P04-B01-A02

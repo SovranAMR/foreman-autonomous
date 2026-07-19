@@ -1,0 +1,165 @@
+{
+  "version": "1.0.0",
+  "atom": "P04-B01-A01",
+  "contractAtom": "P04-B01-A06",
+  "purpose": "Researcher question decomposition baseline measured from sealed P03 strategist phase gate artifacts (includes documented FAIL gaps).",
+  "sourcePhaseGate": {
+    "version": "1.0.0",
+    "atom": "P03-PHASE-GATE",
+    "contractVersion": "1.0.0",
+    "strategistProvenanceProbeCount": 28,
+    "sealedBlockCount": 10
+  },
+  "probes": [
+    {
+      "id": "rques.version_tagged",
+      "category": "question_versioning",
+      "description": "Researcher question decomposition baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.atom_tagged",
+      "category": "question_versioning",
+      "description": "Researcher question decomposition baseline declares P04-B01-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.harness_version_exported",
+      "category": "question_versioning",
+      "description": "FORGE_RESEARCHER_QUESTION_DECOMPOSITION_VERSION exported for question decomposition harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.prompt_research_questions",
+      "category": "question_signal",
+      "description": "RESEARCHER_SYSTEM prompt declares RESEARCH_QUESTIONS output field before findings",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rques.parser_research_questions_extract",
+      "category": "question_signal",
+      "description": "parseResearchResponse extracts RESEARCH_QUESTIONS list from researcher output",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rques.researcher_findings_format",
+      "category": "question_signal",
+      "description": "RESEARCHER_SYSTEM prompt declares FINDINGS output field",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.parser_findings_extract",
+      "category": "question_signal",
+      "description": "parseResearchResponse extracts FINDINGS from researcher output",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.presence_question_detect",
+      "category": "question_signal",
+      "description": "assessResearchQuestionDecompositionPresence detects RESEARCH_QUESTIONS in researcher output",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.decompose_research_questions_fn",
+      "category": "subquery_signal",
+      "description": "decomposeResearchQuestions splits block task into measurable sub-queries",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rques.orchestrator_pre_research_decompose",
+      "category": "subquery_signal",
+      "description": "Orchestrator decomposes research questions before researcher stepWithPhase",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rques.research_engine_single_query",
+      "category": "subquery_signal",
+      "description": "research-engine research() accepts query string for unified research context",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.block_keyword_query_extract",
+      "category": "subquery_signal",
+      "description": "Orchestrator extracts block keywords for pre-research web search context",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.p03_phase_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P03_TO_P04_PHASE_HANDOFF_V1 targets P04-B01-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.p03_sealed_provenance_probes",
+      "category": "baseline_link",
+      "description": "P03→P04 handoff sealed probeCount matches active strategist provenance contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.source_phase_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P03 strategist phase gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.probe_runner_exported",
+      "category": "boundary",
+      "description": "runResearcherQuestionDecompositionProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL question decomposition gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.empty_block_boundary",
+      "category": "boundary",
+      "description": "assessResearchQuestionInputBoundary rejects empty block task input",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateResearcherQuestionDecompositionBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.malformed_block_guard",
+      "category": "failure_path",
+      "description": "assessResearchQuestionInputBoundary rejects null-byte block task input safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.min_category_probes",
+      "category": "failure_path",
+      "description": "validateResearcherQuestionDecompositionBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.researcher_memory_skip",
+      "category": "recovery_path",
+      "description": "Researcher prompt skips re-researching items already in memory",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.research_block_non_fatal",
+      "category": "recovery_path",
+      "description": "Orchestrator treats researcher BLOCK as non-fatal and continues pipeline",
+      "expected": "PASS"
+    },
+    {
+      "id": "rques.nogo_empty_question_halt",
+      "category": "nogo_path",
+      "description": "Pipeline halts research when question decomposition yields zero actionable sub-queries",
+      "expected": "FAIL"
+    },
+    {
+      "id": "rques.exported_orchestrator_question_validator",
+      "category": "nogo_path",
+      "description": "validateResearchQuestionDecomposition exported for orchestrator pre-research checks",
+      "expected": "FAIL"
+    }
+  ]
+}
