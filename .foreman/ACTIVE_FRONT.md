@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B08
-active_atom: P03-B08-A07
+active_atom: P03-B08-A08
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 275/1000
+program_progress: 276/1000
 phase_progress: 76/100
-block_progress: 6/10
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B08-A07 — Replan ve plan repair: property ve fuzz validation ekle.
+P03-B08-A08 — Replan ve plan repair: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P03-B08-A06 PASS; P03-B08-A07 implement property/fuzz validation for replan evidence slice.
-target: run record fuzz validation, structural property checks.
-hypothesis: P03-B08-A07 extends A06 run record with fuzz mutation gates.
-acceptance: property/fuzz validation PASS; regression suite green.
+objective: P03-B08-A07 PASS; P03-B08-A08 implement Forge regression integration for replan evidence slice.
+target: run record regression detection, forge regression harness.
+hypothesis: P03-B08-A08 extends A07 property/fuzz with probe alignment regression gates.
+acceptance: Forge regression PASS; regression suite green.
 commands: npx tsx --test src/forge-p03-strategist-replan*.test.ts
 blast_radius: src/forge-p03-strategist-replan.ts
-rollback: P03-B08-A07 property/fuzz değişikliklerini geri al.
+rollback: P03-B08-A08 Forge regression değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Property/fuzz blocked ise BLOCKED raporla.
+fallback: Forge regression blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B08-A06
-last_commit: 71156fc
-tests: PASS — forge-p03-strategist-replan*.test.ts (24/24); runStrategistReplanEvidenceSlice; validateStrategistReplanFailureRecoveryRunRecord
-evidence: runStrategistReplanFailureRecoverySliceWithRecord; validateStrategistReplanFailureRecoveryRunRecord; runStrategistReplanEvidenceSlice
-next: P03-B08-A07
+last_atom: P03-B08-A07
+last_commit: pending
+tests: PASS — forge-p03-strategist-replan*.test.ts (30/30); runStrategistReplanPropertyFuzzSlice; runStrategistReplanFuzzValidation; runStrategistReplanRunRecordFuzzValidation
+evidence: runStrategistReplanPropertyFuzzSlice; runStrategistReplanPropertyChecks; runStrategistReplanFuzzValidation; runStrategistReplanRunRecordFuzzValidation
+next: P03-B08-A08

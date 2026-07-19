@@ -112,8 +112,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B08-A04 — Replan ve plan repair: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B08-A05 — Replan ve plan repair: failure, recovery ve NO-GO yollarını uygula
 - [x] P03-B08-A06 — Replan ve plan repair: evidence, telemetry ve provenance kaydını ekle
-- [ ] P03-B08-A07 — Replan ve plan repair: property ve fuzz validation ekle
-- [ ] P03-B08-A07 — Replan ve plan repair: unit, property ve fuzz doğrulamasını ekle
+- [x] P03-B08-A07 — Replan ve plan repair: property ve fuzz validation ekle
+- [x] P03-B08-A07 — Replan ve plan repair: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B08-A08 — Replan ve plan repair: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B08-A09 — Replan ve plan repair: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B08-A10 — Replan ve plan repair: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -157,8 +157,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B08-A06
-last_commit: 71156fc
-tests: PASS — forge-p03-strategist-replan*.test.ts (24/24); runStrategistReplanEvidenceSlice; validateStrategistReplanFailureRecoveryRunRecord
-evidence: runStrategistReplanFailureRecoverySliceWithRecord; validateStrategistReplanFailureRecoveryRunRecord; runStrategistReplanEvidenceSlice
-next: P03-B08-A07
+last_atom: P03-B08-A07
+last_commit: pending
+tests: PASS — forge-p03-strategist-replan*.test.ts (30/30); runStrategistReplanPropertyFuzzSlice; runStrategistReplanFuzzValidation; runStrategistReplanRunRecordFuzzValidation
+evidence: runStrategistReplanPropertyFuzzSlice; runStrategistReplanPropertyChecks; runStrategistReplanFuzzValidation; runStrategistReplanRunRecordFuzzValidation
+next: P03-B08-A08
