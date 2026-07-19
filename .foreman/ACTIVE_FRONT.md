@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
-active_block: P03-B07
-active_atom: P03-B07-A10
+active_block: P03-B08
+active_atom: P03-B08-A01
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 268/1000
-phase_progress: 69/100
-block_progress: 9/10
+program_progress: 269/1000
+phase_progress: 70/100
+block_progress: 10/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B07-A10 — Parallel execution wave planı: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P03-B08-A01 — Replan ve plan repair: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P03-B07-A09 PASS; P03-B07-A10 seal block gate evidence and handoff to P03-B08.
-target: sealStrategistParallelWaveBlockGate, validateStrategistParallelWaveBlockHandoff.
-hypothesis: P03-B07-A10 wires block gate seal with regression+guard PASS and valid P03-B08 handoff contract.
-acceptance: block gate sealed; handoff valid; probe count and atom seals match B07 completion.
-commands: npx tsx --test src/forge-p03-strategist-parallel-wave*.test.ts
-blast_radius: src/forge-p03-strategist-parallel-wave.ts
-rollback: P03-B07-A10 block gate slice değişikliklerini geri al.
+objective: P03-B07-A10 PASS; P03-B08-A01 measure replan/plan-repair behavior and create failing baseline fixture.
+target: loadStrategistReplanBaseline, runStrategistReplanProbes.
+hypothesis: P03-B08-A01 establishes measurable replan debt from sealed P03-B07 parallel wave block gate handoff.
+acceptance: baseline fixture loads; probes run; documented FAIL gaps aligned to contract.
+commands: npx tsx --test src/forge-p03-strategist-replan*.test.ts
+blast_radius: src/forge-p03-strategist-replan.ts
+rollback: P03-B08-A01 baseline slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Block gate blocked ise BLOCKED raporla.
+fallback: Baseline blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B07-A09
-last_commit: e36eb94
-tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (43/43); guard adversarial 3/3; performance/cost/safety PASS
-evidence: validateForgeStrategistParallelWaveGuard; runStrategistParallelWaveAdversarialGuardChecks; runForgeStrategistParallelWaveRegressionGate
-next: P03-B07-A10
+last_atom: P03-B07-A10
+last_commit: pending
+tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (50/50); block gate 10/10 seals; handoff→P03-B08
+evidence: sealStrategistParallelWaveBlockGate; validateStrategistParallelWaveBlockHandoffContract; runForgeStrategistParallelWaveBlockGate
+next: P03-B08-A01
