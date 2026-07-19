@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B06-A05
-last_commit: pending
+last_commit: 35bd237
 tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (28/28); failure/recovery slice 6/6 probes PASS; validateResearcherContradictionFreshnessFailureRecoveryProbeMatrix + runResearcherContradictionFreshnessFailureRecoverySlice
 evidence: failure_path + recovery_path + nogo_path slice gate + invalid version/null-byte guards + recoverContradictionFreshnessEvidence + orchestrator validateResearchFreshness wiring
 next: P04-B06-A06
