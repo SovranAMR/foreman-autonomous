@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B09-A03
-last_commit: pending
+last_commit: 7ca50ba
 tests: PASS — forge-p03-strategist-provenance.test.ts (11/11); forge-p03-strategist-provenance-baseline.test.ts (3/3); validatePlanDrift; runStrategistProvenanceProductionSlice (28/28 aligned, 6 gaps closed)
 evidence: validatePlanDrift + rejectUndetectedPlanDrift in orchestrator; planProvenance parser field; PLAN PROVENANCE prompt; buildPlanProvenanceGraph
 next: P03-B09-A04
