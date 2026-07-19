@@ -11,7 +11,12 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import strategistResourceBudgetBaseline from "./fixtures/forge-strategist-resource-budget-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP03B05ToB06Handoff,
   summarizeStrategistRiskReversibilityCoverage,
@@ -3403,5 +3408,240 @@ export function runForgeStrategistResourceBudgetRegressionGate(
     passed,
     guard,
     detail: detailParts.join(" | "),
+  };
+}
+
+// ─── Block gate and handoff (P03-B06-A10) ─────────────────────────────────────
+
+export interface StrategistResourceBudgetBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface StrategistResourceBudgetBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    resourceBudgetCategories: readonly StrategistResourceBudgetCategory[];
+    sourceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    resourceBudgetRecordRequired: true;
+  };
+}
+
+export const FORGE_P03_B06_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P03-B06-A10",
+  blockId: "P03-B06",
+  title: "Kaynak ve budget planı",
+  requiredAtomIds: [
+    "P03-B06-A01",
+    "P03-B06-A02",
+    "P03-B06-A03",
+    "P03-B06-A04",
+    "P03-B06-A05",
+    "P03-B06-A06",
+    "P03-B06-A07",
+    "P03-B06-A08",
+    "P03-B06-A09",
+    "P03-B06-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P03-B06-A01",
+      description: "Resource budget baseline aligns with typed contract and P03-B05 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P03-B06-A02",
+      description: "Contract declares measurable probes for all resource budget categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P03-B06-A03",
+      description: "Resource budget probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P03-B06-A04",
+      description: "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P03-B06-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P03-B06-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P03-B06-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P03-B06-A08",
+      description: "Regression gate passes on canonical resource budget matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P03-B06-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P03-B06-A10",
+      description: "Block gate evidence sealed with valid B07 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P03_B06_TO_B07_HANDOFF_V1: StrategistResourceBudgetBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P03-B06-A10",
+  sourceBlock: {
+    blockId: "P03-B06",
+    title: "Kaynak ve budget planı",
+    completedAtoms: FORGE_P03_B06_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P03-B07",
+    title: "Parallel execution wave planı",
+    entryAtom: "P03-B07-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_STRATEGIST_RESOURCE_BUDGET_CONTRACT_V1.version,
+    harnessVersion: FORGE_STRATEGIST_RESOURCE_BUDGET_VERSION,
+    probeCount: summarizeStrategistResourceBudgetCoverage(FORGE_STRATEGIST_RESOURCE_BUDGET_CONTRACT_V1)
+      .totalProbes,
+    resourceBudgetCategories: STRATEGIST_RESOURCE_BUDGET_CATEGORIES,
+    sourceBlockGateAtom: "P03-B05-A10",
+  },
+  prerequisites: [
+    "Resource budget v1 with measurable token, cost and baseline link probes",
+    "Versioned resource budget baseline aligned to contract probe matrix and sealed P03-B05 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P03-B05 risk reversibility block gate referenced by sourceBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P03-B07-A01 formalizes parallel execution wave planning using sealed resource budget artifacts",
+    requiresBlockGatePass: true,
+    resourceBudgetRecordRequired: true,
+  },
+};
+
+export function getForgeP03B06BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P03_B06_BLOCK_GATE_V1;
+}
+
+export function getForgeP03B06ToB07Handoff(): StrategistResourceBudgetBlockHandoffContract {
+  return FORGE_P03_B06_TO_B07_HANDOFF_V1;
+}
+
+export function validateStrategistResourceBudgetBlockHandoffContract(
+  handoff: StrategistResourceBudgetBlockHandoffContract,
+  evidence: Pick<StrategistResourceBudgetBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: StrategistResourceBudgetContract = getActiveStrategistResourceBudgetContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeStrategistResourceBudgetCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_STRATEGIST_RESOURCE_BUDGET_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_STRATEGIST_RESOURCE_BUDGET_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.resourceBudgetCategories.length !==
+    STRATEGIST_RESOURCE_BUDGET_CATEGORIES.length
+  ) {
+    issues.push("handoff resourceBudgetCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceBlockGateAtom !== "P03-B05-A10") {
+    issues.push(`unexpected source block gate atom: ${handoff.sealedArtifacts.sourceBlockGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P03-B07-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildStrategistResourceBudgetBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P03_B06_BLOCK_GATE_V1.blockId,
+): StrategistResourceBudgetBlockGateEvidence {
+  const handoff = getForgeP03B06ToB07Handoff();
+  const handoffValid = validateStrategistResourceBudgetBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P03-B06-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }
