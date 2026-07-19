@@ -124,7 +124,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B09-A03 — Kullanıcı approval ve steering: en küçük üretim dikey dilimini uygula
 - [x] P02-B09-A04 — Kullanıcı approval ve steering: boundary ve edge-case davranışlarını tamamla
 - [x] P02-B09-A05 — Kullanıcı approval ve steering: failure, recovery ve NO-GO yollarını uygula
-- [ ] P02-B09-A06 — Kullanıcı approval ve steering: evidence, telemetry ve provenance kaydını ekle
+- [x] P02-B09-A06 — Kullanıcı approval ve steering: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B09-A07 — Kullanıcı approval ve steering: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B09-A08 — Kullanıcı approval ve steering: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B09-A09 — Kullanıcı approval ve steering: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B09-A05
-last_commit: b5c041a
-tests: PASS — forge-p02-visioner-approval.test.ts (24/24), forge-p02-visioner-approval-baseline.test.ts (3/3)
-evidence: validateVisionerApprovalFailureRecoveryProbeMatrix; runVisionerApprovalFailureRecoverySlice; failureRecovery passAligned=6 gapAligned=0 unexpectedMismatches=0
-next: P02-B09-A06
+last_atom: P02-B09-A06
+last_commit: pending
+tests: PASS — forge-p02-visioner-approval.test.ts (26/26), forge-p02-visioner-approval-baseline.test.ts (3/3)
+evidence: validateVisionerApprovalFailureRecoveryRunRecord; runVisionerApprovalFailureRecoverySliceWithRecord; failureRecovery evidence=6 telemetry=6 mismatches=0
+next: P02-B09-A07

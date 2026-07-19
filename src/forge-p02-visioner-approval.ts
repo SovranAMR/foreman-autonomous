@@ -1302,3 +1302,284 @@ export function listVisionerApprovalKnownGaps(
 ): VisionerApprovalProbeResult[] {
   return summarizeVisionerApprovalMatrix(results).knownGaps;
 }
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P02-B09-A06). */
+export interface VisionerApprovalProbeEvidence {
+  probeId: string;
+  category: VisionerApprovalCategory;
+  disposition: VisionerApprovalProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for visioner approval runs (P02-B09-A06). */
+export interface VisionerApprovalProbeTelemetry {
+  probeId: string;
+  category: VisionerApprovalCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P02-B09-A06). */
+export interface VisionerApprovalProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly VisionerApprovalCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated visioner approval run record bundling evidence, telemetry and provenance. */
+export interface VisionerApprovalRunRecord {
+  provenance: VisionerApprovalProvenance;
+  evidence: VisionerApprovalProbeEvidence[];
+  telemetry: VisionerApprovalProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<VisionerApprovalCategory, number>;
+    byDisposition: Record<VisionerApprovalProbeDisposition, number>;
+  };
+}
+
+export interface VisionerApprovalRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface VisionerApprovalRunValidationResult {
+  valid: boolean;
+  issues: VisionerApprovalRunValidationIssue[];
+}
+
+export function buildVisionerApprovalProbeEvidence(
+  probeId: string,
+  category: VisionerApprovalCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: VisionerApprovalProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): VisionerApprovalProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildVisionerApprovalProbeTelemetry(
+  probeId: string,
+  category: VisionerApprovalCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): VisionerApprovalProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildVisionerApprovalProvenance(
+  runId: string,
+  fixture: VisionerApprovalBaseline,
+  contract: VisionerApprovalContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerApprovalCategory[];
+  },
+): VisionerApprovalProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_VISIONER_APPROVAL_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildVisionerApprovalRunRecord(
+  provenance: VisionerApprovalProvenance,
+  evidence: VisionerApprovalProbeEvidence[],
+  telemetry: VisionerApprovalProbeTelemetry[],
+): VisionerApprovalRunRecord {
+  const byCategory = {} as Record<VisionerApprovalCategory, number>;
+  const byDisposition: Record<VisionerApprovalProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of VISIONER_APPROVAL_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateVisionerApprovalRunRecordAgainstProbeIds(
+  record: VisionerApprovalRunRecord,
+  expectedProbeIds: string[],
+  contract: VisionerApprovalContract,
+): VisionerApprovalRunValidationResult {
+  const issues: VisionerApprovalRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateVisionerApprovalRunRecord(
+  record: VisionerApprovalRunRecord,
+  contract: VisionerApprovalContract = getActiveVisionerApprovalContract(),
+): VisionerApprovalRunValidationResult {
+  return validateVisionerApprovalRunRecordAgainstProbeIds(
+    record,
+    listVisionerApprovalContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateVisionerApprovalFailureRecoveryRunRecord(
+  record: VisionerApprovalRunRecord,
+  contract: VisionerApprovalContract = getActiveVisionerApprovalContract(),
+): VisionerApprovalRunValidationResult {
+  const issues: VisionerApprovalRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P02-B09-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P02-B09-A06`,
+    });
+  }
+
+  const expectedCategories = [...VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateVisionerApprovalRunRecordAgainstProbeIds(
+    record,
+    listVisionerApprovalFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}

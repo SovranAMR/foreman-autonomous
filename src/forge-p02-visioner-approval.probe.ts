@@ -5,6 +5,8 @@
  */
 
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import visionerApprovalBaseline from "./fixtures/forge-visioner-approval-v1.json" with { type: "json" };
@@ -23,6 +25,11 @@ import {
   validateVisionerApprovalProbeMatrix,
   validateVisionerApprovalBoundaryProbeMatrix,
   validateVisionerApprovalFailureRecoveryProbeMatrix,
+  buildVisionerApprovalProbeEvidence,
+  buildVisionerApprovalProbeTelemetry,
+  buildVisionerApprovalProvenance,
+  buildVisionerApprovalRunRecord,
+  listVisionerApprovalFailureRecoveryProbeIds,
   VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES,
   summarizeVisionerApprovalMatrix,
   listVisionerApprovalProbesByExpected,
@@ -35,7 +42,9 @@ import {
   EXPECTED_P02_B08_SEALED_ATOM_COUNT,
   type VisionerApprovalBaseline,
   type VisionerApprovalCategory,
+  type VisionerApprovalProbeDisposition,
   type VisionerApprovalProbeResult,
+  type VisionerApprovalRunRecord,
 } from "./forge-p02-visioner-approval.js";
 
 export type { VisionerApprovalBaseline, VisionerApprovalProbeResult } from "./forge-p02-visioner-approval.js";
@@ -582,4 +591,116 @@ export function runVisionerApprovalFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runVisionerApprovalProbeWithTiming(
+  entry: VisionerApprovalBaseline["probes"][number],
+  fixture: VisionerApprovalBaseline,
+  contractProbe:
+    | { criterion: string; disposition: VisionerApprovalProbeDisposition }
+    | undefined,
+): {
+  result: VisionerApprovalProbeResult;
+  durationMs: number;
+  disposition: VisionerApprovalProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildVisionerApprovalRecordFromEntries(
+  entries: VisionerApprovalBaseline["probes"],
+  fixture: VisionerApprovalBaseline,
+  contract: ReturnType<typeof getActiveVisionerApprovalContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly VisionerApprovalCategory[];
+  },
+): VisionerApprovalRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildVisionerApprovalProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildVisionerApprovalProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runVisionerApprovalProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildVisionerApprovalProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildVisionerApprovalProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildVisionerApprovalProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildVisionerApprovalRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all visioner approval probes and emit auditable evidence, telemetry and provenance (P02-B09-A06). */
+export function runVisionerApprovalProbesWithRecord(
+  fixture: VisionerApprovalBaseline = loadVisionerApprovalBaseline(),
+): VisionerApprovalRunRecord {
+  const contract = getActiveVisionerApprovalContract();
+  return buildVisionerApprovalRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P02-B09-A06). */
+export function runVisionerApprovalFailureRecoverySliceWithRecord(
+  fixture: VisionerApprovalBaseline = loadVisionerApprovalBaseline(),
+): VisionerApprovalRunRecord {
+  const contract = getActiveVisionerApprovalContract();
+  const failureRecoveryIds = new Set(listVisionerApprovalFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildVisionerApprovalRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P02-B09-A06",
+    sliceCategories: VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES,
+  });
 }

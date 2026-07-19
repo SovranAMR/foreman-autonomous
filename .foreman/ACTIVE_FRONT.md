@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B09
-active_atom: P02-B09-A06
+active_atom: P02-B09-A07
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 184/1000
-phase_progress: 83/100
-block_progress: 5/10
+program_progress: 185/1000
+phase_progress: 84/100
+block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B09-A06 — Kullanıcı approval ve steering: evidence, telemetry ve provenance kaydını ekle.
+P02-B09-A07 — Kullanıcı approval ve steering: unit, property ve fuzz doğrulamasını ekle.
 
-objective: P02-B09-A05 PASS; implement evidence/telemetry run record for failure/recovery slice with validateVisionerApprovalFailureRecoveryRunRecord gate.
-target: forge-p02-visioner-approval evidence slice with run record builder and A06 validation gate.
-hypothesis: failure/recovery slice run record captures disposition, criterion and aligned probe outcomes.
-acceptance: forge-p02-visioner-approval.test.ts evidence slice gates pass.
-commands: npx tsx --test src/forge-p02-visioner-approval.test.ts
+objective: P02-B09-A06 PASS; implement property/fuzz validation for approval run record with runVisionerApprovalPropertyChecks gate.
+target: forge-p02-visioner-approval property/fuzz slice with run record fuzz validation.
+hypothesis: property and fuzz gates reject tampered approval run records while accepting valid baseline.
+acceptance: forge-p02-visioner-approval.property-fuzz.test.ts gates pass.
+commands: npx tsx --test src/forge-p02-visioner-approval.property-fuzz.test.ts
 blast_radius: src/forge-p02-visioner-approval*
-rollback: P02-B09-A06 evidence slice değişikliklerini geri al.
+rollback: P02-B09-A07 property/fuzz slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: run record validation cannot align ise BLOCKED raporla.
+fallback: property/fuzz validation cannot align ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B09-A05
-last_commit: b5c041a
-tests: PASS — forge-p02-visioner-approval.test.ts (24/24), forge-p02-visioner-approval-baseline.test.ts (3/3)
-evidence: validateVisionerApprovalFailureRecoveryProbeMatrix; runVisionerApprovalFailureRecoverySlice; failureRecovery passAligned=6 gapAligned=0 unexpectedMismatches=0
-next: P02-B09-A06
+last_atom: P02-B09-A06
+last_commit: pending
+tests: PASS — forge-p02-visioner-approval.test.ts (26/26), forge-p02-visioner-approval-baseline.test.ts (3/3)
+evidence: validateVisionerApprovalFailureRecoveryRunRecord; runVisionerApprovalFailureRecoverySliceWithRecord; failureRecovery evidence=6 telemetry=6 mismatches=0
+next: P02-B09-A07

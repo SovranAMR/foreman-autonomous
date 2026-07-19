@@ -6,6 +6,8 @@ import {
   runVisionerApprovalProductionSlice,
   runVisionerApprovalBoundarySlice,
   runVisionerApprovalFailureRecoverySlice,
+  runVisionerApprovalFailureRecoverySliceWithRecord,
+  loadVisionerApprovalBaseline,
 } from "./forge-p02-visioner-approval.probe.js";
 import {
   assessVisionerApprovalInputBoundary,
@@ -22,6 +24,11 @@ import {
   validateVisionerApprovalProbeMatrix,
   validateVisionerApprovalBoundaryProbeMatrix,
   validateVisionerApprovalFailureRecoveryProbeMatrix,
+  validateVisionerApprovalFailureRecoveryRunRecord,
+  buildVisionerApprovalProbeEvidence,
+  buildVisionerApprovalProbeTelemetry,
+  buildVisionerApprovalProvenance,
+  buildVisionerApprovalRunRecord,
   recoverVisionerSteering,
   VISIONER_APPROVAL_CATEGORIES,
   VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES,
@@ -379,5 +386,107 @@ describe("Forge Visioner Approval Failure/Recovery Slice — P02-B09-A05", () =>
     assert.ok(visionRejection);
     assert.equal(visionRejection!.expected, "PASS");
     assert.equal(visionRejection!.actual, "PASS");
+  });
+});
+
+describe("Forge Visioner Approval Evidence — P02-B09-A06", () => {
+  it("builds run record with disposition, criterion and aligned probe outcomes", () => {
+    const fixture = loadVisionerApprovalBaseline();
+    const contract = getActiveVisionerApprovalContract();
+    const probeIds = listVisionerApprovalFailureRecoveryProbeIds(contract);
+    const startedAt = "2026-07-19T00:00:00.000Z";
+    const completedAt = "2026-07-19T00:00:01.000Z";
+
+    const evidence = probeIds.map(probeId => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildVisionerApprovalProbeEvidence(
+        probeId,
+        contractProbe.category,
+        contractProbe.expected,
+        contractProbe.expected,
+        true,
+        contractProbe.criterion,
+        "synthetic",
+        contractProbe.disposition,
+        completedAt,
+      );
+    });
+
+    const telemetry = probeIds.map((probeId, index) => {
+      const contractProbe = contract.probes.find(p => p.id === probeId)!;
+      return buildVisionerApprovalProbeTelemetry(probeId, contractProbe.category, index, index * 0.5);
+    });
+
+    const provenance = buildVisionerApprovalProvenance(
+      "run-vapp-a06",
+      fixture,
+      contract,
+      startedAt,
+      completedAt,
+      probeIds.length,
+      {
+        sliceAtom: "P02-B09-A06",
+        sliceCategories: VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES,
+        gitCommit: "abc1234",
+      },
+    );
+
+    const record = buildVisionerApprovalRunRecord(provenance, evidence, telemetry);
+    const validation = validateVisionerApprovalFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.summary.total, 6);
+    assert.equal(record.summary.mismatches, 0);
+    assert.equal(record.summary.byDisposition.gap, 0);
+    assert.ok(record.summary.byDisposition.failure >= 2);
+    assert.ok(record.summary.byDisposition.recovery >= 2);
+    assert.ok(record.summary.byDisposition.nogo >= 2);
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.provenance.contractAtom, contract.atom);
+    assert.equal(record.provenance.fixtureAtom, fixture.atom);
+    assert.equal(record.provenance.sourceBlockGateAtom, fixture.sourceBlockGate.atom);
+  });
+
+  it("records evidence, telemetry and provenance for failure/recovery slice run", () => {
+    const contract = getActiveVisionerApprovalContract();
+    const record = runVisionerApprovalFailureRecoverySliceWithRecord();
+    const validation = validateVisionerApprovalFailureRecoveryRunRecord(record, contract);
+
+    assert.equal(record.evidence.length, 6);
+    assert.equal(record.telemetry.length, 6);
+    assert.equal(record.provenance.totalProbes, 6);
+    assert.equal(record.provenance.sliceAtom, "P02-B09-A06");
+    assert.deepEqual(record.provenance.sliceCategories, [
+      "failure_path",
+      "recovery_path",
+      "nogo_path",
+    ]);
+    assert.ok(record.provenance.runId.length > 8);
+    assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
+    assert.equal(record.provenance.harnessVersion, FORGE_VISIONER_APPROVAL_VERSION);
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a01");
+    assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
+    assert.equal(record.summary.mismatches, 0);
+
+    for (const item of record.telemetry) {
+      assert.ok(item.durationMs >= 0, `${item.probeId} negative duration`);
+      assert.ok(Number.isFinite(item.sequenceIndex));
+    }
+
+    for (const item of record.evidence) {
+      const contractProbe = contract.probes.find(p => p.id === item.probeId)!;
+      assert.ok(item.criterion.length > 0, `${item.probeId} missing criterion in evidence`);
+      assert.equal(item.criterion, contractProbe.criterion);
+      assert.equal(item.disposition, contractProbe.disposition);
+      assert.ok(item.recordedAt.length > 10);
+    }
+
+    const structuredRecovery = record.evidence.find(
+      e => e.probeId === "vapp.structured_steering_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.aligned, true);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+    assert.equal(structuredRecovery!.disposition, "recovery");
   });
 });
