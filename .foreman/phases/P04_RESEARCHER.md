@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B03-A05
-last_commit: PENDING
+last_commit: 642242a
 tests: PASS — forge-p04-researcher*.test.ts (138/138); failureRecovery probes=6; expectedFail=0; runResearcherWebPrimarySourceFailureRecoverySlice exported
 evidence: runResearcherWebPrimarySourceFailureRecoverySlice; validateResearcherWebPrimarySourceFailureRecoveryProbeMatrix; forge-p04-researcher-web-primary-source-baseline.test.ts
 next: P04-B03-A06
