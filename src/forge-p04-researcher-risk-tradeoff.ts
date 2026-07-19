@@ -4,8 +4,11 @@
  * A01 slice: load, validate, run probes with documented FAIL gaps against sealed
  * P04-B06 contradiction freshness block gate artifacts.
  * A05: failure_path, recovery_path and nogo_path slice gate for failure/recovery/NO-GO probes.
+ * A06: evidence, telemetry and provenance run record for failure/recovery slice gate.
  */
 
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +22,7 @@ import {
 } from "./forge-p04-researcher-contradiction-freshness.js";
 import { parseResearchResponse, parseResearchTradeoffs } from "./parser.js";
 
-export const FORGE_RESEARCHER_RISK_TRADEOFF_VERSION = "1.0.0-a05";
+export const FORGE_RESEARCHER_RISK_TRADEOFF_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P04_B06_SEALED_ATOM_COUNT = 10;
 
@@ -1691,5 +1694,455 @@ export function runResearcherRiskTradeoffFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence entry — disposition, criterion and aligned outcomes (P04-B07-A06). */
+export interface ResearcherRiskTradeoffProbeEvidence {
+  probeId: string;
+  category: ResearcherRiskTradeoffCategory;
+  disposition: ResearcherRiskTradeoffProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for risk trade-off runs (P04-B07-A06). */
+export interface ResearcherRiskTradeoffProbeTelemetry {
+  probeId: string;
+  category: ResearcherRiskTradeoffCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B07-A06). */
+export interface ResearcherRiskTradeoffProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherRiskTradeoffCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated risk trade-off run record bundling evidence, telemetry and provenance. */
+export interface ResearcherRiskTradeoffRunRecord {
+  provenance: ResearcherRiskTradeoffProvenance;
+  evidence: ResearcherRiskTradeoffProbeEvidence[];
+  telemetry: ResearcherRiskTradeoffProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherRiskTradeoffCategory, number>;
+    byDisposition: Record<ResearcherRiskTradeoffProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherRiskTradeoffRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherRiskTradeoffRunValidationResult {
+  valid: boolean;
+  issues: ResearcherRiskTradeoffRunValidationIssue[];
+}
+
+export function buildResearcherRiskTradeoffProbeEvidence(
+  probeId: string,
+  category: ResearcherRiskTradeoffCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherRiskTradeoffProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherRiskTradeoffProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherRiskTradeoffProbeTelemetry(
+  probeId: string,
+  category: ResearcherRiskTradeoffCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherRiskTradeoffProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherRiskTradeoffProvenance(
+  runId: string,
+  fixture: ResearcherRiskTradeoffBaseline,
+  contract: ResearcherRiskTradeoffContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherRiskTradeoffCategory[];
+  },
+): ResearcherRiskTradeoffProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_RISK_TRADEOFF_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherRiskTradeoffRunRecord(
+  provenance: ResearcherRiskTradeoffProvenance,
+  evidence: ResearcherRiskTradeoffProbeEvidence[],
+  telemetry: ResearcherRiskTradeoffProbeTelemetry[],
+): ResearcherRiskTradeoffRunRecord {
+  const byCategory = {} as Record<ResearcherRiskTradeoffCategory, number>;
+  const byDisposition: Record<ResearcherRiskTradeoffProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_RISK_TRADEOFF_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherRiskTradeoffRunRecordAgainstProbeIds(
+  record: ResearcherRiskTradeoffRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherRiskTradeoffContract,
+): ResearcherRiskTradeoffRunValidationResult {
+  const issues: ResearcherRiskTradeoffRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherRiskTradeoffRunRecord(
+  record: ResearcherRiskTradeoffRunRecord,
+  contract: ResearcherRiskTradeoffContract = getActiveResearcherRiskTradeoffContract(),
+): ResearcherRiskTradeoffRunValidationResult {
+  return validateResearcherRiskTradeoffRunRecordAgainstProbeIds(
+    record,
+    listResearcherRiskTradeoffContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherRiskTradeoffEvidenceRunRecord(
+  record: ResearcherRiskTradeoffRunRecord,
+  contract: ResearcherRiskTradeoffContract = getActiveResearcherRiskTradeoffContract(),
+): ResearcherRiskTradeoffRunValidationResult {
+  const issues: ResearcherRiskTradeoffRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B07-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B07-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_RISK_TRADEOFF_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherRiskTradeoffRunRecordAgainstProbeIds(
+    record,
+    listResearcherRiskTradeoffFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherRiskTradeoffEvidenceSliceResult {
+  atom: "P04-B07-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherRiskTradeoffProbeResult[];
+  evidenceResults: ResearcherRiskTradeoffProbeResult[];
+  matrixValidation: ResearcherRiskTradeoffProbeMatrixValidationResult;
+  record: ResearcherRiskTradeoffRunRecord;
+  recordValidation: ResearcherRiskTradeoffRunValidationResult;
+}
+
+function resolveResearcherRiskTradeoffGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherRiskTradeoffProbeWithTiming(
+  entry: ResearcherRiskTradeoffFixtureEntry,
+  fixture: ResearcherRiskTradeoffBaseline,
+  contractProbe: ResearcherRiskTradeoffProbeContract | undefined,
+): {
+  result: ResearcherRiskTradeoffProbeResult;
+  durationMs: number;
+  disposition: ResearcherRiskTradeoffProbeDisposition;
+} {
+  const start = performance.now();
+  const expected = contractProbe?.expected ?? entry.expected;
+  const result = runSingleProbe(entry.id, entry.category, expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherRiskTradeoffRecordFromEntries(
+  entries: ResearcherRiskTradeoffFixtureEntry[],
+  fixture: ResearcherRiskTradeoffBaseline,
+  contract: ResearcherRiskTradeoffContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherRiskTradeoffCategory[];
+  },
+): ResearcherRiskTradeoffRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ResearcherRiskTradeoffProbeEvidence[] = [];
+  const telemetry: ResearcherRiskTradeoffProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherRiskTradeoffProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherRiskTradeoffProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherRiskTradeoffProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherRiskTradeoffProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherRiskTradeoffGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherRiskTradeoffRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all risk trade-off probes and emit auditable evidence, telemetry and provenance (P04-B07-A06). */
+export function runResearcherRiskTradeoffProbesWithRecord(
+  fixture: ResearcherRiskTradeoffBaseline = loadResearcherRiskTradeoffBaseline(),
+): ResearcherRiskTradeoffRunRecord {
+  const contract = getActiveResearcherRiskTradeoffContract();
+  return buildResearcherRiskTradeoffRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B07-A06). */
+export function runResearcherRiskTradeoffFailureRecoverySliceWithRecord(
+  fixture: ResearcherRiskTradeoffBaseline = loadResearcherRiskTradeoffBaseline(),
+): ResearcherRiskTradeoffRunRecord {
+  const contract = getActiveResearcherRiskTradeoffContract();
+  const failureRecoveryIds = new Set(
+    listResearcherRiskTradeoffFailureRecoveryProbeIds(contract),
+  );
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherRiskTradeoffRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B07-A06",
+    sliceCategories: RESEARCHER_RISK_TRADEOFF_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherRiskTradeoffEvidenceSlice(
+  fixture: ResearcherRiskTradeoffBaseline = loadResearcherRiskTradeoffBaseline(),
+): ResearcherRiskTradeoffEvidenceSliceResult {
+  const contract = getActiveResearcherRiskTradeoffContract();
+  const results = runResearcherRiskTradeoffProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_RISK_TRADEOFF_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherRiskTradeoffContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherRiskTradeoffFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherRiskTradeoffFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherRiskTradeoffEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P04-B07-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
