@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B04
-active_atom: P04-B04-A01
+active_atom: P04-B04-A02
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 330/1000
-phase_progress: 30/100
-block_progress: 10/10
+program_progress: 331/1000
+phase_progress: 31/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B04-A01 — Benchmark ve prior-art analizi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P04-B04-A02 — Benchmark ve prior-art analizi: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P04-B03-A10 PASS; block gate sealed; B04 baseline entry.
-target: loadResearcherBenchmarkPriorArtBaseline, validateResearcherBenchmarkPriorArtBaseline.
-hypothesis: Benchmark/prior-art block starts from sealed web primary-source handoff artifacts.
-acceptance: failing baseline fixture; contract alignment gate; P04-B03 block gate handoff valid.
-commands: npx tsx --test src/forge-p04-researcher-benchmark-prior-art*baseline*.test.ts
+objective: P04-B04-A01 PASS; baseline fixture with documented FAIL gap; contract alignment gate.
+target: getActiveResearcherBenchmarkPriorArtContract, validateResearcherBenchmarkPriorArtAgainstContract.
+hypothesis: Typed contract v1 wires rbpa probe criteria to measurable acceptance invariants.
+acceptance: contract v1 exported; fixture↔contract alignment gate; criterion on every probe.
+commands: npx tsx --test src/forge-p04-researcher-benchmark-prior-art*.test.ts
 blast_radius: src/forge-p04-researcher-benchmark-prior-art*.ts
-rollback: P04-B04-A01 baseline değişikliklerini geri al.
+rollback: P04-B04-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B03-A10
-last_commit: 9892aa2
-tests: PASS — forge-p04-researcher-web-primary-source-block-gate.test.ts (7/7); seals=10/10; handoff→P04-B04; orchestrator verifyForgeResearcherWebPrimarySourceBlockGate
-evidence: runResearcherWebPrimarySourceBlockGate; getForgeP04B03BlockGate; getForgeP04B03ToB04Handoff; forge-p04-researcher-web-primary-source-block-gate.test.ts
-next: P04-B04-A01
+last_atom: P04-B04-A01
+last_commit: 542bee8
+tests: PASS — forge-p04-researcher-benchmark-prior-art-baseline.test.ts (7/7); documented FAIL gap rbpa.structured_benchmark_prior_art_recovery; P04-B03 handoff valid
+evidence: loadResearcherBenchmarkPriorArtBaseline; validateResearcherBenchmarkPriorArtBaseline; validateResearcherBenchmarkPriorArtAgainstContract; runResearcherBenchmarkPriorArtProbes
+next: P04-B04-A02
