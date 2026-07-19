@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B02-A05
-last_commit: PENDING
+last_commit: 2c5b263
 tests: PASS — forge-p04-researcher*.test.ts (80/80); failure/recovery 6 probes; expectedFail=0; harnessVersion=1.0.0-a05
 evidence: runResearcherInRepoEvidenceFailureRecoverySlice; validateResearcherInRepoEvidenceFailureRecoveryProbeMatrix; failure/recovery slice PASS
 next: P04-B02-A06

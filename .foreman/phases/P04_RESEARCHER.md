@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B02-A05
-last_commit: PENDING
+last_commit: 2c5b263
 tests: PASS — forge-p04-researcher*.test.ts (80/80); failure/recovery 6 probes; expectedFail=0; harnessVersion=1.0.0-a05; matrixValidation.unexpectedMismatches=0
 evidence: runResearcherInRepoEvidenceFailureRecoverySlice; validateResearcherInRepoEvidenceFailureRecoveryProbeMatrix; listResearcherInRepoEvidenceFailureRecoveryProbeIds; failure/recovery slice PASS
 next: P04-B02-A06
