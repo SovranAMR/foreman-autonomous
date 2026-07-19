@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B03
-active_atom: P04-B03-A08
+active_atom: P04-B03-A10
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 328/1000
-phase_progress: 28/100
-block_progress: 8/10
+program_progress: 329/1000
+phase_progress: 29/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B03-A09 — Web ve primary-source araştırma: adversarial, performance, cost ve safety kontrolünü geçir.
+P04-B03-A10 — Web ve primary-source araştırma: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P04-B03-A08 PASS; guard controls sealed with dedicated guard test suite.
-target: validateForgeResearcherWebPrimarySourceGuard, adversarial scenarios, performance/cost/safety limits.
-hypothesis: Guard rejects tampered records while canonical matrix stays green.
-acceptance: guard test suite PASS; A01-A08 baseline remains valid.
-commands: npx tsx --test src/forge-p04-researcher-web-primary-source*.test.ts
+objective: P04-B03-A09 PASS; dedicated guard suite sealed; block gate + B04 handoff.
+target: runResearcherWebPrimarySourceBlockGate, getForgeP04B03BlockGate, getForgeP04B03ToB04Handoff.
+hypothesis: Block gate seals all ten B03 atoms and prepares benchmark/prior-art entry.
+acceptance: block gate test suite PASS; handoff contract valid; A01-A09 baseline remains valid.
+commands: npx tsx --test src/forge-p04-researcher-web-primary-source*block-gate*.test.ts
 blast_radius: src/forge-p04-researcher-web-primary-source*.ts
-rollback: P04-B03-A09 guard değişikliklerini geri al.
+rollback: P04-B03-A10 block gate değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B03-A08
-last_commit: b616236
-tests: PASS — forge-p04-researcher*.test.ts; probes=23/23; propertyFuzz=8/8; contractFuzz rejected=24/24; runRecordFuzz rejected=5/5; guard adversarial=3/3
-evidence: runResearcherWebPrimarySourceForgeRegression; runForgeResearcherWebPrimarySourceRegressionGate; forge-p04-researcher-web-primary-source.regression.test.ts
-next: P04-B03-A09
+last_atom: P04-B03-A09
+last_commit: pending
+tests: PASS — forge-p04-researcher-web-primary-source.guard.test.ts (8/8); adversarial=3/3; perf/cost/safety guard; orchestrator verifyForgeResearcherWebPrimarySourceGuard
+evidence: validateForgeResearcherWebPrimarySourceGuard; runResearcherWebPrimarySourceAdversarialGuardChecks; forge-p04-researcher-web-primary-source.guard.test.ts
+next: P04-B03-A10
