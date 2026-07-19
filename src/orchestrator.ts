@@ -459,6 +459,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner grounding regression gate and emit verification event (P02-B04-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeVisionerGroundingRegression(
+    priorRecord?: import("./forge-p02-visioner-grounding.js").VisionerGroundingRunRecord,
+  ): Promise<import("./forge-p02-visioner-grounding.probe.js").ForgeVisionerGroundingRegressionResult> {
+    const { runForgeVisionerGroundingRegressionGate } = await import("./forge-p02-visioner-grounding.probe.js");
+    const result = runForgeVisionerGroundingRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "visioner_grounding_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B01 block gate and emit verification event with B02 handoff (P02-B01-A10).
    */
   async verifyForgeVisionerIntentBlockGate(): Promise<import("./forge-p02-visioner-intent.probe.js").ForgeVisionerIntentBlockGateResult> {

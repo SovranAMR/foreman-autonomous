@@ -40,12 +40,21 @@ import {
   buildVisionerGroundingProbeTelemetry,
   buildVisionerGroundingProvenance,
   buildVisionerGroundingRunRecord,
+  detectVisionerGroundingProbeRegression,
+  runVisionerGroundingPropertyChecks,
+  runVisionerGroundingFuzzValidation,
+  runVisionerGroundingRunRecordFuzzValidation,
   validateVisionerGroundingRunRecord,
+  validateForgeVisionerGroundingGuard,
   type VisionerGroundingBaseline,
   type VisionerGroundingCategory,
   type VisionerGroundingProbeDisposition,
   type VisionerGroundingProbeResult,
   type VisionerGroundingRunRecord,
+  type VisionerGroundingProbeRegressionReport,
+  type VisionerGroundingPropertyResult,
+  type VisionerGroundingFuzzValidationResult,
+  type VisionerGroundingGuardCheckResult,
 } from "./forge-p02-visioner-grounding.js";
 
 export type { VisionerGroundingBaseline, VisionerGroundingProbeResult } from "./forge-p02-visioner-grounding.js";
@@ -706,3 +715,108 @@ export function runVisionerGroundingFailureRecoverySliceWithRecord(
     sliceCategories: VISIONER_GROUNDING_FAILURE_RECOVERY_CATEGORIES,
   });
 }
+
+export interface ForgeVisionerGroundingRegressionPropertyFuzzResult {
+  passed: boolean;
+  properties: VisionerGroundingPropertyResult;
+  contractFuzz: VisionerGroundingFuzzValidationResult;
+  runFuzz: {
+    validBaseline: boolean;
+    mutationsRejected: number;
+    mutationsAccepted: number;
+  };
+}
+
+export interface ForgeVisionerGroundingRegressionResult {
+  passed: boolean;
+  productionSlice: VisionerGroundingProductionSliceResult;
+  record: VisionerGroundingRunRecord;
+  recordValid: boolean;
+  validationIssues: string[];
+  probeRegression: VisionerGroundingProbeRegressionReport | null;
+  guard: VisionerGroundingGuardCheckResult;
+  propertyFuzz: ForgeVisionerGroundingRegressionPropertyFuzzResult;
+  detail: string;
+}
+
+/**
+ * Execute visioner grounding probes, validate production slice + run record, property/fuzz gates,
+ * and optionally detect regression vs prior run. Forge pipeline integration gate (P02-B04-A08).
+ */
+export function runForgeVisionerGroundingRegressionGate(
+  priorRecord?: VisionerGroundingRunRecord,
+): ForgeVisionerGroundingRegressionResult {
+  const fixture = loadVisionerGroundingBaseline();
+  const contract = getActiveVisionerGroundingContract();
+  const productionSlice = runVisionerGroundingProductionSlice(fixture);
+  const record = runVisionerGroundingProbesWithRecord(fixture);
+  const validation = validateVisionerGroundingRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  const probeRegression = priorRecord
+    ? detectVisionerGroundingProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeVisionerGroundingGuard(record, { totalCostUsd: 0, llmCalls: 0, contract });
+
+  const properties = runVisionerGroundingPropertyChecks(contract);
+  const contractFuzz = runVisionerGroundingFuzzValidation(fixture, contract);
+  const runFuzz = runVisionerGroundingRunRecordFuzzValidation(record, contract);
+  const propertyFuzzPassed =
+    properties.allPassed &&
+    contractFuzz.allMutationsRejected &&
+    runFuzz.mutationsAccepted === 0;
+  const propertyFuzz: ForgeVisionerGroundingRegressionPropertyFuzzResult = {
+    passed: propertyFuzzPassed,
+    properties,
+    contractFuzz,
+    runFuzz: {
+      validBaseline: runFuzz.validBaseline,
+      mutationsRejected: runFuzz.mutationsRejected,
+      mutationsAccepted: runFuzz.mutationsAccepted,
+    },
+  };
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const passed =
+    productionSliceOk && recordValid && !alignmentRegression && guard.passed && propertyFuzzPassed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${properties.passed}/${properties.total} contractFuzz rejected=${contractFuzz.rejected}/${contractFuzz.iterations} runFuzz rejected=${runFuzz.mutationsRejected}/3`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  return {
+    passed,
+    productionSlice,
+    record,
+    recordValid,
+    validationIssues,
+    probeRegression,
+    guard,
+    propertyFuzz,
+    detail: detailParts.join(" | "),
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P02-B04-A08). */
+export const runVisionerGroundingRegressionIntegration = runForgeVisionerGroundingRegressionGate;

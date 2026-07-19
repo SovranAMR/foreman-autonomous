@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 3
-completed_atoms: 34
+completed_atoms: 35
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -61,7 +61,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B04-A05 — Repo ve kullanıcı bağlamı grounding: failure, recovery ve NO-GO yollarını uygula
 - [x] P02-B04-A06 — Repo ve kullanıcı bağlamı grounding: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B04-A07 — Repo ve kullanıcı bağlamı grounding: unit, property ve fuzz doğrulamasını ekle
-- [ ] P02-B04-A08 — Repo ve kullanıcı bağlamı grounding: Forge entegrasyonu ile regression testini tamamla
+- [x] P02-B04-A08 — Repo ve kullanıcı bağlamı grounding: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B04-A09 — Repo ve kullanıcı bağlamı grounding: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B04-A10 — Repo ve kullanıcı bağlamı grounding: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B04-A07
-last_commit: 7ce9940
-tests: PASS — forge-p02-visioner-grounding.test.ts (21/21); forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-visioner-grounding.property-fuzz.test.ts (5/5)
-evidence: runVisionerGroundingPropertyChecks export; runVisionerGroundingFuzzValidation; runVisionerGroundingRunRecordFuzzValidation; 8/8 structural properties pass; fixture fuzz 72/72 rejected; run record fuzz 8/8 tampered mutations rejected
-next: P02-B04-A08
+last_atom: P02-B04-A08
+last_commit: pending
+tests: PASS — forge-p02-visioner-grounding.test.ts (21/21); forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-visioner-grounding.property-fuzz.test.ts (5/5); forge-pipeline-regression.integration.test.ts P02-B04-A08 (5/5)
+evidence: runForgeVisionerGroundingRegressionGate; runVisionerGroundingRegressionIntegration; detectVisionerGroundingProbeRegression; validateForgeVisionerGroundingGuard; 23/23 probes aligned; propertyFuzz sealed; orchestrator visioner_grounding_regression verification
+next: P02-B04-A09
