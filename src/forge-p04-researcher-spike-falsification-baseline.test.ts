@@ -39,27 +39,19 @@ describe("Forge Researcher Spike Falsification — P04-B08-A01", () => {
     assert.equal(fixture.probes.length, 23);
   });
 
-  it("measures spike falsification probes with documented FAIL gaps from B07 sealed handoff", () => {
+  it("measures spike falsification probes with full alignment after A03 production slice", () => {
     const results = runResearcherSpikeFalsificationProbes();
     const summary = summarizeResearcherSpikeFalsificationMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 23);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listResearcherSpikeFalsificationProbesByExpected(
       "FAIL",
       loadResearcherSpikeFalsificationBaseline(),
     );
-    assert.equal(documentedFail.length, 2);
-    assert.ok(documentedFail.some(p => p.id === "rsf.parser_spike_experiment"));
-    assert.ok(documentedFail.some(p => p.id === "rsf.exported_spike_falsification_validator"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -74,20 +66,11 @@ describe("Forge Researcher Spike Falsification — P04-B08-A01", () => {
     );
   });
 
-  it("documents spike falsification gaps as measurable baseline debt", () => {
+  it("documents zero remaining spike falsification gaps after production slice", () => {
     const gaps = listResearcherSpikeFalsificationKnownGaps(
       runResearcherSpikeFalsificationProbes(),
     );
-    const ids = gaps.map(g => g.id).sort();
-
-    assert.deepEqual(ids, [
-      "rsf.exported_spike_falsification_validator",
-      "rsf.parser_spike_experiment",
-    ]);
-    assert.ok(
-      gaps.every(g => RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES.includes(g.category)),
-      "documented gaps are spike falsification probes",
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 
   it("assessSpikeFalsificationInputBoundary rejects empty and null-byte experiment inputs", () => {

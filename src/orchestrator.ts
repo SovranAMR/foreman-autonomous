@@ -75,6 +75,9 @@ import {
 import {
   validateResearchRiskTradeoff,
 } from "./forge-p04-researcher-risk-tradeoff.js";
+import {
+  validateSpikeFalsificationExperiment,
+} from "./forge-p04-researcher-spike-falsification.js";
 
 /** Canonical ordered pipeline phases for behavior-map probes and downstream tooling. */
 export const FORGE_PIPELINE_PHASES = FORGE_PIPELINE_CORE_PHASES;
@@ -2771,6 +2774,15 @@ ${visionOutput}`,
         if (!riskTradeoffValidation.valid) {
           this.engine.streaming.warning(
             `[forge] validateResearchRiskTradeoff: ${riskTradeoffValidation.issues.join(", ")}`,
+          );
+        }
+
+        const spikeFalsificationValidation = validateSpikeFalsificationExperiment(
+          researchResult.thought.output ?? "",
+        );
+        if (!spikeFalsificationValidation.valid) {
+          this.engine.streaming.warning(
+            `[forge] validateSpikeFalsificationExperiment: ${spikeFalsificationValidation.issues.join(", ")}`,
           );
         }
 

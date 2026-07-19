@@ -45,6 +45,18 @@ export interface ResearchTradeoffParseResult {
   raw: string;
 }
 
+export interface ResearchSpikeOutcomeEdge {
+  hypothesis: string;
+  outcome: string;
+  scope?: string;
+  timeboxMinutes?: number;
+}
+
+export interface ResearchSpikeExperimentParseResult {
+  edges: ResearchSpikeOutcomeEdge[];
+  raw: string;
+}
+
 export interface ResearchParseResult {
   reasoning: string;
   researchQuestions: string[];
@@ -331,6 +343,76 @@ export function parseResearchTradeoffs(
   return {
     ok: true,
     data: { dimensions, raw: tradeoffsRaw },
+  };
+}
+
+const NUMBERED_SPIKE_LINE = /^\s*(?:\d+[.)]|[-*])\s+(.+)$/;
+const SPIKE_OUTCOME_ARROW = /(.+?)\s*(?:→|->|falsifies|produces)\s*(.+)/i;
+const SPIKE_TIMEBOX_PATTERN = /(?:timebox|time-box|duration)\s*[:=\-]?\s*(\d+)\s*(?:min|minutes?)/i;
+const SPIKE_SCOPE_PATTERN = /(?:scope)\s*[:=\-]\s*(.+?)(?:,|$)/i;
+
+function parseSpikeExperimentLine(line: string): ResearchSpikeOutcomeEdge | null {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) return null;
+
+  const numbered = trimmed.match(NUMBERED_SPIKE_LINE);
+  const content = numbered ? numbered[1].trim() : trimmed;
+  const arrowMatch = content.match(SPIKE_OUTCOME_ARROW);
+  if (arrowMatch) {
+    const hypothesis = arrowMatch[1].trim();
+    const outcome = arrowMatch[2].trim();
+    const scopeMatch = content.match(SPIKE_SCOPE_PATTERN);
+    const timeboxMatch = content.match(SPIKE_TIMEBOX_PATTERN);
+    return {
+      hypothesis,
+      outcome,
+      ...(scopeMatch ? { scope: scopeMatch[1].trim() } : {}),
+      ...(timeboxMatch
+        ? { timeboxMinutes: Number.parseInt(timeboxMatch[1] ?? "30", 10) }
+        : {}),
+    };
+  }
+
+  const spikeMatch = content.match(/^SPIKE\s*[:=\-]\s*(.+)$/i);
+  if (spikeMatch) {
+    return { hypothesis: spikeMatch[1].trim(), outcome: "pending falsification" };
+  }
+
+  return null;
+}
+
+function parseResearchSpikeExperimentField(text: string): ResearchSpikeOutcomeEdge[] {
+  const spikesRaw =
+    extractField(text, "SPIKE_EXPERIMENTS", ["FALSIFICATION", "RISKS", "REASONING"]) ??
+    extractField(text, "SPIKES", ["FALSIFICATION", "RISKS", "REASONING"]);
+  if (!spikesRaw) return [];
+
+  const edges: ResearchSpikeOutcomeEdge[] = [];
+  for (const line of spikesRaw.split("\n")) {
+    const edge = parseSpikeExperimentLine(line);
+    if (edge) edges.push(edge);
+  }
+  return edges;
+}
+
+/**
+ * Parse structured spike→outcome experiment edges from researcher output (P04-B08-A03).
+ */
+export function parseResearchSpikeExperiment(
+  text: string,
+): { ok: true; data: ResearchSpikeExperimentParseResult } | { ok: false; error: ParseError } {
+  const edges = parseResearchSpikeExperimentField(text);
+  if (edges.length === 0) {
+    return { ok: false, error: { missing: ["SPIKE_EXPERIMENTS"], raw: text } };
+  }
+
+  const spikesRaw =
+    extractField(text, "SPIKE_EXPERIMENTS", ["FALSIFICATION", "RISKS", "REASONING"]) ??
+    extractField(text, "SPIKES", ["FALSIFICATION", "RISKS", "REASONING"]) ??
+    "";
+  return {
+    ok: true,
+    data: { edges, raw: spikesRaw },
   };
 }
 

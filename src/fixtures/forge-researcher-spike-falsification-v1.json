@@ -141,13 +141,13 @@
       "id": "rsf.parser_spike_experiment",
       "category": "nogo_path",
       "description": "parseResearchSpikeExperiment exports spike→outcome edges from researcher output",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "rsf.exported_spike_falsification_validator",
       "category": "nogo_path",
       "description": "validateSpikeFalsificationExperiment exported for orchestrator spike falsification checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

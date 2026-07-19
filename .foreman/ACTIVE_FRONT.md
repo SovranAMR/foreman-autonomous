@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B08
-active_atom: P04-B08-A03
+active_atom: P04-B08-A04
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 372/1000
-phase_progress: 71/100
-block_progress: 2/10
+program_progress: 373/1000
+phase_progress: 72/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B08-A03 — Spike ve falsification deneyi: en küçük üretim dikey dilimini uygula.
+P04-B08-A04 — Spike ve falsification deneyi: boundary ve edge-case davranışlarını tamamla.
 
-objective: P04-B08-A02 PASS; typed contract v1 with 23 probes and 2 documented FAIL gaps.
-target: Production slice wiring parseResearchSpikeExperiment and validateSpikeFalsificationExperiment exports.
-hypothesis: Minimal vertical slice closes documented nogo_path FAIL gaps without regressing baseline probes.
-acceptance: Production slice tests pass; documented FAIL gaps reduced or closed with evidence.
+objective: P04-B08-A03 PASS; parseResearchSpikeExperiment + validateSpikeFalsificationExperiment wired with zero FAIL gaps.
+target: Boundary-category probe matrix for spike falsification input edge cases.
+hypothesis: Boundary slice closes remaining edge-case probes without regressing A03 production wiring.
+acceptance: Boundary slice tests pass; zero unexpected mismatches on boundary probes.
 commands: npx tsx --test src/forge-p04-researcher-spike-falsification.test.ts
-blast_radius: src/forge-p04-researcher-spike-falsification*.ts, src/parser.ts
-rollback: P04-B08-A03 production slice değişikliklerini geri al.
+blast_radius: src/forge-p04-researcher-spike-falsification*.ts
+rollback: P04-B08-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B08-A02
-last_commit: a9ff86f
-tests: PASS — forge-p04-researcher-spike-falsification.test.ts (8/8); contract coverage 23/23 with 2 expected FAIL gaps
-evidence: validateResearcherSpikeFalsificationContract + validateResearcherSpikeFalsificationAgainstContract + summarizeResearcherSpikeFalsificationContractCoverage
-next: P04-B08-A03
+last_atom: P04-B08-A03
+last_commit: pending
+tests: PASS — forge-p04-researcher-spike-falsification.test.ts (11/11); forge-p04-researcher-spike-falsification-baseline.test.ts (10/10); production slice 23/23 probes zero mismatches
+evidence: parseResearchSpikeExperiment + validateSpikeFalsificationExperiment + runResearcherSpikeFalsificationProductionSlice + orchestrator wiring
+next: P04-B08-A04

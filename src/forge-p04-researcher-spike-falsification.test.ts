@@ -14,7 +14,11 @@ import {
   validateResearcherSpikeFalsificationAgainstContract,
   RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES,
   FORGE_RESEARCHER_SPIKE_FALSIFICATION_CONTRACT_V1,
+  runResearcherSpikeFalsificationProductionSlice,
+  validateResearcherSpikeFalsificationProbeMatrix,
+  validateSpikeFalsificationExperiment,
 } from "./forge-p04-researcher-spike-falsification.js";
+import { parseResearchSpikeExperiment } from "./parser.js";
 
 const REQUIRE_FULL_ALIGNMENT: Record<
   (typeof RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES)[number],
@@ -60,7 +64,7 @@ describe("Forge Researcher Spike Falsification Contract — P04-B08-A02", () => 
     }
   });
 
-  it("maps 23 probes with two documented FAIL gap probes in typed contract", () => {
+  it("maps 23 probes with zero remaining gaps after A03 production slice", () => {
     const contract = getActiveResearcherSpikeFalsificationContract();
     const summary = summarizeResearcherSpikeFalsificationContractCoverage(contract);
     const coverage = validateResearcherSpikeFalsificationContractCoverage(contract);
@@ -68,10 +72,10 @@ describe("Forge Researcher Spike Falsification Contract — P04-B08-A02", () => 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateResearcherSpikeFalsificationContract().valid, true);
     assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 21);
-    assert.equal(summary.expectedFail, 2);
-    assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 2);
+    assert.equal(summary.expectedPass, 23);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 19);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 0);
@@ -85,16 +89,12 @@ describe("Forge Researcher Spike Falsification Contract — P04-B08-A02", () => 
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists documented gap probes as measurable baseline debt", () => {
+  it("lists zero remaining gap and nogo probes after A03 production slice", () => {
     const gaps = listResearcherSpikeFalsificationProbesByDisposition("gap");
     const nogos = listResearcherSpikeFalsificationProbesByDisposition("nogo");
 
-    assert.deepEqual(
-      gaps.map(g => g.id).sort(),
-      ["rsf.exported_spike_falsification_validator", "rsf.parser_spike_experiment"],
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
     assert.deepEqual(nogos.map(g => g.id).sort(), []);
-    assert.ok([...gaps].every(p => p.expected === "FAIL"));
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -145,5 +145,63 @@ describe("Forge Researcher Spike Falsification Contract — P04-B08-A02", () => 
   it("exports stable contract v1 reference for downstream block handoff", () => {
     assert.equal(FORGE_RESEARCHER_SPIKE_FALSIFICATION_CONTRACT_V1.version, "1.0.0");
     assert.equal(FORGE_RESEARCHER_SPIKE_FALSIFICATION_CONTRACT_V1.probes.length, 23);
+  });
+});
+
+describe("Forge Researcher Spike Falsification Production Slice — P04-B08-A03", () => {
+  it("parseResearchSpikeExperiment extracts spike→outcome edges", () => {
+    const parsed = parseResearchSpikeExperiment(
+      "FINDINGS: async reduces blocking\nSPIKE_EXPERIMENTS:\n1. bounded worker pool → p99 below 500ms\nFALSIFICATION: reject if sync wins",
+    );
+
+    assert.equal(parsed.ok, true);
+    if (parsed.ok) {
+      assert.ok(parsed.data.edges.some(e => e.hypothesis.includes("worker pool")));
+      assert.ok(parsed.data.edges.some(e => e.outcome.includes("500ms")));
+    }
+  });
+
+  it("validateSpikeFalsificationExperiment accepts spike and falsification signals", () => {
+    const validation = validateSpikeFalsificationExperiment(
+      "FINDINGS: benchmark supports async\nSPIKE_EXPERIMENTS:\n1. async pool → lower p99 latency\nFALSIFICATION: reject if sync baseline wins",
+    );
+
+    assert.equal(validation.valid, true, validation.issues.join("; "));
+    assert.equal(validation.spikePresent, true);
+    assert.ok(validation.experimentCount >= 1);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after production slice", () => {
+    const contract = getActiveResearcherSpikeFalsificationContract();
+    const slice = runResearcherSpikeFalsificationProductionSlice();
+
+    assert.equal(slice.atom, "P04-B08-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 23);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+    assert.equal(slice.summary.knownGaps.length, 0);
+
+    const matrixValidation = validateResearcherSpikeFalsificationProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const parserProbe = slice.results.find(r => r.id === "rsf.parser_spike_experiment");
+    assert.ok(parserProbe);
+    assert.equal(parserProbe!.expected, "PASS");
+    assert.equal(parserProbe!.actual, "PASS");
+
+    const validatorProbe = slice.results.find(
+      r => r.id === "rsf.exported_spike_falsification_validator",
+    );
+    assert.ok(validatorProbe);
+    assert.equal(validatorProbe!.expected, "PASS");
+    assert.equal(validatorProbe!.actual, "PASS");
   });
 });

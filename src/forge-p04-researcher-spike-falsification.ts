@@ -17,7 +17,7 @@ import {
   FORGE_RESEARCHER_RISK_TRADEOFF_CONTRACT_V1,
   validateResearchRiskTradeoff,
 } from "./forge-p04-researcher-risk-tradeoff.js";
-import { parseResearchResponse } from "./parser.js";
+import { parseResearchResponse, parseResearchSpikeExperiment } from "./parser.js";
 
 export const FORGE_RESEARCHER_SPIKE_FALSIFICATION_VERSION = "1.0.0-a01";
 
@@ -150,6 +150,61 @@ export function validateSpikeFalsificationCollection(
   }
 
   return { valid: issues.length === 0, experimentCount, issues };
+}
+
+export interface SpikeFalsificationExperimentValidationOutcome {
+  valid: boolean;
+  experimentCount: number;
+  spikePresent: boolean;
+  falsificationPresent: boolean;
+  issues: string[];
+}
+
+/**
+ * Validate researcher output declares actionable spike and falsification experiment signals (P04-B08-A03).
+ */
+export function validateSpikeFalsificationExperiment(
+  researchOutput: string,
+): SpikeFalsificationExperimentValidationOutcome {
+  const boundary = assessSpikeFalsificationInputBoundary(researchOutput);
+  if (!boundary.acceptable) {
+    return {
+      valid: false,
+      experimentCount: 0,
+      spikePresent: false,
+      falsificationPresent: false,
+      issues: [boundary.detail],
+    };
+  }
+
+  const normalized = boundary.normalizedInput;
+  const issues: string[] = [];
+  const spikeParse = parseResearchSpikeExperiment(normalized);
+  const experimentCount = spikeParse.ok ? spikeParse.data.edges.length : 0;
+  const spikePresent = experimentCount > 0;
+
+  const recovery = recoverSpikeFalsificationEvidence(normalized);
+  const resolvedExperimentCount =
+    experimentCount > 0 ? experimentCount : recovery.experimentPlan.spikes.length;
+  const falsificationPresent = recovery.experimentPlan.falsificationCriteria.length > 0;
+
+  if (resolvedExperimentCount === 0) {
+    issues.push("missing_spike_experiment");
+  }
+  if (!falsificationPresent) {
+    const falsificationSection = /FALSIFICATION\s*[:=\-.]/i.test(normalized);
+    if (!falsificationSection) {
+      issues.push("missing_falsification_criteria");
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    experimentCount: resolvedExperimentCount,
+    spikePresent: spikePresent || recovery.experimentPlan.spikes.length > 0,
+    falsificationPresent: falsificationPresent || /FALSIFICATION\s*[:=\-.]/i.test(normalized),
+    issues,
+  };
 }
 
 export interface SpikeFalsificationRecoveryHints {
@@ -642,8 +697,8 @@ const RESEARCHER_SPIKE_FALSIFICATION_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description:
           "parseResearchSpikeExperiment exports spike→outcome edges from researcher output",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "parseResearchSpikeExperiment exports spike→outcome edges from researcher output",
       },
       {
@@ -651,8 +706,8 @@ const RESEARCHER_SPIKE_FALSIFICATION_CATEGORY_CONTRACTS: Record<
         category: "nogo_path",
         description:
           "validateSpikeFalsificationExperiment exported for orchestrator spike falsification checks",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion:
           "validateSpikeFalsificationExperiment exported for orchestrator spike falsification checks",
       },
@@ -1158,7 +1213,10 @@ SOURCES: https://example.com/async-patterns
 RELEVANCE: 0.85
 TRADEOFFS:
 1. sync vs async (latency vs complexity)
-RISKS: Increased complexity (medium) — mitigate with bounded worker pool`;
+RISKS: Increased complexity (medium) — mitigate with bounded worker pool
+SPIKE_EXPERIMENTS:
+1. bounded async worker pool → p99 latency below 500ms (scope: worker pool sizing, timebox: 30min)
+FALSIFICATION: Reject if sync baseline outperforms async under burst load`;
 
 function runSingleProbe(
   id: string,
@@ -1291,7 +1349,7 @@ function runSingleProbe(
       const contract = getActiveResearcherSpikeFalsificationContract();
       const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount === expectedFail && failCount >= 1;
+      const ok = failCount === expectedFail;
       return probe(
         id,
         category,
@@ -1370,12 +1428,35 @@ FINDINGS: partial parse`;
       );
     }
     case "rsf.parser_spike_experiment": {
-      const ok = hasProductionExport("parseResearchSpikeExperiment", parserSource());
-      return probe(id, category, expected, ok, `parseResearchSpikeExperiment=${ok}`);
+      const parser = parserSource();
+      const parsed = parseResearchSpikeExperiment(SAMPLE_RESEARCH_OUTPUT);
+      const ok =
+        /\bexport function parseResearchSpikeExperiment\b/.test(parser) &&
+        parsed.ok &&
+        parsed.data.edges.length >= 1 &&
+        parsed.data.edges[0].hypothesis.toLowerCase().includes("async");
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `parseResearchSpikeExperiment=${ok}, edges=${parsed.ok ? parsed.data.edges.length : 0}`,
+      );
     }
     case "rsf.exported_spike_falsification_validator": {
-      const ok = hasProductionExport("validateSpikeFalsificationExperiment");
-      return probe(id, category, expected, ok, `spikeFalsificationValidator=${ok}`);
+      const orchestrator = readSrc("orchestrator.ts");
+      const sampleValidation = validateSpikeFalsificationExperiment(SAMPLE_RESEARCH_OUTPUT);
+      const ok =
+        hasProductionExport("validateSpikeFalsificationExperiment") &&
+        orchestrator.includes("validateSpikeFalsificationExperiment(") &&
+        sampleValidation.valid === true;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `spikeFalsificationValidator=${ok}, valid=${sampleValidation.valid}`,
+      );
     }
     default:
       return probe(id, category, expected, false, `unknown probe ${id}`);
@@ -1387,8 +1468,144 @@ export function runResearcherSpikeFalsificationProbes(
 ): ResearcherSpikeFalsificationProbeResult[] {
   const contract = getActiveResearcherSpikeFalsificationContract();
   return fixture.probes.map(entry => {
-    const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
     const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const expected = contractProbe?.expected ?? entry.expected;
+    const result = runSingleProbe(entry.id, entry.category, expected, fixture);
     return contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
   });
+}
+
+export interface ResearcherSpikeFalsificationProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherSpikeFalsificationProbeMatrixValidationResult {
+  valid: boolean;
+  issues: ResearcherSpikeFalsificationProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+export function validateResearcherSpikeFalsificationProbeMatrix(
+  results: ResearcherSpikeFalsificationProbeResult[],
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): ResearcherSpikeFalsificationProbeMatrixValidationResult {
+  const issues: ResearcherSpikeFalsificationProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (results.length !== contract.probes.length) {
+    issues.push({
+      kind: "extra_result",
+      detail: `results=${results.length} contract=${contract.probes.length}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface ResearcherSpikeFalsificationProductionSliceResult {
+  atom: "P04-B08-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: ResearcherSpikeFalsificationProbeResult[];
+  summary: ResearcherSpikeFalsificationProbeSummary;
+  matrixValidation: ResearcherSpikeFalsificationProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: parseResearchSpikeExperiment and validateSpikeFalsificationExperiment
+ * wired to contract probe execution with zero unexpected mismatches.
+ */
+export function runResearcherSpikeFalsificationProductionSlice(
+  fixture: ResearcherSpikeFalsificationBaseline = loadResearcherSpikeFalsificationBaseline(),
+): ResearcherSpikeFalsificationProductionSliceResult {
+  const contract = getActiveResearcherSpikeFalsificationContract();
+  const fixtureValidation = validateResearcherSpikeFalsificationBaseline(fixture);
+  const contractValidation = validateResearcherSpikeFalsificationAgainstContract(fixture, contract);
+  const results = runResearcherSpikeFalsificationProbes(fixture);
+  const summary = summarizeResearcherSpikeFalsificationMatrix(results);
+  const matrixValidation = validateResearcherSpikeFalsificationProbeMatrix(results, contract);
+
+  return {
+    atom: "P04-B08-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
