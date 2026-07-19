@@ -94,7 +94,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P01-B07 — Reproducible fixture sistemi
 
 - [x] P01-B07-A01 — Reproducible fixture sistemi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P01-B07-A02 — Reproducible fixture sistemi: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P01-B07-A02 — Reproducible fixture sistemi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B07-A03 — Reproducible fixture sistemi: en küçük üretim dikey dilimini uygula
 - [ ] P01-B07-A04 — Reproducible fixture sistemi: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B07-A05 — Reproducible fixture sistemi: failure, recovery ve NO-GO yollarını uygula
@@ -156,12 +156,12 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B07-A01
-last_commit: 7e74e51
-tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (3/3)
+last_atom: P01-B07-A02
+last_commit: pending
+tests: PASS — `npx tsx --test src/forge-reproducible-fixture-baseline.test.ts` (9/9)
 evidence: |
-  P01-B07-A01 baseline: loadReproducibleFixtureBaseline + validateReproducibleFixtureBaseline on
-  forge-reproducible-fixture-v1.json; 21-probe matrix with 7 documented FAIL gaps
-  (canonical hash, content-addressable store, deterministic eval seed, recovery, NO-GO);
-  B06 handoff probeCount=26 aligned; PASS probes fully aligned.
-next: P01-B07-A02
+  P01-B07-A02 contract: getActiveReproducibleFixtureContract + validateReproducibleFixtureContractCoverage;
+  21-probe typed contract across 8 categories with minProbeCount and measurable criteria;
+  validateReproducibleFixtureBaselineAgainstContract aligns forge-reproducible-fixture-v1.json;
+  7 documented gap dispositions (integrity, deterministic load, recovery, NO-GO).
+next: P01-B07-A03

@@ -7,6 +7,13 @@ import {
   summarizeReproducibleFixtureMatrix,
   listReproducibleFixtureProbesByExpected,
   listReproducibleFixtureKnownGaps,
+  getActiveReproducibleFixtureContract,
+  getReproducibleFixtureCategoryContract,
+  listReproducibleFixtureContractProbeIds,
+  listReproducibleFixtureProbesByDisposition,
+  summarizeReproducibleFixtureContractCoverage,
+  validateReproducibleFixtureContractCoverage,
+  validateReproducibleFixtureBaselineAgainstContract,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
 } from "./forge-reproducible-fixture.probe.js";
 
@@ -85,5 +92,106 @@ describe("Forge Reproducible Fixture — P01-B07-A01", () => {
       gaps.every(g => REPRODUCIBLE_FIXTURE_CATEGORIES.includes(g.category)),
       "documented gaps are reproducible fixture probes",
     );
+  });
+});
+
+describe("Forge Reproducible Fixture Contract — P01-B07-A02", () => {
+  it("defines typed acceptance for all eight reproducible fixture categories", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    assert.equal(contract.version, "1.0.0");
+    assert.equal(contract.atom, "P01-B07-A05");
+
+    for (const category of REPRODUCIBLE_FIXTURE_CATEGORIES) {
+      const categoryContract = getReproducibleFixtureCategoryContract(category);
+      assert.ok(categoryContract.acceptance.invariant.length > 20, `${category} invariant too short`);
+      assert.ok(categoryContract.probes.length >= categoryContract.acceptance.minProbeCount);
+      assert.equal(categoryContract.acceptance.requireFullAlignment, true);
+
+      for (const probe of categoryContract.probes) {
+        assert.ok(probe.criterion.length > 10, `${probe.id} missing measurable criterion`);
+        assert.ok(probe.expected === "PASS" || probe.expected === "FAIL");
+        assert.ok(
+          probe.disposition === "observed" ||
+            probe.disposition === "gap" ||
+            probe.disposition === "failure" ||
+            probe.disposition === "recovery" ||
+            probe.disposition === "nogo",
+          `${probe.id} missing disposition`,
+        );
+      }
+    }
+  });
+
+  it("maps 21 probes with seven documented gap dispositions from A01 baseline", () => {
+    const contract = getActiveReproducibleFixtureContract();
+    const summary = summarizeReproducibleFixtureContractCoverage(contract);
+    const coverage = validateReproducibleFixtureContractCoverage(contract);
+
+    assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
+    assert.equal(summary.totalProbes, 21);
+    assert.equal(summary.expectedPass, 14);
+    assert.equal(summary.expectedFail, 7);
+    assert.equal(summary.byDisposition.observed, 12);
+    assert.equal(summary.byDisposition.gap, 7);
+    assert.equal(summary.byDisposition.failure, 2);
+    assert.equal(summary.byDisposition.recovery, 0);
+    assert.equal(summary.byDisposition.nogo, 0);
+    assert.equal(summary.byCategory.fixture_versioning.probeCount, 3);
+    assert.equal(summary.byCategory.fixture_integrity.probeCount, 3);
+    assert.equal(summary.byCategory.deterministic_load.probeCount, 4);
+    assert.equal(summary.byCategory.baseline_link.probeCount, 2);
+    assert.equal(summary.byCategory.boundary.probeCount, 3);
+    assert.equal(summary.byCategory.failure_path.probeCount, 2);
+    assert.equal(summary.byCategory.recovery_path.probeCount, 2);
+    assert.equal(summary.byCategory.nogo_path.probeCount, 2);
+  });
+
+  it("lists seven documented gap probes for reproducible fixture wiring", () => {
+    const gaps = listReproducibleFixtureProbesByDisposition("gap");
+    const ids = gaps.map(p => p.id).sort();
+    assert.deepEqual(ids, [
+      "fix.canonical_fixture_hash",
+      "fix.content_addressable_store",
+      "fix.deterministic_eval_seed",
+      "fix.nogo_fixture_drift_gate",
+      "fix.nogo_hash_mismatch_gate",
+      "fix.recovery_baseline_reset",
+      "fix.recovery_missing_fixture_file",
+    ]);
+    assert.ok(gaps.every(p => p.expected === "FAIL"));
+  });
+
+  it("enforces fixture ↔ contract probe mapping with category alignment", () => {
+    const fixture = loadReproducibleFixtureBaseline();
+    const contract = getActiveReproducibleFixtureContract();
+    const validation = validateReproducibleFixtureBaselineAgainstContract(fixture, contract);
+
+    assert.equal(
+      validation.valid,
+      true,
+      validation.issues.map(i => `${i.kind}:${i.probeId ?? i.category ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    const contractIds = new Set(listReproducibleFixtureContractProbeIds(contract));
+    const fixtureIds = fixture.probes.map(p => p.id);
+    assert.deepEqual([...fixtureIds].sort(), [...contractIds].sort());
+    assert.equal(fixture.contractAtom, contract.atom);
+  });
+
+  it("each reproducible fixture probe id is globally unique", () => {
+    const ids = listReproducibleFixtureContractProbeIds();
+    assert.equal(new Set(ids).size, ids.length);
+  });
+
+  it("wires harness probe criteria from typed contract source of truth", () => {
+    const results = runReproducibleFixtureProbes();
+    const contract = getActiveReproducibleFixtureContract();
+
+    assert.equal(results.length, contract.probes.length);
+    for (const result of results) {
+      const contractProbe = contract.probes.find(p => p.id === result.id)!;
+      assert.ok(result.criterion, `${result.id} missing criterion from contract wiring`);
+      assert.equal(result.criterion, contractProbe.criterion);
+    }
   });
 });

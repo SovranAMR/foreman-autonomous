@@ -13,7 +13,7 @@ import {
   BENCHMARK_EVAL_CATEGORIES,
 } from "./forge-benchmark-eval-harness.js";
 
-export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a01";
+export const FORGE_REPRODUCIBLE_FIXTURE_VERSION = "1.0.0-a02";
 
 export const REPRODUCIBLE_FIXTURE_CATEGORIES = [
   "fixture_versioning",
@@ -105,6 +105,562 @@ export const REPRODUCIBLE_FIXTURE_A01_MIN_PROBES: Readonly<
   recovery_path: 2,
   nogo_path: 2,
 };
+
+export type ReproducibleFixtureProbeDisposition =
+  | "observed"
+  | "gap"
+  | "failure"
+  | "recovery"
+  | "nogo";
+
+export interface ReproducibleFixtureProbeContract {
+  id: string;
+  category: ReproducibleFixtureCategory;
+  description: string;
+  expected: ForgeAcceptanceOutcome;
+  disposition: ReproducibleFixtureProbeDisposition;
+  criterion: string;
+}
+
+export interface ReproducibleFixtureCategoryAcceptance {
+  invariant: string;
+  minProbeCount: number;
+  requireFullAlignment: true;
+}
+
+export interface ReproducibleFixtureCategoryContract {
+  category: ReproducibleFixtureCategory;
+  acceptance: ReproducibleFixtureCategoryAcceptance;
+  probes: readonly ReproducibleFixtureProbeContract[];
+}
+
+export interface ReproducibleFixtureContract {
+  version: string;
+  atom: string;
+  purpose: string;
+  categories: Record<ReproducibleFixtureCategory, ReproducibleFixtureCategoryContract>;
+  probes: readonly ReproducibleFixtureProbeContract[];
+}
+
+export interface ReproducibleFixtureContractCoverageIssue {
+  kind: "missing_category" | "underflow" | "missing_criterion" | "coverage_mismatch" | "duplicate_probe";
+  category?: ReproducibleFixtureCategory;
+  probeId?: string;
+  detail: string;
+}
+
+export interface ReproducibleFixtureContractCoverageResult {
+  valid: boolean;
+  issues: ReproducibleFixtureContractCoverageIssue[];
+}
+
+function flattenReproducibleFixtureCategoryProbes(
+  categories: Record<ReproducibleFixtureCategory, ReproducibleFixtureCategoryContract>,
+): readonly ReproducibleFixtureProbeContract[] {
+  return REPRODUCIBLE_FIXTURE_CATEGORIES.flatMap(category => categories[category].probes);
+}
+
+const REPRODUCIBLE_FIXTURE_CATEGORY_CONTRACTS: Record<
+  ReproducibleFixtureCategory,
+  ReproducibleFixtureCategoryContract
+> = {
+  fixture_versioning: {
+    category: "fixture_versioning",
+    acceptance: {
+      invariant:
+        "Sealed forge fixture JSON files are version-tagged and discoverable under src/fixtures with semver metadata.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "fix.sealed_fixture_files",
+        category: "fixture_versioning",
+        description: "All six sealed forge baseline fixture JSON files exist under src/fixtures",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "All six sealed forge baseline fixture JSON files exist under src/fixtures",
+      },
+      {
+        id: "fix.version_tagged",
+        category: "fixture_versioning",
+        description: "Reproducible fixture baseline declares semver version field",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Reproducible fixture baseline declares semver version field",
+      },
+      {
+        id: "fix.atom_tagged",
+        category: "fixture_versioning",
+        description: "Reproducible fixture baseline declares P01-B07-A01 atom id",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Reproducible fixture baseline declares P01-B07-A01 atom id",
+      },
+    ],
+  },
+  fixture_integrity: {
+    category: "fixture_integrity",
+    acceptance: {
+      invariant:
+        "Fixture imports are typed and content-addressable digests or hash sidecars enforce fixture integrity.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "fix.json_stable_import",
+        category: "fixture_integrity",
+        description: "Forge harness modules import fixtures with typed JSON import assertions",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Forge harness modules import fixtures with typed JSON import assertions",
+      },
+      {
+        id: "fix.canonical_fixture_hash",
+        category: "fixture_integrity",
+        description: "Central canonicalFixtureHash computes stable SHA-256 over fixture content",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Central canonicalFixtureHash computes stable SHA-256 over fixture content",
+      },
+      {
+        id: "fix.content_addressable_store",
+        category: "fixture_integrity",
+        description: "Fixture hash sidecar or registry stores content-addressable fixture digests",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Fixture hash sidecar or registry stores content-addressable fixture digests",
+      },
+    ],
+  },
+  deterministic_load: {
+    category: "deterministic_load",
+    acceptance: {
+      invariant:
+        "Versioned baseline loaders are idempotent and support deterministic eval seed wiring for reproducible runs.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "fix.load_reproducible_baseline",
+        category: "deterministic_load",
+        description: "loadReproducibleFixtureBaseline exports versioned baseline loader",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "loadReproducibleFixtureBaseline exports versioned baseline loader",
+      },
+      {
+        id: "fix.validate_reproducible_baseline",
+        category: "deterministic_load",
+        description: "validateReproducibleFixtureBaseline validates fixture structure and B06 handoff",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "validateReproducibleFixtureBaseline validates fixture structure and B06 handoff",
+      },
+      {
+        id: "fix.deterministic_eval_seed",
+        category: "deterministic_load",
+        description: "Orchestrator accepts deterministic eval seed for reproducible benchmark runs",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Orchestrator accepts deterministic eval seed for reproducible benchmark runs",
+      },
+      {
+        id: "fix.fixture_load_idempotent",
+        category: "deterministic_load",
+        description: "Repeated loadReproducibleFixtureBaseline returns identical fixture snapshot",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Repeated loadReproducibleFixtureBaseline returns identical fixture snapshot",
+      },
+    ],
+  },
+  baseline_link: {
+    category: "baseline_link",
+    acceptance: {
+      invariant:
+        "Reproducible fixture baseline links to sealed B06 benchmark eval handoff with aligned probe counts.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "fix.b06_handoff_entry",
+        category: "baseline_link",
+        description: "FORGE_P01_B06_TO_B07_HANDOFF_V1 targets P01-B07-A01 entry atom",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "FORGE_P01_B06_TO_B07_HANDOFF_V1 targets P01-B07-A01 entry atom",
+      },
+      {
+        id: "fix.b06_sealed_probe_count",
+        category: "baseline_link",
+        description: "Sealed B06 handoff probeCount matches active benchmark eval contract",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Sealed B06 handoff probeCount matches active benchmark eval contract",
+      },
+    ],
+  },
+  boundary: {
+    category: "boundary",
+    acceptance: {
+      invariant:
+        "Baseline fixture references sealed sourceBenchmarkEval artifacts and documents measurable FAIL gaps.",
+      minProbeCount: 3,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "fix.source_benchmark_eval_ref",
+        category: "boundary",
+        description: "Baseline fixture references sealed sourceBenchmarkEval artifacts from B06-A10",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Baseline fixture references sealed sourceBenchmarkEval artifacts from B06-A10",
+      },
+      {
+        id: "fix.probe_runner_exported",
+        category: "boundary",
+        description: "runReproducibleFixtureProbes executes contract-wired probe matrix",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "runReproducibleFixtureProbes executes contract-wired probe matrix",
+      },
+      {
+        id: "fix.known_gaps_documented",
+        category: "boundary",
+        description: "Baseline fixture documents at least one measurable FAIL reproducibility gap",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "Baseline fixture documents at least one measurable FAIL reproducibility gap",
+      },
+    ],
+  },
+  failure_path: {
+    category: "failure_path",
+    acceptance: {
+      invariant:
+        "validateReproducibleFixtureBaseline rejects invalid versions and enforces per-category minimum probe counts.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "fix.invalid_version_rejected",
+        category: "failure_path",
+        description: "validateReproducibleFixtureBaseline rejects unexpected fixture version",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "validateReproducibleFixtureBaseline rejects unexpected fixture version",
+      },
+      {
+        id: "fix.min_category_probes",
+        category: "failure_path",
+        description: "validateReproducibleFixtureBaseline enforces per-category minimum probe counts",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "validateReproducibleFixtureBaseline enforces per-category minimum probe counts",
+      },
+    ],
+  },
+  recovery_path: {
+    category: "recovery_path",
+    acceptance: {
+      invariant:
+        "Recovery loaders fall back on missing fixture files and reset baseline metrics on recovery transitions.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "fix.recovery_missing_fixture_file",
+        category: "recovery_path",
+        description: "Recovery loader falls back when versioned fixture file is missing",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Recovery loader falls back when versioned fixture file is missing",
+      },
+      {
+        id: "fix.recovery_baseline_reset",
+        category: "recovery_path",
+        description: "Reproducible fixture harness resets baseline metrics on recovery transition",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "Reproducible fixture harness resets baseline metrics on recovery transition",
+      },
+    ],
+  },
+  nogo_path: {
+    category: "nogo_path",
+    acceptance: {
+      invariant:
+        "NO-GO gates halt eval on reproducible fixture drift and reject runs when canonical hash mismatches registry.",
+      minProbeCount: 2,
+      requireFullAlignment: true,
+    },
+    probes: [
+      {
+        id: "fix.nogo_fixture_drift_gate",
+        category: "nogo_path",
+        description: "NO-GO gate halts eval when reproducible fixture drift is detected",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "NO-GO gate halts eval when reproducible fixture drift is detected",
+      },
+      {
+        id: "fix.nogo_hash_mismatch_gate",
+        category: "nogo_path",
+        description: "NO-GO gate rejects benchmark run when fixture canonical hash mismatches registry",
+        expected: "FAIL",
+        disposition: "gap",
+        criterion: "NO-GO gate rejects benchmark run when fixture canonical hash mismatches registry",
+      },
+    ],
+  },
+};
+
+/** Typed reproducible fixture contract v1 — source of truth for measurable acceptance. */
+export const FORGE_REPRODUCIBLE_FIXTURE_CONTRACT_V1: ReproducibleFixtureContract = {
+  version: "1.0.0",
+  atom: "P01-B07-A05",
+  purpose:
+    "Measurable acceptance criteria for reproducible fixture system (versioning, integrity, deterministic load, B06 link, boundary, failure, recovery, NO-GO).",
+  categories: REPRODUCIBLE_FIXTURE_CATEGORY_CONTRACTS,
+  probes: flattenReproducibleFixtureCategoryProbes(REPRODUCIBLE_FIXTURE_CATEGORY_CONTRACTS),
+};
+
+export function getActiveReproducibleFixtureContract(): ReproducibleFixtureContract {
+  return FORGE_REPRODUCIBLE_FIXTURE_CONTRACT_V1;
+}
+
+export function getReproducibleFixtureCategoryContract(
+  category: ReproducibleFixtureCategory,
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixtureCategoryContract {
+  return contract.categories[category];
+}
+
+export function listReproducibleFixtureContractProbeIds(
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listReproducibleFixtureProbesByDisposition(
+  disposition: ReproducibleFixtureProbeDisposition,
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixtureProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listReproducibleFixtureProbesByCategory(
+  category: ReproducibleFixtureCategory,
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixtureProbeContract[] {
+  return contract.categories[category].probes;
+}
+
+export function summarizeReproducibleFixtureContractCoverage(
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<ReproducibleFixtureCategory, { probeCount: number; invariant: string }>;
+  byDisposition: Record<ReproducibleFixtureProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    ReproducibleFixtureCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<ReproducibleFixtureProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of REPRODUCIBLE_FIXTURE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probe of categoryContract.probes) {
+      totalProbes++;
+      if (probe.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probe.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateReproducibleFixtureContractCoverage(
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixtureContractCoverageResult {
+  const issues: ReproducibleFixtureContractCoverageIssue[] = [];
+
+  for (const category of REPRODUCIBLE_FIXTURE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < REPRODUCIBLE_FIXTURE_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} below A01 baseline ${REPRODUCIBLE_FIXTURE_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} has ${categoryContract.probes.length} probes; contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listReproducibleFixtureContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeReproducibleFixtureContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("fix.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing fix. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateReproducibleFixtureBaselineAgainstContract(
+  fixture: ReproducibleFixtureBaseline,
+  contract: ReproducibleFixtureContract = getActiveReproducibleFixtureContract(),
+): ReproducibleFixtureValidationResult {
+  const issues: ReproducibleFixtureValidationIssue[] = [];
+  const contractIds = new Set(contract.probes.map(p => p.id));
+  const fixtureIds = new Set(fixture.probes.map(p => p.id));
+
+  if (fixture.contractAtom && fixture.contractAtom !== contract.atom) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `contractAtom mismatch fixture=${fixture.contractAtom} contract=${contract.atom}`,
+    });
+  }
+
+  for (const category of REPRODUCIBLE_FIXTURE_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    const categoryProbes = fixture.probes.filter(p => p.category === category);
+    if (categoryProbes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} has ${categoryProbes.length} probes; contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+  }
+
+  for (const probe of contract.probes) {
+    if (!fixtureIds.has(probe.id)) {
+      issues.push({ kind: "missing_probe", probeId: probe.id, detail: `fixture missing ${probe.id}` });
+    }
+  }
+
+  for (const entry of fixture.probes) {
+    if (!contractIds.has(entry.id)) {
+      issues.push({ kind: "extra_probe", probeId: entry.id, detail: `fixture extra ${entry.id}` });
+      continue;
+    }
+    const expected = contract.probes.find(p => p.id === entry.id)!;
+    if (entry.expected !== expected.expected) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `expected mismatch fixture=${entry.expected} contract=${expected.expected}`,
+      });
+    }
+    if (entry.description !== expected.description) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `description mismatch for ${entry.id}`,
+      });
+    }
+    if (entry.category !== expected.category) {
+      issues.push({
+        kind: "missing_probe",
+        probeId: entry.id,
+        detail: `category mismatch fixture=${entry.category} contract=${expected.category}`,
+      });
+    }
+  }
+
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
+  const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
+  if (expectedFailCount > 0 && failGaps.length === 0) {
+    issues.push({ kind: "missing_category", detail: "fixture must document known FAIL gaps matching contract" });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
+    });
+  }
+
+  return { valid: issues.length === 0, issues };
+}
 
 export function buildDefaultReproducibleSourceBenchmarkEval(): ReproducibleFixtureBaseline["sourceBenchmarkEval"] {
   const contract = getActiveBenchmarkEvalContract();

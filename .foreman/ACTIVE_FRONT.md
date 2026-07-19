@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B07
-active_atom: P01-B07-A02
+active_atom: P01-B07-A03
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 60/1000
-phase_progress: 59/100
-block_progress: 1/10
+program_progress: 61/1000
+phase_progress: 60/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B07-A02 — Reproducible fixture sistemi: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P01-B07-A03 — Reproducible fixture sistemi: en küçük üretim dikey dilimini uygula.
 
-objective: A01 baseline üzerine typed reproducible fixture contract tanımla.
-target: getActiveReproducibleFixtureContract; validateReproducibleFixtureContractCoverage.
-hypothesis: Typed contract maps 21 baseline probes with measurable acceptance criteria.
-acceptance: contract test PASS; all eight categories declare minProbeCount and criteria.
+objective: A02 contract üzerine en küçük üretim dikey dilimini uygula.
+target: runReproducibleFixtureProductionSlice; contract-wired probe execution.
+hypothesis: Production slice closes at least one documented FAIL gap without regressions.
+acceptance: production slice test PASS; contract alignment preserved.
 commands: npx tsx --test src/forge-reproducible-fixture-baseline.test.ts
-blast_radius: forge-reproducible-fixture*.ts, fixtures/
-rollback: A02 contract değişikliklerini geri al.
+blast_radius: forge-reproducible-fixture*.ts
+rollback: A03 production slice değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: contract uygulanamazsa BLOCKED raporla.
+fallback: slice uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B07-A01
-last_commit: 7e74e51
-tests: PASS — forge-reproducible-fixture-baseline.test.ts (3/3)
-evidence: loadReproducibleFixtureBaseline; validateReproducibleFixtureBaseline; 21-probe matrix with 7 documented FAIL gaps from B06 sealed handoff
-next: P01-B07-A02
+last_atom: P01-B07-A02
+last_commit: pending
+tests: PASS — forge-reproducible-fixture-baseline.test.ts (9/9)
+evidence: getActiveReproducibleFixtureContract; validateReproducibleFixtureContractCoverage; 21-probe typed contract with 8 categories minProbeCount+criteria; fixture↔contract alignment
+next: P01-B07-A03

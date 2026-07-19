@@ -17,6 +17,7 @@ import {
 import {
   SEALED_FORGE_FIXTURE_FILES,
   validateReproducibleFixtureBaseline,
+  getActiveReproducibleFixtureContract,
   type ReproducibleFixtureBaseline,
   type ReproducibleFixtureCategory,
   type ReproducibleFixtureProbeResult,
@@ -29,6 +30,14 @@ export {
   listReproducibleFixtureProbesByExpected,
   listReproducibleFixtureKnownGaps,
   buildDefaultReproducibleSourceBenchmarkEval,
+  getActiveReproducibleFixtureContract,
+  getReproducibleFixtureCategoryContract,
+  listReproducibleFixtureContractProbeIds,
+  listReproducibleFixtureProbesByDisposition,
+  listReproducibleFixtureProbesByCategory,
+  summarizeReproducibleFixtureContractCoverage,
+  validateReproducibleFixtureContractCoverage,
+  validateReproducibleFixtureBaselineAgainstContract,
   REPRODUCIBLE_FIXTURE_CATEGORIES,
   SEALED_FORGE_FIXTURE_FILES,
 } from "./forge-reproducible-fixture.js";
@@ -501,7 +510,12 @@ export function loadReproducibleFixtureBaseline(): ReproducibleFixtureBaseline {
 export function runReproducibleFixtureProbes(
   fixture: ReproducibleFixtureBaseline = loadReproducibleFixtureBaseline(),
 ): ReproducibleFixtureProbeResult[] {
-  return fixture.probes.map(entry =>
-    runSingleProbe(entry.id, entry.category, entry.expected, fixture),
-  );
+  const contract = getActiveReproducibleFixtureContract();
+  return fixture.probes.map(entry => {
+    const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion
+      ? { ...result, criterion: contractProbe.criterion }
+      : result;
+  });
 }
