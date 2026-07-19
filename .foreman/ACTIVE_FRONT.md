@@ -6,9 +6,9 @@ active_phase: P05
 active_block: P05-B05
 active_atom: P05-B05-A04
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 442/1000
-phase_progress: 38/100
-block_progress: 3/10
+program_progress: 443/1000
+phase_progress: 39/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B05-A04 — Git ve worktree transaction: boundary ve edge-case davranışlarını tamamla.
+P05-B05-A05 — Git ve worktree transaction: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P05-B05-A03 production slice sealed; complete boundary and edge-case git/worktree behavior.
-target: Worker git worktree boundary slice closing next measurable gap probes with zero unexpected mismatches.
-hypothesis: TypedGitCall baseline enables deterministic boundary validation for remaining worktree transaction gaps.
-acceptance: Boundary slice loads; next gap probe flips PASS or boundary matrix valid; targeted tests PASS.
-commands: npx tsx --test src/forge-p05-worker-git-worktree-boundary*.test.ts
-blast_radius: src/tools.ts, src/git-engine.ts, src/forge-p05-worker-git-worktree.ts
-rollback: P05-B05-A04 boundary değişikliklerini geri al.
+objective: P05-B05-A04 boundary slice sealed; implement failure, recovery and NO-GO git/worktree paths.
+target: Worker git worktree failure/recovery slice closing next measurable gap probes with zero unexpected mismatches.
+hypothesis: normalizeGitCommitRequest + boundary baseline enables deterministic failure/recovery validation for remaining NO-GO gaps.
+acceptance: Failure/recovery slice loads; next gap probe flips PASS or failure matrix valid; targeted tests PASS.
+commands: npx tsx --test src/forge-p05-worker-git-worktree-failure-recovery*.test.ts
+blast_radius: src/forge-p05-worker-git-worktree.ts, src/orchestrator.ts, src/prompts.ts
+rollback: P05-B05-A05 failure/recovery değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Boundary blocked ise BLOCKED raporla.
+fallback: Failure/recovery blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B05-A03
-last_commit: c4431d3
-tests: PASS — forge-p05-worker-git-worktree-production.test.ts (5/5), contract (8/8), baseline (8/8)
-evidence: TypedGitCall union + validateGitCall + buildGitWorktreeTelemetry + runWorkerGitWorktreeProductionSlice; wgt.typed_git_call_union PASS; 4 remaining FAIL gaps
-next: P05-B05-A04
+last_atom: P05-B05-A04
+last_commit: 7a5f1b4
+tests: PASS — forge-p05-worker-git-worktree-boundary.test.ts (5/5), production (5/5), contract (8/8), baseline (8/8)
+evidence: normalizeGitCommitRequest + validateWorkerGitWorktreeBoundaryProbeMatrix + runWorkerGitWorktreeBoundarySlice; boundary matrix 7/7 PASS; 4 remaining FAIL gaps
+next: P05-B05-A05

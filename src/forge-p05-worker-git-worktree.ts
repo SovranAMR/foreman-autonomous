@@ -17,7 +17,7 @@ import {
 } from "./forge-p05-worker-shell-process.js";
 import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 
-export const FORGE_WORKER_GIT_WORKTREE_VERSION = "1.0.0-a03";
+export const FORGE_WORKER_GIT_WORKTREE_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P05_B04_SEALED_ATOM_COUNT = 10;
 
@@ -794,6 +794,53 @@ export function assessGitBranchInputBoundary(branch: string): GitBranchInputBoun
   };
 }
 
+export interface GitCommitNormalizationResult extends GitCommitRecoveryResult {
+  branch?: string;
+}
+
+/**
+ * Normalize git_commit tool args through boundary assessment before recovery (P05-B05-A04).
+ */
+export function normalizeGitCommitRequest(
+  message: unknown,
+  files: unknown = undefined,
+  branch: unknown = undefined,
+): GitCommitNormalizationResult {
+  const recovery = recoverGitCommitRequest(message, files);
+  if (!recovery.recovered) {
+    return recovery;
+  }
+
+  if (branch === undefined || branch === null) {
+    return recovery;
+  }
+
+  if (typeof branch !== "string") {
+    return {
+      recovered: false,
+      message: recovery.message,
+      parseErrors: [...recovery.parseErrors, "invalid_branch_field"],
+      detail: "cannot recover non-string git branch",
+    };
+  }
+
+  const branchBoundary = assessGitBranchInputBoundary(branch);
+  if (!branchBoundary.acceptable) {
+    return {
+      recovered: false,
+      message: recovery.message,
+      parseErrors: [...recovery.parseErrors, branchBoundary.disposition],
+      detail: branchBoundary.detail,
+    };
+  }
+
+  return {
+    ...recovery,
+    branch: branchBoundary.normalizedBranch,
+    detail: `${recovery.detail}; branch normalized`,
+  };
+}
+
 /**
  * Recover malformed git_commit tool args into dispatch-ready record (P05-B05-A01).
  */
@@ -1445,26 +1492,21 @@ export function validateGitCall(call: ToolCall): GitCallValidationResult {
   }
 
   if (call.name === "git_commit") {
-    const recovery = recoverGitCommitRequest(call.args.message, call.args.files);
-    if (!recovery.recovered) {
-      return { valid: false, errors: [recovery.detail], message: recovery.message };
-    }
-
-    let branch: string | undefined;
-    if (typeof call.args.branch === "string") {
-      const branchBoundary = assessGitBranchInputBoundary(call.args.branch);
-      if (!branchBoundary.acceptable) {
-        return { valid: false, errors: [branchBoundary.detail] };
-      }
-      branch = branchBoundary.normalizedBranch;
+    const normalized = normalizeGitCommitRequest(
+      call.args.message,
+      call.args.files,
+      call.args.branch,
+    );
+    if (!normalized.recovered) {
+      return { valid: false, errors: [normalized.detail], message: normalized.message };
     }
 
     return {
       valid: true,
       errors: [],
-      message: recovery.message,
-      ...(recovery.files ? { files: recovery.files } : {}),
-      ...(branch ? { branch } : {}),
+      message: normalized.message,
+      ...(normalized.files ? { files: normalized.files } : {}),
+      ...(normalized.branch ? { branch: normalized.branch } : {}),
     };
   }
 
@@ -1619,6 +1661,61 @@ export function runWorkerGitWorktreeProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface WorkerGitWorktreeBoundarySliceResult {
+  atom: "P05-B05-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: WorkerGitWorktreeProbeResult[];
+  boundaryResults: WorkerGitWorktreeProbeResult[];
+  matrixValidation: WorkerGitWorktreeProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateWorkerGitWorktreeBoundaryProbeMatrix(
+  results: WorkerGitWorktreeProbeResult[],
+  contract: WorkerGitWorktreeContract = getActiveWorkerGitWorktreeContract(),
+): WorkerGitWorktreeProbeMatrixValidationResult {
+  const boundaryProbes = listWorkerGitWorktreeContractProbesByCategory("boundary", contract);
+  const boundaryContract: WorkerGitWorktreeContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateWorkerGitWorktreeProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (git branch input edge cases,
+ * commit normalization, probe runner, documented gaps, source block gate refs) with zero
+ * unexpected mismatches.
+ */
+export function runWorkerGitWorktreeBoundarySlice(
+  fixture: WorkerGitWorktreeBaseline = loadWorkerGitWorktreeBaseline(),
+): WorkerGitWorktreeBoundarySliceResult {
+  const contract = getActiveWorkerGitWorktreeContract();
+  const results = runWorkerGitWorktreeProbes(fixture);
+  const boundaryProbes = listWorkerGitWorktreeContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateWorkerGitWorktreeBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B05-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

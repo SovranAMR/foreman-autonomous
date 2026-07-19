@@ -151,7 +151,7 @@ describe("Forge Worker Git Worktree Contract — P05-B05-A02", () => {
     assert.equal(FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.atom, "P05-B05-A02");
     assert.equal(FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a03");
+    assert.equal(FORGE_WORKER_GIT_WORKTREE_VERSION, "1.0.0-a04");
     assert.equal(contract.version, FORGE_WORKER_GIT_WORKTREE_CONTRACT_V1.version);
   });
 });
