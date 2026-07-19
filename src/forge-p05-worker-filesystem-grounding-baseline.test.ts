@@ -41,28 +41,19 @@ describe("Forge Worker Filesystem Grounding — P05-B02-A01", () => {
     assert.equal(handoff.targetBlock.entryAtom, "P05-B02-A01");
   });
 
-  it("measures filesystem grounding probes with documented FAIL gaps from P05-B01 sealed handoff", () => {
+  it("measures filesystem grounding probes with zero unexpected mismatches after A03 slice", () => {
     const results = runWorkerFilesystemGroundingProbes();
     const summary = summarizeWorkerFilesystemGroundingMatrix(results);
 
     assert.equal(summary.total, results.length);
     assert.equal(summary.total, 27);
-    assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
+    assert.equal(summary.knownGaps.length, 0);
 
     const documentedFail = listWorkerFilesystemGroundingProbesByExpected(
       "FAIL",
       loadWorkerFilesystemGroundingBaseline(),
     );
-    assert.equal(documentedFail.length, 6);
-    assert.ok(documentedFail.some(p => p.id === "wfg.typed_read_call_union"));
-    assert.ok(documentedFail.some(p => p.id === "wfg.read_before_edit_validator"));
-    assert.ok(documentedFail.some(p => p.id === "wfg.exported_grounding_validator"));
-
-    for (const gap of summary.knownGaps) {
-      assert.equal(gap.expected, "FAIL");
-      assert.equal(gap.actual, "FAIL");
-      assert.equal(gap.aligned, true);
-    }
+    assert.equal(documentedFail.length, 0);
 
     for (const cat of WORKER_FILESYSTEM_GROUNDING_CATEGORIES) {
       assert.ok(summary.byCategory[cat], `missing category summary: ${cat}`);
@@ -77,20 +68,9 @@ describe("Forge Worker Filesystem Grounding — P05-B02-A01", () => {
     );
   });
 
-  it("documents filesystem grounding gaps as measurable baseline debt", () => {
+  it("documents zero remaining filesystem grounding gaps after production slice", () => {
     const gaps = listWorkerFilesystemGroundingKnownGaps(runWorkerFilesystemGroundingProbes());
-    assert.equal(gaps.length, 6);
-    assert.deepEqual(
-      gaps.map(g => g.id).sort(),
-      [
-        "wfg.exported_grounding_validator",
-        "wfg.grounding_telemetry_record",
-        "wfg.orchestrator_pre_read_grounding",
-        "wfg.read_before_edit_validator",
-        "wfg.typed_read_call_union",
-        "wfg.worker_prompt_grounding_contract",
-      ],
-    );
+    assert.deepEqual(gaps.map(g => g.id).sort(), []);
   });
 
   it("assessFilesystemReadInputBoundary rejects empty and null-byte file paths", () => {
@@ -129,6 +109,6 @@ describe("Forge Worker Filesystem Grounding — P05-B02-A01", () => {
   });
 
   it("exports harness version for filesystem grounding baseline", () => {
-    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a03");
   });
 });

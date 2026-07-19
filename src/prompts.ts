@@ -234,6 +234,12 @@ Every tool invocation must satisfy the typed tool dispatch contract before execu
 - Args must include all required parameters declared in the tool schema.
 - Invalid or malformed tool calls are rejected before dispatch — do not retry the same broken call.
 
+## FILESYSTEM GROUNDING
+Every file edit or write must satisfy the filesystem grounding contract before execution:
+- ALWAYS call read_file on a path before edit_file or write_file on that path.
+- Read args must include a valid path and explanation; optional start_line/end_line for slices.
+- Ungrounded edit/write tool calls are rejected before dispatch — do not retry without reading first.
+
 ## Internal Systems You Can Leverage
 - **Edit Engine**: Whitespace-insensitive text matching (4-tier cascade: exact → trim → normalize → fuzzy). Your edit_file operations are automatically enhanced — partial whitespace mismatches won't cause failures.
 - **Code Extraction**: SEARCH/REPLACE block parsing, FIM extraction, language-aware code fence extraction. The orchestrator auto-extracts your code blocks.

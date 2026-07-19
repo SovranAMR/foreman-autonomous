@@ -24,6 +24,10 @@ import { PipelineResumeEngine } from "./pipeline-resume.js";
 import { createEngineToolExecutor, TOOL_DEFINITIONS } from "./tools.js";
 import type { ToolCall, ToolResult } from "./tools.js";
 import { validateWorkerToolCall } from "./forge-p05-worker-tool-dispatch.js";
+import {
+  validateFilesystemGrounding,
+  buildFilesystemGroundingTelemetry,
+} from "./forge-p05-worker-filesystem-grounding.js";
 import { formatProjectContext } from "./project-detector.js";
 import { webSearch, fetchUrl, npmInfo } from "./research-engine.js";
 import { extractToolCalls, extractToolResults } from "./transcript-repair.js";
@@ -3315,6 +3319,7 @@ ${visionOutput}`,
           execResult = undefined; // reset for this attempt
           toolCallCount = 0;
           toolResults.length = 0;
+          const groundedReadPaths = new Set<string>();
 
           try {
             // Mode A: Try tool-enabled execution
@@ -3446,7 +3451,23 @@ ${visionOutput}`,
                       isError: true,
                     };
                   }
+                  const grounding = validateFilesystemGrounding(call, groundedReadPaths);
+                  buildFilesystemGroundingTelemetry(call, {
+                    sequenceIndex: toolCallCount,
+                    validation: grounding,
+                    priorReads: groundedReadPaths,
+                  });
+                  if (!grounding.valid) {
+                    return {
+                      name: call.name,
+                      content: `Filesystem grounding failed: ${grounding.errors.join("; ")}`,
+                      isError: true,
+                    };
+                  }
                   const result = await toolExecutor(call);
+                  if (!result.isError && call.name === "read_file" && grounding.path) {
+                    groundedReadPaths.add(grounding.path);
+                  }
                   toolResults.push({ name: call.name, success: !result.isError });
                   this.emit({
                     type: "phase_end",
@@ -4409,6 +4430,7 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                         this.engine.linkIntelligence,
                         this.engine.hooks,
                       );
+                      const reGroundedReadPaths = new Set<string>();
                       const toolLlmResult = await this.engine.callLLMWithTools(
                         getWorkerPromptForToolMode(),
                         reContext,
@@ -4423,7 +4445,23 @@ If anything feels wrong — even slightly — say it. "Looks okay" is NOT accept
                               isError: true,
                             };
                           }
+                          const grounding = validateFilesystemGrounding(call, reGroundedReadPaths);
+                          buildFilesystemGroundingTelemetry(call, {
+                            sequenceIndex: reToolCallCount,
+                            validation: grounding,
+                            priorReads: reGroundedReadPaths,
+                          });
+                          if (!grounding.valid) {
+                            return {
+                              name: call.name,
+                              content: `Filesystem grounding failed: ${grounding.errors.join("; ")}`,
+                              isError: true,
+                            };
+                          }
                           const result = await toolExecutor(call);
+                          if (!result.isError && call.name === "read_file" && grounding.path) {
+                            reGroundedReadPaths.add(grounding.path);
+                          }
                           return result;
                         },
                         { maxIterations: 100, onToken: () => { }, onToolCall: () => { }, onToolResult: () => { } },

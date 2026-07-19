@@ -18,9 +18,10 @@ import {
   summarizeWorkerToolDispatchContractCoverage,
 } from "./forge-p05-worker-tool-dispatch.js";
 import { TOOL_DEFINITIONS } from "./tools.js";
+import type { ToolCall } from "./tools.js";
 import { ExecutionEngine } from "./execution-engine.js";
 
-export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a02";
+export const FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION = "1.0.0-a03";
 
 export const EXPECTED_P05_B01_SEALED_ATOM_COUNT = 10;
 
@@ -218,16 +219,16 @@ const WORKER_FILESYSTEM_GROUNDING_CATEGORY_CONTRACTS: Record<
         id: "wfg.typed_read_call_union",
         category: "read_signal",
         description: "TypedReadCall discriminated union narrows path and line-range args before read",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "TypedReadCall discriminated union narrows path and line-range args before read",
       },
       {
         id: "wfg.worker_prompt_grounding_contract",
         category: "read_signal",
         description: "WORKER_SYSTEM prompt declares filesystem grounding contract for read-before-edit",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "WORKER_SYSTEM prompt declares filesystem grounding contract for read-before-edit",
       },
     ],
@@ -269,8 +270,8 @@ const WORKER_FILESYSTEM_GROUNDING_CATEGORY_CONTRACTS: Record<
         id: "wfg.orchestrator_pre_read_grounding",
         category: "path_signal",
         description: "Orchestrator validates filesystem read grounding before edit/write dispatch",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "observed",
         criterion: "Orchestrator validates filesystem read grounding before edit/write dispatch",
       },
     ],
@@ -434,7 +435,7 @@ const WORKER_FILESYSTEM_GROUNDING_CATEGORY_CONTRACTS: Record<
         id: "wfg.read_before_edit_validator",
         category: "nogo_path",
         description: "validateReadBeforeEdit rejects edit/write without prior read_file grounding",
-        expected: "FAIL",
+        expected: "PASS",
         disposition: "nogo",
         criterion: "validateReadBeforeEdit rejects edit/write without prior read_file grounding",
       },
@@ -442,7 +443,7 @@ const WORKER_FILESYSTEM_GROUNDING_CATEGORY_CONTRACTS: Record<
         id: "wfg.grounding_telemetry_record",
         category: "nogo_path",
         description: "buildFilesystemGroundingTelemetry records read grounding provenance for worker loop",
-        expected: "FAIL",
+        expected: "PASS",
         disposition: "nogo",
         criterion: "buildFilesystemGroundingTelemetry records read grounding provenance for worker loop",
       },
@@ -450,7 +451,7 @@ const WORKER_FILESYSTEM_GROUNDING_CATEGORY_CONTRACTS: Record<
         id: "wfg.exported_grounding_validator",
         category: "nogo_path",
         description: "validateFilesystemGrounding exported for orchestrator pre-read grounding checks",
-        expected: "FAIL",
+        expected: "PASS",
         disposition: "nogo",
         criterion: "validateFilesystemGrounding exported for orchestrator pre-read grounding checks",
       },
@@ -850,6 +851,112 @@ export function recoverFilesystemReadPath(rawPath: string): FilesystemReadPathRe
   };
 }
 
+const EDIT_WRITE_TOOLS = new Set(["edit_file", "write_file"]);
+
+export interface FilesystemGroundingValidationResult {
+  valid: boolean;
+  errors: string[];
+  path?: string;
+}
+
+export interface FilesystemGroundingTelemetry {
+  toolName: string;
+  path: string;
+  sequenceIndex: number;
+  grounded: boolean;
+  recordedAt: string;
+  contractVersion: string;
+  harnessVersion: string;
+  errors: string[];
+}
+
+/**
+ * Validate read-before-edit: reject edit/write without prior read_file grounding (P05-B02-A03).
+ */
+export function validateReadBeforeEdit(
+  call: ToolCall,
+  priorReads: ReadonlySet<string>,
+): FilesystemGroundingValidationResult {
+  if (!EDIT_WRITE_TOOLS.has(call.name)) {
+    return { valid: true, errors: [] };
+  }
+
+  const pathArg = call.args.path;
+  if (typeof pathArg !== "string" || pathArg.trim().length === 0) {
+    return { valid: false, errors: ["edit/write requires path argument"] };
+  }
+
+  const recovery = recoverFilesystemReadPath(pathArg);
+  if (!recovery.recovered) {
+    return { valid: false, errors: [recovery.detail], path: pathArg };
+  }
+
+  if (!priorReads.has(recovery.path)) {
+    return {
+      valid: false,
+      errors: [`read_file grounding required before ${call.name} on ${recovery.path}`],
+      path: recovery.path,
+    };
+  }
+
+  return { valid: true, errors: [], path: recovery.path };
+}
+
+/**
+ * Validate filesystem grounding for worker tool call before orchestrator dispatch (P05-B02-A03).
+ */
+export function validateFilesystemGrounding(
+  call: ToolCall,
+  priorReads: ReadonlySet<string>,
+): FilesystemGroundingValidationResult {
+  if (call.name === "read_file") {
+    const pathArg = call.args.path;
+    if (typeof pathArg !== "string") {
+      return { valid: false, errors: ["read_file requires path argument"] };
+    }
+    const boundary = assessFilesystemReadInputBoundary(pathArg);
+    if (!boundary.acceptable) {
+      return { valid: false, errors: [boundary.detail] };
+    }
+    const recovery = recoverFilesystemReadPath(boundary.normalizedPath);
+    if (!recovery.recovered) {
+      return { valid: false, errors: [recovery.detail] };
+    }
+    return { valid: true, errors: [], path: recovery.path };
+  }
+
+  return validateReadBeforeEdit(call, priorReads);
+}
+
+/**
+ * Record filesystem read grounding provenance for worker loop telemetry (P05-B02-A03).
+ */
+export function buildFilesystemGroundingTelemetry(
+  call: ToolCall,
+  options: {
+    sequenceIndex?: number;
+    validation?: FilesystemGroundingValidationResult;
+    priorReads?: ReadonlySet<string>;
+  } = {},
+): FilesystemGroundingTelemetry {
+  const priorReads = options.priorReads ?? new Set<string>();
+  const validation = options.validation ?? validateFilesystemGrounding(call, priorReads);
+  const path =
+    validation.path ??
+    (typeof call.args.path === "string" ? recoverFilesystemReadPath(call.args.path).path : "");
+
+  return {
+    toolName: call.name,
+    path,
+    sequenceIndex: options.sequenceIndex ?? 0,
+    grounded: validation.valid,
+    recordedAt: new Date().toISOString(),
+    contractVersion: FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.version,
+    harnessVersion: FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION,
+    errors: validation.errors,
+  };
+}
+
 export const FORGE_WORKER_FILESYSTEM_GROUNDING_A01_PROBE_MATRIX: readonly WorkerFilesystemGroundingFixtureEntry[] =
   workerFilesystemGroundingBaseline.probes as WorkerFilesystemGroundingFixtureEntry[];
 
@@ -932,11 +1039,19 @@ export function validateWorkerFilesystemGroundingBaseline(
     }
   }
 
+  const contract = getActiveWorkerFilesystemGroundingContract();
+  const expectedFailCount = contract.probes.filter(p => p.expected === "FAIL").length;
   const failGaps = fixture.probes.filter(p => p.expected === "FAIL");
-  if (failGaps.length === 0) {
+  if (expectedFailCount > 0 && failGaps.length === 0) {
     issues.push({
       kind: "missing_category",
-      detail: "fixture must document at least one measurable FAIL gap",
+      detail: "fixture must document known FAIL gaps matching contract",
+    });
+  }
+  if (failGaps.length !== expectedFailCount) {
+    issues.push({
+      kind: "missing_probe",
+      detail: `fixture FAIL count=${failGaps.length} contract expectedFail=${expectedFailCount}`,
     });
   }
 
@@ -1195,9 +1310,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "wfg.known_gaps_documented": {
+      const contract = getActiveWorkerFilesystemGroundingContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount >= 1;
-      return probe(id, category, expected, ok, `documentedFailGaps=${failCount}`);
+      const ok = failCount === expectedFail;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "wfg.empty_path_boundary": {
       const result = assessFilesystemReadInputBoundary("");
@@ -1283,15 +1406,31 @@ function probeNogoPath(
 ): WorkerFilesystemGroundingProbeResult {
   switch (id) {
     case "wfg.read_before_edit_validator": {
-      const ok = hasProductionExport("validateReadBeforeEdit");
+      const ungrounded = validateReadBeforeEdit(
+        { name: "edit_file", args: { path: "src/tools.ts" } },
+        new Set<string>(),
+      );
+      const ok = hasProductionExport("validateReadBeforeEdit") && !ungrounded.valid;
       return probe(id, category, expected, ok, `readBeforeEditValidator=${ok}`);
     }
     case "wfg.grounding_telemetry_record": {
-      const ok = hasProductionExport("buildFilesystemGroundingTelemetry");
+      const telemetry = buildFilesystemGroundingTelemetry(
+        { name: "read_file", args: { explanation: "probe", path: "src/tools.ts" } },
+        { sequenceIndex: 1 },
+      );
+      const ok =
+        hasProductionExport("buildFilesystemGroundingTelemetry") &&
+        telemetry.toolName === "read_file" &&
+        telemetry.sequenceIndex === 1 &&
+        telemetry.grounded === true;
       return probe(id, category, expected, ok, `groundingTelemetry=${ok}`);
     }
     case "wfg.exported_grounding_validator": {
-      const ok = hasProductionExport("validateFilesystemGrounding");
+      const invalidRead = validateFilesystemGrounding(
+        { name: "read_file", args: {} },
+        new Set<string>(),
+      );
+      const ok = hasProductionExport("validateFilesystemGrounding") && !invalidRead.valid;
       return probe(id, category, expected, ok, `groundingValidator=${ok}`);
     }
     default:
@@ -1380,6 +1519,121 @@ export function listWorkerFilesystemGroundingKnownGaps(
   results: WorkerFilesystemGroundingProbeResult[] = runWorkerFilesystemGroundingProbes(),
 ): WorkerFilesystemGroundingProbeResult[] {
   return summarizeWorkerFilesystemGroundingMatrix(results).knownGaps;
+}
+
+export interface WorkerFilesystemGroundingProbeMatrixValidationIssue {
+  kind: "missing_result" | "criterion_mismatch" | "pass_mismatch" | "gap_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface WorkerFilesystemGroundingProbeMatrixValidationResult {
+  valid: boolean;
+  issues: WorkerFilesystemGroundingProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+export function validateWorkerFilesystemGroundingProbeMatrix(
+  results: WorkerFilesystemGroundingProbeResult[],
+  contract: WorkerFilesystemGroundingContract = getActiveWorkerFilesystemGroundingContract(),
+): WorkerFilesystemGroundingProbeMatrixValidationResult {
+  const issues: WorkerFilesystemGroundingProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(result => [result.id, result]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+      continue;
+    }
+
+    if (result.aligned) {
+      gapAligned++;
+    } else {
+      issues.push({
+        kind: "gap_mismatch",
+        probeId: contractProbe.id,
+        detail: `FAIL probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
+  };
+}
+
+export interface WorkerFilesystemGroundingProductionSliceResult {
+  atom: "P05-B02-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: WorkerFilesystemGroundingProbeResult[];
+  summary: WorkerFilesystemGroundingProbeSummary;
+  matrixValidation: WorkerFilesystemGroundingProbeMatrixValidationResult;
+}
+
+/**
+ * A03 production vertical slice: filesystem read/grounding wired to contract probes
+ * with zero unexpected mismatches against the sealed contract matrix.
+ */
+export function runWorkerFilesystemGroundingProductionSlice(
+  fixture: WorkerFilesystemGroundingBaseline = loadWorkerFilesystemGroundingBaseline(),
+): WorkerFilesystemGroundingProductionSliceResult {
+  const contract = getActiveWorkerFilesystemGroundingContract();
+  const fixtureValidation = validateWorkerFilesystemGroundingBaseline(fixture);
+  const contractValidation = validateWorkerFilesystemGroundingAgainstContract(fixture, contract);
+  const results = runWorkerFilesystemGroundingProbes(fixture);
+  const summary = summarizeWorkerFilesystemGroundingMatrix(results);
+  const matrixValidation = validateWorkerFilesystemGroundingProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B02-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }
 
 /** Smoke probe: denied path read returns deterministic error (P05-B02-A01 boundary). */

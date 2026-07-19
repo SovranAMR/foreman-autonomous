@@ -1059,6 +1059,17 @@ export type TypedToolCall = {
   };
 }[(typeof TOOL_DEFINITIONS)[number]["name"]];
 
+/** Discriminated union narrowing read_file args before filesystem grounding (P05-B02-A03). */
+export type TypedReadCall = {
+  name: "read_file";
+  args: {
+    explanation: string;
+    path: string;
+    start_line?: number;
+    end_line?: number;
+  };
+};
+
 /**
  * Creates a tool executor bound to a project root via ExecutionEngine.
  * All file operations go through the engine's security checks.

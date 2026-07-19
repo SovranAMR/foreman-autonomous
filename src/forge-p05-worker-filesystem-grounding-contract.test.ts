@@ -61,7 +61,7 @@ describe("Forge Worker Filesystem Grounding Contract — P05-B02-A02", () => {
     }
   });
 
-  it("maps 27 probes with six documented FAIL gaps from P05-B02-A01 baseline", () => {
+  it("maps 27 probes with zero documented FAIL gaps after A03 production slice", () => {
     const contract = getActiveWorkerFilesystemGroundingContract();
     const summary = summarizeWorkerFilesystemGroundingContractCoverage(contract);
     const coverage = validateWorkerFilesystemGroundingContractCoverage(contract);
@@ -69,10 +69,10 @@ describe("Forge Worker Filesystem Grounding Contract — P05-B02-A02", () => {
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
     assert.equal(validateWorkerFilesystemGroundingContract().valid, true);
     assert.equal(summary.totalProbes, 27);
-    assert.equal(summary.expectedPass, 21);
-    assert.equal(summary.expectedFail, 6);
-    assert.equal(summary.byDisposition.observed, 17);
-    assert.equal(summary.byDisposition.gap, 3);
+    assert.equal(summary.expectedPass, 27);
+    assert.equal(summary.expectedFail, 0);
+    assert.equal(summary.byDisposition.observed, 20);
+    assert.equal(summary.byDisposition.gap, 0);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 3);
@@ -86,17 +86,10 @@ describe("Forge Worker Filesystem Grounding Contract — P05-B02-A02", () => {
     assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
 
-  it("lists six gap and nogo probes mapped from documented FAIL baseline debt", () => {
+  it("lists zero gap probes after A03 filesystem grounding production slice", () => {
     const gaps = listWorkerFilesystemGroundingProbesByDisposition("gap");
     const nogo = listWorkerFilesystemGroundingProbesByDisposition("nogo");
-    assert.deepEqual(
-      gaps.map(p => p.id).sort(),
-      [
-        "wfg.orchestrator_pre_read_grounding",
-        "wfg.typed_read_call_union",
-        "wfg.worker_prompt_grounding_contract",
-      ],
-    );
+    assert.deepEqual(gaps.map(p => p.id).sort(), []);
     assert.deepEqual(
       nogo.map(p => p.id).sort(),
       [
@@ -105,6 +98,7 @@ describe("Forge Worker Filesystem Grounding Contract — P05-B02-A02", () => {
         "wfg.read_before_edit_validator",
       ],
     );
+    assert.ok(nogo.every(probe => probe.expected === "PASS"));
   });
 
   it("enforces fixture ↔ contract probe mapping with category alignment", () => {
@@ -157,7 +151,7 @@ describe("Forge Worker Filesystem Grounding Contract — P05-B02-A02", () => {
     assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.atom, "P05-B02-A02");
     assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a02");
+    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a03");
     assert.equal(contract.version, FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.version);
   });
 });

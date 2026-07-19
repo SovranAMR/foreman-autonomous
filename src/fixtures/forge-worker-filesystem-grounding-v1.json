@@ -45,13 +45,13 @@
       "id": "wfg.typed_read_call_union",
       "category": "read_signal",
       "description": "TypedReadCall discriminated union narrows path and line-range args before read",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wfg.worker_prompt_grounding_contract",
       "category": "read_signal",
       "description": "WORKER_SYSTEM prompt declares filesystem grounding contract for read-before-edit",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wfg.secure_path_resolution",
@@ -75,7 +75,7 @@
       "id": "wfg.orchestrator_pre_read_grounding",
       "category": "path_signal",
       "description": "Orchestrator validates filesystem read grounding before edit/write dispatch",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wfg.b01_handoff_entry",
@@ -159,19 +159,19 @@
       "id": "wfg.read_before_edit_validator",
       "category": "nogo_path",
       "description": "validateReadBeforeEdit rejects edit/write without prior read_file grounding",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wfg.grounding_telemetry_record",
       "category": "nogo_path",
       "description": "buildFilesystemGroundingTelemetry records read grounding provenance for worker loop",
-      "expected": "FAIL"
+      "expected": "PASS"
     },
     {
       "id": "wfg.exported_grounding_validator",
       "category": "nogo_path",
       "description": "validateFilesystemGrounding exported for orchestrator pre-read grounding checks",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }
