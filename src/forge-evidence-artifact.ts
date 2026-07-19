@@ -1117,3 +1117,284 @@ export function listEvidenceArtifactFailureRecoveryProbeIds(
     listEvidenceArtifactContractProbesByCategory(category, contract).map(p => p.id),
   );
 }
+
+/** Per-probe evidence artifact — auditable proof of evidence artifact probe outcome (P01-B08-A06). */
+export interface EvidenceArtifactProbeEvidence {
+  probeId: string;
+  category: EvidenceArtifactCategory;
+  disposition: EvidenceArtifactProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for evidence artifact runs (P01-B08-A06). */
+export interface EvidenceArtifactProbeTelemetry {
+  probeId: string;
+  category: EvidenceArtifactCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P01-B08-A06). */
+export interface EvidenceArtifactProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceReproducibleFixtureVersion: string;
+  sourceReproducibleFixtureAtom: string;
+  /** Slice atom when record covers a subset (e.g. failure/recovery gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly EvidenceArtifactCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated evidence artifact run record bundling evidence, telemetry and provenance. */
+export interface EvidenceArtifactRunRecord {
+  provenance: EvidenceArtifactProvenance;
+  evidence: EvidenceArtifactProbeEvidence[];
+  telemetry: EvidenceArtifactProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<EvidenceArtifactCategory, number>;
+    byDisposition: Record<EvidenceArtifactProbeDisposition, number>;
+  };
+}
+
+export interface EvidenceArtifactRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface EvidenceArtifactRunValidationResult {
+  valid: boolean;
+  issues: EvidenceArtifactRunValidationIssue[];
+}
+
+export function buildEvidenceArtifactProbeEvidence(
+  probeId: string,
+  category: EvidenceArtifactCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: EvidenceArtifactProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): EvidenceArtifactProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildEvidenceArtifactProbeTelemetry(
+  probeId: string,
+  category: EvidenceArtifactCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): EvidenceArtifactProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildEvidenceArtifactProvenance(
+  runId: string,
+  fixture: EvidenceArtifactBaseline,
+  contract: EvidenceArtifactContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly EvidenceArtifactCategory[];
+  },
+): EvidenceArtifactProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_EVIDENCE_ARTIFACT_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceReproducibleFixtureVersion: fixture.sourceReproducibleFixture.version,
+    sourceReproducibleFixtureAtom: fixture.sourceReproducibleFixture.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildEvidenceArtifactRunRecord(
+  provenance: EvidenceArtifactProvenance,
+  evidence: EvidenceArtifactProbeEvidence[],
+  telemetry: EvidenceArtifactProbeTelemetry[],
+): EvidenceArtifactRunRecord {
+  const byCategory = {} as Record<EvidenceArtifactCategory, number>;
+  const byDisposition: Record<EvidenceArtifactProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of EVIDENCE_ARTIFACT_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateEvidenceArtifactRunRecordAgainstProbeIds(
+  record: EvidenceArtifactRunRecord,
+  expectedProbeIds: string[],
+  contract: EvidenceArtifactContract,
+): EvidenceArtifactRunValidationResult {
+  const issues: EvidenceArtifactRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateEvidenceArtifactRunRecord(
+  record: EvidenceArtifactRunRecord,
+  contract: EvidenceArtifactContract = getActiveEvidenceArtifactContract(),
+): EvidenceArtifactRunValidationResult {
+  return validateEvidenceArtifactRunRecordAgainstProbeIds(
+    record,
+    listEvidenceArtifactContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateEvidenceArtifactFailureRecoveryRunRecord(
+  record: EvidenceArtifactRunRecord,
+  contract: EvidenceArtifactContract = getActiveEvidenceArtifactContract(),
+): EvidenceArtifactRunValidationResult {
+  const issues: EvidenceArtifactRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P01-B08-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P01-B08-A06`,
+    });
+  }
+
+  const expectedCategories = [...EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateEvidenceArtifactRunRecordAgainstProbeIds(
+    record,
+    listEvidenceArtifactFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}

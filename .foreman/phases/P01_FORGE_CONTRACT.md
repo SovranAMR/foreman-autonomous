@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 73
+completed_atoms: 74
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -111,7 +111,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B08-A03 — Evidence ve artifact şeması: en küçük üretim dikey dilimini uygula
 - [x] P01-B08-A04 — Evidence ve artifact şeması: boundary ve edge-case davranışlarını tamamla
 - [x] P01-B08-A05 — Evidence ve artifact şeması: failure, recovery ve NO-GO yollarını uygula
-- [ ] P01-B08-A06 — Evidence ve artifact şeması: evidence, telemetry ve provenance kaydını ekle
+- [x] P01-B08-A06 — Evidence ve artifact şeması: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B08-A07 — Evidence ve artifact şeması: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B08-A08 — Evidence ve artifact şeması: Forge entegrasyonu ile regression testini tamamla
 - [ ] P01-B08-A09 — Evidence ve artifact şeması: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,10 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B08-A05
+last_atom: P01-B08-A06
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (16/16); failure/recovery slice 2 pass / 4 gap aligned
+tests: PASS — `npx tsx --test src/forge-evidence-artifact*.test.ts` (18/18); failure/recovery run record 6 probes aligned
 evidence: |
-  P01-B08-A05 failure/recovery slice: validateEvidenceArtifactFailureRecoveryProbeMatrix gates contract-wired
-  failure_path, recovery_path and nogo_path probes; runEvidenceArtifactFailureRecoverySlice — zero unexpected mismatches.
-next: P01-B08-A06
+  P01-B08-A06 evidence/telemetry/provenance: runEvidenceArtifactFailureRecoverySliceWithRecord bundles
+  EvidenceArtifactProbeEvidence, EvidenceArtifactProbeTelemetry and EvidenceArtifactProvenance;
+  validateEvidenceArtifactFailureRecoveryRunRecord gates sliceAtom P01-B08-A06 — zero mismatches.
+next: P01-B08-A07

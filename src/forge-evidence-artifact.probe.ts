@@ -7,6 +7,9 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
+import { performance } from "node:perf_hooks";
 import evidenceArtifactBaseline from "./fixtures/forge-evidence-artifact-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -34,10 +37,16 @@ import {
   listEvidenceArtifactFailureRecoveryProbeIds,
   EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES,
   listEvidenceArtifactContractProbesByCategory,
+  buildEvidenceArtifactProbeEvidence,
+  buildEvidenceArtifactProbeTelemetry,
+  buildEvidenceArtifactProvenance,
+  buildEvidenceArtifactRunRecord,
   type EvidenceArtifactBaseline,
   type EvidenceArtifactCategory,
+  type EvidenceArtifactProbeDisposition,
   type EvidenceArtifactProbeResult,
   type EvidenceArtifactProbeMatrixValidationResult,
+  type EvidenceArtifactRunRecord,
 } from "./forge-evidence-artifact.js";
 
 export type { EvidenceArtifactBaseline, EvidenceArtifactProbeResult } from "./forge-evidence-artifact.js";
@@ -64,8 +73,14 @@ export {
   validateEvidenceArtifactFailureRecoveryProbeMatrix,
   listEvidenceArtifactFailureRecoveryProbeIds,
   EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES,
+  buildEvidenceArtifactProbeEvidence,
+  buildEvidenceArtifactProbeTelemetry,
+  buildEvidenceArtifactProvenance,
+  buildEvidenceArtifactRunRecord,
+  validateEvidenceArtifactFailureRecoveryRunRecord,
   FORGE_EVIDENCE_ARTIFACT_CONTRACT_V1,
   type EvidenceArtifactProbeMatrixValidationResult,
+  type EvidenceArtifactRunRecord,
 } from "./forge-evidence-artifact.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -718,4 +733,108 @@ export function runEvidenceArtifactFailureRecoverySlice(
     failureRecoveryResults,
     matrixValidation,
   };
+}
+
+function resolveGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runEvidenceArtifactProbeWithTiming(
+  entry: EvidenceArtifactBaseline["probes"][number],
+  fixture: EvidenceArtifactBaseline,
+  contractProbe:
+    | { criterion: string; disposition: EvidenceArtifactProbeDisposition }
+    | undefined,
+): {
+  result: EvidenceArtifactProbeResult;
+  durationMs: number;
+  disposition: EvidenceArtifactProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion ? { ...result, criterion: contractProbe.criterion } : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildEvidenceArtifactRecordFromEntries(
+  entries: EvidenceArtifactBaseline["probes"],
+  fixture: EvidenceArtifactBaseline,
+  contract: ReturnType<typeof getActiveEvidenceArtifactContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly EvidenceArtifactCategory[];
+  },
+): EvidenceArtifactRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildEvidenceArtifactProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildEvidenceArtifactProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runEvidenceArtifactProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildEvidenceArtifactProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildEvidenceArtifactProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildEvidenceArtifactProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildEvidenceArtifactRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P01-B08-A06). */
+export function runEvidenceArtifactFailureRecoverySliceWithRecord(
+  fixture: EvidenceArtifactBaseline = loadEvidenceArtifactBaseline(),
+): EvidenceArtifactRunRecord {
+  const contract = getActiveEvidenceArtifactContract();
+  const failureRecoveryIds = new Set(listEvidenceArtifactFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildEvidenceArtifactRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P01-B08-A06",
+    sliceCategories: EVIDENCE_ARTIFACT_FAILURE_RECOVERY_CATEGORIES,
+  });
 }
