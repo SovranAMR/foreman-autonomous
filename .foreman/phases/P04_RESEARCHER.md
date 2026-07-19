@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 3
-completed_atoms: 30
+completed_atoms: 31
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -55,7 +55,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P04-B04 — Benchmark ve prior-art analizi
 
 - [x] P04-B04-A01 — Benchmark ve prior-art analizi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P04-B04-A02 — Benchmark ve prior-art analizi: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P04-B04-A02 — Benchmark ve prior-art analizi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B04-A03 — Benchmark ve prior-art analizi: en küçük üretim dikey dilimini uygula
 - [ ] P04-B04-A04 — Benchmark ve prior-art analizi: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B04-A05 — Benchmark ve prior-art analizi: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B04-A01
-last_commit: 542bee8
-tests: PASS — forge-p04-researcher-benchmark-prior-art-baseline.test.ts (7/7); documented FAIL gap rbpa.structured_benchmark_prior_art_recovery; P04-B03 handoff valid
-evidence: loadResearcherBenchmarkPriorArtBaseline; validateResearcherBenchmarkPriorArtBaseline; validateResearcherBenchmarkPriorArtAgainstContract; runResearcherBenchmarkPriorArtProbes
-next: P04-B04-A02
+last_atom: P04-B04-A02
+last_commit: pending
+tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (7/7); contract v1 23 probes; criterion on every probe; 1 documented FAIL gap rbpa.structured_benchmark_prior_art_recovery
+evidence: getActiveResearcherBenchmarkPriorArtContract; validateResearcherBenchmarkPriorArtAgainstContract; validateResearcherBenchmarkPriorArtContractCoverage; summarizeResearcherBenchmarkPriorArtContractCoverage
+next: P04-B04-A03

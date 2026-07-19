@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B04
-active_atom: P04-B04-A02
+active_atom: P04-B04-A03
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 331/1000
-phase_progress: 31/100
-block_progress: 1/10
+program_progress: 332/1000
+phase_progress: 32/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B04-A02 — Benchmark ve prior-art analizi: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P04-B04-A03 — Benchmark ve prior-art analizi: en küçük üretim dikey dilimini uygula.
 
-objective: P04-B04-A01 PASS; baseline fixture with documented FAIL gap; contract alignment gate.
-target: getActiveResearcherBenchmarkPriorArtContract, validateResearcherBenchmarkPriorArtAgainstContract.
-hypothesis: Typed contract v1 wires rbpa probe criteria to measurable acceptance invariants.
-acceptance: contract v1 exported; fixture↔contract alignment gate; criterion on every probe.
+objective: P04-B04-A02 PASS; typed contract v1 with fixture↔contract alignment gate.
+target: recoverBenchmarkPriorArtEvidence production slice; probe matrix validation.
+hypothesis: Minimal vertical slice closes rbpa.structured_benchmark_prior_art_recovery FAIL gap.
+acceptance: recoverBenchmarkPriorArtEvidence exported; documented FAIL gap resolved; matrix valid.
 commands: npx tsx --test src/forge-p04-researcher-benchmark-prior-art*.test.ts
 blast_radius: src/forge-p04-researcher-benchmark-prior-art*.ts
-rollback: P04-B04-A02 contract değişikliklerini geri al.
+rollback: P04-B04-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B04-A01
-last_commit: 542bee8
-tests: PASS — forge-p04-researcher-benchmark-prior-art-baseline.test.ts (7/7); documented FAIL gap rbpa.structured_benchmark_prior_art_recovery; P04-B03 handoff valid
-evidence: loadResearcherBenchmarkPriorArtBaseline; validateResearcherBenchmarkPriorArtBaseline; validateResearcherBenchmarkPriorArtAgainstContract; runResearcherBenchmarkPriorArtProbes
-next: P04-B04-A02
+last_atom: P04-B04-A02
+last_commit: pending
+tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (7/7); contract v1 23 probes; 1 documented FAIL gap rbpa.structured_benchmark_prior_art_recovery
+evidence: getActiveResearcherBenchmarkPriorArtContract; validateResearcherBenchmarkPriorArtAgainstContract; validateResearcherBenchmarkPriorArtContractCoverage; summarizeResearcherBenchmarkPriorArtContractCoverage
+next: P04-B04-A03
