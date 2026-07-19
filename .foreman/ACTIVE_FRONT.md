@@ -44,7 +44,7 @@ fallback: boundary closure blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B03-A03
-last_commit: 27fb418
+last_commit: 6f1a522
 tests: PASS — forge-p03-strategist-atomization*.test.ts (14/14); contract 23 probes; 0 gap dispositions
 evidence: assessStrategistAtomizeInputBoundary; recoverStrategistAtomize; runStrategistAtomizationProductionSlice; validateStrategistAtomizationProbeMatrix
 next: P03-B03-A04
