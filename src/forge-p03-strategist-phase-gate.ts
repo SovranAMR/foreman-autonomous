@@ -1391,4 +1391,26 @@ export function validateStrategistPhaseGateProbeMatrix(
   };
 }
 
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateStrategistPhaseGateBoundaryProbeMatrix(
+  results: StrategistPhaseGateProbeResult[],
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): StrategistPhaseGateProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistPhaseGateContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistPhaseGateContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistPhaseGateProbeMatrix(boundaryResults, boundaryContract);
+}
+
 export { FORGE_STRATEGIST_PROVENANCE_VERSION };

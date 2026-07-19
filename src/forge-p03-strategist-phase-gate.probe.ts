@@ -17,6 +17,7 @@ import {
   validateStrategistPhaseGateBaseline,
   validateStrategistPhaseGateAgainstContract,
   validateStrategistPhaseGateProbeMatrix,
+  validateStrategistPhaseGateBoundaryProbeMatrix,
   validateP03PhaseHandoffContract,
   validateForgeP03StrategistPhaseGateEvidence,
   buildP03StrategistPhaseGateEvidence,
@@ -517,3 +518,38 @@ export function runStrategistPhaseGateProductionSlice(
 }
 
 export const runForgeStrategistPhaseGateProductionSlice = runStrategistPhaseGateProductionSlice;
+
+export interface StrategistPhaseGateBoundarySliceResult {
+  atom: "P03-B10-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistPhaseGateProbeResult[];
+  boundaryResults: StrategistPhaseGateProbeResult[];
+  matrixValidation: ReturnType<typeof validateStrategistPhaseGateBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (manifest input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runStrategistPhaseGateBoundarySlice(
+  fixture: StrategistPhaseGateBaseline = loadStrategistPhaseGateBaseline(),
+): StrategistPhaseGateBoundarySliceResult {
+  const contract = getActiveStrategistPhaseGateContract();
+  const results = runStrategistPhaseGateProbes(fixture);
+  const boundaryProbes = contract.probes.filter(p => p.category === "boundary");
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistPhaseGateBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B10-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}
+
+export const runForgeStrategistPhaseGateBoundarySlice = runStrategistPhaseGateBoundarySlice;

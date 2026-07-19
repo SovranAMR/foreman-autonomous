@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B10-A04 — Stratejist phase gate: boundary ve edge-case davranışlarını tamamla.
+P03-B10-A05 — Stratejist phase gate: failure, recovery ve NO-GO yollarını uygula.
 
-objective: P03-B10-A03 PASS; P03-B10-A04 boundary slice for strategist phase gate contract probes.
-target: runStrategistPhaseGateBoundarySlice closes boundary probe matrix with zero unexpected mismatches.
-hypothesis: P03-B10-A04 production slice validates manifest input edge cases and disposition coverage.
-acceptance: boundary probe matrix valid; zero unexpected mismatches; disposition coverage intact.
+objective: P03-B10-A04 PASS; P03-B10-A05 failure/recovery/NO-GO slice for strategist phase gate contract probes.
+target: runStrategistPhaseGateFailureRecoverySlice closes failure/recovery/NO-GO probe matrix with zero unexpected mismatches.
+hypothesis: P03-B10-A05 production slice validates failure_path, recovery_path, and nogo_path disposition coverage.
+acceptance: failure/recovery probe matrix valid; zero unexpected mismatches; documented FAIL gaps preserved.
 commands: npx tsx --test src/forge-p03-strategist-phase-gate*.test.ts
 blast_radius: src/forge-p03-strategist-phase-gate.ts, src/forge-p03-strategist-phase-gate.probe.ts
-rollback: P03-B10-A04 boundary slice değişikliklerini geri al.
+rollback: P03-B10-A05 failure/recovery slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B10-A03
-last_commit: 76b57ff
-tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (14/14)
-evidence: runStrategistPhaseGateProductionSlice; verifyForgeP03StrategistPhaseGate; validateStrategistPhaseGateProbeMatrix; spg.orchestrator_phase_gate_runner PASS
-next: P03-B10-A04
+last_atom: P03-B10-A04
+last_commit: PENDING
+tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (19/19)
+evidence: runStrategistPhaseGateBoundarySlice; validateStrategistPhaseGateBoundaryProbeMatrix; assessStrategistPhaseGateInputBoundary edge cases PASS
+next: P03-B10-A05

@@ -4,6 +4,7 @@ import {
   loadStrategistPhaseGateBaseline,
   runStrategistPhaseGateProbes,
   runStrategistPhaseGateProductionSlice,
+  runStrategistPhaseGateBoundarySlice,
   validateStrategistPhaseGateBaseline,
 } from "./forge-p03-strategist-phase-gate.probe.js";
 import {
@@ -16,8 +17,10 @@ import {
   validateStrategistPhaseGateCoverage,
   validateStrategistPhaseGateAgainstContract,
   validateStrategistPhaseGateProbeMatrix,
+  validateStrategistPhaseGateBoundaryProbeMatrix,
   recoverStrategistPhaseGateEvidence,
   assessStrategistPhaseGateInputBoundary,
+  STRATEGIST_PHASE_GATE_MANIFEST_MAX_LENGTH,
   STRATEGIST_PHASE_GATE_CATEGORIES,
   FORGE_STRATEGIST_PHASE_GATE_CONTRACT_V1,
   FORGE_STRATEGIST_PHASE_GATE_VERSION,
@@ -204,5 +207,80 @@ handoff: valid`;
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Phase Gate Boundary Slice — P03-B10-A04", () => {
+  it("assessStrategistPhaseGateInputBoundary handles null-byte and truncation edge cases", () => {
+    const nullByte = assessStrategistPhaseGateInputBoundary("manifest\0corrupt");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longManifest = "x".repeat(STRATEGIST_PHASE_GATE_MANIFEST_MAX_LENGTH + 200);
+    const truncated = assessStrategistPhaseGateInputBoundary(longManifest);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedManifest.length, STRATEGIST_PHASE_GATE_MANIFEST_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("recoverStrategistPhaseGateEvidence rejects whitespace-only malformed manifest input", () => {
+    const whitespaceRecovery = recoverStrategistPhaseGateEvidence("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_manifest"]);
+  });
+
+  it("defines boundary category with manifest input edge-case probes", () => {
+    const boundary = listStrategistPhaseGateContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "spg.empty_manifest_boundary",
+      "spg.known_gaps_documented",
+      "spg.long_manifest_truncation_boundary",
+      "spg.probe_runner_exported",
+      "spg.source_block_gate_ref",
+      "spg.whitespace_manifest_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistPhaseGateContract();
+    const slice = runStrategistPhaseGateBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B10-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistPhaseGateContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistPhaseGateBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves full probe alignment while boundary slice passes", () => {
+    const slice = runStrategistPhaseGateBoundarySlice();
+    const recoveryProbe = slice.results.find(r => r.id === "spg.structured_phase_gate_recovery");
+
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+    assert.equal(recoveryProbe!.aligned, true);
+    assert.equal(slice.results.filter(r => !r.aligned).length, 0);
   });
 });
