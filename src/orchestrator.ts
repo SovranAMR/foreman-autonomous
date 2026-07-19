@@ -1677,6 +1677,51 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher web primary-source regression gate and emit verification event (P04-B03-A08).
+   */
+  async verifyForgeResearcherWebPrimarySourceRegression(
+    priorRecord?: import("./forge-p04-researcher-web-primary-source.js").ResearcherWebPrimarySourceRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-web-primary-source.probe.js").ForgeResearcherWebPrimarySourceRegressionGateResult
+  > {
+    const { runForgeResearcherWebPrimarySourceRegressionGate } = await import(
+      "./forge-p04-researcher-web-primary-source.probe.js"
+    );
+    const result = runForgeResearcherWebPrimarySourceRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "researcher_web_primary_source_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
+   * Run Forge researcher web primary-source guard checks and emit verification event (P04-B03-A09).
+   */
+  async verifyForgeResearcherWebPrimarySourceGuard(
+    priorRecord?: import("./forge-p04-researcher-web-primary-source.js").ResearcherWebPrimarySourceRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-web-primary-source.probe.js").ForgeResearcherWebPrimarySourceRegressionGateResult
+  > {
+    const { runForgeResearcherWebPrimarySourceRegressionGate } = await import(
+      "./forge-p04-researcher-web-primary-source.probe.js"
+    );
+    const result = runForgeResearcherWebPrimarySourceRegressionGate(priorRecord);
+    const guardPassed = result.guard.passed && result.recordValid && result.record.summary.mismatches === 0;
+    this.emit({
+      type: "verification",
+      phase: "researcher_web_primary_source_guard",
+      passed: guardPassed,
+      detail: result.guard.passed
+        ? `guard PASS: perf=${result.guard.metrics.suiteDurationMs.toFixed(1)}ms adversarial=${result.guard.metrics.adversarialScenariosRejected}/${result.guard.metrics.adversarialScenariosTotal}`
+        : `guard FAIL: ${result.guard.issues.map(i => i.code).join(", ")}`,
+    });
+    return result;
+  }
+
+  /**
    * Thought BLOCK check.
    * Parse failure, validation failure, or layer-based low confidence → BLOCK.
    */

@@ -126,6 +126,12 @@ import {
   runResearcherInRepoEvidenceRegressionIntegration,
 } from "./forge-p04-researcher-in-repo-evidence.probe.js";
 import { detectResearcherInRepoEvidenceProbeRegression } from "./forge-p04-researcher-in-repo-evidence.js";
+import {
+  runForgeResearcherWebPrimarySourceRegressionGate,
+  runResearcherWebPrimarySourceProbesWithRecord,
+  runResearcherWebPrimarySourceRegressionIntegration,
+} from "./forge-p04-researcher-web-primary-source.probe.js";
+import { detectResearcherWebPrimarySourceProbeRegression } from "./forge-p04-researcher-web-primary-source.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -2383,6 +2389,72 @@ describe("Forge Researcher In-Repo Evidence Regression Integration — P04-B02-A
   it("runForgeResearcherInRepoEvidenceRegressionGate compares against prior record without false regression", () => {
     const prior = runResearcherInRepoEvidenceProbesWithRecord();
     const result = runForgeResearcherInRepoEvidenceRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+});
+
+describe("Forge Researcher Web Primary-Source Regression Integration — P04-B03-A08", () => {
+  it("runForgeResearcherWebPrimarySourceRegressionGate passes on canonical web primary-source matrix", () => {
+    const result = runForgeResearcherWebPrimarySourceRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+  });
+
+  it("runForgeResearcherWebPrimarySourceRegressionGate guard passes on canonical web primary-source matrix", () => {
+    const result = runForgeResearcherWebPrimarySourceRegressionGate();
+    assert.equal(result.guard.passed, true, result.guard.issues.map(i => i.detail).join("; "));
+    assert.equal(result.guard.metrics.adversarialScenariosRejected, 3);
+    assert.equal(result.guard.metrics.adversarialScenariosTotal, 3);
+  });
+
+  it("runResearcherWebPrimarySourceRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeResearcherWebPrimarySourceRegressionGate();
+    const integration = runResearcherWebPrimarySourceRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzzSlice.propertyChecksPassed, gate.propertyFuzzSlice.propertyChecksPassed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("23/23 probes aligned"));
+    assert.equal(integration.record.summary.total, 23);
+  });
+
+  it("detectResearcherWebPrimarySourceProbeRegression flags newly misaligned probes", () => {
+    const prior = runResearcherWebPrimarySourceProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectResearcherWebPrimarySourceProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeResearcherWebPrimarySourceRegressionGate compares against prior record without false regression", () => {
+    const prior = runResearcherWebPrimarySourceProbesWithRecord();
+    const result = runForgeResearcherWebPrimarySourceRegressionGate(prior);
 
     assert.equal(result.passed, true, result.detail);
     assert.ok(result.probeRegression);
