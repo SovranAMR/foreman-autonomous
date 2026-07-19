@@ -158,7 +158,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B08-A07
-last_commit: pending
+last_commit: 987bbd1
 tests: PASS — forge-p03-strategist-replan*.test.ts (30/30); runStrategistReplanPropertyFuzzSlice; runStrategistReplanFuzzValidation; runStrategistReplanRunRecordFuzzValidation
 evidence: runStrategistReplanPropertyFuzzSlice; runStrategistReplanPropertyChecks; runStrategistReplanFuzzValidation; runStrategistReplanRunRecordFuzzValidation
 next: P03-B08-A08
