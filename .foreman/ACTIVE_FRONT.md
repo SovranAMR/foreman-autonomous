@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B02
-active_atom: P02-B02-A07
+active_atom: P02-B02-A08
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 115/1000
-phase_progress: 15/100
-block_progress: 5/10
+program_progress: 116/1000
+phase_progress: 16/100
+block_progress: 6/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B02-A07 — Constraint ve non-goal çıkarımı: unit, property ve fuzz doğrulamasını ekle.
+P02-B02-A08 — Constraint ve non-goal çıkarımı: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P02-B02-A06 evidence slice sealed; B02 property/fuzz slice A07 next.
-target: structural property checks and fuzz validation for constraint run records and contract.
-hypothesis: typed A06 run record provides stable anchor for property/fuzz gates.
-acceptance: property checks pass; fuzz mutations rejected; zero unexpected validation gaps.
+objective: P02-B02-A07 property/fuzz slice sealed; B02 regression slice A08 next.
+target: Forge integration regression gate for visioner constraint probe matrix and run records.
+hypothesis: typed A07 property/fuzz gates provide stable anchor for regression detection.
+acceptance: regression gate passes; probe alignment holds; zero unexpected PASS mismatches.
 commands: npx tsx --test src/forge-p02-*.test.ts
 blast_radius: src/forge-p02-visioner-constraint.ts
-rollback: P02-B02-A07 property/fuzz slice değişikliklerini geri al.
+rollback: P02-B02-A08 regression slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
 fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B02-A06
+last_atom: P02-B02-A07
 last_commit: PENDING
-tests: PASS — forge-p02-visioner-constraint.test.ts (24/24); forge-p02-visioner-constraint*.test.ts (24/24); forge-p02-visioner-intent*.test.ts (43/43)
-evidence: validateVisionerConstraintFailureRecoveryRunRecord, runVisionerConstraintFailureRecoverySliceWithRecord; failure/recovery=6 probes evidence+telemetry+provenance; harnessVersion=1.0.0-a06; matrix unexpectedMismatches=0
-next: P02-B02-A07
+tests: PASS — forge-p02-visioner-constraint*.test.ts (29/29); forge-p02-visioner-intent*.test.ts (43/43); forge-p02-*.test.ts (72/72)
+evidence: runVisionerConstraintPropertyChecks (8/8); runVisionerConstraintFuzzValidation rejected=24/24; runVisionerConstraintRunRecordFuzzValidation mutationsRejected=5+3; harnessVersion=1.0.0-a07
+next: P02-B02-A08
