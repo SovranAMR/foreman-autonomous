@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 3
-completed_atoms: 33
+completed_atoms: 34
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -59,7 +59,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B04-A03 — Benchmark ve prior-art analizi: en küçük üretim dikey dilimini uygula
 - [x] P04-B04-A04 — Benchmark ve prior-art analizi: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B04-A05 — Benchmark ve prior-art analizi: failure, recovery ve NO-GO yollarını uygula
-- [ ] P04-B04-A06 — Benchmark ve prior-art analizi: evidence, telemetry ve provenance kaydını ekle
+- [x] P04-B04-A06 — Benchmark ve prior-art analizi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B04-A07 — Benchmark ve prior-art analizi: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B04-A08 — Benchmark ve prior-art analizi: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B04-A09 — Benchmark ve prior-art analizi: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B04-A05
-last_commit: 6ef9a9f
-tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (16/16); failure/recovery 6 probes; zero unexpected mismatches; runResearcherBenchmarkPriorArtFailureRecoverySlice
-evidence: runResearcherBenchmarkPriorArtFailureRecoverySlice; validateResearcherBenchmarkPriorArtFailureRecoveryProbeMatrix; assessBenchmarkPriorArtInputBoundary NO-GO paths PASS
-next: P04-B04-A06
+last_atom: P04-B04-A06
+last_commit: pending
+tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); failure/recovery evidence slice 6 probes; runResearcherBenchmarkPriorArtFailureRecoverySliceWithRecord; validateResearcherBenchmarkPriorArtEvidenceRunRecord
+evidence: runResearcherBenchmarkPriorArtEvidenceSlice; validateResearcherBenchmarkPriorArtEvidenceRunRecord; buildResearcherBenchmarkPriorArtRunRecord with telemetry and provenance
+next: P04-B04-A07

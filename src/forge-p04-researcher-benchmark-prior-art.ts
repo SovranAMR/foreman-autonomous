@@ -7,11 +7,14 @@
  * A04 slice: boundary-category probe matrix validation for topic input edge cases.
  * A05 slice: failure/recovery/NO-GO category probe matrix validation for invalid fixture,
  * null-byte guard, non-fatal research BLOCK, prior-art recovery and validator export paths.
+ * A06 slice: evidence, telemetry and provenance run record for failure/recovery/NO-GO probes.
  */
 
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import researcherBenchmarkPriorArtBaseline from "./fixtures/forge-researcher-benchmark-prior-art-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -21,7 +24,7 @@ import {
   FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_CONTRACT_V1,
 } from "./forge-p04-researcher-web-primary-source.js";
 
-export const FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION = "1.0.0-a05";
+export const FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P04_B03_SEALED_ATOM_COUNT = 10;
 
@@ -1459,6 +1462,452 @@ export function runResearcherBenchmarkPriorArtFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P04-B04-A06). */
+export interface ResearcherBenchmarkPriorArtProbeEvidence {
+  probeId: string;
+  category: ResearcherBenchmarkPriorArtCategory;
+  disposition: ResearcherBenchmarkPriorArtProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for benchmark prior-art runs (P04-B04-A06). */
+export interface ResearcherBenchmarkPriorArtProbeTelemetry {
+  probeId: string;
+  category: ResearcherBenchmarkPriorArtCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B04-A06). */
+export interface ResearcherBenchmarkPriorArtProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherBenchmarkPriorArtCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated benchmark prior-art run record bundling evidence, telemetry and provenance. */
+export interface ResearcherBenchmarkPriorArtRunRecord {
+  provenance: ResearcherBenchmarkPriorArtProvenance;
+  evidence: ResearcherBenchmarkPriorArtProbeEvidence[];
+  telemetry: ResearcherBenchmarkPriorArtProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherBenchmarkPriorArtCategory, number>;
+    byDisposition: Record<ResearcherBenchmarkPriorArtProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherBenchmarkPriorArtRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherBenchmarkPriorArtRunValidationResult {
+  valid: boolean;
+  issues: ResearcherBenchmarkPriorArtRunValidationIssue[];
+}
+
+export function buildResearcherBenchmarkPriorArtProbeEvidence(
+  probeId: string,
+  category: ResearcherBenchmarkPriorArtCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherBenchmarkPriorArtProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherBenchmarkPriorArtProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherBenchmarkPriorArtProbeTelemetry(
+  probeId: string,
+  category: ResearcherBenchmarkPriorArtCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherBenchmarkPriorArtProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherBenchmarkPriorArtProvenance(
+  runId: string,
+  fixture: ResearcherBenchmarkPriorArtBaseline,
+  contract: ResearcherBenchmarkPriorArtContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherBenchmarkPriorArtCategory[];
+  },
+): ResearcherBenchmarkPriorArtProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherBenchmarkPriorArtRunRecord(
+  provenance: ResearcherBenchmarkPriorArtProvenance,
+  evidence: ResearcherBenchmarkPriorArtProbeEvidence[],
+  telemetry: ResearcherBenchmarkPriorArtProbeTelemetry[],
+): ResearcherBenchmarkPriorArtRunRecord {
+  const byCategory = {} as Record<ResearcherBenchmarkPriorArtCategory, number>;
+  const byDisposition: Record<ResearcherBenchmarkPriorArtProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_BENCHMARK_PRIOR_ART_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherBenchmarkPriorArtRunRecordAgainstProbeIds(
+  record: ResearcherBenchmarkPriorArtRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherBenchmarkPriorArtContract,
+): ResearcherBenchmarkPriorArtRunValidationResult {
+  const issues: ResearcherBenchmarkPriorArtRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherBenchmarkPriorArtRunRecord(
+  record: ResearcherBenchmarkPriorArtRunRecord,
+  contract: ResearcherBenchmarkPriorArtContract = getActiveResearcherBenchmarkPriorArtContract(),
+): ResearcherBenchmarkPriorArtRunValidationResult {
+  return validateResearcherBenchmarkPriorArtRunRecordAgainstProbeIds(
+    record,
+    listResearcherBenchmarkPriorArtContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherBenchmarkPriorArtEvidenceRunRecord(
+  record: ResearcherBenchmarkPriorArtRunRecord,
+  contract: ResearcherBenchmarkPriorArtContract = getActiveResearcherBenchmarkPriorArtContract(),
+): ResearcherBenchmarkPriorArtRunValidationResult {
+  const issues: ResearcherBenchmarkPriorArtRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B04-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B04-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherBenchmarkPriorArtRunRecordAgainstProbeIds(
+    record,
+    listResearcherBenchmarkPriorArtFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherBenchmarkPriorArtEvidenceSliceResult {
+  atom: "P04-B04-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherBenchmarkPriorArtProbeResult[];
+  evidenceResults: ResearcherBenchmarkPriorArtProbeResult[];
+  matrixValidation: ResearcherBenchmarkPriorArtProbeMatrixValidationResult;
+  record: ResearcherBenchmarkPriorArtRunRecord;
+  recordValidation: ResearcherBenchmarkPriorArtRunValidationResult;
+}
+
+function resolveResearcherBenchmarkPriorArtGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherBenchmarkPriorArtProbeWithTiming(
+  entry: ResearcherBenchmarkPriorArtFixtureEntry,
+  fixture: ResearcherBenchmarkPriorArtBaseline,
+  contractProbe:
+    | { criterion: string; disposition: ResearcherBenchmarkPriorArtProbeDisposition }
+    | undefined,
+): {
+  result: ResearcherBenchmarkPriorArtProbeResult;
+  durationMs: number;
+  disposition: ResearcherBenchmarkPriorArtProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runResearcherBenchmarkPriorArtProbe(
+    entry.id,
+    entry.category,
+    entry.expected,
+    fixture,
+  );
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherBenchmarkPriorArtRecordFromEntries(
+  entries: ResearcherBenchmarkPriorArtFixtureEntry[],
+  fixture: ResearcherBenchmarkPriorArtBaseline,
+  contract: ResearcherBenchmarkPriorArtContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherBenchmarkPriorArtCategory[];
+  },
+): ResearcherBenchmarkPriorArtRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ResearcherBenchmarkPriorArtProbeEvidence[] = [];
+  const telemetry: ResearcherBenchmarkPriorArtProbeTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherBenchmarkPriorArtProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherBenchmarkPriorArtProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherBenchmarkPriorArtProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherBenchmarkPriorArtProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherBenchmarkPriorArtGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherBenchmarkPriorArtRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B04-A06). */
+export function runResearcherBenchmarkPriorArtFailureRecoverySliceWithRecord(
+  fixture: ResearcherBenchmarkPriorArtBaseline = loadResearcherBenchmarkPriorArtBaseline(),
+): ResearcherBenchmarkPriorArtRunRecord {
+  const contract = getActiveResearcherBenchmarkPriorArtContract();
+  const failureRecoveryIds = new Set(listResearcherBenchmarkPriorArtFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherBenchmarkPriorArtRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B04-A06",
+    sliceCategories: RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherBenchmarkPriorArtEvidenceSlice(
+  fixture: ResearcherBenchmarkPriorArtBaseline = loadResearcherBenchmarkPriorArtBaseline(),
+): ResearcherBenchmarkPriorArtEvidenceSliceResult {
+  const contract = getActiveResearcherBenchmarkPriorArtContract();
+  const results = runResearcherBenchmarkPriorArtProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_BENCHMARK_PRIOR_ART_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherBenchmarkPriorArtContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherBenchmarkPriorArtFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherBenchmarkPriorArtFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherBenchmarkPriorArtEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P04-B04-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
 
