@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B07-A09
-last_commit: pending
+last_commit: e7efc42
 tests: PASS — forge-p04-researcher-risk-tradeoff.guard.test.ts (8/8); regression gate guard adversarial=3/3; validateForgeResearcherRiskTradeoffGuard canonical PASS
 evidence: runResearcherRiskTradeoffAdversarialGuardChecks + validateForgeResearcherRiskTradeoffGuard + verifyForgeResearcherRiskTradeoffGuard; harnessVersion 1.0.0-a09
 next: P04-B07-A10

@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B07-A09
-last_commit: pending
+last_commit: e7efc42
 tests: PASS — forge-p04-researcher-risk-tradeoff.guard.test.ts (8/8); guard adversarial=3/3; orchestrator researcher_risk_tradeoff_guard verification
 evidence: validateForgeResearcherRiskTradeoffGuard + runResearcherRiskTradeoffAdversarialGuardChecks + verifyForgeResearcherRiskTradeoffGuard; harnessVersion 1.0.0-a09
 next: P04-B07-A10
