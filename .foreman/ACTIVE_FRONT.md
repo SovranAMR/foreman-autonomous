@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B06
-active_atom: P03-B06-A08
+active_atom: P03-B06-A10
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 257/1000
-phase_progress: 58/100
-block_progress: 8/10
+program_progress: 258/1000
+phase_progress: 59/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B06-A09 — Kaynak ve budget planı: adversarial, performance, cost ve safety kontrolünü geçir.
+P03-B06-A10 — Kaynak ve budget planı: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P03-B06-A08 PASS; P03-B06-A09 implement adversarial/performance/cost/safety guard controls for resource budget contract.
-target: validateForgeStrategistResourceBudgetGuard, runStrategistResourceBudgetAdversarialGuardChecks.
-hypothesis: P03-B06-A09 wires resource budget guard controls into Forge pipeline integration gate.
-acceptance: guard rejects tampered records; performance/cost/safety bounds enforced; slice test suite passes.
+objective: P03-B06-A09 PASS; P03-B06-A10 seal resource budget block gate and handoff to P03-B07.
+target: sealStrategistResourceBudgetBlockGate, runForgeStrategistResourceBudgetBlockGate.
+hypothesis: P03-B06-A10 seals P03-B06 block with regression+guard gates and B07 handoff contract.
+acceptance: block gate seals A01–A09; handoff valid; block gate test suite passes.
 commands: npx tsx --test src/forge-p03-strategist-resource-budget*.test.ts
-blast_radius: src/forge-p03-strategist-resource-budget.ts
-rollback: P03-B06-A09 guard control değişikliklerini geri al.
+blast_radius: src/forge-p03-strategist-resource-budget.ts, src/forge-p03-strategist-resource-budget.probe.ts
+rollback: P03-B06-A10 block gate değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Guard blocked ise BLOCKED raporla.
+fallback: Block gate blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B06-A08
-last_commit: b7e93a0
-tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (33/33); regression 7/7; forge integration gate PASS
-evidence: runStrategistResourceBudgetForgeRegression; detectStrategistResourceBudgetProbeRegression; validateStrategistResourceBudgetProbeRegression; runStrategistResourceBudgetProbeRegression
-next: P03-B06-A09
+last_atom: P03-B06-A09
+last_commit: pending
+tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (40/40); guard adversarial 3/3; regression gate PASS
+evidence: validateForgeStrategistResourceBudgetGuard; runStrategistResourceBudgetAdversarialGuardChecks; runForgeStrategistResourceBudgetRegressionGate
+next: P03-B06-A10

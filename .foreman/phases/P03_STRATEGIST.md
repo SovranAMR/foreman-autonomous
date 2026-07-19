@@ -88,7 +88,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B06-A06 — Kaynak ve budget planı: evidence, telemetry ve provenance kaydını ekle
 - [x] P03-B06-A07 — Kaynak ve budget planı: unit, property ve fuzz doğrulamasını ekle
 - [x] P03-B06-A08 — Kaynak ve budget planı: Forge entegrasyonu ile regression testini tamamla
-- [ ] P03-B06-A09 — Kaynak ve budget planı: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P03-B06-A09 — Kaynak ve budget planı: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P03-B06-A10 — Kaynak ve budget planı: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P03-B07 — Parallel execution wave planı
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B06-A08
-last_commit: b7e93a0
-tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (33/33); regression 7/7; forge integration gate PASS
-evidence: runStrategistResourceBudgetForgeRegression; detectStrategistResourceBudgetProbeRegression; validateStrategistResourceBudgetProbeRegression; runStrategistResourceBudgetProbeRegression
-next: P03-B06-A09
+last_atom: P03-B06-A09
+last_commit: pending
+tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (40/40); guard adversarial 3/3; regression gate PASS
+evidence: validateForgeStrategistResourceBudgetGuard; runStrategistResourceBudgetAdversarialGuardChecks; runForgeStrategistResourceBudgetRegressionGate
+next: P03-B06-A10
