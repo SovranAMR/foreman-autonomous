@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B02
-active_atom: P03-B02-A09
+active_atom: P03-B02-A10
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 217/1000
-phase_progress: 18/100
-block_progress: 8/10
+program_progress: 218/1000
+phase_progress: 19/100
+block_progress: 9/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B02-A09 — Block üretim kontratı: adversarial, performance, cost ve safety kontrolünü geçir.
+P03-B02-A10 — Block üretim kontratı: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
 
-objective: P03-B02-A08 PASS; P03-B02-A09 guard controls slice for block contract probes.
-target: runStrategistBlockContractAdversarialGuardChecks, validateForgeStrategistBlockContractGuard.
-hypothesis: P03-B02-A09 closes adversarial/performance/cost/safety gates on block contract matrix.
-acceptance: guard checks PASS; adversarial scenarios rejected; performance/cost/safety within bounds.
-commands: npx tsx --test src/forge-p03-strategist-block-contract.test.ts
-blast_radius: src/forge-p03-strategist-block-contract.ts
-rollback: P03-B02-A09 guard slice değişikliklerini geri al.
+objective: P03-B02-A09 PASS; P03-B02-A10 block gate seal and P03-B03 handoff.
+target: runForgeStrategistBlockContractRegressionGate, buildStrategistBlockContractBlockGateEvidence.
+hypothesis: P03-B02-A10 seals B02 block gate with guard-integrated regression and handoff contract.
+acceptance: block gate PASS; guard integrated; handoff valid; next block entry atom wired.
+commands: npx tsx --test src/forge-p03-strategist-block-contract*.test.ts
+blast_radius: src/forge-p03-strategist-block-contract.ts, src/forge-p03-strategist-block-contract.probe.ts
+rollback: P03-B02-A10 block gate slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: A08 regression misaligned ise BLOCKED raporla.
+fallback: A09 guard misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B02-A08
-last_commit: ca89ed0
-tests: PASS — forge-p03-strategist-block-contract.test.ts (32/32); regression 23/23 aligned; zero probe regressions
-evidence: runStrategistBlockContractForgeRegression; detectStrategistBlockContractProbeRegression
-next: P03-B02-A09
+last_atom: P03-B02-A09
+last_commit: pending
+tests: PASS — forge-p03-strategist-block-contract.test.ts (35/35); adversarial 3/3 rejected; guard passed
+evidence: runStrategistBlockContractAdversarialGuardChecks; validateForgeStrategistBlockContractGuard
+next: P03-B02-A10

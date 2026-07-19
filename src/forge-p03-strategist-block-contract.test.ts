@@ -41,6 +41,15 @@ import {
   runStrategistBlockContractForgeRegression,
   detectStrategistBlockContractProbeRegression,
   applyStrategistBlockContractRunRecordFuzzMutation,
+  getForgeStrategistBlockContractGuardControls,
+  buildStrategistBlockContractAdversarialGuardScenarios,
+  runStrategistBlockContractAdversarialGuardChecks,
+  validateForgeStrategistBlockContractGuard,
+  detectStrategistBlockContractFalseAlignment,
+  detectStrategistBlockContractEvidenceSummaryMismatch,
+  validateStrategistBlockContractPerformance,
+  validateStrategistBlockContractCost,
+  validateStrategistBlockContractSafety,
 } from "./forge-p03-strategist-block-contract.js";
 
 function formatMismatchReport(
@@ -451,7 +460,7 @@ describe("Forge Strategist Block Contract Evidence — P03-B02-A06", () => {
     assert.ok(record.provenance.runId.length > 8);
     assert.ok(record.provenance.startedAt <= record.provenance.completedAt);
     assert.equal(record.provenance.harnessVersion, FORGE_STRATEGIST_BLOCK_CONTRACT_VERSION);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a09");
     assert.equal(record.summary.mismatches, 0);
 
     for (const item of record.telemetry) {
@@ -483,7 +492,7 @@ describe("Forge Strategist Block Contract Evidence — P03-B02-A06", () => {
     assert.equal(record.evidence.length, 23);
     assert.equal(record.telemetry.length, 23);
     assert.equal(record.provenance.totalProbes, 23);
-    assert.equal(record.provenance.harnessVersion, "1.0.0-a08");
+    assert.equal(record.provenance.harnessVersion, "1.0.0-a09");
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
     assert.equal(record.summary.mismatches, 0);
     assert.equal(record.summary.aligned, 23);
@@ -694,5 +703,176 @@ describe("Forge Strategist Block Contract Regression — P03-B02-A08", () => {
 
     const report = detectStrategistBlockContractProbeRegression(prior, tamperedCurrent);
     assert.equal(report.hasRegression, true);
+  });
+});
+
+describe("Forge Strategist Block Contract Guard — P03-B02-A09 adversarial", () => {
+  it("rejects tampered records via adversarial scenarios", () => {
+    const record = runStrategistBlockContractProbesWithRecord();
+    const contract = getActiveStrategistBlockContract();
+    const adversarial = runStrategistBlockContractAdversarialGuardChecks(record, contract);
+
+    assert.equal(adversarial.total, 3);
+    assert.equal(adversarial.rejected, 3, adversarial.failures.join("; "));
+    assert.deepEqual(adversarial.failures, []);
+  });
+
+  it("detects false alignment and summary/evidence mismatch", () => {
+    const falsePassEvidence = buildStrategistBlockContractProbeEvidence(
+      "sblk.version_tagged",
+      "block_versioning",
+      "PASS",
+      "FAIL",
+      true,
+      "test",
+      "false pass claim",
+      "observed",
+      "2026-07-19T06:00:00.000Z",
+    );
+    const fixture = loadStrategistBlockContractBaseline();
+    const contract = getActiveStrategistBlockContract();
+    const falsePassRecord = buildStrategistBlockContractRunRecord(
+      buildStrategistBlockContractProvenance(
+        "adv-false-pass",
+        fixture,
+        contract,
+        "2026-07-19T06:00:00.000Z",
+        "2026-07-19T06:00:01.000Z",
+        1,
+      ),
+      [falsePassEvidence],
+      [buildStrategistBlockContractProbeTelemetry("sblk.version_tagged", "block_versioning", 0, 1)],
+    );
+    assert.ok(detectStrategistBlockContractFalseAlignment(falsePassRecord).length > 0);
+
+    const summaryEvidence = buildStrategistBlockContractProbeEvidence(
+      "sblk.version_tagged",
+      "block_versioning",
+      "PASS",
+      "FAIL",
+      false,
+      "test",
+      "summary tamper",
+      "observed",
+      "2026-07-19T06:00:00.000Z",
+    );
+    const summaryRecord = buildStrategistBlockContractRunRecord(
+      buildStrategistBlockContractProvenance(
+        "adv-summary",
+        fixture,
+        contract,
+        "2026-07-19T06:00:00.000Z",
+        "2026-07-19T06:00:01.000Z",
+        1,
+      ),
+      [summaryEvidence],
+      [buildStrategistBlockContractProbeTelemetry("sblk.version_tagged", "block_versioning", 0, 1)],
+    );
+    const mismatchedSummary = {
+      ...summaryRecord,
+      summary: { ...summaryRecord.summary, mismatches: 0, aligned: 1 },
+    };
+    assert.ok(detectStrategistBlockContractEvidenceSummaryMismatch(mismatchedSummary));
+  });
+
+  it("buildStrategistBlockContractAdversarialGuardScenarios cover false PASS attack vectors", () => {
+    const scenarios = buildStrategistBlockContractAdversarialGuardScenarios();
+    assert.equal(scenarios.length, 3);
+    assert.ok(scenarios.some(s => s.id.includes("false_alignment")));
+    assert.ok(scenarios.some(s => s.id.includes("summary_mismatch")));
+    assert.ok(scenarios.some(s => s.id.includes("dropped_probe")));
+  });
+});
+
+describe("Forge Strategist Block Contract Guard — P03-B02-A09 performance, cost, safety", () => {
+  it("passes performance and zero-cost guard on canonical block contract run", () => {
+    const record = runStrategistBlockContractProbesWithRecord();
+    const contract = getActiveStrategistBlockContract();
+    const guard = validateForgeStrategistBlockContractGuard(record, {
+      totalCostUsd: 0,
+      llmCalls: 0,
+      contract,
+    });
+
+    assert.equal(guard.passed, true, guard.issues.map(i => i.detail).join("; "));
+    assert.ok(guard.metrics.suiteDurationMs >= 0);
+    assert.ok(
+      guard.metrics.maxProbeDurationMs <
+        getForgeStrategistBlockContractGuardControls().performance.maxProbeDurationMs,
+    );
+    assert.equal(guard.metrics.totalCostUsd, 0);
+    assert.equal(guard.metrics.llmCalls, 0);
+    assert.equal(guard.metrics.adversarialScenariosRejected, 3);
+  });
+
+  it("flags cost and performance budget violations", () => {
+    const fixture = loadStrategistBlockContractBaseline();
+    const contract = getActiveStrategistBlockContract();
+    const probeIds = listStrategistBlockContractContractProbeIds(contract);
+    const evidence = probeIds.map(id => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistBlockContractProbeEvidence(
+        id,
+        probe.category,
+        probe.expected,
+        probe.expected,
+        true,
+        probe.criterion,
+        "ok",
+        probe.disposition,
+      );
+    });
+    const telemetry = probeIds.map((id, index) => {
+      const probe = contract.probes.find(p => p.id === id)!;
+      return buildStrategistBlockContractProbeTelemetry(id, probe.category, index, 10_000);
+    });
+    const record = buildStrategistBlockContractRunRecord(
+      buildStrategistBlockContractProvenance(
+        "perf-test",
+        fixture,
+        contract,
+        "2026-07-19T06:00:00.000Z",
+        "2026-07-19T06:00:01.000Z",
+        probeIds.length,
+      ),
+      evidence,
+      telemetry,
+    );
+
+    const perfIssues = validateStrategistBlockContractPerformance(record);
+    assert.ok(perfIssues.some(i => i.domain === "performance"));
+
+    const costIssues = validateStrategistBlockContractCost(0.05, 2);
+    assert.ok(costIssues.some(i => i.domain === "cost"));
+  });
+
+  it("flags forbidden secret patterns in evidence detail", () => {
+    const fixture = loadStrategistBlockContractBaseline();
+    const contract = getActiveStrategistBlockContract();
+    const evidence = buildStrategistBlockContractProbeEvidence(
+      "sblk.version_tagged",
+      "block_versioning",
+      "PASS",
+      "PASS",
+      true,
+      "ok",
+      "leaked sk-abcdefghijklmnopqrstuvwxyz1234567890",
+      "observed",
+    );
+    const record = buildStrategistBlockContractRunRecord(
+      buildStrategistBlockContractProvenance(
+        "safety-test",
+        fixture,
+        contract,
+        "2026-07-19T06:00:00.000Z",
+        "2026-07-19T06:00:01.000Z",
+        1,
+      ),
+      [evidence],
+      [buildStrategistBlockContractProbeTelemetry("sblk.version_tagged", "block_versioning", 0, 1)],
+    );
+
+    const safetyIssues = validateStrategistBlockContractSafety(record);
+    assert.ok(safetyIssues.some(i => i.code === "forbidden_pattern"));
   });
 });
