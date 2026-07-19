@@ -44,7 +44,7 @@ fallback: boundary requires orchestrator refactor beyond slice scope ise BLOCKED
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B06-A03
-last_commit: pending
+last_commit: 2fca4b6
 tests: PASS — forge-p02-visioner-uncertainty.test.ts (12/12); baseline (3/3)
 evidence: recoverVisionerUncertaintyClarification exported; 23 probes all PASS; gap vunc.structured_clarification_recovery closed; probe matrix zero unexpected mismatches
 next: P02-B06-A04
