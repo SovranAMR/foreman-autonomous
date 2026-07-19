@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B02
-active_atom: P05-B02-A02
+active_atom: P05-B02-A03
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 410/1000
-phase_progress: 8/100
-block_progress: 1/10
+program_progress: 411/1000
+phase_progress: 9/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B02-A02 — Filesystem okuma ve grounding: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P05-B02-A03 — Filesystem okuma ve grounding: en küçük üretim dikey dilimini uygula.
 
-objective: P05-B02-A01 baseline sealed; typed contract for filesystem read/grounding acceptance.
-target: Define measurable acceptance criteria with typed contract aligned to P05-B02-A01 baseline probes.
-hypothesis: getActiveWorkerFilesystemGroundingContract returns versioned contract with criterion per probe and FAIL gap mapping.
-acceptance: Contract loads, validates against baseline fixture refs, and exposes measurable acceptance probes.
+objective: P05-B02-A02 contract sealed; smallest production vertical slice for filesystem read/grounding.
+target: Wire typed contract probes into production code paths with measurable acceptance alignment.
+hypothesis: Production slice closes at least one documented FAIL gap from P05-B02-A02 contract matrix.
+acceptance: Production slice runs contract probes with zero unexpected PASS mismatches on sealed criteria.
 commands: npx tsx --test src/forge-p05-worker-filesystem-grounding*.test.ts
-blast_radius: src/forge-p05-worker-filesystem-grounding.ts
-rollback: P05-B02-A02 contract değişikliklerini geri al.
+blast_radius: src/forge-p05-worker-filesystem-grounding.ts, src/tools.ts, src/prompts.ts
+rollback: P05-B02-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Contract blocked ise BLOCKED raporla.
+fallback: Production slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B02-A01
-last_commit: 6218ff0
-tests: PASS — forge-p05-worker-filesystem-grounding-baseline.test.ts (8/8)
-evidence: loadWorkerFilesystemGroundingBaseline + runWorkerFilesystemGroundingProbes; 27 probes, 6 documented FAIL gaps aligned to P05-B01 handoff (entry=P05-B02-A01)
-next: P05-B02-A02
+last_atom: P05-B02-A02
+last_commit: pending
+tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (16/16)
+evidence: getActiveWorkerFilesystemGroundingContract + validateWorkerFilesystemGroundingAgainstContract; 27 probes, 6 FAIL gaps (3 gap + 3 nogo disposition)
+next: P05-B02-A03

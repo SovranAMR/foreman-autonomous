@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 11
+completed_atoms: 12
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -29,7 +29,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P05-B02 — Filesystem okuma ve grounding
 
 - [x] P05-B02-A01 — Filesystem okuma ve grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P05-B02-A02 — Filesystem okuma ve grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P05-B02-A02 — Filesystem okuma ve grounding: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P05-B02-A03 — Filesystem okuma ve grounding: en küçük üretim dikey dilimini uygula
 - [ ] P05-B02-A04 — Filesystem okuma ve grounding: boundary ve edge-case davranışlarını tamamla
 - [ ] P05-B02-A05 — Filesystem okuma ve grounding: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B02-A01
-last_commit: 6218ff0
-tests: PASS — forge-p05-worker-filesystem-grounding-baseline.test.ts (8/8)
-evidence: loadWorkerFilesystemGroundingBaseline + runWorkerFilesystemGroundingProbes; 27 probes, 6 documented FAIL gaps aligned to P05-B01 handoff (entry=P05-B02-A01)
-next: P05-B02-A02
+last_atom: P05-B02-A02
+last_commit: pending
+tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (16/16)
+evidence: getActiveWorkerFilesystemGroundingContract + validateWorkerFilesystemGroundingAgainstContract; 27 probes, 6 FAIL gaps (3 gap + 3 nogo disposition)
+next: P05-B02-A03
