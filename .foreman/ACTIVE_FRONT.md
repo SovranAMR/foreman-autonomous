@@ -44,7 +44,7 @@ fallback: production slice cannot flip gap probes without scope creep ise BLOCKE
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B01-A02
-last_commit: pending
+last_commit: a497a84
 tests: PASS — forge-p02-visioner-intent.test.ts (7/7); forge-p02-visioner-intent-baseline.test.ts (3/3); contract coverage 20 probes 15 PASS + 5 gap FAIL
 evidence: validateVisionerIntentContractCoverage PASS; validateVisionerIntentAgainstContract PASS; 5 gap dispositions wired; criterion source-of-truth from FORGE_VISIONER_INTENT_CONTRACT_V1
 next: P02-B01-A03
