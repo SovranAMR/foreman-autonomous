@@ -44,7 +44,7 @@ fallback: Integration slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B02-A07
-last_commit: pending
+last_commit: b73b2db
 tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (45/45)
 evidence: runWorkerFilesystemGroundingPropertyFuzzSlice; validateWorkerFilesystemGroundingPropertyProbeMatrix; 8 structural properties, 24 contract fuzz + 5 run-record fuzz mutations rejected, 0 accepted
 next: P05-B02-A08
