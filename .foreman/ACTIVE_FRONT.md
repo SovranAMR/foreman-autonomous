@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B01-A04
-last_commit: pending
+last_commit: da5b299
 tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (19/19); 27/27 probes aligned; boundary slice 6/6 PASS
 evidence: validateResearcherQuestionDecompositionBoundaryProbeMatrix; runResearcherQuestionDecompositionBoundarySlice; rques.whitespace_block_boundary; rques.long_block_truncation_boundary
 next: P04-B01-A05

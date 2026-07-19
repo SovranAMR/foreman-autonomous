@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B01-A04
-last_commit: pending
+last_commit: da5b299
 tests: PASS — forge-p04-researcher-question-decomposition*.test.ts (19/19); 27/27 probes aligned; boundary slice 6/6 PASS; 0 unexpected mismatches
 evidence: validateResearcherQuestionDecompositionBoundaryProbeMatrix; runResearcherQuestionDecompositionBoundarySlice; whitespace+truncation block task edge probes
 next: P04-B01-A05
