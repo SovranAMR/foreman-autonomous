@@ -44,7 +44,7 @@ fallback: A06 run record misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B02-A06
-last_commit: pending
+last_commit: 87d5959
 tests: PASS — forge-p03-strategist-block-contract.test.ts (18/18); forge-p03-strategist-block-contract-baseline.test.ts (3/3); failure/recovery 6 probes; run record gate PASS
 evidence: runStrategistBlockContractFailureRecoverySliceWithRecord; validateStrategistBlockContractFailureRecoveryRunRecord; runStrategistBlockContractEvidenceSlice
 next: P03-B02-A07
