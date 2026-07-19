@@ -79,6 +79,7 @@ import {
   runForgeVisionerResearchTriggerRegressionGate,
   runVisionerResearchTriggerProbesWithRecord,
   runVisionerResearchTriggerRegressionIntegration,
+  runForgeVisionerResearchTriggerBlockGate,
 } from "./forge-p02-visioner-research-trigger.probe.js";
 import { detectVisionerResearchTriggerProbeRegression } from "./forge-p02-visioner-research-trigger.js";
 import { Orchestrator } from "./orchestrator.js";
@@ -1419,6 +1420,47 @@ describe("Forge Visioner Research Trigger Guard Integration — P02-B05-A09", ()
       assert.equal(verification.passed, true);
       assert.ok(verification.detail.includes("guard PASS"));
       assert.ok(verification.detail.includes("adversarial=3/3"));
+    }
+  });
+});
+
+describe("Forge Visioner Research Trigger Block Gate Integration — P02-B05-A10", () => {
+  it("runForgeVisionerResearchTriggerBlockGate seals P02-B05 with full block inventory", () => {
+    const result = runForgeVisionerResearchTriggerBlockGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.evidence.blockId, "P02-B05");
+    assert.equal(result.atomSeals.length, 10);
+    assert.ok(result.atomSeals.every(seal => seal.passed));
+    assert.ok(result.detail.includes("handoff=PASS→P02-B06"));
+  });
+
+  it("orchestrator verifyForgeVisionerResearchTriggerBlockGate emits visioner_research_trigger_block_gate verification", async () => {
+    const root = mkdtempSync(join(tmpdir(), "forge-visioner-research-trigger-block-gate-int-"));
+    const engine = {
+      config: { projectRoot: root },
+      state: { snapshot: () => ({ projectName: "visioner-research-trigger" }) },
+      streaming: { on: () => {}, pipelineStart: () => {}, pipelineEnd: () => {} },
+      hooks: {
+        register: () => () => {},
+        run: async () => ({ block: false }),
+      },
+    } as Parameters<typeof Orchestrator>[0];
+
+    const orchestrator = new Orchestrator(engine);
+    const events: OrchestratorEvent[] = [];
+    orchestrator.on(event => events.push(event));
+
+    const result = await orchestrator.verifyForgeVisionerResearchTriggerBlockGate();
+    const verification = events.find(
+      event => event.type === "verification" && event.phase === "visioner_research_trigger_block_gate",
+    );
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(verification);
+    if (verification?.type === "verification") {
+      assert.equal(verification.passed, true);
+      assert.ok(verification.detail.includes("handoff=PASS→P02-B06"));
     }
   });
 });

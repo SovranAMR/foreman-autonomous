@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
-active_block: P05
-active_atom: P02-B05-A10
+active_block: P02-B06
+active_atom: P02-B06-A01
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 148/1000
-phase_progress: 48/100
-block_progress: 9/10
+program_progress: 149/1000
+phase_progress: 49/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B05-A10 — Research trigger belirleme: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P02-B06-A01 — Uncertainty ve clarification policy: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P02-B05-A09 guard integration sealed; block gate slice next.
-target: Seal P02-B05 block gate with full atom inventory and B06 handoff.
-hypothesis: runForgeVisionerResearchTriggerBlockGate and verifyForgeVisionerResearchTriggerBlockGate provide stable block gate entry points.
-acceptance: block gate test passes; all 10 atom seals PASS; handoff to P02-B06 documented.
-commands: npx tsx --test src/forge-p02-visioner-research-trigger-block-gate.test.ts
-blast_radius: src/forge-p02-visioner-research-trigger*, src/orchestrator.ts
-rollback: P02-B05-A10 block gate değişikliklerini geri al.
+objective: P02-B05 block gate sealed; uncertainty/clarification baseline slice next.
+target: Measure uncertainty and clarification policy behavior and create failing baseline fixture.
+hypothesis: Sealed P02-B05 research trigger block gate provides stable entry for B06 baseline probes.
+acceptance: baseline fixture loads; contract alignment probes defined; handoff from P02-B05 validated.
+commands: npx tsx --test src/forge-p02-visioner-uncertainty-baseline.test.ts
+blast_radius: src/forge-p02-visioner-uncertainty*, src/orchestrator.ts
+rollback: P02-B06-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: block gate requires unrelated orchestrator refactor ise BLOCKED raporla.
+fallback: B06 baseline unrelated orchestrator refactor gerektirirse BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B05-A09
-last_commit: 554821f
-tests: PASS — forge-pipeline-regression.integration.test.ts P02-B05-A09 (2/2); forge-p02-visioner-research-trigger.guard.test.ts (8/8)
-evidence: validateForgeVisionerResearchTriggerGuard adversarial=3/3; orchestrator visioner_research_trigger_guard verification; guard perf/cost/safety checks PASS
-next: P02-B05-A10
+last_atom: P02-B05-A10
+last_commit: pending
+tests: PASS — forge-p02-visioner-research-trigger-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts P02-B05-A10 (2/2)
+evidence: runForgeVisionerResearchTriggerBlockGate seals 10/10 atom seals; handoff=PASS→P02-B06; orchestrator visioner_research_trigger_block_gate verification PASS
+next: P02-B06-A01
