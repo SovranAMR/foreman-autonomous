@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B08-A08
-last_commit: PENDING
+last_commit: 318c8a7
 tests: PASS — forge-p04-researcher-spike-falsification*.test.ts (50/50); regression gate 23/23 aligned; productionSlice+propertyFuzz+runRecord green; adversarial=3/3; orchestrator verification emitted
 evidence: runResearcherSpikeFalsificationForgeRegression + verifyForgeResearcherSpikeFalsificationRegression
 next: P04-B08-A09
