@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P05
 active_block: P05-B02
-active_atom: P05-B02-A03
+active_atom: P05-B02-A04
 phase_file: .foreman/phases/P05_WORKER_EXECUTION.md
-program_progress: 411/1000
-phase_progress: 9/100
-block_progress: 2/10
+program_progress: 412/1000
+phase_progress: 10/100
+block_progress: 3/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P05-B02-A03 — Filesystem okuma ve grounding: en küçük üretim dikey dilimini uygula.
+P05-B02-A04 — Filesystem okuma ve grounding: boundary ve edge-case davranışlarını tamamla.
 
-objective: P05-B02-A02 contract sealed; smallest production vertical slice for filesystem read/grounding.
-target: Wire typed contract probes into production code paths with measurable acceptance alignment.
-hypothesis: Production slice closes at least one documented FAIL gap from P05-B02-A02 contract matrix.
-acceptance: Production slice runs contract probes with zero unexpected PASS mismatches on sealed criteria.
+objective: P05-B02-A03 production slice sealed; complete boundary and edge-case filesystem grounding behavior.
+target: Extend production grounding paths with boundary coverage and edge-case handling aligned to contract.
+hypothesis: Boundary slice closes remaining edge-case gaps without regressing A03 production wiring.
+acceptance: Boundary probes align with contract; zero unexpected PASS mismatches on sealed criteria.
 commands: npx tsx --test src/forge-p05-worker-filesystem-grounding*.test.ts
-blast_radius: src/forge-p05-worker-filesystem-grounding.ts, src/tools.ts, src/prompts.ts
-rollback: P05-B02-A03 production slice değişikliklerini geri al.
+blast_radius: src/forge-p05-worker-filesystem-grounding.ts, src/tools.ts, src/orchestrator.ts
+rollback: P05-B02-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P05_WORKER_EXECUTION.md Son Kanıt bölümü.
-fallback: Production slice blocked ise BLOCKED raporla.
+fallback: Boundary slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P05-B02-A02
-last_commit: 5aea64a
-tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (16/16)
-evidence: getActiveWorkerFilesystemGroundingContract + validateWorkerFilesystemGroundingAgainstContract; 27 probes, 6 FAIL gaps (3 gap + 3 nogo disposition)
-next: P05-B02-A03
+last_atom: P05-B02-A03
+last_commit: f2669ec
+tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts (21/21)
+evidence: validateReadBeforeEdit + validateFilesystemGrounding + buildFilesystemGroundingTelemetry; TypedReadCall; orchestrator pre-read grounding; 27 probes, 0 FAIL gaps
+next: P05-B02-A04
