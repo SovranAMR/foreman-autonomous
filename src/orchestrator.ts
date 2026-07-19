@@ -1907,6 +1907,27 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge researcher spike falsification regression gate and emit verification event (P04-B08-A08).
+   */
+  async verifyForgeResearcherSpikeFalsificationRegression(
+    priorRecord?: import("./forge-p04-researcher-spike-falsification.js").ResearcherSpikeFalsificationRunRecord,
+  ): Promise<
+    import("./forge-p04-researcher-spike-falsification.probe.js").ForgeResearcherSpikeFalsificationRegressionGateResult
+  > {
+    const { runForgeResearcherSpikeFalsificationRegressionGate } = await import(
+      "./forge-p04-researcher-spike-falsification.probe.js"
+    );
+    const result = runForgeResearcherSpikeFalsificationRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "researcher_spike_falsification_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Run Forge researcher risk trade-off block gate and emit verification event (P04-B07-A10).
    */
   async verifyForgeResearcherRiskTradeoffBlockGate(): Promise<

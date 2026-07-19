@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 72
+completed_atoms: 73
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -113,7 +113,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B08-A05 — Spike ve falsification deneyi: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B08-A06 — Spike ve falsification deneyi: evidence, telemetry ve provenance kaydını ekle
 - [x] P04-B08-A07 — Spike ve falsification deneyi: unit, property ve fuzz doğrulamasını ekle
-- [ ] P04-B08-A08 — Spike ve falsification deneyi: Forge entegrasyonu ile regression testini tamamla
+- [x] P04-B08-A08 — Spike ve falsification deneyi: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B08-A09 — Spike ve falsification deneyi: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B08-A10 — Spike ve falsification deneyi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B08-A07
-last_commit: 0f23a90
-tests: PASS — forge-p04-researcher-spike-falsification.property-fuzz.test.ts (6/6); property 8/8; contract fuzz 72/72 rejected; run record fuzz 5/5 rejected; slice zero accepted mutations
-evidence: runResearcherSpikeFalsificationPropertyFuzzSlice + validateResearcherSpikeFalsificationEvidenceRunRecord tampered record rejection
-next: P04-B08-A08
+last_atom: P04-B08-A08
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-spike-falsification*.test.ts (50/50); regression gate 23/23 aligned; productionSlice+propertyFuzz+runRecord green; adversarial=3/3; orchestrator verification emitted
+evidence: runResearcherSpikeFalsificationForgeRegression + verifyForgeResearcherSpikeFalsificationRegression
+next: P04-B08-A09

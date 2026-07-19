@@ -150,6 +150,12 @@ import {
   runResearcherRiskTradeoffRegressionIntegration,
 } from "./forge-p04-researcher-risk-tradeoff.probe.js";
 import { detectResearcherRiskTradeoffProbeRegression } from "./forge-p04-researcher-risk-tradeoff.js";
+import {
+  runForgeResearcherSpikeFalsificationRegressionGate,
+  runResearcherSpikeFalsificationProbesWithRecord,
+  runResearcherSpikeFalsificationRegressionIntegration,
+} from "./forge-p04-researcher-spike-falsification.probe.js";
+import { detectResearcherSpikeFalsificationProbeRegression } from "./forge-p04-researcher-spike-falsification.js";
 import { Orchestrator } from "./orchestrator.js";
 import type { OrchestratorEvent } from "./orchestrator.js";
 
@@ -2680,6 +2686,75 @@ describe("Forge Researcher Risk Trade-off Regression Integration — P04-B07-A08
   it("runForgeResearcherRiskTradeoffRegressionGate compares against prior record without false regression", () => {
     const prior = runResearcherRiskTradeoffProbesWithRecord();
     const result = runForgeResearcherRiskTradeoffRegressionGate(prior);
+
+    assert.equal(result.passed, true, result.detail);
+    assert.ok(result.probeRegression);
+    assert.equal(result.probeRegression?.hasRegression, false);
+  });
+});
+
+describe("Forge Researcher Spike Falsification Regression Integration — P04-B08-A08", () => {
+  it("runForgeResearcherSpikeFalsificationRegressionGate passes on canonical spike falsification matrix", () => {
+    const result = runForgeResearcherSpikeFalsificationRegressionGate();
+
+    assert.equal(result.passed, true, result.detail);
+    assert.equal(result.recordValid, true);
+    assert.equal(result.record.summary.mismatches, 0);
+    assert.equal(result.record.evidence.length, 23);
+    assert.equal(result.probeRegression, null);
+    assert.equal(result.productionSlice.matrixValid, true);
+    assert.equal(result.productionSlice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(result.propertyFuzzSlice.propertyChecksPassed, true);
+    assert.equal(result.guard.passed, true);
+    assert.ok(result.detail.includes("23/23 probes aligned"));
+    assert.ok(result.detail.includes("productionSlice:"));
+    assert.ok(result.detail.includes("propertyFuzz:"));
+    assert.ok(result.detail.includes("guard:"));
+    assert.ok(result.detail.includes("adversarial=3/3"));
+  });
+
+  it("runForgeResearcherSpikeFalsificationRegressionGate guard passes on canonical spike falsification matrix", () => {
+    const result = runForgeResearcherSpikeFalsificationRegressionGate();
+    assert.equal(result.guard.passed, true, result.guard.issues.map(i => i.detail).join("; "));
+    assert.equal(result.guard.metrics.adversarialScenariosRejected, 3);
+    assert.equal(result.guard.metrics.adversarialScenariosTotal, 3);
+  });
+
+  it("runResearcherSpikeFalsificationRegressionIntegration alias matches regression gate", () => {
+    const gate = runForgeResearcherSpikeFalsificationRegressionGate();
+    const integration = runResearcherSpikeFalsificationRegressionIntegration();
+
+    assert.equal(integration.passed, gate.passed);
+    assert.equal(integration.recordValid, gate.recordValid);
+    assert.equal(integration.propertyFuzzSlice.propertyChecksPassed, gate.propertyFuzzSlice.propertyChecksPassed);
+    assert.equal(integration.productionSlice.matrixValid, gate.productionSlice.matrixValid);
+    assert.ok(integration.detail.includes("23/23 probes aligned"));
+    assert.equal(integration.record.summary.total, 23);
+  });
+
+  it("detectResearcherSpikeFalsificationProbeRegression flags newly misaligned probes", () => {
+    const prior = runResearcherSpikeFalsificationProbesWithRecord();
+    const current = structuredClone(prior);
+    const target = current.evidence.find(item => item.aligned);
+    assert.ok(target, "expected at least one aligned probe");
+
+    target!.aligned = false;
+    target!.actual = target!.expected === "PASS" ? "FAIL" : "PASS";
+    current.summary = {
+      ...current.summary,
+      aligned: current.summary.aligned - 1,
+      mismatches: current.summary.mismatches + 1,
+    };
+
+    const report = detectResearcherSpikeFalsificationProbeRegression(prior, current);
+    assert.equal(report.hasRegression, true);
+    assert.deepEqual(report.regressions, [target!.probeId]);
+    assert.ok(report.summary.includes("probe regression"));
+  });
+
+  it("runForgeResearcherSpikeFalsificationRegressionGate compares against prior record without false regression", () => {
+    const prior = runResearcherSpikeFalsificationProbesWithRecord();
+    const result = runForgeResearcherSpikeFalsificationRegressionGate(prior);
 
     assert.equal(result.passed, true, result.detail);
     assert.ok(result.probeRegression);

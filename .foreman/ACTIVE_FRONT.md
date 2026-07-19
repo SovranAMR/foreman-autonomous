@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B08
-active_atom: P04-B08-A08
+active_atom: P04-B08-A09
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 377/1000
-phase_progress: 76/100
-block_progress: 7/10
+program_progress: 378/1000
+phase_progress: 77/100
+block_progress: 8/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B08-A08 — Spike ve falsification deneyi: Forge entegrasyonu ile regression testini tamamla.
+P04-B08-A09 — Spike ve falsification deneyi: adversarial, performance, cost ve safety kontrolünü geçir.
 
-objective: P04-B08-A07 PASS; Forge regression gate for spike falsification property/fuzz slice.
-target: Orchestrator-integrated regression test covering production slice + property/fuzz + run record.
-hypothesis: Forge regression gate passes on canonical spike falsification matrix without probe regressions.
-acceptance: Regression test passes; production slice + property/fuzz + record validation green.
+objective: P04-B08-A08 PASS; guard controls for spike falsification regression gate.
+target: Adversarial/performance/cost/safety guard validation on canonical spike falsification matrix.
+hypothesis: Guard controls reject tampered records and enforce zero-cost deterministic probe runs.
+acceptance: Guard checks pass; adversarial scenarios rejected; performance/cost/safety within bounds.
 commands: npx tsx --test src/forge-p04-researcher-spike-falsification*.test.ts
 blast_radius: src/forge-p04-researcher-spike-falsification*.ts
-rollback: P04-B08-A08 Forge regression değişikliklerini geri al.
+rollback: P04-B08-A09 guard değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Slice blocked ise BLOCKED raporla.
+fallback: Guard blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B08-A07
-last_commit: 0f23a90
-tests: PASS — forge-p04-researcher-spike-falsification.property-fuzz.test.ts (6/6); property 8/8; contract fuzz 72/72 rejected; run record fuzz 5/5 rejected; slice zero accepted mutations
-evidence: runResearcherSpikeFalsificationPropertyFuzzSlice + validateResearcherSpikeFalsificationEvidenceRunRecord tampered record rejection
-next: P04-B08-A08
+last_atom: P04-B08-A08
+last_commit: PENDING
+tests: PASS — forge-p04-researcher-spike-falsification*.test.ts (50/50); regression gate 23/23 aligned; productionSlice+propertyFuzz+runRecord green; adversarial=3/3
+evidence: runResearcherSpikeFalsificationForgeRegression + orchestrator verifyForgeResearcherSpikeFalsificationRegression
+next: P04-B08-A09
