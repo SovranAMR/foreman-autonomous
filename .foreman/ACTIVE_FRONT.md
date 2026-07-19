@@ -44,7 +44,7 @@ fallback: contract cannot align to baseline without scope creep ise BLOCKED rapo
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B04-A01
-last_commit: pending
+last_commit: c1b1ed7
 tests: PASS — forge-p02-visioner-grounding-baseline.test.ts (3/3); forge-p02-*.test.ts (132/132)
 evidence: runVisionerGroundingProbes aligned=22/23 knownGap=vgrd.structured_grounding_recovery handoff→P02-B03-A10; harnessVersion=1.0.0-a01
 next: P02-B04-A02
