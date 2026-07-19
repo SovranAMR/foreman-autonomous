@@ -44,7 +44,7 @@ fallback: Guard cannot align with canonical matrix after A08 slice ise BLOCKED r
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B10-A08
-last_commit: pending
+last_commit: 3c4cef1
 tests: PASS — forge-p02-visioner-phase-gate.test.ts (26/26); forge-pipeline-regression.integration.test.ts P02-B10-A08 (5/5); 126/126 total
 evidence: runForgeVisionerPhaseGateRegressionGate; detectVisionerPhaseGateProbeRegression; verifyForgeP02VisionerPhaseGateRegression; 24/24 probes aligned; prior/current comparison no false regression; handoff=P02-B10-A08→A09
 next: P02-B10-A09
