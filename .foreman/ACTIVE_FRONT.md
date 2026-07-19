@@ -44,7 +44,7 @@ fallback: Contract blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B09-A01
-last_commit: 83e9d89
+last_commit: 8bd8344
 tests: PASS — forge-p03-strategist-provenance-baseline.test.ts (3/3); loadStrategistProvenanceBaseline; runStrategistProvenanceProbes; validateStrategistProvenanceBaseline
 evidence: runStrategistProvenanceProbes; getForgeP03B08ToB09Handoff; summarizeStrategistProvenanceMatrix; listStrategistProvenanceKnownGaps
 next: P03-B09-A02
