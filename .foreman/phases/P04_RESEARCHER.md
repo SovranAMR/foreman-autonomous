@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 1
-completed_atoms: 16
+completed_atoms: 17
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -34,7 +34,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B02-A04 — Repo içi kanıt toplama: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B02-A05 — Repo içi kanıt toplama: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B02-A06 — Repo içi kanıt toplama: evidence, telemetry ve provenance kaydını ekle
-- [ ] P04-B02-A07 — Repo içi kanıt toplama: unit, property ve fuzz doğrulamasını ekle
+- [x] P04-B02-A07 — Repo içi kanıt toplama: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B02-A08 — Repo içi kanıt toplama: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B02-A09 — Repo içi kanıt toplama: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B02-A10 — Repo içi kanıt toplama: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B02-A06
-last_commit: bbb7789
-tests: PASS — forge-p04-researcher*.test.ts (84/84); evidence slice 6 probes; expectedFail=0; harnessVersion=1.0.0-a06; matrixValidation.unexpectedMismatches=0; recordValidation.valid=true
-evidence: runResearcherInRepoEvidenceEvidenceSlice; validateResearcherInRepoEvidenceEvidenceRunRecord; runResearcherInRepoEvidenceProbesWithRecord; runResearcherInRepoEvidenceFailureRecoverySliceWithRecord; evidence/telemetry/provenance slice PASS
-next: P04-B02-A07
+last_atom: P04-B02-A07
+last_commit: f2c02a2
+tests: PASS — forge-p04-researcher*.test.ts (90/90); property/fuzz slice 8 properties; contractFuzz rejected=24/24; runRecordFuzz mutationsAccepted=0; propertyResult.allPassed=true
+evidence: runResearcherInRepoEvidencePropertyFuzzSlice; runResearcherInRepoEvidencePropertyChecks; runResearcherInRepoEvidenceFuzzValidation; runResearcherInRepoEvidenceRunRecordFuzzValidation; property/fuzz slice PASS
+next: P04-B02-A08
