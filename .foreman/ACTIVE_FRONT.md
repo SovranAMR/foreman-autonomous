@@ -44,7 +44,7 @@ fallback: Failure/recovery probes cannot align after A04 slice ise BLOCKED rapor
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B10-A04
-last_commit: pending
+last_commit: 662222f
 tests: PASS — forge-p02-visioner-phase-gate.test.ts (20/20); baseline regression (3/3)
 evidence: assessVisionerPhaseGateInputBoundary; runVisionerPhaseGateBoundarySlice; validateVisionerPhaseGateBoundaryProbeMatrix; 24/24 probes aligned; boundary 6/6; handoff=P02-B10-A04→A05
 next: P02-B10-A05
