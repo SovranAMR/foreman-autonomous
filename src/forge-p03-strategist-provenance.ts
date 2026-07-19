@@ -11,7 +11,12 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import strategistProvenanceBaseline from "./fixtures/forge-strategist-provenance-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP03B08ToB09Handoff,
   summarizeStrategistReplanCoverage,
@@ -3114,5 +3119,243 @@ export function runForgeStrategistProvenanceRegressionGate(
     passed,
     guard,
     detail: detailParts.join(" | "),
+  };
+}
+
+// ─── Block gate and handoff (P03-B09-A10) ───────────────────────────────────
+
+export interface StrategistProvenanceBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface StrategistProvenanceBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    provenanceCategories: readonly StrategistProvenanceCategory[];
+    sourceBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    provenanceRecordRequired: true;
+  };
+}
+
+export const FORGE_P03_B09_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P03-B09-A10",
+  blockId: "P03-B09",
+  title: "Plan provenance ve drift",
+  requiredAtomIds: [
+    "P03-B09-A01",
+    "P03-B09-A02",
+    "P03-B09-A03",
+    "P03-B09-A04",
+    "P03-B09-A05",
+    "P03-B09-A06",
+    "P03-B09-A07",
+    "P03-B09-A08",
+    "P03-B09-A09",
+    "P03-B09-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P03-B09-A01",
+      description: "Provenance baseline aligns with typed contract and P03-B08 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P03-B09-A02",
+      description: "Contract declares measurable probes for all provenance categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P03-B09-A03",
+      description: "Provenance probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P03-B09-A04",
+      description: "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P03-B09-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P03-B09-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P03-B09-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P03-B09-A08",
+      description: "Regression gate passes on canonical provenance matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P03-B09-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P03-B09-A10",
+      description: "Block gate evidence sealed with valid B10 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P03_B09_TO_B10_HANDOFF_V1: StrategistProvenanceBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P03-B09-A10",
+  sourceBlock: {
+    blockId: "P03-B09",
+    title: "Plan provenance ve drift",
+    completedAtoms: FORGE_P03_B09_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P03-B10",
+    title: "Stratejist phase gate",
+    entryAtom: "P03-B10-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_STRATEGIST_PROVENANCE_CONTRACT_V1.version,
+    harnessVersion: FORGE_STRATEGIST_PROVENANCE_VERSION,
+    probeCount: summarizeStrategistProvenanceCoverage(FORGE_STRATEGIST_PROVENANCE_CONTRACT_V1).totalProbes,
+    provenanceCategories: STRATEGIST_PROVENANCE_CATEGORIES,
+    sourceBlockGateAtom: "P03-B08-A10",
+  },
+  prerequisites: [
+    "Provenance v1 with measurable plan lineage, drift detection and baseline link probes",
+    "Versioned provenance baseline aligned to contract probe matrix and sealed P03-B08 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P03-B08 replan block gate referenced by sourceBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P03-B10-A01 formalizes strategist phase gate using sealed provenance artifacts",
+    requiresBlockGatePass: true,
+    provenanceRecordRequired: true,
+  },
+};
+
+export function getForgeP03B09BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P03_B09_BLOCK_GATE_V1;
+}
+
+export function getForgeP03B09ToB10Handoff(): StrategistProvenanceBlockHandoffContract {
+  return FORGE_P03_B09_TO_B10_HANDOFF_V1;
+}
+
+export function validateStrategistProvenanceBlockHandoffContract(
+  handoff: StrategistProvenanceBlockHandoffContract,
+  evidence: Pick<
+    StrategistProvenanceBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: StrategistProvenanceContract = getActiveStrategistProvenanceContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeStrategistProvenanceCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_STRATEGIST_PROVENANCE_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_STRATEGIST_PROVENANCE_VERSION}`,
+    );
+  }
+  if (handoff.sealedArtifacts.provenanceCategories.length !== STRATEGIST_PROVENANCE_CATEGORIES.length) {
+    issues.push("handoff provenanceCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceBlockGateAtom !== "P03-B08-A10") {
+    issues.push(`unexpected source block gate atom: ${handoff.sealedArtifacts.sourceBlockGateAtom}`);
+  }
+  if (handoff.targetBlock.entryAtom !== "P03-B10-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+/** Alias matching ACTIVE_FRONT target name. */
+export const validateStrategistProvenanceBlockHandoff =
+  validateStrategistProvenanceBlockHandoffContract;
+
+export function buildStrategistProvenanceBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P03_B09_BLOCK_GATE_V1.blockId,
+): StrategistProvenanceBlockGateEvidence {
+  const handoff = getForgeP03B09ToB10Handoff();
+  const handoffValid = validateStrategistProvenanceBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P03-B09-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }

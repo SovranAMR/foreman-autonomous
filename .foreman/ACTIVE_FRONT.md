@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
-active_block: P03-B09
-active_atom: P03-B09-A10
+active_block: P03-B10
+active_atom: P03-B10-A01
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 288/1000
-phase_progress: 88/100
-block_progress: 9/10
+program_progress: 289/1000
+phase_progress: 89/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B09-A10 — Plan provenance ve drift: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P03-B10-A01 — Stratejist phase gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P03-B09-A09 PASS; P03-B09-A10 seal block gate evidence and B10 handoff contract.
-target: block gate checks, atom seals, regression+guard pass, handoff to P03-B10.
-hypothesis: P03-B09-A10 closes P03-B09 with sealed block gate and valid handoff.
-acceptance: Block gate evidence sealed; handoff contract valid; all 10 atoms PASS.
-commands: npx tsx --test src/forge-p03-strategist-provenance*.test.ts
-blast_radius: src/forge-p03-strategist-provenance.ts
-rollback: P03-B09-A10 block gate değişikliklerini geri al.
+objective: P03-B09-A10 PASS; P03-B10-A01 measure strategist phase gate baseline.
+target: phase gate baseline fixture, sealed P03-B09 handoff entry.
+hypothesis: P03-B10-A01 establishes failing baseline for strategist phase gate from sealed provenance artifacts.
+acceptance: Baseline fixture loads; documents gaps; aligns with P03-B09 handoff contract.
+commands: npx tsx --test src/forge-p03-strategist-phase-gate*.test.ts
+blast_radius: src/forge-p03-strategist-phase-gate.ts
+rollback: P03-B10-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B09-A09
-last_commit: 00aa657
-tests: PASS — forge-p03-strategist-provenance.test.ts (45/45); forge-p03-strategist-provenance-baseline.test.ts (3/3)
-evidence: validateForgeStrategistProvenanceGuard; runStrategistProvenanceAdversarialGuardChecks (3/3 tampered rejected); runForgeStrategistProvenanceRegressionGate with guard metrics
-next: P03-B09-A10
+last_atom: P03-B09-A10
+last_commit: pending
+tests: PASS — forge-p03-strategist-provenance.test.ts (45/45); forge-p03-strategist-provenance-baseline.test.ts (3/3); forge-p03-strategist-provenance-block-gate.test.ts (7/7)
+evidence: runStrategistProvenanceBlockGate; getForgeP03B09BlockGate; getForgeP03B09ToB10Handoff; validateStrategistProvenanceBlockHandoffContract; verifyForgeStrategistProvenanceBlockGate
+next: P03-B10-A01
