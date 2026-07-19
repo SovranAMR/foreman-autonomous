@@ -44,7 +44,7 @@ fallback: P02 handoff contract misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B10-A10
-last_commit: pending
+last_commit: 0af93c4
 tests: PASS — forge-p02-visioner-phase-gate-block-gate.test.ts (6/6); forge-pipeline-regression.integration.test.ts P02-B10-A10 (2/2); 114/114 targeted
 evidence: runForgeVisionerPhaseGateBlockGate; verifyForgeP02VisionerPhaseGateBlockGate; seals=10/10; inventory=9; handoff=P03-B01-A01
 next: P03-B01-A01
