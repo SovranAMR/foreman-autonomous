@@ -46,7 +46,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B03-A03 — Cerrahi edit engine: en küçük üretim dikey dilimini uygula
 - [x] P05-B03-A04 — Cerrahi edit engine: boundary ve edge-case davranışlarını tamamla
 - [x] P05-B03-A05 — Cerrahi edit engine: failure, recovery ve NO-GO yollarını uygula
-- [ ] P05-B03-A06 — Cerrahi edit engine: evidence, telemetry ve provenance kaydını ekle
+- [x] P05-B03-A06 — Cerrahi edit engine: evidence, telemetry ve provenance kaydını ekle
 - [ ] P05-B03-A07 — Cerrahi edit engine: unit, property ve fuzz doğrulamasını ekle
 - [ ] P05-B03-A08 — Cerrahi edit engine: Forge entegrasyonu ile regression testini tamamla
 - [ ] P05-B03-A09 — Cerrahi edit engine: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B03-A05
-last_commit: 78ca23c
-tests: PASS — forge-p05-worker-edit-engine-failure-recovery.test.ts (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 33 total
-evidence: runWorkerEditEngineFailureRecoverySlice + validateWorkerEditEngineFailureRecoveryProbeMatrix; 7/7 failure/recovery/NO-GO probes aligned
-next: P05-B03-A06
+last_atom: P05-B03-A06
+last_commit: pending
+tests: PASS — forge-p05-worker-edit-engine-evidence.test.ts (5/5), failure-recovery (5/5), boundary (7/7), production (5/5), baseline (8/8), contract (8/8) — 38 total
+evidence: runWorkerEditEngineEvidenceSlice + validateWorkerEditEngineEvidenceProbeMatrix + runWorkerEditEngineProbesWithRecord; 7/7 evidence slice probes aligned with auditable run record
+next: P05-B03-A07

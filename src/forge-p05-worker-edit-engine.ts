@@ -10,6 +10,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
+import { performance } from "node:perf_hooks";
 import workerEditEngineBaseline from "./fixtures/forge-worker-edit-engine-v1.json" with { type: "json" };
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
@@ -20,7 +23,7 @@ import {
 import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 import { EditEngine } from "./edit-engine.js";
 
-export const FORGE_WORKER_EDIT_ENGINE_VERSION = "1.0.0-a05";
+export const FORGE_WORKER_EDIT_ENGINE_VERSION = "1.0.0-a06";
 
 export const EXPECTED_P05_B02_SEALED_ATOM_COUNT = 10;
 
@@ -1920,6 +1923,461 @@ export function runWorkerEditEngineFailureRecoverySlice(
     results,
     failureRecoveryResults,
     matrixValidation,
+  };
+}
+
+/** Per-probe evidence artifact — expected vs actual with criterion provenance (P05-B03-A06). */
+export interface WorkerEditEngineProbeEvidence {
+  probeId: string;
+  category: WorkerEditEngineCategory;
+  disposition: WorkerEditEngineProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for worker edit engine runs (P05-B03-A06). */
+export interface WorkerEditEngineProbeRunTelemetry {
+  probeId: string;
+  category: WorkerEditEngineCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P05-B03-A06). */
+export interface WorkerEditEngineProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  sliceAtom?: string;
+  sliceCategories?: readonly WorkerEditEngineCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated worker edit engine run record bundling evidence, telemetry and provenance. */
+export interface WorkerEditEngineRunRecord {
+  provenance: WorkerEditEngineProvenance;
+  evidence: WorkerEditEngineProbeEvidence[];
+  telemetry: WorkerEditEngineProbeRunTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<WorkerEditEngineCategory, number>;
+    byDisposition: Record<WorkerEditEngineProbeDisposition, number>;
+  };
+}
+
+export interface WorkerEditEngineRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface WorkerEditEngineRunValidationResult {
+  valid: boolean;
+  issues: WorkerEditEngineRunValidationIssue[];
+}
+
+export function buildWorkerEditEngineProbeEvidence(
+  probeId: string,
+  category: WorkerEditEngineCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: WorkerEditEngineProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): WorkerEditEngineProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildWorkerEditEngineProbeRunTelemetry(
+  probeId: string,
+  category: WorkerEditEngineCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): WorkerEditEngineProbeRunTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildWorkerEditEngineProvenance(
+  runId: string,
+  fixture: WorkerEditEngineBaseline,
+  contract: WorkerEditEngineContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly WorkerEditEngineCategory[];
+  },
+): WorkerEditEngineProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_WORKER_EDIT_ENGINE_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildWorkerEditEngineRunRecord(
+  provenance: WorkerEditEngineProvenance,
+  evidence: WorkerEditEngineProbeEvidence[],
+  telemetry: WorkerEditEngineProbeRunTelemetry[],
+): WorkerEditEngineRunRecord {
+  const byCategory = {} as Record<WorkerEditEngineCategory, number>;
+  const byDisposition: Record<WorkerEditEngineProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of WORKER_EDIT_ENGINE_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateWorkerEditEngineRunRecordAgainstProbeIds(
+  record: WorkerEditEngineRunRecord,
+  expectedProbeIds: string[],
+  contract: WorkerEditEngineContract,
+): WorkerEditEngineRunValidationResult {
+  const issues: WorkerEditEngineRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateWorkerEditEngineRunRecord(
+  record: WorkerEditEngineRunRecord,
+  contract: WorkerEditEngineContract = getActiveWorkerEditEngineContract(),
+): WorkerEditEngineRunValidationResult {
+  return validateWorkerEditEngineRunRecordAgainstProbeIds(
+    record,
+    listWorkerEditEngineContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateWorkerEditEngineEvidenceRunRecord(
+  record: WorkerEditEngineRunRecord,
+  contract: WorkerEditEngineContract = getActiveWorkerEditEngineContract(),
+): WorkerEditEngineRunValidationResult {
+  const issues: WorkerEditEngineRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P05-B03-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P05-B03-A06`,
+    });
+  }
+
+  const expectedCategories = [...WORKER_EDIT_ENGINE_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateWorkerEditEngineRunRecordAgainstProbeIds(
+    record,
+    listWorkerEditEngineFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+/**
+ * Validate evidence_path + telemetry_path + provenance_path probe matrix — A06 slice gate.
+ * Contract-wired failure_path, recovery_path and nogo_path probes with zero unexpected mismatches.
+ */
+export function validateWorkerEditEngineEvidenceProbeMatrix(
+  results: WorkerEditEngineProbeResult[],
+  contract: WorkerEditEngineContract = getActiveWorkerEditEngineContract(),
+): WorkerEditEngineProbeMatrixValidationResult {
+  return validateWorkerEditEngineFailureRecoveryProbeMatrix(results, contract);
+}
+
+export interface WorkerEditEngineEvidenceSliceResult {
+  atom: "P05-B03-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: WorkerEditEngineProbeResult[];
+  evidenceResults: WorkerEditEngineProbeResult[];
+  matrixValidation: WorkerEditEngineProbeMatrixValidationResult;
+  record: WorkerEditEngineRunRecord;
+  recordValidation: WorkerEditEngineRunValidationResult;
+}
+
+function resolveWorkerEditEngineGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runWorkerEditEngineProbeWithTiming(
+  entry: WorkerEditEngineFixtureEntry,
+  fixture: WorkerEditEngineBaseline,
+  contractProbe:
+    | { criterion: string; disposition: WorkerEditEngineProbeDisposition }
+    | undefined,
+): {
+  result: WorkerEditEngineProbeResult;
+  durationMs: number;
+  disposition: WorkerEditEngineProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildWorkerEditEngineRecordFromEntries(
+  entries: WorkerEditEngineFixtureEntry[],
+  fixture: WorkerEditEngineBaseline,
+  contract: WorkerEditEngineContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly WorkerEditEngineCategory[];
+  },
+): WorkerEditEngineRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: WorkerEditEngineProbeEvidence[] = [];
+  const telemetry: WorkerEditEngineProbeRunTelemetry[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runWorkerEditEngineProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildWorkerEditEngineProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildWorkerEditEngineProbeRunTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildWorkerEditEngineProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveWorkerEditEngineGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildWorkerEditEngineRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all worker edit engine probes and emit auditable evidence, telemetry and provenance (P05-B03-A06). */
+export function runWorkerEditEngineProbesWithRecord(
+  fixture: WorkerEditEngineBaseline = loadWorkerEditEngineBaseline(),
+): WorkerEditEngineRunRecord {
+  const contract = getActiveWorkerEditEngineContract();
+  return buildWorkerEditEngineRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P05-B03-A06). */
+export function runWorkerEditEngineFailureRecoverySliceWithRecord(
+  fixture: WorkerEditEngineBaseline = loadWorkerEditEngineBaseline(),
+): WorkerEditEngineRunRecord {
+  const contract = getActiveWorkerEditEngineContract();
+  const failureRecoveryIds = new Set(listWorkerEditEngineFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildWorkerEditEngineRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P05-B03-A06",
+    sliceCategories: WORKER_EDIT_ENGINE_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runWorkerEditEngineEvidenceSlice(
+  fixture: WorkerEditEngineBaseline = loadWorkerEditEngineBaseline(),
+): WorkerEditEngineEvidenceSliceResult {
+  const contract = getActiveWorkerEditEngineContract();
+  const results = runWorkerEditEngineProbes(fixture);
+  const failureRecoveryProbes = WORKER_EDIT_ENGINE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listWorkerEditEngineContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateWorkerEditEngineEvidenceProbeMatrix(results, contract);
+  const record = runWorkerEditEngineFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateWorkerEditEngineEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P05-B03-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
   };
 }
 
