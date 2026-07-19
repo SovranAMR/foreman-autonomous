@@ -141,7 +141,7 @@ describe("Forge Worker Shell Process Contract — P05-B04-A02", () => {
     assert.equal(FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1.atom, "P05-B04-A02");
     assert.equal(FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_SHELL_PROCESS_VERSION, "1.0.0-a03");
+    assert.equal(FORGE_WORKER_SHELL_PROCESS_VERSION, "1.0.0-a04");
     assert.equal(contract.version, FORGE_WORKER_SHELL_PROCESS_CONTRACT_V1.version);
   });
 });

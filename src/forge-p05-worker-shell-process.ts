@@ -17,12 +17,18 @@ import {
 } from "./forge-p05-worker-edit-engine.js";
 import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 
-export const FORGE_WORKER_SHELL_PROCESS_VERSION = "1.0.0-a03";
+export const FORGE_WORKER_SHELL_PROCESS_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P05_B03_SEALED_ATOM_COUNT = 10;
 
 /** Maximum normalized shell command length before truncation (P05-B04-A01 boundary). */
 export const WORKER_SHELL_PROCESS_COMMAND_MAX_LENGTH = 65_536;
+
+/** Default bash tool timeout when omitted (P05-B04-A04 boundary). */
+export const WORKER_SHELL_PROCESS_DEFAULT_TIMEOUT_MS = 30_000;
+
+/** Maximum bash tool timeout after boundary capping (P05-B04-A04 boundary). */
+export const WORKER_SHELL_PROCESS_TIMEOUT_MAX_MS = 3_600_000;
 
 export const WORKER_SHELL_PROCESS_CATEGORIES = [
   "shell_versioning",
@@ -70,6 +76,12 @@ export interface ShellCommandRecoveryResult {
   command: string;
   timeoutMs?: number;
   parseErrors: string[];
+  detail: string;
+}
+
+export interface ShellTimeoutBoundary {
+  valid: boolean;
+  timeoutMs?: number;
   detail: string;
 }
 
@@ -787,7 +799,7 @@ export function assessShellCommandInputBoundary(command: string): ShellCommandIn
     };
   }
 
-  let normalizedCommand = command;
+  let normalizedCommand = trimmed;
   let truncated = false;
   if (normalizedCommand.length > WORKER_SHELL_PROCESS_COMMAND_MAX_LENGTH) {
     normalizedCommand = normalizedCommand.slice(0, WORKER_SHELL_PROCESS_COMMAND_MAX_LENGTH);
@@ -803,6 +815,51 @@ export function assessShellCommandInputBoundary(command: string): ShellCommandIn
       ? `command truncated to ${WORKER_SHELL_PROCESS_COMMAND_MAX_LENGTH} characters`
       : "valid shell command input",
   };
+}
+
+/**
+ * Assess bash tool timeout boundary before worker dispatch (P05-B04-A04).
+ */
+export function assessShellTimeoutBoundary(timeoutMs: unknown): ShellTimeoutBoundary {
+  if (timeoutMs === undefined || timeoutMs === null) {
+    return {
+      valid: true,
+      timeoutMs: WORKER_SHELL_PROCESS_DEFAULT_TIMEOUT_MS,
+      detail: "default timeout applied",
+    };
+  }
+
+  if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs)) {
+    return { valid: false, detail: "timeout_ms must be a finite number" };
+  }
+
+  if (!Number.isInteger(timeoutMs)) {
+    return { valid: false, detail: "timeout_ms must be an integer" };
+  }
+
+  if (timeoutMs <= 0) {
+    return { valid: false, detail: "timeout_ms must be positive" };
+  }
+
+  const capped = Math.min(timeoutMs, WORKER_SHELL_PROCESS_TIMEOUT_MAX_MS);
+  return {
+    valid: true,
+    timeoutMs: capped,
+    detail:
+      capped < timeoutMs
+        ? `timeout capped to ${WORKER_SHELL_PROCESS_TIMEOUT_MAX_MS}ms`
+        : "valid timeout",
+  };
+}
+
+/**
+ * Normalize bash tool args through boundary assessment before recovery (P05-B04-A04).
+ */
+export function normalizeShellCommandRequest(
+  command: unknown,
+  timeoutMs: unknown = WORKER_SHELL_PROCESS_DEFAULT_TIMEOUT_MS,
+): ShellCommandRecoveryResult {
+  return recoverShellCommandRequest(command, timeoutMs);
 }
 
 /**
@@ -846,15 +903,20 @@ export function recoverShellCommandRequest(
     };
   }
 
-  const timeout =
-    typeof resolvedTimeout === "number" && Number.isFinite(resolvedTimeout) && resolvedTimeout > 0
-      ? resolvedTimeout
-      : 30_000;
+  const timeoutBoundary = assessShellTimeoutBoundary(resolvedTimeout);
+  if (!timeoutBoundary.valid) {
+    return {
+      recovered: false,
+      command: boundary.normalizedCommand,
+      parseErrors: [...parseErrors, "invalid_timeout"],
+      detail: timeoutBoundary.detail,
+    };
+  }
 
   return {
     recovered: true,
     command: boundary.normalizedCommand,
-    timeoutMs: timeout,
+    timeoutMs: timeoutBoundary.timeoutMs,
     parseErrors,
     detail: `recovered command length=${boundary.normalizedCommand.length}`,
   };
@@ -886,7 +948,7 @@ export function validateShellCommand(call: ToolCall): ShellCommandValidationResu
     return { valid: true, errors: [] };
   }
 
-  const recovery = recoverShellCommandRequest(call.args.command, call.args.timeout_ms);
+  const recovery = normalizeShellCommandRequest(call.args.command, call.args.timeout_ms);
   if (!recovery.recovered) {
     return { valid: false, errors: [recovery.detail], command: recovery.command };
   }
@@ -1610,4 +1672,59 @@ export function probeDangerousShellCommandBlocked(): boolean {
     executionEngine.includes("isDangerous(") &&
     executionEngine.includes("Dangerous command blocked")
   );
+}
+
+export interface WorkerShellProcessBoundarySliceResult {
+  atom: "P05-B04-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: WorkerShellProcessProbeResult[];
+  boundaryResults: WorkerShellProcessProbeResult[];
+  matrixValidation: WorkerShellProcessProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateWorkerShellProcessBoundaryProbeMatrix(
+  results: WorkerShellProcessProbeResult[],
+  contract: WorkerShellProcessContract = getActiveWorkerShellProcessContract(),
+): WorkerShellProcessProbeMatrixValidationResult {
+  const boundaryProbes = listWorkerShellProcessContractProbesByCategory("boundary", contract);
+  const boundaryContract: WorkerShellProcessContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateWorkerShellProcessProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (shell command input edge cases,
+ * timeout boundary, probe runner, documented gaps, source block gate refs) with zero
+ * unexpected mismatches.
+ */
+export function runWorkerShellProcessBoundarySlice(
+  fixture: WorkerShellProcessBaseline = loadWorkerShellProcessBaseline(),
+): WorkerShellProcessBoundarySliceResult {
+  const contract = getActiveWorkerShellProcessContract();
+  const results = runWorkerShellProcessProbes(fixture);
+  const boundaryProbes = listWorkerShellProcessContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateWorkerShellProcessBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P05-B04-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
 }

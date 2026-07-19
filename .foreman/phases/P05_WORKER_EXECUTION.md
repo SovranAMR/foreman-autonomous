@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 30
+completed_atoms: 31
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -57,7 +57,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B04-A01 — Shell ve process lifecycle: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P05-B04-A02 — Shell ve process lifecycle: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P05-B04-A03 — Shell ve process lifecycle: en küçük üretim dikey dilimini uygula
-- [ ] P05-B04-A04 — Shell ve process lifecycle: boundary ve edge-case davranışlarını tamamla
+- [x] P05-B04-A04 — Shell ve process lifecycle: boundary ve edge-case davranışlarını tamamla
 - [ ] P05-B04-A05 — Shell ve process lifecycle: failure, recovery ve NO-GO yollarını uygula
 - [ ] P05-B04-A06 — Shell ve process lifecycle: evidence, telemetry ve provenance kaydını ekle
 - [ ] P05-B04-A07 — Shell ve process lifecycle: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B04-A03
-last_commit: 1f453fc
-tests: PASS — forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
-evidence: validateShellCommand + buildShellProcessTelemetry + TypedBashCall + orchestrator pre-bash validation + WORKER_SYSTEM shell contract + ProcessRegistry thoughtId/layer; 27/27 probes aligned, 5 A02 gaps closed
-next: P05-B04-A04
+last_atom: P05-B04-A04
+last_commit: pending
+tests: PASS — forge-p05-worker-shell-process-boundary.test.ts (6/6), forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
+evidence: assessShellTimeoutBoundary + normalizeShellCommandRequest + trimmed command boundary + validateWorkerShellProcessBoundaryProbeMatrix + runWorkerShellProcessBoundarySlice; 7/7 boundary probes aligned, 27/27 total probes aligned
+next: P05-B04-A05
