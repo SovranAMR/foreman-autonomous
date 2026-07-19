@@ -128,7 +128,7 @@ export const FORGE_P03_TO_P04_PHASE_HANDOFF_V1: P03PhaseHandoffContract = {
     ).totalProbes,
     sealedBlockInventoryCount: P03_STRATEGIST_PHASE_BLOCK_COUNT,
     blockGateMethod: "verifyForgeStrategistProvenanceBlockGate",
-    phaseGateMethod: "verifyForgeP03StrategistPhaseGate",
+    phaseGateMethod: "verifyForgeP03PhaseGate",
   },
   prerequisites: [
     "Ten sealed P03 strategist block gates with atom-level evidence",

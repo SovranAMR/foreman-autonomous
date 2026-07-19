@@ -186,7 +186,7 @@ export function parseDecomposeResponse(text: string): { ok: true; data: Decompos
   //   DEPENDENCIES: 2→1, 3→1,2, 4→3   (block N depends on listed blocks)
   //   Block 2: ... [depends: 1]
   //   Block 3 (after 1, 2): ...
-  const blockDeps = parseBlockDependencies(outputRaw!, blocks.length);
+  const blockDeps = parseBlockDependencies(text, blocks.length);
 
   return {
     ok: true,

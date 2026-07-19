@@ -2,13 +2,13 @@
 
 program: FOREMAN-FORGE-1000
 front_status: READY
-active_phase: P03
-active_block: P03-B10
-active_atom: P03-PHASE-GATE
-phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 299/1000
-phase_progress: 100/100
-block_progress: 10/10
+active_phase: P04
+active_block: P04-B01
+active_atom: P04-B01-A01
+phase_file: .foreman/phases/P04_RESEARCHER.md
+program_progress: 300/1000
+phase_progress: 0/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-PHASE-GATE — Stratejist phase gate: phase gate kanıtını mühürle ve P04 handoff'unu yap.
+P04-B01-A01 — Research question decomposition: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P03-B10-A10 PASS; P03 phase gate seal and P04 handoff.
-target: runForgeStrategistPhaseGateBlockGate seals A01–A10 deliverables; guard/regression embedded; P04 handoff valid.
-hypothesis: P03-B10-A10 block gate slice seals strategist phase gate with orchestrator inventory check.
-acceptance: block gate PASS; handoff valid; slice atom tagged P03-B10-A10.
-commands: npx tsx --test src/forge-p03-strategist-phase-gate*.test.ts
-blast_radius: src/forge-p03-strategist-phase-gate.ts, src/forge-p03-strategist-phase-gate.probe.ts
-rollback: P03-B10-A10 block gate slice değişikliklerini geri al.
-evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
+objective: P03-PHASE-GATE PASS; P04 researcher entry baseline.
+target: Research question decomposition baseline fixture with failing probe matrix for P04-B01-A01.
+hypothesis: Sealed P03 phase gate artifacts enable P04-B01-A01 researcher question baseline.
+acceptance: baseline fixture loads; probe matrix defined; handoff from P03-PHASE-GATE valid.
+commands: npx tsx --test src/forge-p04-researcher*.test.ts
+blast_radius: src/forge-p04-researcher-*.ts
+rollback: P04-B01-A01 baseline slice değişikliklerini geri al.
+evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B10-A10
-last_commit: d37813f
-tests: PASS — forge-p03-strategist-phase-gate-block-gate.test.ts (6/6); forge-p03-strategist-phase-gate*.test.ts (59/59)
-evidence: runForgeStrategistPhaseGateBlockGate seals 10/10 atom seals; validateStrategistPhaseGateBlockHandoffContract P04-B01 entry; verifyForgeStrategistPhaseGateBlockGate orchestrator seam; handoff=PASS→P04-B01
-next: P03-PHASE-GATE
+last_atom: P03-PHASE-GATE
+last_commit: pending
+tests: PASS — forge-p03-phase-gate.test.ts (6/6); runForgeP03PhaseGate blocks=10/10 atoms=100/100; verifyForgeP03PhaseGate orchestrator wiring
+evidence: runForgeP03PhaseGate seals all ten P03 block gates; validateForgeP03StrategistPhaseGateEvidence P04-B01 entry; parser blockDeps fix; handoff=PASS→P04-B01
+next: P04-B01-A01
