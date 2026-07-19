@@ -44,7 +44,7 @@ fallback: A07 property/fuzz misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B02-A07
-last_commit: pending
+last_commit: 8a43fb4
 tests: PASS — forge-p03-strategist-block-contract.test.ts (24/24); property 8/8; contract fuzz 72/72 rejected; run record fuzz 8/8 rejected
 evidence: runStrategistBlockContractPropertyChecks; runStrategistBlockContractFuzzValidation; runStrategistBlockContractPropertyFuzzSlice
 next: P03-B02-A08
