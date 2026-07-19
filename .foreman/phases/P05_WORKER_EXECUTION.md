@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B05-A01
-last_commit: 8b82db3
+last_commit: 6b76f70
 tests: PASS — forge-p05-worker-git-worktree-baseline.test.ts (8/8), forge-p05-worker-git-worktree*.test.ts (8/8)
 evidence: loadWorkerGitWorktreeBaseline + validateWorkerGitWorktreeBaseline + runWorkerGitWorktreeProbes + assessGitBranchInputBoundary + recoverGitCommitRequest + probeDangerousGitOperationBlocked; 27 probes, 5 documented FAIL gaps aligned to P05-B04→B05 handoff
 next: P05-B05-A02
