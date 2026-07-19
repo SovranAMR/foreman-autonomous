@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B07-A06
-last_commit: 6b74391
+last_commit: a089f32
 tests: PASS — forge-p02-visioner-alternative.test.ts (24/24); forge-p02-visioner-alternative-baseline.test.ts (3/3)
 evidence: validateVisionerAlternativeFailureRecoveryRunRecord + runVisionerAlternativeFailureRecoverySliceWithRecord; 6/6 failure/recovery/NO-GO probes aligned; 23/23 full matrix preserved
 next: P02-B07-A07
