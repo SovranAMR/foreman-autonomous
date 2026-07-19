@@ -44,7 +44,7 @@ fallback: P03-B01-A01 baseline misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B01-A01
-last_commit: 68f6b8d
+last_commit: 233f226
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (3/3); 23 probes; 1 documented FAIL gap
 evidence: loadStrategistIntentBaseline; validateStrategistIntentBaseline; runStrategistIntentProbes; handoff=P02-PHASE-GATE→P03-B01-A01
 next: P03-B01-A02

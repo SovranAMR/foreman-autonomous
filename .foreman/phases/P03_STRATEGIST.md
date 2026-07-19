@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B01-A01
-last_commit: 68f6b8d
+last_commit: 233f226
 tests: PASS — forge-p03-strategist-intent-baseline.test.ts (3/3); 23 probes; gap=sint.structured_decompose_recovery
 evidence: loadStrategistIntentBaseline; validateStrategistIntentBaseline; runStrategistIntentProbes; sourcePhaseGate=P02-PHASE-GATE sealedBlockCount=10
 next: P03-B01-A02
