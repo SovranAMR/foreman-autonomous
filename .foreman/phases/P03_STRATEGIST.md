@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 7
-completed_atoms: 94
+completed_atoms: 95
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -137,7 +137,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B10-A03 — Stratejist phase gate: en küçük üretim dikey dilimini uygula
 - [x] P03-B10-A04 — Stratejist phase gate: boundary ve edge-case davranışlarını tamamla
 - [x] P03-B10-A05 — Stratejist phase gate: failure, recovery ve NO-GO yollarını uygula
-- [ ] P03-B10-A06 — Stratejist phase gate: evidence, telemetry ve provenance kaydını ekle
+- [x] P03-B10-A06 — Stratejist phase gate: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B10-A07 — Stratejist phase gate: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B10-A08 — Stratejist phase gate: Forge entegrasyonu ile regression testini tamamla
 - [ ] P03-B10-A09 — Stratejist phase gate: adversarial, performance, cost ve safety kontrolünü geçir
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B10-A05
-last_commit: e0d22cb
-tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (25/25)
-evidence: runStrategistPhaseGateFailureRecoverySlice; validateStrategistPhaseGateFailureRecoveryProbeMatrix; failure_path/recovery_path/nogo_path probes 7/7 PASS; zero unexpected mismatches
-next: P03-B10-A06
+last_atom: P03-B10-A06
+last_commit: PENDING
+tests: PASS — forge-p03-strategist-phase-gate-baseline.test.ts (3/3); forge-p03-strategist-phase-gate.test.ts (29/29)
+evidence: runStrategistPhaseGateFailureRecoverySliceWithRecord; runStrategistPhaseGateEvidenceSlice; validateStrategistPhaseGateFailureRecoveryRunRecord; evidence/telemetry/provenance 7/7 PASS; zero mismatches
+next: P03-B10-A07

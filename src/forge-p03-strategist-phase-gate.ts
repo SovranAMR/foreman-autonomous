@@ -1453,4 +1453,295 @@ export function listStrategistPhaseGateFailureRecoveryProbeIds(
   );
 }
 
+/** Per-probe evidence artifact — disposition, criterion and aligned outcomes (P03-B10-A06). */
+export interface StrategistPhaseGateProbeEvidence {
+  probeId: string;
+  category: StrategistPhaseGateCategory;
+  disposition: StrategistPhaseGateProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for strategist phase gate runs (P03-B10-A06). */
+export interface StrategistPhaseGateProbeTelemetry {
+  probeId: string;
+  category: StrategistPhaseGateCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P03-B10-A06). */
+export interface StrategistPhaseGateProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  sliceAtom?: string;
+  sliceCategories?: readonly StrategistPhaseGateCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated strategist phase gate run record bundling evidence, telemetry and provenance. */
+export interface StrategistPhaseGateRunRecord {
+  provenance: StrategistPhaseGateProvenance;
+  evidence: StrategistPhaseGateProbeEvidence[];
+  telemetry: StrategistPhaseGateProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<StrategistPhaseGateCategory, number>;
+    byDisposition: Record<StrategistPhaseGateProbeDisposition, number>;
+  };
+}
+
+export interface StrategistPhaseGateRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface StrategistPhaseGateRunValidationResult {
+  valid: boolean;
+  issues: StrategistPhaseGateRunValidationIssue[];
+}
+
+export function buildStrategistPhaseGateProbeEvidence(
+  probeId: string,
+  category: StrategistPhaseGateCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: StrategistPhaseGateProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): StrategistPhaseGateProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildStrategistPhaseGateProbeTelemetry(
+  probeId: string,
+  category: StrategistPhaseGateCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): StrategistPhaseGateProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildStrategistPhaseGateProvenance(
+  runId: string,
+  fixture: StrategistPhaseGateBaseline,
+  contract: StrategistPhaseGateContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistPhaseGateCategory[];
+  },
+): StrategistPhaseGateProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_STRATEGIST_PHASE_GATE_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildStrategistPhaseGateRunRecord(
+  provenance: StrategistPhaseGateProvenance,
+  evidence: StrategistPhaseGateProbeEvidence[],
+  telemetry: StrategistPhaseGateProbeTelemetry[],
+): StrategistPhaseGateRunRecord {
+  const byCategory = {} as Record<StrategistPhaseGateCategory, number>;
+  const byDisposition: Record<StrategistPhaseGateProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of STRATEGIST_PHASE_GATE_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateStrategistPhaseGateRunRecordAgainstProbeIds(
+  record: StrategistPhaseGateRunRecord,
+  expectedProbeIds: string[],
+  contract: StrategistPhaseGateContract,
+): StrategistPhaseGateRunValidationResult {
+  const issues: StrategistPhaseGateRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateStrategistPhaseGateRunRecord(
+  record: StrategistPhaseGateRunRecord,
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): StrategistPhaseGateRunValidationResult {
+  return validateStrategistPhaseGateRunRecordAgainstProbeIds(
+    record,
+    listStrategistPhaseGateContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate failure/recovery slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateStrategistPhaseGateFailureRecoveryRunRecord(
+  record: StrategistPhaseGateRunRecord,
+  contract: StrategistPhaseGateContract = getActiveStrategistPhaseGateContract(),
+): StrategistPhaseGateRunValidationResult {
+  const issues: StrategistPhaseGateRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P03-B10-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P03-B10-A06`,
+    });
+  }
+
+  const expectedCategories = [...STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateStrategistPhaseGateRunRecordAgainstProbeIds(
+    record,
+    listStrategistPhaseGateFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface StrategistPhaseGateEvidenceSliceResult {
+  atom: "P03-B10-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: StrategistPhaseGateProbeResult[];
+  evidenceResults: StrategistPhaseGateProbeResult[];
+  matrixValidation: StrategistPhaseGateProbeMatrixValidationResult;
+  record: StrategistPhaseGateRunRecord;
+  recordValidation: StrategistPhaseGateRunValidationResult;
+}
+
 export { FORGE_STRATEGIST_PROVENANCE_VERSION };

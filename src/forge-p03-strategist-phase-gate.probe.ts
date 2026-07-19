@@ -5,6 +5,9 @@
  */
 
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
+import { performance } from "node:perf_hooks";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
@@ -31,7 +34,14 @@ import {
   summarizeStrategistPhaseGateMatrix,
   listStrategistPhaseGateProbesByExpected,
   listStrategistPhaseGateKnownGaps,
+  listStrategistPhaseGateFailureRecoveryProbeIds,
   loadStrategistPhaseGateBaseline,
+  buildStrategistPhaseGateProbeEvidence,
+  buildStrategistPhaseGateProbeTelemetry,
+  buildStrategistPhaseGateProvenance,
+  buildStrategistPhaseGateRunRecord,
+  validateStrategistPhaseGateFailureRecoveryRunRecord,
+  validateStrategistPhaseGateRunRecord,
   FORGE_STRATEGIST_PHASE_GATE_VERSION,
   STRATEGIST_PHASE_GATE_MANIFEST_MAX_LENGTH,
   STRATEGIST_PHASE_GATE_CATEGORIES,
@@ -41,7 +51,10 @@ import {
   EXPECTED_P03_B09_SEALED_ATOM_COUNT,
   type StrategistPhaseGateBaseline,
   type StrategistPhaseGateCategory,
+  type StrategistPhaseGateProbeDisposition,
   type StrategistPhaseGateProbeResult,
+  type StrategistPhaseGateRunRecord,
+  type StrategistPhaseGateEvidenceSliceResult,
 } from "./forge-p03-strategist-phase-gate.js";
 
 export type { StrategistPhaseGateBaseline, StrategistPhaseGateProbeResult } from "./forge-p03-strategist-phase-gate.js";
@@ -594,3 +607,172 @@ export function runStrategistPhaseGateFailureRecoverySlice(
 
 export const runForgeStrategistPhaseGateFailureRecoverySlice =
   runStrategistPhaseGateFailureRecoverySlice;
+
+function resolveStrategistPhaseGateGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runStrategistPhaseGateProbeWithTiming(
+  entry: StrategistPhaseGateBaseline["probes"][number],
+  fixture: StrategistPhaseGateBaseline,
+  contractProbe:
+    | { criterion: string; disposition: StrategistPhaseGateProbeDisposition }
+    | undefined,
+): {
+  result: StrategistPhaseGateProbeResult;
+  durationMs: number;
+  disposition: StrategistPhaseGateProbeDisposition;
+} {
+  const start = performance.now();
+  const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildStrategistPhaseGateRecordFromEntries(
+  entries: StrategistPhaseGateBaseline["probes"],
+  fixture: StrategistPhaseGateBaseline,
+  contract: ReturnType<typeof getActiveStrategistPhaseGateContract>,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly StrategistPhaseGateCategory[];
+  },
+): StrategistPhaseGateRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildStrategistPhaseGateProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildStrategistPhaseGateProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runStrategistPhaseGateProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildStrategistPhaseGateProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildStrategistPhaseGateProbeTelemetry(result.id, result.category, sequenceIndex, durationMs),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildStrategistPhaseGateProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveStrategistPhaseGateGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildStrategistPhaseGateRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all strategist phase gate probes and emit auditable evidence, telemetry and provenance (P03-B10-A06). */
+export function runStrategistPhaseGateProbesWithRecord(
+  fixture: StrategistPhaseGateBaseline = loadStrategistPhaseGateBaseline(),
+): StrategistPhaseGateRunRecord {
+  const contract = getActiveStrategistPhaseGateContract();
+  return buildStrategistPhaseGateRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P03-B10-A06). */
+export function runStrategistPhaseGateFailureRecoverySliceWithRecord(
+  fixture: StrategistPhaseGateBaseline = loadStrategistPhaseGateBaseline(),
+): StrategistPhaseGateRunRecord {
+  const contract = getActiveStrategistPhaseGateContract();
+  const failureRecoveryIds = new Set(listStrategistPhaseGateFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildStrategistPhaseGateRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P03-B10-A06",
+    sliceCategories: STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+export const runForgeStrategistPhaseGateProbesWithRecord = runStrategistPhaseGateProbesWithRecord;
+export const runForgeStrategistPhaseGateFailureRecoverySliceWithRecord =
+  runStrategistPhaseGateFailureRecoverySliceWithRecord;
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runStrategistPhaseGateEvidenceSlice(
+  fixture: StrategistPhaseGateBaseline = loadStrategistPhaseGateBaseline(),
+): StrategistPhaseGateEvidenceSliceResult {
+  const contract = getActiveStrategistPhaseGateContract();
+  const results = runStrategistPhaseGateProbes(fixture);
+  const failureRecoveryProbes = STRATEGIST_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listStrategistPhaseGateContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateStrategistPhaseGateFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runStrategistPhaseGateFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateStrategistPhaseGateFailureRecoveryRunRecord(
+    record,
+    contract,
+  );
+
+  return {
+    atom: "P03-B10-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
+  };
+}
+
+export const runForgeStrategistPhaseGateEvidenceSlice = runStrategistPhaseGateEvidenceSlice;
+
+export {
+  buildStrategistPhaseGateProbeEvidence,
+  buildStrategistPhaseGateProbeTelemetry,
+  buildStrategistPhaseGateProvenance,
+  buildStrategistPhaseGateRunRecord,
+  validateStrategistPhaseGateFailureRecoveryRunRecord,
+  validateStrategistPhaseGateRunRecord,
+} from "./forge-p03-strategist-phase-gate.js";
