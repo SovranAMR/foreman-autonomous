@@ -23,6 +23,8 @@ import {
   validateResearchRiskTradeoff,
   validateResearcherRiskTradeoffAgainstContract,
   runResearcherRiskTradeoffProductionSlice,
+  runResearcherRiskTradeoffBoundarySlice,
+  validateResearcherRiskTradeoffBoundaryProbeMatrix,
   RESEARCHER_RISK_TRADEOFF_CATEGORIES,
   RESEARCHER_RISK_TRADEOFF_INPUT_MAX_LENGTH,
   FORGE_RESEARCHER_RISK_TRADEOFF_CONTRACT_V1,
@@ -326,5 +328,113 @@ describe("Forge Researcher Risk Trade-off Production Slice — P04-B07-A03", () 
     assert.ok(validatorProbe);
     assert.equal(validatorProbe!.expected, "PASS");
     assert.equal(validatorProbe!.actual, "PASS");
+  });
+});
+
+describe("Forge Researcher Risk Trade-off Boundary Slice — P04-B07-A04", () => {
+  it("defines six boundary probes with research input edge-case criteria", () => {
+    const boundary = listResearcherRiskTradeoffContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "rrto.empty_research_input_boundary",
+      "rrto.known_gaps_documented",
+      "rrto.long_research_input_truncation_boundary",
+      "rrto.probe_runner_exported",
+      "rrto.source_block_gate_ref",
+      "rrto.whitespace_research_input_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on research edge probes", () => {
+    const contract = getActiveResearcherRiskTradeoffContract();
+    const slice = runResearcherRiskTradeoffBoundarySlice();
+
+    assert.equal(slice.atom, "P04-B07-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listResearcherRiskTradeoffContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateResearcherRiskTradeoffBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("assessResearchRiskTradeoffInputBoundary edge cases align with boundary probe matrix", () => {
+    const slice = runResearcherRiskTradeoffBoundarySlice();
+    const researchProbes = [
+      "rrto.empty_research_input_boundary",
+      "rrto.whitespace_research_input_boundary",
+      "rrto.long_research_input_truncation_boundary",
+    ] as const;
+
+    for (const probeId of researchProbes) {
+      const result = slice.boundaryResults.find(r => r.id === probeId);
+      assert.ok(result, `missing ${probeId}`);
+      assert.equal(result!.actual, "PASS");
+      assert.equal(result!.aligned, true);
+    }
+  });
+
+  it("validateResearchRiskTradeoff and recoverResearchRiskTradeoffEvidence reject invalid boundary inputs", () => {
+    const emptyValidation = validateResearchRiskTradeoff("");
+    assert.equal(emptyValidation.valid, false);
+    assert.ok(emptyValidation.issues.length > 0);
+
+    const whitespaceValidation = validateResearchRiskTradeoff("   \t\n  ");
+    assert.equal(whitespaceValidation.valid, false);
+    assert.equal(whitespaceValidation.tradeoffCount, 0);
+
+    const nullByteValidation = validateResearchRiskTradeoff("research\0parse");
+    assert.equal(nullByteValidation.valid, false);
+
+    const emptyRecovery = recoverResearchRiskTradeoffEvidence("");
+    assert.equal(emptyRecovery.recovered, false);
+    assert.deepEqual(emptyRecovery.parseErrors, ["empty"]);
+
+    const whitespaceRecovery = recoverResearchRiskTradeoffEvidence("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only"]);
+  });
+
+  it("assessResearchRiskTradeoffInputBoundary accepts exact max-length research input", () => {
+    const exactMax = "x".repeat(RESEARCHER_RISK_TRADEOFF_INPUT_MAX_LENGTH);
+    const boundary = assessResearchRiskTradeoffInputBoundary(exactMax);
+
+    assert.equal(boundary.acceptable, true);
+    assert.equal(boundary.truncated, false);
+    assert.equal(boundary.disposition, "valid");
+    assert.equal(boundary.normalizedInput.length, RESEARCHER_RISK_TRADEOFF_INPUT_MAX_LENGTH);
+
+    const collection = validateResearchRiskTradeoffCollection(exactMax, [
+      {
+        claim: "exact max length topic accepted",
+        severity: "low",
+        mitigation: "monitor",
+      },
+    ]);
+    assert.equal(collection.valid, true, collection.issues.join("; "));
   });
 });

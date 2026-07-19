@@ -18,7 +18,7 @@ import {
 } from "./forge-p04-researcher-contradiction-freshness.js";
 import { parseResearchResponse, parseResearchTradeoffs } from "./parser.js";
 
-export const FORGE_RESEARCHER_RISK_TRADEOFF_VERSION = "1.0.0-a03";
+export const FORGE_RESEARCHER_RISK_TRADEOFF_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P04_B06_SEALED_ATOM_COUNT = 10;
 
@@ -1541,6 +1541,70 @@ export function runResearcherRiskTradeoffProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherRiskTradeoffBoundaryProbeMatrix(
+  results: ResearcherRiskTradeoffProbeResult[],
+  contract: ResearcherRiskTradeoffContract = getActiveResearcherRiskTradeoffContract(),
+): ResearcherRiskTradeoffProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherRiskTradeoffContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryContract: ResearcherRiskTradeoffContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherRiskTradeoffProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherRiskTradeoffBoundarySliceResult {
+  atom: "P04-B07-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherRiskTradeoffProbeResult[];
+  boundaryResults: ResearcherRiskTradeoffProbeResult[];
+  matrixValidation: ResearcherRiskTradeoffProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (research input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherRiskTradeoffBoundarySlice(
+  fixture: ResearcherRiskTradeoffBaseline = loadResearcherRiskTradeoffBaseline(),
+): ResearcherRiskTradeoffBoundarySliceResult {
+  const contract = getActiveResearcherRiskTradeoffContract();
+  const results = runResearcherRiskTradeoffProbes(fixture);
+  const boundaryProbes = listResearcherRiskTradeoffContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherRiskTradeoffBoundaryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B07-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }
