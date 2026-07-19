@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B03-A08
-last_commit: 6043f2e
+last_commit: fad5113
 tests: PASS — forge-p03-strategist-atomization*.test.ts (35/35); regression 24/24 aligned; zero probe regressions; property/fuzz slices green
 evidence: runStrategistAtomizationForgeRegression; detectStrategistAtomizationProbeRegression; runStrategistAtomizationProductionSlice; runStrategistAtomizationPropertyFuzzSlice
 next: P03-B03-A09
