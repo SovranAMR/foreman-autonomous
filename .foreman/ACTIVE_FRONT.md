@@ -44,7 +44,7 @@ fallback: A02 contract misaligned ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B02-A02
-last_commit: pending
+last_commit: e319f60
 tests: PASS — forge-p03-strategist-block-contract.test.ts (5/5); contract v1 23 probes; 1 documented FAIL gap preserved
 evidence: getActiveStrategistBlockContract; validateStrategistBlockContractCoverage; validateStrategistBlockContractAgainstContract
 next: P03-B02-A03
