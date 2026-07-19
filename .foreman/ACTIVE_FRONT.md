@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B10
-active_atom: P04-B10-A04
+active_atom: P04-B10-A06
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 394/1000
-phase_progress: 92/100
-block_progress: 4/10
+program_progress: 395/1000
+phase_progress: 93/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B10-A05 — Araştırmacı phase gate: failure, recovery ve NO-GO yollarını uygula.
+P04-B10-A06 — Araştırmacı phase gate: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P04-B10-A04 PASS; boundary slice matrix valid with zero manifest edge-case mismatches.
-target: Complete failure/recovery/NO-GO slice for phase gate evidence validators and orchestrator guard paths.
-hypothesis: Boundary slice from A04 enables targeted A05 failure/recovery probe matrix validation.
-acceptance: Failure/recovery/NO-GO probes flip to PASS; slice matrix valid; zero unexpected mismatches.
+objective: P04-B10-A05 PASS; failure/recovery/NO-GO slice matrix valid with zero unexpected mismatches.
+target: Complete evidence/telemetry/provenance run record for failure/recovery slice gate validators.
+hypothesis: Failure/recovery slice from A05 enables targeted A06 evidence run record validation.
+acceptance: Evidence run record validates; slice matrix valid; zero unexpected mismatches.
 commands: npx tsx --test src/forge-p04-researcher-phase-gate*.test.ts
 blast_radius: src/forge-p04-researcher-phase-gate*.ts
-rollback: P04-B10-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P04-B10-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Failure/recovery slice blocked ise BLOCKED raporla.
+fallback: Evidence slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B10-A04
-last_commit: e9d3d95
-tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (10/10); boundary probes=6/6
-evidence: validateResearcherPhaseGateBoundaryProbeMatrix + runResearcherPhaseGateBoundarySlice + assessResearcherPhaseGateInputBoundary manifest edge cases
-next: P04-B10-A05
+last_atom: P04-B10-A05
+last_commit: pending
+tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (13/13); failure/recovery probes=7/7
+evidence: validateResearcherPhaseGateFailureRecoveryProbeMatrix + runResearcherPhaseGateFailureRecoverySlice + failure_path/recovery_path/nogo_path guard-path probes
+next: P04-B10-A06

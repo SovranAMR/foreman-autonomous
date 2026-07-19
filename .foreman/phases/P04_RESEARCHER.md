@@ -136,7 +136,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B10-A02 — Araştırmacı phase gate: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B10-A03 — Araştırmacı phase gate: en küçük üretim dikey dilimini uygula
 - [x] P04-B10-A04 — Araştırmacı phase gate: boundary ve edge-case davranışlarını tamamla
-- [ ] P04-B10-A05 — Araştırmacı phase gate: failure, recovery ve NO-GO yollarını uygula
+- [x] P04-B10-A05 — Araştırmacı phase gate: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B10-A06 — Araştırmacı phase gate: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B10-A07 — Araştırmacı phase gate: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B10-A08 — Araştırmacı phase gate: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B10-A04
-last_commit: e9d3d95
-tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (10/10); boundary probes=6/6
-evidence: validateResearcherPhaseGateBoundaryProbeMatrix + runResearcherPhaseGateBoundarySlice + assessResearcherPhaseGateInputBoundary manifest edge cases
-next: P04-B10-A05
+last_atom: P04-B10-A05
+last_commit: pending
+tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (13/13); failure/recovery probes=7/7
+evidence: validateResearcherPhaseGateFailureRecoveryProbeMatrix + runResearcherPhaseGateFailureRecoverySlice + failure_path/recovery_path/nogo_path guard-path probes
+next: P04-B10-A06
