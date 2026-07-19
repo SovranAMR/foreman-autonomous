@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 67
+completed_atoms: 68
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -107,7 +107,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P04-B08 — Spike ve falsification deneyi
 
 - [x] P04-B08-A01 — Spike ve falsification deneyi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P04-B08-A02 — Spike ve falsification deneyi: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P04-B08-A02 — Spike ve falsification deneyi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B08-A03 — Spike ve falsification deneyi: en küçük üretim dikey dilimini uygula
 - [ ] P04-B08-A04 — Spike ve falsification deneyi: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B08-A05 — Spike ve falsification deneyi: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B08-A01
-last_commit: bde8c5d
-tests: PASS — forge-p04-researcher-spike-falsification-baseline.test.ts (10/10); probe matrix 23/23 with 2 documented FAIL gaps (rsf.parser_spike_experiment, rsf.exported_spike_falsification_validator)
-evidence: loadResearcherSpikeFalsificationBaseline + validateResearcherSpikeFalsificationBaseline + runResearcherSpikeFalsificationProbes + FORGE_P04_B07_TO_B08_HANDOFF_V1 sealed handoff alignment
-next: P04-B08-A02
+last_atom: P04-B08-A02
+last_commit: pending
+tests: PASS — forge-p04-researcher-spike-falsification.test.ts (8/8); contract coverage 23/23 with 2 expected FAIL gaps (rsf.parser_spike_experiment, rsf.exported_spike_falsification_validator)
+evidence: validateResearcherSpikeFalsificationContract + validateResearcherSpikeFalsificationAgainstContract + summarizeResearcherSpikeFalsificationContractCoverage + listResearcherSpikeFalsificationProbesByDisposition
+next: P04-B08-A03

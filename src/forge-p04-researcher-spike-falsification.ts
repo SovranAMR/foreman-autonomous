@@ -676,22 +676,190 @@ export function getActiveResearcherSpikeFalsificationContract(): ResearcherSpike
   return FORGE_RESEARCHER_SPIKE_FALSIFICATION_CONTRACT_V1;
 }
 
+export function getResearcherSpikeFalsificationCategoryContract(
+  category: ResearcherSpikeFalsificationCategory,
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): ResearcherSpikeFalsificationCategoryContract {
+  return contract.categories[category];
+}
+
+export function listResearcherSpikeFalsificationContractProbeIds(
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listResearcherSpikeFalsificationProbesByDisposition(
+  disposition: ResearcherSpikeFalsificationProbeDisposition,
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): ResearcherSpikeFalsificationProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listResearcherSpikeFalsificationContractProbesByCategory(
+  category: ResearcherSpikeFalsificationCategory,
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): readonly ResearcherSpikeFalsificationProbeContract[] {
+  return [...contract.categories[category].probes];
+}
+
 export function summarizeResearcherSpikeFalsificationContractCoverage(
   contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
 ): {
   totalProbes: number;
   expectedPass: number;
   expectedFail: number;
+  byCategory: Record<
+    ResearcherSpikeFalsificationCategory,
+    { probeCount: number; invariant: string }
+  >;
+  byDisposition: Record<ResearcherSpikeFalsificationProbeDisposition, number>;
 } {
+  const byCategory = {} as Record<
+    ResearcherSpikeFalsificationCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<ResearcherSpikeFalsificationProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
   let totalProbes = 0;
   let expectedPass = 0;
   let expectedFail = 0;
-  for (const probeEntry of contract.probes) {
-    totalProbes++;
-    if (probeEntry.expected === "PASS") expectedPass++;
-    else expectedFail++;
+
+  for (const category of RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probeEntry of categoryContract.probes) {
+      totalProbes++;
+      if (probeEntry.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probeEntry.disposition]++;
+    }
   }
-  return { totalProbes, expectedPass, expectedFail };
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export interface ResearcherSpikeFalsificationContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: ResearcherSpikeFalsificationCategory;
+  detail: string;
+}
+
+export interface ResearcherSpikeFalsificationContractCoverageResult {
+  valid: boolean;
+  issues: ResearcherSpikeFalsificationContractCoverageIssue[];
+}
+
+export function validateResearcherSpikeFalsificationContractCoverage(
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): ResearcherSpikeFalsificationContractCoverageResult {
+  const issues: ResearcherSpikeFalsificationContractCoverageIssue[] = [];
+
+  for (const category of RESEARCHER_SPIKE_FALSIFICATION_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({
+        kind: "missing_category",
+        category,
+        detail: `missing category contract: ${category}`,
+      });
+      continue;
+    }
+    if (
+      categoryContract.acceptance.minProbeCount <
+      RESEARCHER_SPIKE_FALSIFICATION_A01_MIN_PROBES[category]
+    ) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} ` +
+          `below A01 baseline ${RESEARCHER_SPIKE_FALSIFICATION_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail:
+          `${category} has ${categoryContract.probes.length} probes; ` +
+          `contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listResearcherSpikeFalsificationContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeResearcherSpikeFalsificationContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("rsf.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing rsf. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherSpikeFalsificationContract(
+  contract: ResearcherSpikeFalsificationContract = getActiveResearcherSpikeFalsificationContract(),
+): ResearcherSpikeFalsificationContractCoverageResult {
+  return validateResearcherSpikeFalsificationContractCoverage(contract);
 }
 
 export function validateResearcherSpikeFalsificationAgainstContract(
