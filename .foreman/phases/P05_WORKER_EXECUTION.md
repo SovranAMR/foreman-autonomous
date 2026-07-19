@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P05-B04-A08
-last_commit: pending
+last_commit: ccf67c9
 tests: PASS — forge-p05-worker-shell-process-integration.test.ts (7/7), forge-p05-worker-shell-process-property-fuzz.test.ts (7/7), forge-p05-worker-shell-process-evidence.test.ts (5/5), forge-p05-worker-shell-process-failure-recovery.test.ts (5/5), forge-p05-worker-shell-process-boundary.test.ts (6/6), forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
 evidence: detectWorkerShellProcessProbeRegression + runWorkerShellProcessIntegrationSlice + validateWorkerShellProcessIntegrationProbeMatrix + runForgeWorkerShellProcessRegressionGate; 27/27 probes aligned, 6/6 sub-slices aligned, prior/current run record comparison PASS, guard integrated
 next: P05-B04-A09
