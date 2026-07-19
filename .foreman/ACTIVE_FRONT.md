@@ -44,7 +44,7 @@ fallback: Property/fuzz slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B07-A06
-last_commit: pending
+last_commit: 94195d4
 tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (23/23); evidence slice 7/7 aligned; run record validation passes; zero unexpected mismatches
 evidence: runStrategistParallelWaveFailureRecoverySliceWithRecord; validateStrategistParallelWaveFailureRecoveryRunRecord; runStrategistParallelWaveEvidenceSlice
 next: P03-B07-A07
