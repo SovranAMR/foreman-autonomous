@@ -1510,4 +1510,297 @@ export interface ResearcherPhaseGateFailureRecoverySliceResult {
   matrixValidation: ResearcherPhaseGateProbeMatrixValidationResult;
 }
 
+/** Per-probe evidence entry — disposition, criterion and aligned outcomes (P04-B10-A06). */
+export interface ResearcherPhaseGateProbeEvidence {
+  probeId: string;
+  category: ResearcherPhaseGateCategory;
+  disposition: ResearcherPhaseGateProbeDisposition;
+  expected: ForgeAcceptanceOutcome;
+  actual: ForgeAcceptanceOutcome;
+  aligned: boolean;
+  criterion: string;
+  detail: string;
+  recordedAt: string;
+}
+
+/** Per-probe runtime telemetry — timing and ordering for phase gate runs (P04-B10-A06). */
+export interface ResearcherPhaseGateProbeTelemetry {
+  probeId: string;
+  category: ResearcherPhaseGateCategory;
+  sequenceIndex: number;
+  durationMs: number;
+}
+
+/** Run-level provenance — contract/fixture lineage and execution context (P04-B10-A06). */
+export interface ResearcherPhaseGateProvenance {
+  runId: string;
+  harnessVersion: string;
+  contractVersion: string;
+  contractAtom: string;
+  fixtureVersion: string;
+  fixtureAtom: string;
+  sourceBlockGateVersion: string;
+  sourceBlockGateAtom: string;
+  /** Slice atom when record covers a subset (e.g. evidence gate). */
+  sliceAtom?: string;
+  /** Categories included when sliceAtom is set. */
+  sliceCategories?: readonly ResearcherPhaseGateCategory[];
+  startedAt: string;
+  completedAt: string;
+  totalProbes: number;
+  gitCommit?: string;
+}
+
+/** Aggregated phase gate run record bundling evidence, telemetry and provenance. */
+export interface ResearcherPhaseGateRunRecord {
+  provenance: ResearcherPhaseGateProvenance;
+  evidence: ResearcherPhaseGateProbeEvidence[];
+  telemetry: ResearcherPhaseGateProbeTelemetry[];
+  summary: {
+    total: number;
+    aligned: number;
+    mismatches: number;
+    byCategory: Record<ResearcherPhaseGateCategory, number>;
+    byDisposition: Record<ResearcherPhaseGateProbeDisposition, number>;
+  };
+}
+
+export interface ResearcherPhaseGateRunValidationIssue {
+  kind: "missing_evidence" | "missing_telemetry" | "provenance_mismatch" | "count_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface ResearcherPhaseGateRunValidationResult {
+  valid: boolean;
+  issues: ResearcherPhaseGateRunValidationIssue[];
+}
+
+export function buildResearcherPhaseGateProbeEvidence(
+  probeId: string,
+  category: ResearcherPhaseGateCategory,
+  expected: ForgeAcceptanceOutcome,
+  actual: ForgeAcceptanceOutcome,
+  aligned: boolean,
+  criterion: string,
+  detail: string,
+  disposition: ResearcherPhaseGateProbeDisposition,
+  recordedAt: string = new Date().toISOString(),
+): ResearcherPhaseGateProbeEvidence {
+  return {
+    probeId,
+    category,
+    disposition,
+    expected,
+    actual,
+    aligned,
+    criterion,
+    detail,
+    recordedAt,
+  };
+}
+
+export function buildResearcherPhaseGateProbeTelemetry(
+  probeId: string,
+  category: ResearcherPhaseGateCategory,
+  sequenceIndex: number,
+  durationMs: number,
+): ResearcherPhaseGateProbeTelemetry {
+  return {
+    probeId,
+    category,
+    sequenceIndex,
+    durationMs: Math.max(0, durationMs),
+  };
+}
+
+export function buildResearcherPhaseGateProvenance(
+  runId: string,
+  fixture: ResearcherPhaseGateBaseline,
+  contract: ResearcherPhaseGateContract,
+  startedAt: string,
+  completedAt: string,
+  totalProbes: number,
+  options?: {
+    gitCommit?: string;
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherPhaseGateCategory[];
+  },
+): ResearcherPhaseGateProvenance {
+  return {
+    runId,
+    harnessVersion: FORGE_RESEARCHER_PHASE_GATE_VERSION,
+    contractVersion: contract.version,
+    contractAtom: contract.atom,
+    fixtureVersion: fixture.version,
+    fixtureAtom: fixture.atom,
+    sourceBlockGateVersion: fixture.sourceBlockGate.version,
+    sourceBlockGateAtom: fixture.sourceBlockGate.atom,
+    startedAt,
+    completedAt,
+    totalProbes,
+    ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+    ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    ...(options?.gitCommit ? { gitCommit: options.gitCommit } : {}),
+  };
+}
+
+export function buildResearcherPhaseGateRunRecord(
+  provenance: ResearcherPhaseGateProvenance,
+  evidence: ResearcherPhaseGateProbeEvidence[],
+  telemetry: ResearcherPhaseGateProbeTelemetry[],
+): ResearcherPhaseGateRunRecord {
+  const byCategory = {} as Record<ResearcherPhaseGateCategory, number>;
+  const byDisposition: Record<ResearcherPhaseGateProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  for (const category of RESEARCHER_PHASE_GATE_CATEGORIES) {
+    byCategory[category] = 0;
+  }
+  let aligned = 0;
+  for (const item of evidence) {
+    byCategory[item.category]++;
+    byDisposition[item.disposition]++;
+    if (item.aligned) aligned++;
+  }
+  return {
+    provenance,
+    evidence,
+    telemetry,
+    summary: {
+      total: evidence.length,
+      aligned,
+      mismatches: evidence.length - aligned,
+      byCategory,
+      byDisposition,
+    },
+  };
+}
+
+function validateResearcherPhaseGateRunRecordAgainstProbeIds(
+  record: ResearcherPhaseGateRunRecord,
+  expectedProbeIds: string[],
+  contract: ResearcherPhaseGateContract,
+): ResearcherPhaseGateRunValidationResult {
+  const issues: ResearcherPhaseGateRunValidationIssue[] = [];
+  const expectedProbeCount = expectedProbeIds.length;
+
+  if (record.provenance.totalProbes !== expectedProbeCount) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `provenance.totalProbes=${record.provenance.totalProbes} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.evidence.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `evidence count=${record.evidence.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  if (record.telemetry.length !== expectedProbeCount) {
+    issues.push({
+      kind: "count_mismatch",
+      detail: `telemetry count=${record.telemetry.length} expected=${expectedProbeCount}`,
+    });
+  }
+
+  const evidenceIds = new Set(record.evidence.map(e => e.probeId));
+  const telemetryIds = new Set(record.telemetry.map(t => t.probeId));
+
+  for (const probeId of expectedProbeIds) {
+    if (!evidenceIds.has(probeId)) {
+      issues.push({ kind: "missing_evidence", probeId, detail: `no evidence for ${probeId}` });
+    }
+    if (!telemetryIds.has(probeId)) {
+      issues.push({ kind: "missing_telemetry", probeId, detail: `no telemetry for ${probeId}` });
+    }
+  }
+
+  if (record.provenance.contractVersion !== contract.version) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `contractVersion=${record.provenance.contractVersion} expected=${contract.version}`,
+    });
+  }
+
+  for (const item of record.evidence) {
+    if (!item.criterion || item.criterion.length === 0) {
+      issues.push({
+        kind: "missing_evidence",
+        probeId: item.probeId,
+        detail: `${item.probeId} evidence missing criterion provenance`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function validateResearcherPhaseGateRunRecord(
+  record: ResearcherPhaseGateRunRecord,
+  contract: ResearcherPhaseGateContract = getActiveResearcherPhaseGateContract(),
+): ResearcherPhaseGateRunValidationResult {
+  return validateResearcherPhaseGateRunRecordAgainstProbeIds(
+    record,
+    listResearcherPhaseGateContractProbeIds(contract),
+    contract,
+  );
+}
+
+/** Validate evidence slice run record — A06 gate for failure_path + recovery_path + nogo_path probes. */
+export function validateResearcherPhaseGateEvidenceRunRecord(
+  record: ResearcherPhaseGateRunRecord,
+  contract: ResearcherPhaseGateContract = getActiveResearcherPhaseGateContract(),
+): ResearcherPhaseGateRunValidationResult {
+  const issues: ResearcherPhaseGateRunValidationIssue[] = [];
+
+  if (record.provenance.sliceAtom !== "P04-B10-A06") {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceAtom=${record.provenance.sliceAtom ?? "missing"} expected=P04-B10-A06`,
+    });
+  }
+
+  const expectedCategories = [...RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES];
+  const sliceCategories = record.provenance.sliceCategories ?? [];
+  if (
+    sliceCategories.length !== expectedCategories.length ||
+    !expectedCategories.every(cat => sliceCategories.includes(cat))
+  ) {
+    issues.push({
+      kind: "provenance_mismatch",
+      detail: `sliceCategories=${sliceCategories.join(",")} expected=${expectedCategories.join(",")}`,
+    });
+  }
+
+  const probeValidation = validateResearcherPhaseGateRunRecordAgainstProbeIds(
+    record,
+    listResearcherPhaseGateFailureRecoveryProbeIds(contract),
+    contract,
+  );
+
+  return {
+    valid: issues.length === 0 && probeValidation.valid,
+    issues: [...issues, ...probeValidation.issues],
+  };
+}
+
+export interface ResearcherPhaseGateEvidenceSliceResult {
+  atom: "P04-B10-A06";
+  evidenceProbeCount: number;
+  matrixValid: boolean;
+  recordValid: boolean;
+  results: ResearcherPhaseGateProbeResult[];
+  evidenceResults: ResearcherPhaseGateProbeResult[];
+  matrixValidation: ResearcherPhaseGateProbeMatrixValidationResult;
+  record: ResearcherPhaseGateRunRecord;
+  recordValidation: ResearcherPhaseGateRunValidationResult;
+}
+
 export { FORGE_RESEARCHER_RESEARCH_TO_WORKER_HANDOFF_VERSION };

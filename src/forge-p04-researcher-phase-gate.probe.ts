@@ -7,6 +7,9 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
 import {
   getForgeP04B09ToB10Handoff,
@@ -36,6 +39,11 @@ import {
   validateResearcherPhaseGateFailureRecoveryProbeMatrix,
   listResearcherPhaseGateFailureRecoveryProbeIds,
   RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
+  buildResearcherPhaseGateProbeEvidence,
+  buildResearcherPhaseGateProbeTelemetry,
+  buildResearcherPhaseGateProvenance,
+  buildResearcherPhaseGateRunRecord,
+  validateResearcherPhaseGateEvidenceRunRecord,
   loadResearcherPhaseGateBaseline,
   FORGE_RESEARCHER_PHASE_GATE_VERSION,
   RESEARCHER_PHASE_GATE_MANIFEST_MAX_LENGTH,
@@ -48,8 +56,14 @@ import {
   type ResearcherPhaseGateBaseline,
   type ResearcherPhaseGateBoundarySliceResult,
   type ResearcherPhaseGateFailureRecoverySliceResult,
+  type ResearcherPhaseGateEvidenceSliceResult,
   type ResearcherPhaseGateCategory,
   type ResearcherPhaseGateProbeResult,
+  type ResearcherPhaseGateProbeContract,
+  type ResearcherPhaseGateProbeDisposition,
+  type ResearcherPhaseGateRunRecord,
+  type ResearcherPhaseGateContract,
+  type ResearcherPhaseGateFixtureEntry,
 } from "./forge-p04-researcher-phase-gate.js";
 
 export type { ResearcherPhaseGateBaseline, ResearcherPhaseGateProbeResult } from "./forge-p04-researcher-phase-gate.js";
@@ -599,3 +613,163 @@ export function runResearcherPhaseGateFailureRecoverySlice(
 
 export const runForgeResearcherPhaseGateFailureRecoverySlice =
   runResearcherPhaseGateFailureRecoverySlice;
+
+function resolveResearcherPhaseGateGitCommit(): string | undefined {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function runResearcherPhaseGateProbeWithTiming(
+  entry: ResearcherPhaseGateFixtureEntry,
+  fixture: ResearcherPhaseGateBaseline,
+  contractProbe: ResearcherPhaseGateProbeContract | undefined,
+): {
+  result: ResearcherPhaseGateProbeResult;
+  durationMs: number;
+  disposition: ResearcherPhaseGateProbeDisposition;
+} {
+  const start = performance.now();
+  const expected = contractProbe?.expected ?? entry.expected;
+  const result = runSingleProbe(entry.id, entry.category, expected, fixture);
+  const enriched = contractProbe?.criterion
+    ? { ...result, criterion: contractProbe.criterion }
+    : result;
+  const durationMs = performance.now() - start;
+  return {
+    result: enriched,
+    durationMs,
+    disposition: contractProbe?.disposition ?? "observed",
+  };
+}
+
+function buildResearcherPhaseGateRecordFromEntries(
+  entries: ResearcherPhaseGateFixtureEntry[],
+  fixture: ResearcherPhaseGateBaseline,
+  contract: ResearcherPhaseGateContract,
+  options?: {
+    sliceAtom?: string;
+    sliceCategories?: readonly ResearcherPhaseGateCategory[];
+  },
+): ResearcherPhaseGateRunRecord {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const evidence: ReturnType<typeof buildResearcherPhaseGateProbeEvidence>[] = [];
+  const telemetry: ReturnType<typeof buildResearcherPhaseGateProbeTelemetry>[] = [];
+  let sequenceIndex = 0;
+
+  for (const entry of entries) {
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    const { result, durationMs, disposition } = runResearcherPhaseGateProbeWithTiming(
+      entry,
+      fixture,
+      contractProbe,
+    );
+    const criterion = contractProbe?.criterion ?? result.criterion ?? "";
+
+    evidence.push(
+      buildResearcherPhaseGateProbeEvidence(
+        result.id,
+        result.category,
+        result.expected,
+        result.actual,
+        result.aligned,
+        criterion,
+        result.detail,
+        disposition,
+      ),
+    );
+    telemetry.push(
+      buildResearcherPhaseGateProbeTelemetry(
+        result.id,
+        result.category,
+        sequenceIndex,
+        durationMs,
+      ),
+    );
+    sequenceIndex++;
+  }
+
+  const completedAt = new Date().toISOString();
+  const provenance = buildResearcherPhaseGateProvenance(
+    runId,
+    fixture,
+    contract,
+    startedAt,
+    completedAt,
+    evidence.length,
+    {
+      gitCommit: resolveResearcherPhaseGateGitCommit(),
+      ...(options?.sliceAtom ? { sliceAtom: options.sliceAtom } : {}),
+      ...(options?.sliceCategories ? { sliceCategories: options.sliceCategories } : {}),
+    },
+  );
+
+  return buildResearcherPhaseGateRunRecord(provenance, evidence, telemetry);
+}
+
+/** Run all phase gate probes and emit auditable evidence, telemetry and provenance (P04-B10-A06). */
+export function runResearcherPhaseGateProbesWithRecord(
+  fixture: ResearcherPhaseGateBaseline = loadResearcherPhaseGateBaseline(),
+): ResearcherPhaseGateRunRecord {
+  const contract = getActiveResearcherPhaseGateContract();
+  return buildResearcherPhaseGateRecordFromEntries(fixture.probes, fixture, contract);
+}
+
+/** Run failure/recovery slice probes with evidence, telemetry and provenance (P04-B10-A06). */
+export function runResearcherPhaseGateFailureRecoverySliceWithRecord(
+  fixture: ResearcherPhaseGateBaseline = loadResearcherPhaseGateBaseline(),
+): ResearcherPhaseGateRunRecord {
+  const contract = getActiveResearcherPhaseGateContract();
+  const failureRecoveryIds = new Set(listResearcherPhaseGateFailureRecoveryProbeIds(contract));
+  const entries = fixture.probes.filter(entry => failureRecoveryIds.has(entry.id));
+
+  return buildResearcherPhaseGateRecordFromEntries(entries, fixture, contract, {
+    sliceAtom: "P04-B10-A06",
+    sliceCategories: RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES,
+  });
+}
+
+/**
+ * A06 evidence slice: contract-wired failure_path, recovery_path, and nogo_path probes
+ * with auditable evidence, telemetry and provenance — zero unexpected mismatches.
+ */
+export function runResearcherPhaseGateEvidenceSlice(
+  fixture: ResearcherPhaseGateBaseline = loadResearcherPhaseGateBaseline(),
+): ResearcherPhaseGateEvidenceSliceResult {
+  const contract = getActiveResearcherPhaseGateContract();
+  const results = runResearcherPhaseGateProbes(fixture);
+  const failureRecoveryProbes = RESEARCHER_PHASE_GATE_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listResearcherPhaseGateContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const evidenceResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateResearcherPhaseGateFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+  const record = runResearcherPhaseGateFailureRecoverySliceWithRecord(fixture);
+  const recordValidation = validateResearcherPhaseGateEvidenceRunRecord(record, contract);
+
+  return {
+    atom: "P04-B10-A06",
+    evidenceProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    recordValid: recordValidation.valid && record.summary.mismatches === 0,
+    results,
+    evidenceResults,
+    matrixValidation,
+    record,
+    recordValidation,
+  };
+}
+
+export const runForgeResearcherPhaseGateProbesWithRecord = runResearcherPhaseGateProbesWithRecord;
+export const runForgeResearcherPhaseGateFailureRecoverySliceWithRecord =
+  runResearcherPhaseGateFailureRecoverySliceWithRecord;
+export const runForgeResearcherPhaseGateEvidenceSlice = runResearcherPhaseGateEvidenceSlice;
