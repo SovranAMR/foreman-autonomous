@@ -47,7 +47,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B03-A04 — Web ve primary-source araştırma: boundary ve edge-case davranışlarını tamamla
 - [x] P04-B03-A05 — Web ve primary-source araştırma: failure, recovery ve NO-GO yollarını uygula
 - [x] P04-B03-A06 — Web ve primary-source araştırma: evidence, telemetry ve provenance kaydını ekle
-- [ ] P04-B03-A07 — Web ve primary-source araştırma: unit, property ve fuzz doğrulamasını ekle
+- [x] P04-B03-A07 — Web ve primary-source araştırma: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B03-A08 — Web ve primary-source araştırma: Forge entegrasyonu ile regression testini tamamla
 - [ ] P04-B03-A09 — Web ve primary-source araştırma: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P04-B03-A10 — Web ve primary-source araştırma: block gate kanıtını mühürle ve sonraki block handoff'unu yap
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B03-A06
-last_commit: be282d9
-tests: PASS — forge-p04-researcher*.test.ts; evidenceProbeCount=6; runResearcherWebPrimarySourceEvidenceSlice exported
-evidence: runResearcherWebPrimarySourceEvidenceSlice; validateResearcherWebPrimarySourceEvidenceRunRecord; forge-p04-researcher-web-primary-source-baseline.test.ts
-next: P04-B03-A07
+last_atom: P04-B03-A07
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts; propertyChecks=8; contractFuzz rejected=24/24; runRecordFuzz rejected=5/5
+evidence: runResearcherWebPrimarySourcePropertyFuzzSlice; runResearcherWebPrimarySourcePropertyChecks; forge-p04-researcher-web-primary-source.property-fuzz.test.ts
+next: P04-B03-A08

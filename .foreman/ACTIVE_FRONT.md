@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B03
-active_atom: P04-B03-A07
+active_atom: P04-B03-A08
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 326/1000
-phase_progress: 26/100
-block_progress: 6/10
+program_progress: 327/1000
+phase_progress: 27/100
+block_progress: 7/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B03-A07 — Web ve primary-source araştırma: unit, property ve fuzz doğrulamasını ekle.
+P04-B03-A08 — Web ve primary-source araştırma: Forge entegrasyonu ile regression testini tamamla.
 
-objective: P04-B03-A06 PASS; add unit, property and fuzz validation for web primary-source research.
-target: property checks, fuzz validation, run record fuzz for failure/recovery categories.
-hypothesis: Property and fuzz gates reject tampered records while aligned probes stay green.
-acceptance: property/fuzz slice PASS; A01-A06 baseline remains valid.
+objective: P04-B03-A07 PASS; wire property/fuzz slice into Forge integration regression gate.
+target: integration runner, regression detection, probe matrix alignment with propertyFuzz slice.
+hypothesis: Integration gate detects probe regressions while property/fuzz gates remain green.
+acceptance: integration slice PASS; A01-A07 baseline remains valid.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-web-primary-source*.ts
-rollback: P04-B03-A07 property/fuzz değişikliklerini geri al.
+rollback: P04-B03-A08 integration değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B03-A06
-last_commit: be282d9
-tests: PASS — forge-p04-researcher*.test.ts; evidenceProbeCount=6; runResearcherWebPrimarySourceEvidenceSlice exported
-evidence: runResearcherWebPrimarySourceEvidenceSlice; validateResearcherWebPrimarySourceEvidenceRunRecord; forge-p04-researcher-web-primary-source-baseline.test.ts
-next: P04-B03-A07
+last_atom: P04-B03-A07
+last_commit: pending
+tests: PASS — forge-p04-researcher*.test.ts; propertyChecks=8; contractFuzz rejected=24/24; runRecordFuzz rejected=5/5
+evidence: runResearcherWebPrimarySourcePropertyFuzzSlice; runResearcherWebPrimarySourcePropertyChecks; forge-p04-researcher-web-primary-source.property-fuzz.test.ts
+next: P04-B03-A08
