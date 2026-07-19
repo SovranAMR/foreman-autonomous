@@ -44,7 +44,7 @@ fallback: Property/fuzz slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B10-A06
-last_commit: pending
+last_commit: 9013982
 tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); forge-p04-researcher-phase-gate.test.ts (16/16); evidence probes=7/7
 evidence: validateResearcherPhaseGateEvidenceRunRecord + runResearcherPhaseGateEvidenceSlice + runResearcherPhaseGateFailureRecoverySliceWithRecord
 next: P04-B10-A07
