@@ -19,6 +19,7 @@ import {
   ORCHESTRATOR_FORGE_GUARD_METHODS,
   ORCHESTRATOR_FORGE_BLOCK_GATE_METHODS,
   EXPECTED_ORCHESTRATOR_FORGE_GUARD_METHOD_COUNT,
+  getActiveOrchestratorSeamContract,
   validateOrchestratorSeamBaseline,
   summarizeOrchestratorSeamMatrix,
   listOrchestratorSeamProbesByExpected,
@@ -37,6 +38,14 @@ export {
   listOrchestratorSeamProbesByExpected,
   listOrchestratorSeamKnownGaps,
   buildDefaultOrchestratorSeamSourceEvidenceArtifact,
+  getActiveOrchestratorSeamContract,
+  getOrchestratorSeamCategoryContract,
+  listOrchestratorSeamContractProbeIds,
+  listOrchestratorSeamProbesByDisposition,
+  listOrchestratorSeamContractProbesByCategory,
+  summarizeOrchestratorSeamContractCoverage,
+  validateOrchestratorSeamContractCoverage,
+  validateOrchestratorSeamBaselineAgainstContract,
   FORGE_ORCHESTRATOR_SEAM_VERSION,
   ORCHESTRATOR_SEAM_CATEGORIES,
   ORCHESTRATOR_FORGE_REGRESSION_METHODS,
@@ -529,7 +538,12 @@ export function loadOrchestratorSeamBaseline(): OrchestratorSeamBaseline {
 export function runOrchestratorSeamProbes(
   fixture: OrchestratorSeamBaseline = loadOrchestratorSeamBaseline(),
 ): OrchestratorSeamProbeResult[] {
-  return fixture.probes.map(entry =>
-    runSingleProbe(entry.id, entry.category, entry.expected, fixture),
-  );
+  const contract = getActiveOrchestratorSeamContract();
+  return fixture.probes.map(entry => {
+    const result = runSingleProbe(entry.id, entry.category, entry.expected, fixture);
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion
+      ? { ...result, criterion: contractProbe.criterion }
+      : result;
+  });
 }

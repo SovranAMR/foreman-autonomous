@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 77
+completed_atoms: 78
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -120,7 +120,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P01-B09 — Orchestrator seam ve modülerleşme
 
 - [x] P01-B09-A01 — Orchestrator seam ve modülerleşme: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P01-B09-A02 — Orchestrator seam ve modülerleşme: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P01-B09-A02 — Orchestrator seam ve modülerleşme: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P01-B09-A03 — Orchestrator seam ve modülerleşme: en küçük üretim dikey dilimini uygula
 - [ ] P01-B09-A04 — Orchestrator seam ve modülerleşme: boundary ve edge-case davranışlarını tamamla
 - [ ] P01-B09-A05 — Orchestrator seam ve modülerleşme: failure, recovery ve NO-GO yollarını uygula
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B09-A01
+last_atom: P01-B09-A02
 last_commit: pending
-tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (3/3); 23 probes (16 PASS / 7 documented FAIL gaps); B08 handoff refs valid
+tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (9/9); 23 probes mapped; 9 categories; disposition+criterion per probe
 evidence: |
-  P01-B09-A01: forge-orchestrator-seam.ts, forge-orchestrator-seam.probe.ts, fixtures/forge-orchestrator-seam-v1.json;
-  runOrchestratorSeamProbes measures orchestrator verifyForge method inventory, lazy-import seams, composition gaps;
-  validateOrchestratorSeamBaseline aligned to FORGE_P01_B08_TO_B09_HANDOFF_V1 (probeCount=25, entryAtom=P01-B09-A01).
-next: P01-B09-A02
+  P01-B09-A02: FORGE_ORCHESTRATOR_SEAM_CONTRACT_V1 in forge-orchestrator-seam.ts;
+  getActiveOrchestratorSeamContract + validateOrchestratorSeamBaselineAgainstContract;
+  runOrchestratorSeamProbes wires criterion from typed contract; 14 observed / 3 gap / 2 failure / 2 recovery / 2 nogo.
+next: P01-B09-A03
