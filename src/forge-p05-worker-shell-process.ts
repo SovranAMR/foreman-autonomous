@@ -20,7 +20,7 @@ import {
 } from "./forge-p05-worker-edit-engine.js";
 import { TOOL_DEFINITIONS, type ToolCall } from "./tools.js";
 
-export const FORGE_WORKER_SHELL_PROCESS_VERSION = "1.0.0-a07";
+export const FORGE_WORKER_SHELL_PROCESS_VERSION = "1.0.0-a08";
 
 export const EXPECTED_P05_B03_SEALED_ATOM_COUNT = 10;
 
@@ -2866,5 +2866,719 @@ export function runWorkerShellProcessPropertyFuzzSlice(
     propertyResult,
     contractFuzz,
     runRecordFuzz,
+  };
+}
+
+// ─── Forge integration regression (P05-B04-A08) ─────────────────────────────
+
+export interface WorkerShellProcessProbeRegressionReport {
+  hasRegression: boolean;
+  regressions: string[];
+  fixed: string[];
+  newMismatches: string[];
+  summary: string;
+}
+
+/**
+ * Compare worker shell process run records and detect probe alignment regressions.
+ * A regression = probe aligned in prior run but misaligned in current run.
+ */
+export function detectWorkerShellProcessProbeRegression(
+  prior: WorkerShellProcessRunRecord,
+  current: WorkerShellProcessRunRecord,
+): WorkerShellProcessProbeRegressionReport {
+  const priorById = new Map(prior.evidence.map(item => [item.probeId, item]));
+  const regressions: string[] = [];
+  const fixed: string[] = [];
+  const newMismatches: string[] = [];
+
+  for (const item of current.evidence) {
+    const previous = priorById.get(item.probeId);
+    if (!previous) {
+      newMismatches.push(item.probeId);
+      continue;
+    }
+    if (previous.aligned && !item.aligned) {
+      regressions.push(item.probeId);
+    } else if (!previous.aligned && item.aligned) {
+      fixed.push(item.probeId);
+    } else if (!item.aligned) {
+      newMismatches.push(item.probeId);
+    }
+  }
+
+  const hasRegression =
+    regressions.length > 0 || current.summary.mismatches > prior.summary.mismatches;
+  const parts: string[] = [];
+  if (regressions.length > 0) parts.push(`${regressions.length} probe regression(s)`);
+  if (newMismatches.length > 0) parts.push(`${newMismatches.length} new mismatch(es)`);
+  if (fixed.length > 0) parts.push(`${fixed.length} fixed`);
+  if (parts.length === 0) parts.push("no alignment regression");
+
+  return {
+    hasRegression,
+    regressions,
+    fixed,
+    newMismatches,
+    summary: parts.join("; "),
+  };
+}
+
+export interface WorkerShellProcessIntegrationSliceResult {
+  atom: "P05-B04-A08";
+  passed: boolean;
+  productionSlice: WorkerShellProcessProductionSliceResult;
+  boundarySlice: WorkerShellProcessBoundarySliceResult;
+  failureRecoverySlice: WorkerShellProcessFailureRecoverySliceResult;
+  evidenceSlice: WorkerShellProcessEvidenceSliceResult;
+  propertyFuzzSlice: WorkerShellProcessPropertyFuzzSliceResult;
+  record: WorkerShellProcessRunRecord;
+  recordValid: boolean;
+  priorRecordValid: boolean;
+  validationIssues: string[];
+  priorValidationIssues: string[];
+  probeRegression: WorkerShellProcessProbeRegressionReport | null;
+  guard: WorkerShellProcessGuardCheckResult;
+  matrixValid: boolean;
+  matrixValidation: WorkerShellProcessIntegrationProbeMatrixValidationResult;
+  detail: string;
+}
+
+export interface WorkerShellProcessIntegrationProbeMatrixValidationResult {
+  valid: boolean;
+  issues: WorkerShellProcessProbeMatrixValidationIssue[];
+  slicesAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate integration slice sub-gates — all prior A03–A07 slices with zero unexpected mismatches.
+ */
+export function validateWorkerShellProcessIntegrationProbeMatrix(
+  slice: WorkerShellProcessIntegrationSliceResult,
+): WorkerShellProcessIntegrationProbeMatrixValidationResult {
+  const issues: WorkerShellProcessProbeMatrixValidationIssue[] = [];
+  let slicesAligned = 0;
+  let unexpectedMismatches = 0;
+
+  if (slice.atom !== "P05-B04-A08") {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: `slice atom=${slice.atom} expected=P05-B04-A08`,
+    });
+    unexpectedMismatches++;
+  }
+
+  const sliceChecks: Array<{ name: string; ok: boolean; detail: string }> = [
+    {
+      name: "production",
+      ok:
+        slice.productionSlice.matrixValid &&
+        slice.productionSlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `production unexpected=${slice.productionSlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "boundary",
+      ok:
+        slice.boundarySlice.matrixValid &&
+        slice.boundarySlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `boundary unexpected=${slice.boundarySlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "failure_recovery",
+      ok:
+        slice.failureRecoverySlice.matrixValid &&
+        slice.failureRecoverySlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `failureRecovery unexpected=${slice.failureRecoverySlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "evidence",
+      ok:
+        slice.evidenceSlice.matrixValid &&
+        slice.evidenceSlice.recordValid &&
+        slice.evidenceSlice.matrixValidation.unexpectedMismatches === 0,
+      detail: `evidence unexpected=${slice.evidenceSlice.matrixValidation.unexpectedMismatches}`,
+    },
+    {
+      name: "property_fuzz",
+      ok:
+        slice.propertyFuzzSlice.propertyChecksPassed &&
+        slice.propertyFuzzSlice.contractFuzzRejected &&
+        slice.propertyFuzzSlice.runRecordFuzzRejected,
+      detail: `propertyFuzz properties=${slice.propertyFuzzSlice.propertyResult.passed}/${slice.propertyFuzzSlice.propertyResult.total}`,
+    },
+    {
+      name: "record",
+      ok: slice.recordValid && slice.record.summary.mismatches === 0,
+      detail: `record mismatches=${slice.record.summary.mismatches}`,
+    },
+  ];
+
+  for (const check of sliceChecks) {
+    if (check.ok) {
+      slicesAligned++;
+    } else {
+      issues.push({ kind: "pass_mismatch", detail: `${check.name}: ${check.detail}` });
+      unexpectedMismatches++;
+    }
+  }
+
+  if (slice.probeRegression?.hasRegression) {
+    issues.push({
+      kind: "pass_mismatch",
+      detail: `probe regression: ${slice.probeRegression.summary}`,
+    });
+    unexpectedMismatches++;
+  }
+
+  if (!slice.priorRecordValid && slice.probeRegression !== null) {
+    issues.push({ kind: "pass_mismatch", detail: "prior record validation failed" });
+    unexpectedMismatches++;
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    slicesAligned,
+    unexpectedMismatches,
+  };
+}
+
+/**
+ * A08 integration slice: wire production, boundary, failure/recovery, evidence and property/fuzz
+ * gates with full run record and optional prior-run regression detection — zero unexpected mismatches.
+ */
+export function runWorkerShellProcessIntegrationSlice(
+  priorRecord?: WorkerShellProcessRunRecord,
+): WorkerShellProcessIntegrationSliceResult {
+  const fixture = loadWorkerShellProcessBaseline();
+  const contract = getActiveWorkerShellProcessContract();
+  const productionSlice = runWorkerShellProcessProductionSlice(fixture);
+  const boundarySlice = runWorkerShellProcessBoundarySlice(fixture);
+  const failureRecoverySlice = runWorkerShellProcessFailureRecoverySlice(fixture);
+  const evidenceSlice = runWorkerShellProcessEvidenceSlice(fixture);
+  const propertyFuzzSlice = runWorkerShellProcessPropertyFuzzSlice(fixture);
+  const record = runWorkerShellProcessProbesWithRecord(fixture);
+  const validation = validateWorkerShellProcessRunRecord(record, contract);
+  const recordValid = validation.valid && record.summary.mismatches === 0;
+  const validationIssues = validation.issues.map(issue => issue.detail);
+
+  let priorRecordValid = true;
+  let priorValidationIssues: string[] = [];
+  if (priorRecord) {
+    const priorValidation = validateWorkerShellProcessRunRecord(priorRecord, contract);
+    priorRecordValid = priorValidation.valid && priorRecord.summary.mismatches === 0;
+    priorValidationIssues = priorValidation.issues.map(issue => issue.detail);
+  }
+
+  const probeRegression = priorRecord
+    ? detectWorkerShellProcessProbeRegression(priorRecord, record)
+    : null;
+  const alignmentRegression = probeRegression?.hasRegression ?? false;
+  const guard = validateForgeWorkerShellProcessGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+
+  const productionSliceOk =
+    productionSlice.matrixValid && productionSlice.matrixValidation.unexpectedMismatches === 0;
+  const boundarySliceOk =
+    boundarySlice.matrixValid && boundarySlice.matrixValidation.unexpectedMismatches === 0;
+  const failureRecoverySliceOk =
+    failureRecoverySlice.matrixValid &&
+    failureRecoverySlice.matrixValidation.unexpectedMismatches === 0;
+  const evidenceSliceOk =
+    evidenceSlice.matrixValid &&
+    evidenceSlice.recordValid &&
+    evidenceSlice.matrixValidation.unexpectedMismatches === 0;
+  const propertyFuzzOk =
+    propertyFuzzSlice.propertyChecksPassed &&
+    propertyFuzzSlice.contractFuzzRejected &&
+    propertyFuzzSlice.runRecordFuzzRejected;
+
+  const passed =
+    productionSliceOk &&
+    boundarySliceOk &&
+    failureRecoverySliceOk &&
+    evidenceSliceOk &&
+    propertyFuzzOk &&
+    recordValid &&
+    priorRecordValid &&
+    !alignmentRegression &&
+    guard.passed;
+
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  detailParts.push(
+    `productionSlice: unexpected=${productionSlice.matrixValidation.unexpectedMismatches}`,
+  );
+  detailParts.push(`boundarySlice: unexpected=${boundarySlice.matrixValidation.unexpectedMismatches}`);
+  detailParts.push(
+    `failureRecoverySlice: unexpected=${failureRecoverySlice.matrixValidation.unexpectedMismatches}`,
+  );
+  detailParts.push(`evidenceSlice: unexpected=${evidenceSlice.matrixValidation.unexpectedMismatches}`);
+  if (!recordValid) {
+    detailParts.push(`validation: ${validationIssues.join("; ") || "mismatches present"}`);
+  }
+  if (!priorRecordValid) {
+    detailParts.push(`priorValidation: ${priorValidationIssues.join("; ") || "tampered prior record"}`);
+  }
+  if (probeRegression) detailParts.push(`regression: ${probeRegression.summary}`);
+  detailParts.push(
+    `propertyFuzz: properties=${propertyFuzzSlice.propertyResult.passed}/${propertyFuzzSlice.propertyResult.total} contractFuzz rejected=${propertyFuzzSlice.contractFuzz.rejected}/${propertyFuzzSlice.contractFuzz.iterations} runFuzz rejected=${propertyFuzzSlice.runRecordFuzz.mutationsRejected}`,
+  );
+  if (!guard.passed) {
+    detailParts.push(
+      `guard: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+
+  const partial: WorkerShellProcessIntegrationSliceResult = {
+    atom: "P05-B04-A08",
+    passed,
+    productionSlice,
+    boundarySlice,
+    failureRecoverySlice,
+    evidenceSlice,
+    propertyFuzzSlice,
+    record,
+    recordValid,
+    priorRecordValid,
+    validationIssues,
+    priorValidationIssues,
+    probeRegression,
+    guard,
+    matrixValid: false,
+    matrixValidation: {
+      valid: false,
+      issues: [],
+      slicesAligned: 0,
+      unexpectedMismatches: 0,
+    },
+    detail: detailParts.join(" | "),
+  };
+
+  const matrixValidation = validateWorkerShellProcessIntegrationProbeMatrix(partial);
+  return {
+    ...partial,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    matrixValidation,
+    passed: passed && matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    detail:
+      passed && matrixValidation.valid
+        ? detailParts.join(" | ")
+        : `${detailParts.join(" | ")} | integrationMatrix: unexpected=${matrixValidation.unexpectedMismatches}`,
+  };
+}
+
+/** Alias for forge-pipeline-regression integration seam (P05-B04-A08). */
+export const runWorkerShellProcessRegressionIntegration = runWorkerShellProcessIntegrationSlice;
+
+// ─── Guard controls (P05-B04-A09 prerequisite for A08 integration) ──────────
+
+export interface ForgeWorkerShellProcessGuardControls {
+  atom: string;
+  adversarial: {
+    rejectTamperedRecords: true;
+    rejectFalseAlignment: true;
+    rejectSummaryEvidenceMismatch: true;
+  };
+  performance: {
+    maxSuiteDurationMs: number;
+    maxProbeDurationMs: number;
+    maxWallClockMs: number;
+  };
+  cost: {
+    maxTotalCostUsd: number;
+    maxLlmCalls: number;
+  };
+  safety: {
+    maxDetailLength: number;
+    forbiddenPatterns: readonly RegExp[];
+  };
+}
+
+export interface WorkerShellProcessGuardCheckIssue {
+  domain: "adversarial" | "performance" | "cost" | "safety";
+  code: string;
+  detail: string;
+}
+
+export interface WorkerShellProcessGuardCheckResult {
+  passed: boolean;
+  issues: WorkerShellProcessGuardCheckIssue[];
+  metrics: {
+    suiteDurationMs: number;
+    wallClockMs: number;
+    maxProbeDurationMs: number;
+    totalCostUsd: number;
+    llmCalls: number;
+    adversarialScenariosRejected: number;
+    adversarialScenariosTotal: number;
+  };
+}
+
+export interface WorkerShellProcessAdversarialGuardScenario {
+  id: string;
+  description: string;
+  build: (record: WorkerShellProcessRunRecord) => WorkerShellProcessRunRecord;
+  expectRejected: true;
+}
+
+export interface WorkerShellProcessGuardSliceResult {
+  atom: "P05-B04-A09";
+  passed: boolean;
+  record: WorkerShellProcessRunRecord;
+  guard: WorkerShellProcessGuardCheckResult;
+  detail: string;
+}
+
+export const FORGE_WORKER_SHELL_PROCESS_GUARD_CONTROLS_V1: ForgeWorkerShellProcessGuardControls = {
+  atom: "P05-B04-A09",
+  adversarial: {
+    rejectTamperedRecords: true,
+    rejectFalseAlignment: true,
+    rejectSummaryEvidenceMismatch: true,
+  },
+  performance: {
+    maxSuiteDurationMs: 60_000,
+    maxProbeDurationMs: 10_000,
+    maxWallClockMs: 90_000,
+  },
+  cost: {
+    maxTotalCostUsd: 0,
+    maxLlmCalls: 0,
+  },
+  safety: {
+    maxDetailLength: 4096,
+    forbiddenPatterns: [
+      /sk-[a-zA-Z0-9]{20,}/,
+      /api[_-]?key\s*[:=]\s*\S+/i,
+      /Bearer\s+[a-zA-Z0-9._-]{20,}/i,
+      /password\s*[:=]\s*\S+/i,
+      /-----BEGIN (RSA |EC )?PRIVATE KEY-----/,
+    ],
+  },
+};
+
+export function getForgeWorkerShellProcessGuardControls(): ForgeWorkerShellProcessGuardControls {
+  return FORGE_WORKER_SHELL_PROCESS_GUARD_CONTROLS_V1;
+}
+
+function parseWorkerShellProcessIsoDurationMs(startedAt: string, completedAt: string): number {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(completedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 0;
+  return end - start;
+}
+
+export function summarizeWorkerShellProcessTelemetry(
+  telemetry: WorkerShellProcessProbeRunTelemetry[],
+): {
+  suiteDurationMs: number;
+  maxProbeDurationMs: number;
+} {
+  let suiteDurationMs = 0;
+  let maxProbeDurationMs = 0;
+  for (const item of telemetry) {
+    suiteDurationMs += item.durationMs;
+    if (item.durationMs > maxProbeDurationMs) maxProbeDurationMs = item.durationMs;
+  }
+  return { suiteDurationMs, maxProbeDurationMs };
+}
+
+export function detectWorkerShellProcessEvidenceSummaryMismatch(
+  record: WorkerShellProcessRunRecord,
+): string | null {
+  let alignedCount = 0;
+  for (const item of record.evidence) {
+    if (item.aligned) alignedCount++;
+  }
+  const mismatches = record.evidence.length - alignedCount;
+  if (record.summary.aligned !== alignedCount) {
+    return `summary.aligned=${record.summary.aligned} evidence=${alignedCount}`;
+  }
+  if (record.summary.mismatches !== mismatches) {
+    return `summary.mismatches=${record.summary.mismatches} evidence=${mismatches}`;
+  }
+  if (record.summary.total !== record.evidence.length) {
+    return `summary.total=${record.summary.total} evidence=${record.evidence.length}`;
+  }
+  return null;
+}
+
+export function detectWorkerShellProcessFalseAlignment(
+  record: WorkerShellProcessRunRecord,
+): string[] {
+  const violations: string[] = [];
+  for (const item of record.evidence) {
+    const shouldAlign = item.actual === item.expected;
+    if (item.aligned !== shouldAlign) {
+      violations.push(
+        `${item.probeId}: aligned=${item.aligned} actual=${item.actual} expected=${item.expected}`,
+      );
+    }
+    if (item.aligned && item.actual !== item.expected) {
+      violations.push(`${item.probeId}: false PASS claim`);
+    }
+  }
+  return violations;
+}
+
+export function validateWorkerShellProcessSafety(
+  record: WorkerShellProcessRunRecord,
+  controls: ForgeWorkerShellProcessGuardControls = getForgeWorkerShellProcessGuardControls(),
+): WorkerShellProcessGuardCheckIssue[] {
+  const issues: WorkerShellProcessGuardCheckIssue[] = [];
+  for (const item of record.evidence) {
+    if (item.detail.length > controls.safety.maxDetailLength) {
+      issues.push({
+        domain: "safety",
+        code: "detail_too_long",
+        detail: `${item.probeId} detail length=${item.detail.length}`,
+      });
+    }
+    for (const pattern of controls.safety.forbiddenPatterns) {
+      if (pattern.test(item.detail) || pattern.test(item.criterion)) {
+        issues.push({
+          domain: "safety",
+          code: "forbidden_pattern",
+          detail: `${item.probeId} matched ${pattern.source}`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+export function validateWorkerShellProcessPerformance(
+  record: WorkerShellProcessRunRecord,
+  controls: ForgeWorkerShellProcessGuardControls = getForgeWorkerShellProcessGuardControls(),
+): WorkerShellProcessGuardCheckIssue[] {
+  const issues: WorkerShellProcessGuardCheckIssue[] = [];
+  const { suiteDurationMs, maxProbeDurationMs } = summarizeWorkerShellProcessTelemetry(record.telemetry);
+  const wallClockMs = parseWorkerShellProcessIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  if (suiteDurationMs > controls.performance.maxSuiteDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "suite_duration_exceeded",
+      detail: `${suiteDurationMs}ms > ${controls.performance.maxSuiteDurationMs}ms`,
+    });
+  }
+  if (maxProbeDurationMs > controls.performance.maxProbeDurationMs) {
+    issues.push({
+      domain: "performance",
+      code: "probe_duration_exceeded",
+      detail: `${maxProbeDurationMs}ms > ${controls.performance.maxProbeDurationMs}ms`,
+    });
+  }
+  if (wallClockMs > controls.performance.maxWallClockMs) {
+    issues.push({
+      domain: "performance",
+      code: "wall_clock_exceeded",
+      detail: `${wallClockMs}ms > ${controls.performance.maxWallClockMs}ms`,
+    });
+  }
+  return issues;
+}
+
+export function validateWorkerShellProcessCost(
+  totalCostUsd: number,
+  llmCalls: number,
+  controls: ForgeWorkerShellProcessGuardControls = getForgeWorkerShellProcessGuardControls(),
+): WorkerShellProcessGuardCheckIssue[] {
+  const issues: WorkerShellProcessGuardCheckIssue[] = [];
+  if (totalCostUsd > controls.cost.maxTotalCostUsd) {
+    issues.push({
+      domain: "cost",
+      code: "cost_exceeded",
+      detail: `$${totalCostUsd.toFixed(4)} > $${controls.cost.maxTotalCostUsd}`,
+    });
+  }
+  if (llmCalls > controls.cost.maxLlmCalls) {
+    issues.push({
+      domain: "cost",
+      code: "llm_calls_exceeded",
+      detail: `${llmCalls} > ${controls.cost.maxLlmCalls}`,
+    });
+  }
+  return issues;
+}
+
+export function buildWorkerShellProcessAdversarialGuardScenarios(): WorkerShellProcessAdversarialGuardScenario[] {
+  return [
+    {
+      id: "adversarial.false_alignment_claim",
+      description: "Evidence claims aligned while actual !== expected",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = true;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.summary_mismatch",
+      description: "Summary reports zero mismatches while evidence is tampered",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        const target = cloned.evidence[0];
+        if (!target) return cloned;
+        target.aligned = false;
+        target.actual = target.expected === "PASS" ? "FAIL" : "PASS";
+        cloned.summary = { ...cloned.summary, aligned: cloned.summary.total, mismatches: 0 };
+        return cloned;
+      },
+    },
+    {
+      id: "adversarial.dropped_probe",
+      description: "Run record omits required probe evidence",
+      expectRejected: true,
+      build: record => {
+        const cloned = structuredClone(record);
+        cloned.evidence = cloned.evidence.slice(1);
+        cloned.telemetry = cloned.telemetry.slice(1);
+        cloned.summary = buildWorkerShellProcessRunRecord(
+          cloned.provenance,
+          cloned.evidence,
+          cloned.telemetry,
+        ).summary;
+        return cloned;
+      },
+    },
+  ];
+}
+
+export function runWorkerShellProcessAdversarialGuardChecks(
+  fixtureRecord: WorkerShellProcessRunRecord,
+  contract: WorkerShellProcessContract = getActiveWorkerShellProcessContract(),
+): { rejected: number; total: number; failures: string[] } {
+  const scenarios = buildWorkerShellProcessAdversarialGuardScenarios();
+  const failures: string[] = [];
+  let rejected = 0;
+
+  for (const scenario of scenarios) {
+    const tampered = scenario.build(fixtureRecord);
+    const validation = validateWorkerShellProcessRunRecord(tampered, contract);
+    const falseAlignment = detectWorkerShellProcessFalseAlignment(tampered);
+    const summaryMismatch = detectWorkerShellProcessEvidenceSummaryMismatch(tampered);
+    const rejectedByGuard =
+      !validation.valid || falseAlignment.length > 0 || summaryMismatch !== null;
+
+    if (rejectedByGuard) rejected++;
+    else failures.push(`${scenario.id}: tampered record was not rejected`);
+  }
+
+  return { rejected, total: scenarios.length, failures };
+}
+
+export function validateForgeWorkerShellProcessGuard(
+  record: WorkerShellProcessRunRecord,
+  options: {
+    totalCostUsd?: number;
+    llmCalls?: number;
+    contract?: WorkerShellProcessContract;
+    controls?: ForgeWorkerShellProcessGuardControls;
+  } = {},
+): WorkerShellProcessGuardCheckResult {
+  const controls = options.controls ?? getForgeWorkerShellProcessGuardControls();
+  const contract = options.contract ?? getActiveWorkerShellProcessContract();
+  const totalCostUsd = options.totalCostUsd ?? 0;
+  const llmCalls = options.llmCalls ?? 0;
+  const issues: WorkerShellProcessGuardCheckIssue[] = [];
+
+  issues.push(...validateWorkerShellProcessPerformance(record, controls));
+  issues.push(...validateWorkerShellProcessCost(totalCostUsd, llmCalls, controls));
+  issues.push(...validateWorkerShellProcessSafety(record, controls));
+
+  const falseAlignment = detectWorkerShellProcessFalseAlignment(record);
+  if (falseAlignment.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "false_alignment",
+      detail: falseAlignment.join("; "),
+    });
+  }
+  const summaryMismatch = detectWorkerShellProcessEvidenceSummaryMismatch(record);
+  if (summaryMismatch) {
+    issues.push({
+      domain: "adversarial",
+      code: "summary_evidence_mismatch",
+      detail: summaryMismatch,
+    });
+  }
+
+  const adversarial = runWorkerShellProcessAdversarialGuardChecks(record, contract);
+  if (adversarial.failures.length > 0) {
+    issues.push({
+      domain: "adversarial",
+      code: "scenario_not_rejected",
+      detail: adversarial.failures.join("; "),
+    });
+  }
+
+  const telemetrySummary = summarizeWorkerShellProcessTelemetry(record.telemetry);
+  const wallClockMs = parseWorkerShellProcessIsoDurationMs(
+    record.provenance.startedAt,
+    record.provenance.completedAt,
+  );
+
+  return {
+    passed: issues.length === 0 && adversarial.rejected === adversarial.total,
+    issues,
+    metrics: {
+      suiteDurationMs: telemetrySummary.suiteDurationMs,
+      wallClockMs,
+      maxProbeDurationMs: telemetrySummary.maxProbeDurationMs,
+      totalCostUsd,
+      llmCalls,
+      adversarialScenariosRejected: adversarial.rejected,
+      adversarialScenariosTotal: adversarial.total,
+    },
+  };
+}
+
+/**
+ * A09 guard slice: adversarial tamper rejection plus performance, cost and safety ceilings.
+ */
+export function runWorkerShellProcessGuardSlice(): WorkerShellProcessGuardSliceResult {
+  const record = runWorkerShellProcessProbesWithRecord();
+  const contract = getActiveWorkerShellProcessContract();
+  const guard = validateForgeWorkerShellProcessGuard(record, {
+    totalCostUsd: 0,
+    llmCalls: 0,
+    contract,
+  });
+  const passed = guard.passed && record.summary.mismatches === 0;
+  const detailParts: string[] = [];
+  detailParts.push(`${record.summary.aligned}/${record.summary.total} probes aligned`);
+  if (!guard.passed) {
+    detailParts.push(
+      `guard FAIL: ${guard.issues.map(issue => `${issue.domain}/${issue.code}`).join(", ") || "failed"}`,
+    );
+  } else {
+    detailParts.push(
+      `guard PASS: perf=${guard.metrics.suiteDurationMs.toFixed(1)}ms cost=$${guard.metrics.totalCostUsd} adversarial=${guard.metrics.adversarialScenariosRejected}/${guard.metrics.adversarialScenariosTotal}`,
+    );
+  }
+  return {
+    atom: "P05-B04-A09",
+    passed,
+    record,
+    guard,
+    detail: detailParts.join(" | "),
   };
 }
