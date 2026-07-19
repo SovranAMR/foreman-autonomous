@@ -151,7 +151,7 @@ describe("Forge Worker Filesystem Grounding Contract — P05-B02-A02", () => {
     assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.atom, "P05-B02-A02");
     assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.probes.length, 27);
     assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.probes.length, fixture.probes.length);
-    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a04");
+    assert.equal(FORGE_WORKER_FILESYSTEM_GROUNDING_VERSION, "1.0.0-a05");
     assert.equal(contract.version, FORGE_WORKER_FILESYSTEM_GROUNDING_CONTRACT_V1.version);
   });
 });
