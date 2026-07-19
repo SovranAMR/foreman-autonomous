@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 26
+completed_atoms: 27
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -48,7 +48,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B03-A05 — Ürün vizyonu sentezi: failure, recovery ve NO-GO yollarını uygula
 - [x] P02-B03-A06 — Ürün vizyonu sentezi: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B03-A07 — Ürün vizyonu sentezi: unit, property ve fuzz doğrulamasını ekle
-- [ ] P02-B03-A08 — Ürün vizyonu sentezi: Forge entegrasyonu ile regression testini tamamla
+- [x] P02-B03-A08 — Ürün vizyonu sentezi: Forge entegrasyonu ile regression testini tamamla
 - [ ] P02-B03-A09 — Ürün vizyonu sentezi: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B03-A10 — Ürün vizyonu sentezi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B03-A07
+last_atom: P02-B03-A08
 last_commit: pending
-tests: PASS — forge-p02-visioner-synthesis.property-fuzz.test.ts (5/5); forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis.test.ts (21/21); forge-p02-visioner-synthesis*.test.ts (29/29); forge-p02-*.test.ts (115/115)
-evidence: runVisionerSynthesisPropertyChecks allPassed=true total=8; runVisionerSynthesisFuzzValidation seeds=[42,99,20260719] rejected=24/24; runVisionerSynthesisRunRecordFuzzValidation failureRecovery mutationsRejected=5 mutationsAccepted=0 fullRun mutationsRejected=3; harnessVersion=1.0.0-a07
-next: P02-B03-A08
+tests: PASS — forge-pipeline-regression.integration.test.ts synthesis A08 (5/5); forge-p02-visioner-synthesis*.test.ts (34/34); forge-p02-*.test.ts (120/120)
+evidence: runForgeVisionerSynthesisRegressionGate passed=true 23/23 probes aligned propertyFuzz=allPassed guard=adversarial=3/3 orchestrator phase=visioner_synthesis_regression; harnessVersion=1.0.0-a08
+next: P02-B03-A09

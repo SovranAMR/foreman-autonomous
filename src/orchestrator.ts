@@ -421,6 +421,24 @@ export class Orchestrator {
   }
 
   /**
+   * Run Forge visioner synthesis regression gate and emit verification event (P02-B03-A08).
+   * Dynamic import avoids harness ↔ orchestrator circular dependency at load time.
+   */
+  async verifyForgeVisionerSynthesisRegression(
+    priorRecord?: import("./forge-p02-visioner-synthesis.js").VisionerSynthesisRunRecord,
+  ): Promise<import("./forge-p02-visioner-synthesis.probe.js").ForgeVisionerSynthesisRegressionResult> {
+    const { runForgeVisionerSynthesisRegressionGate } = await import("./forge-p02-visioner-synthesis.probe.js");
+    const result = runForgeVisionerSynthesisRegressionGate(priorRecord);
+    this.emit({
+      type: "verification",
+      phase: "visioner_synthesis_regression",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P02-B01 block gate and emit verification event with B02 handoff (P02-B01-A10).
    */
   async verifyForgeVisionerIntentBlockGate(): Promise<import("./forge-p02-visioner-intent.probe.js").ForgeVisionerIntentBlockGateResult> {
