@@ -44,7 +44,7 @@ fallback: Baseline blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P05-B02-A10
-last_commit: pending
+last_commit: 6f179b9
 tests: PASS — forge-p05-worker-filesystem-grounding*.test.ts
 evidence: runWorkerFilesystemGroundingBlockGate; validateForgeWorkerFilesystemGroundingBlockGate; 10/10 atom seals; regression+guard PASS; handoff=PASS→P05-B03; orchestrator worker_filesystem_grounding_block_gate; 70/70 tests
 next: P05-B03-A01
