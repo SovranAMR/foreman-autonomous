@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B08-A02
-last_commit: pending
+last_commit: 41c5aa5
 tests: PASS — forge-p03-strategist-replan.test.ts (9/9); validateStrategistReplanCoverage; 28 probes; 5 gap + 6 FAIL aligned
 evidence: getActiveStrategistReplanContract; validateStrategistReplanCoverage; listStrategistReplanProbesByDisposition
 next: P03-B08-A03

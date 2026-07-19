@@ -44,7 +44,7 @@ fallback: Production slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B08-A02
-last_commit: pending
+last_commit: 41c5aa5
 tests: PASS — forge-p03-strategist-replan.test.ts (9/9); forge-p03-strategist-replan-baseline.test.ts (3/3); 28 probes; typed contract coverage validated
 evidence: getActiveStrategistReplanContract; validateStrategistReplanCoverage; listStrategistReplanProbesByDisposition
 next: P03-B08-A03
