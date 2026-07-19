@@ -14,6 +14,10 @@ import {
   assessStrategistVisionInputBoundary,
   runStrategistIntentBoundarySlice,
   validateStrategistIntentBoundaryProbeMatrix,
+  runStrategistIntentFailureRecoverySlice,
+  validateStrategistIntentFailureRecoveryProbeMatrix,
+  listStrategistIntentFailureRecoveryProbeIds,
+  STRATEGIST_INTENT_FAILURE_RECOVERY_CATEGORIES,
   STRATEGIST_VISION_MAX_LENGTH,
   STRATEGIST_INTENT_CATEGORIES,
 } from "./forge-p03-strategist-intent.js";
@@ -181,5 +185,81 @@ describe("Forge Strategist Intent Boundary Slice — P03-B01-A04", () => {
       true,
       matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
     );
+  });
+});
+
+describe("Forge Strategist Intent Failure/Recovery Slice — P03-B01-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveStrategistIntentContract();
+    const failure = listStrategistIntentContractProbesByCategory("failure_path", contract);
+    const recovery = listStrategistIntentContractProbesByCategory("recovery_path", contract);
+    const nogo = listStrategistIntentContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...STRATEGIST_INTENT_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveStrategistIntentContract();
+    const slice = runStrategistIntentFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P03-B01-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of STRATEGIST_INTENT_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listStrategistIntentContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateStrategistIntentFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure, recovery and NO-GO strategist intent paths", () => {
+    const slice = runStrategistIntentFailureRecoverySlice();
+    const probeIds = listStrategistIntentFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const emptyDecomposeGuard = slice.failureRecoveryResults.find(
+      r => r.id === "sint.empty_decompose_guard",
+    );
+    assert.ok(emptyDecomposeGuard);
+    assert.equal(emptyDecomposeGuard!.expected, "PASS");
+    assert.equal(emptyDecomposeGuard!.actual, "PASS");
+
+    const recoveryProbe = slice.failureRecoveryResults.find(
+      r => r.id === "sint.structured_decompose_recovery",
+    );
+    assert.ok(recoveryProbe);
+    assert.equal(recoveryProbe!.expected, "PASS");
+    assert.equal(recoveryProbe!.actual, "PASS");
+
+    const nogoProbe = slice.failureRecoveryResults.find(r => r.id === "sint.over_decompose_nogo");
+    assert.ok(nogoProbe);
+    assert.equal(nogoProbe!.expected, "PASS");
+    assert.equal(nogoProbe!.actual, "PASS");
   });
 });

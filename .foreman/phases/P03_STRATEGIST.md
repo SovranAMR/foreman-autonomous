@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 4
+completed_atoms: 5
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -19,7 +19,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B01-A02 — Hedef decomposition: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P03-B01-A03 — Hedef decomposition: en küçük üretim dikey dilimini uygula
 - [x] P03-B01-A04 — Hedef decomposition: boundary ve edge-case davranışlarını tamamla
-- [ ] P03-B01-A05 — Hedef decomposition: failure, recovery ve NO-GO yollarını uygula
+- [x] P03-B01-A05 — Hedef decomposition: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B01-A06 — Hedef decomposition: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B01-A07 — Hedef decomposition: unit, property ve fuzz doğrulamasını ekle
 - [ ] P03-B01-A08 — Hedef decomposition: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B01-A04
-last_commit: 691390a
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (10/10); boundary slice 6/6 probes; 0 unexpected mismatches
-evidence: assessStrategistVisionInputBoundary; runStrategistIntentBoundarySlice; validateStrategistIntentBoundaryProbeMatrix
-next: P03-B01-A05
+last_atom: P03-B01-A05
+last_commit: pending
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (6/6); forge-p03-strategist-intent.test.ts (13/13); failure/recovery slice 6/6 probes; 0 unexpected mismatches
+evidence: runStrategistIntentFailureRecoverySlice; validateStrategistIntentFailureRecoveryProbeMatrix; listStrategistIntentFailureRecoveryProbeIds
+next: P03-B01-A06
