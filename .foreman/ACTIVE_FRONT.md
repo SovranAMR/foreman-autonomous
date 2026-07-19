@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B05-A03
-last_commit: pending
+last_commit: fcc3adf
 tests: PASS — forge-p04-researcher-citation-provenance-graph*.test.ts (17/17); runResearcherCitationProvenanceGraphProductionSlice; gap probes rcpg.researcher_sources_prompt + rcpg.build_research_citation_graph flipped PASS
 evidence: contract v1 23 probes (21 PASS / 2 FAIL nogo); buildResearchCitationProvenanceGraph export; RESEARCHER_SYSTEM SOURCES field
 next: P04-B05-A04
