@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 77
+completed_atoms: 78
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -133,7 +133,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P04-B10 — Araştırmacı phase gate
 
 - [x] P04-B10-A01 — Araştırmacı phase gate: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P04-B10-A02 — Araştırmacı phase gate: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P04-B10-A02 — Araştırmacı phase gate: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P04-B10-A03 — Araştırmacı phase gate: en küçük üretim dikey dilimini uygula
 - [ ] P04-B10-A04 — Araştırmacı phase gate: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B10-A05 — Araştırmacı phase gate: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B10-A01
-last_commit: a7948ac
-tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); documented FAIL gaps=2/2; sourceBlockGate=P04-B09-A10
-evidence: loadResearcherPhaseGateBaseline + runResearcherPhaseGateProbes + validateResearcherPhaseGateBaseline + recoverResearcherPhaseGateEvidence
-next: P04-B10-A02
+last_atom: P04-B10-A02
+last_commit: pending
+tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); contract probes=24; FAIL gaps=2/2 preserved
+evidence: getActiveResearcherPhaseGateContract + validateResearcherPhaseGateContractCoverage + validateResearcherPhaseGateAgainstContract + summarizeResearcherPhaseGateContractCoverage
+next: P04-B10-A03

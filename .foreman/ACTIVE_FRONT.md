@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P04
 active_block: P04-B10
-active_atom: P04-B10-A02
+active_atom: P04-B10-A03
 phase_file: .foreman/phases/P04_RESEARCHER.md
-program_progress: 391/1000
-phase_progress: 89/100
-block_progress: 1/10
+program_progress: 392/1000
+phase_progress: 90/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B10-A02 — Araştırmacı phase gate: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P04-B10-A03 — Araştırmacı phase gate: en küçük üretim dikey dilimini uygula.
 
-objective: P04-B10-A01 PASS; baseline fixture with 2 documented FAIL gaps from sealed P04-B09 handoff.
-target: Extend researcher phase gate contract with measurable acceptance criteria wired to baseline probe matrix.
-hypothesis: Sealed P04-B09 block gate and A01 baseline enable P04-B10-A02 typed contract alignment.
-acceptance: Contract validates fixture; probe matrix aligned; FAIL gaps preserved until A03 production slice.
+objective: P04-B10-A02 PASS; typed contract with 24 probes and 2 documented FAIL gaps preserved.
+target: Implement minimal production slice closing orchestrator phase gate runner and P04→P05 handoff gaps.
+hypothesis: Typed contract from A02 enables targeted A03 production wiring for remaining gap probes.
+acceptance: Gap probes flip to PASS; production slice matrix valid; zero unexpected mismatches.
 commands: npx tsx --test src/forge-p04-researcher-phase-gate*.test.ts
-blast_radius: src/forge-p04-researcher-phase-gate*.ts
-rollback: P04-B10-A02 contract değişikliklerini geri al.
+blast_radius: src/forge-p04-researcher-phase-gate*.ts, src/orchestrator.ts
+rollback: P04-B10-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
-fallback: Contract blocked ise BLOCKED raporla.
+fallback: Production slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P04-B10-A01
-last_commit: a7948ac
-tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); documented FAIL gaps=2/2; sourceBlockGate=P04-B09-A10
-evidence: loadResearcherPhaseGateBaseline + runResearcherPhaseGateProbes + validateResearcherPhaseGateBaseline + recoverResearcherPhaseGateEvidence
-next: P04-B10-A02
+last_atom: P04-B10-A02
+last_commit: pending
+tests: PASS — forge-p04-researcher-phase-gate-baseline.test.ts (8/8); forge-p04-researcher-phase-gate-contract.test.ts (8/8); documented FAIL gaps=2/2 preserved
+evidence: getActiveResearcherPhaseGateContract + validateResearcherPhaseGateContractCoverage + validateResearcherPhaseGateAgainstContract + summarizeResearcherPhaseGateContractCoverage
+next: P04-B10-A03
