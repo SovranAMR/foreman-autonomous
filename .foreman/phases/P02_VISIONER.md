@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P02-B03-A01
-last_commit: pending
+last_commit: 4fa30b1
 tests: PASS — forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis*.test.ts (3/3); forge-p02-*.test.ts (89/89)
 evidence: loadVisionerSynthesisBaseline atom=P02-B03-A01 probes=23/23; runVisionerSynthesisProbes aligned=23/23 knownGaps=1 vsyn.structured_synthesis_recovery; validateVisionerSynthesisBaseline links FORGE_P02_B02_TO_B03_HANDOFF_V1 sourceBlockGate=P02-B02-A10
 next: P02-B03-A02
