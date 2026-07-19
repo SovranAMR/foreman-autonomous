@@ -25,7 +25,7 @@ import {
   type ToolCall,
 } from "./tools.js";
 
-export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a04";
+export const FORGE_WORKER_TOOL_DISPATCH_VERSION = "1.0.0-a05";
 
 export const WORKER_TOOL_DISPATCH_ARGS_MAX_LENGTH = 16_384;
 
@@ -1751,6 +1751,85 @@ export function runWorkerToolDispatchBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+/** Categories exercised by the A05 failure/recovery/NO-GO slice gate. */
+export const WORKER_TOOL_DISPATCH_FAILURE_RECOVERY_CATEGORIES = [
+  "failure_path",
+  "recovery_path",
+  "nogo_path",
+] as const satisfies readonly WorkerToolDispatchCategory[];
+
+/**
+ * Validate failure_path + recovery_path + nogo_path probe matrix — A05 slice gate.
+ * PASS failure/recovery probes and documented NO-GO wiring must align; zero unexpected mismatches.
+ */
+export function validateWorkerToolDispatchFailureRecoveryProbeMatrix(
+  results: WorkerToolDispatchProbeResult[],
+  contract: WorkerToolDispatchContract = getActiveWorkerToolDispatchContract(),
+): WorkerToolDispatchProbeMatrixValidationResult {
+  const failureRecoveryProbes = WORKER_TOOL_DISPATCH_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listWorkerToolDispatchContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryContract: WorkerToolDispatchContract = {
+    ...contract,
+    probes: failureRecoveryProbes,
+    categories: {
+      ...contract.categories,
+      failure_path: contract.categories.failure_path,
+      recovery_path: contract.categories.recovery_path,
+      nogo_path: contract.categories.nogo_path,
+    },
+  };
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  return validateWorkerToolDispatchProbeMatrix(failureRecoveryResults, failureRecoveryContract);
+}
+
+export function listWorkerToolDispatchFailureRecoveryProbeIds(
+  contract: WorkerToolDispatchContract = getActiveWorkerToolDispatchContract(),
+): string[] {
+  return WORKER_TOOL_DISPATCH_FAILURE_RECOVERY_CATEGORIES.flatMap(category =>
+    listWorkerToolDispatchContractProbesByCategory(category, contract).map(p => p.id),
+  );
+}
+
+export interface WorkerToolDispatchFailureRecoverySliceResult {
+  atom: "P05-B01-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: WorkerToolDispatchProbeResult[];
+  failureRecoveryResults: WorkerToolDispatchProbeResult[];
+  matrixValidation: WorkerToolDispatchProbeMatrixValidationResult;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches.
+ */
+export function runWorkerToolDispatchFailureRecoverySlice(
+  fixture: WorkerToolDispatchBaseline = loadWorkerToolDispatchBaseline(),
+): WorkerToolDispatchFailureRecoverySliceResult {
+  const contract = getActiveWorkerToolDispatchContract();
+  const results = runWorkerToolDispatchProbes(fixture);
+  const failureRecoveryProbes = WORKER_TOOL_DISPATCH_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listWorkerToolDispatchContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateWorkerToolDispatchFailureRecoveryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P05-B01-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }
