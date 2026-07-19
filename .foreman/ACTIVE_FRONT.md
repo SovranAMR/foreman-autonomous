@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B01
-active_atom: P03-B01-A02
+active_atom: P03-B01-A03
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 200/1000
-phase_progress: 1/100
-block_progress: 1/10
+program_progress: 201/1000
+phase_progress: 2/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B01-A02 — Hedef decomposition: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P03-B01-A03 — Hedef decomposition: en küçük üretim dikey dilimini uygula.
 
-objective: P03-B01-A01 PASS; P03-B01-A02 typed strategist intent contract acceptance.
-target: getActiveStrategistIntentContract, validateStrategistIntentAgainstContract.
-hypothesis: P03-B01-A02 formalizes strategist intent probes from sealed P03-B01-A01 baseline.
-acceptance: contract coverage validated; fixture aligned; baseline regression green.
-commands: npx tsx --test src/forge-p03-strategist-intent-baseline.test.ts
+objective: P03-B01-A02 PASS; P03-B01-A03 strategist intent production vertical slice.
+target: recoverStrategistDecompose, runStrategistIntentProductionSlice.
+hypothesis: P03-B01-A03 wires decompose parse/classify/route from sealed P03-B01-A02 contract.
+acceptance: production slice probes aligned; contract matrix green; baseline regression green.
+commands: npx tsx --test src/forge-p03-strategist-intent.test.ts
 blast_radius: src/forge-p03-strategist-intent.ts
-rollback: P03-B01-A02 contract slice değişikliklerini geri al.
+rollback: P03-B01-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: P03-B01-A01 baseline misaligned ise BLOCKED raporla.
+fallback: P03-B01-A02 contract misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B01-A01
-last_commit: 233f226
-tests: PASS — forge-p03-strategist-intent-baseline.test.ts (3/3); 23 probes; 1 documented FAIL gap
-evidence: loadStrategistIntentBaseline; validateStrategistIntentBaseline; runStrategistIntentProbes; handoff=P02-PHASE-GATE→P03-B01-A01
-next: P03-B01-A02
+last_atom: P03-B01-A02
+last_commit: pending
+tests: PASS — forge-p03-strategist-intent-baseline.test.ts (3/3); forge-p03-strategist-intent.test.ts (7/7); 23 probes; 1 documented FAIL gap
+evidence: getActiveStrategistIntentContract; validateStrategistIntentAgainstContract; summarizeStrategistIntentContractCoverage; validateStrategistIntentContractCoverage; contractAtom=P03-B01-A05
+next: P03-B01-A03

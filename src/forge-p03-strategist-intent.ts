@@ -155,6 +155,23 @@ export interface StrategistIntentValidationResult {
   issues: StrategistIntentValidationIssue[];
 }
 
+export interface StrategistIntentContractCoverageIssue {
+  kind:
+    | "missing_category"
+    | "underflow"
+    | "missing_criterion"
+    | "duplicate_probe"
+    | "coverage_mismatch";
+  probeId?: string;
+  category?: StrategistIntentCategory;
+  detail: string;
+}
+
+export interface StrategistIntentContractCoverageResult {
+  valid: boolean;
+  issues: StrategistIntentContractCoverageIssue[];
+}
+
 export type StrategistIntentProbeDisposition =
   | "observed"
   | "gap"
@@ -495,6 +512,155 @@ export const FORGE_STRATEGIST_INTENT_CONTRACT_V1: StrategistIntentContract = {
 
 export function getActiveStrategistIntentContract(): StrategistIntentContract {
   return FORGE_STRATEGIST_INTENT_CONTRACT_V1;
+}
+
+export function getStrategistIntentCategoryContract(
+  category: StrategistIntentCategory,
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): StrategistIntentCategoryContract {
+  return contract.categories[category];
+}
+
+export function listStrategistIntentContractProbeIds(
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): string[] {
+  return contract.probes.map(p => p.id);
+}
+
+export function listStrategistIntentProbesByDisposition(
+  disposition: StrategistIntentProbeDisposition,
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): StrategistIntentProbeContract[] {
+  return contract.probes.filter(p => p.disposition === disposition);
+}
+
+export function listStrategistIntentContractProbesByCategory(
+  category: StrategistIntentCategory,
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): StrategistIntentProbeContract[] {
+  return contract.categories[category].probes;
+}
+
+export function summarizeStrategistIntentContractCoverage(
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): {
+  totalProbes: number;
+  expectedPass: number;
+  expectedFail: number;
+  byCategory: Record<StrategistIntentCategory, { probeCount: number; invariant: string }>;
+  byDisposition: Record<StrategistIntentProbeDisposition, number>;
+} {
+  const byCategory = {} as Record<
+    StrategistIntentCategory,
+    { probeCount: number; invariant: string }
+  >;
+  const byDisposition: Record<StrategistIntentProbeDisposition, number> = {
+    observed: 0,
+    gap: 0,
+    failure: 0,
+    recovery: 0,
+    nogo: 0,
+  };
+  let totalProbes = 0;
+  let expectedPass = 0;
+  let expectedFail = 0;
+
+  for (const category of STRATEGIST_INTENT_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    byCategory[category] = {
+      probeCount: categoryContract.probes.length,
+      invariant: categoryContract.acceptance.invariant,
+    };
+    for (const probe of categoryContract.probes) {
+      totalProbes++;
+      if (probe.expected === "PASS") expectedPass++;
+      else expectedFail++;
+      byDisposition[probe.disposition]++;
+    }
+  }
+
+  return { totalProbes, expectedPass, expectedFail, byCategory, byDisposition };
+}
+
+export function validateStrategistIntentContractCoverage(
+  contract: StrategistIntentContract = getActiveStrategistIntentContract(),
+): StrategistIntentContractCoverageResult {
+  const issues: StrategistIntentContractCoverageIssue[] = [];
+
+  for (const category of STRATEGIST_INTENT_CATEGORIES) {
+    const categoryContract = contract.categories[category];
+    if (!categoryContract) {
+      issues.push({ kind: "missing_category", category, detail: `missing category contract: ${category}` });
+      continue;
+    }
+    if (categoryContract.acceptance.minProbeCount < STRATEGIST_INTENT_A01_MIN_PROBES[category]) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} minProbeCount=${categoryContract.acceptance.minProbeCount} below A01 baseline ${STRATEGIST_INTENT_A01_MIN_PROBES[category]}`,
+      });
+    }
+    if (categoryContract.probes.length < categoryContract.acceptance.minProbeCount) {
+      issues.push({
+        kind: "underflow",
+        category,
+        detail: `${category} has ${categoryContract.probes.length} probes; contract requires >= ${categoryContract.acceptance.minProbeCount}`,
+      });
+    }
+    if (categoryContract.acceptance.invariant.trim().length <= 20) {
+      issues.push({
+        kind: "missing_criterion",
+        category,
+        detail: `${category} invariant too short`,
+      });
+    }
+    for (const probe of categoryContract.probes) {
+      if (probe.criterion.trim().length <= 10) {
+        issues.push({
+          kind: "missing_criterion",
+          probeId: probe.id,
+          detail: `${probe.id} criterion too short`,
+        });
+      }
+    }
+  }
+
+  const ids = listStrategistIntentContractProbeIds(contract);
+  if (new Set(ids).size !== ids.length) {
+    issues.push({ kind: "duplicate_probe", detail: "duplicate probe id detected in contract" });
+  }
+
+  const summary = summarizeStrategistIntentContractCoverage(contract);
+  if (summary.totalProbes !== ids.length) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `totalProbes=${summary.totalProbes} ids=${ids.length}`,
+    });
+  }
+  const dispositionSum =
+    summary.byDisposition.observed +
+    summary.byDisposition.gap +
+    summary.byDisposition.failure +
+    summary.byDisposition.recovery +
+    summary.byDisposition.nogo;
+  if (dispositionSum !== summary.totalProbes) {
+    issues.push({
+      kind: "coverage_mismatch",
+      detail: `disposition sum=${dispositionSum} total=${summary.totalProbes}`,
+    });
+  }
+
+  for (const probe of contract.probes) {
+    if (!probe.id.startsWith("sint.")) {
+      issues.push({
+        kind: "missing_criterion",
+        probeId: probe.id,
+        detail: `${probe.id} missing sint. prefix`,
+      });
+    }
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 export function validateStrategistIntentAgainstContract(
@@ -1104,5 +1270,12 @@ function runStrategistIntentProbe(
 export function runStrategistIntentProbes(
   fixture: StrategistIntentBaseline = loadStrategistIntentBaseline(),
 ): StrategistIntentProbeResult[] {
-  return fixture.probes.map(entry => runStrategistIntentProbe(entry, fixture));
+  const contract = getActiveStrategistIntentContract();
+  return fixture.probes.map(entry => {
+    const result = runStrategistIntentProbe(entry, fixture);
+    const contractProbe = contract.probes.find(p => p.id === entry.id);
+    return contractProbe?.criterion
+      ? { ...result, criterion: contractProbe.criterion }
+      : result;
+  });
 }
