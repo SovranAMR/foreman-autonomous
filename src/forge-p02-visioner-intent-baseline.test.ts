@@ -29,7 +29,7 @@ describe("Forge Visioner Intent — P02-B01-A01", () => {
     assert.equal(fixture.sourcePhaseGate.atom, "P01-PHASE-GATE");
     assert.equal(fixture.sourcePhaseGate.sealedBlockCount, 9);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
-    assert.equal(fixture.probes.length, 20);
+    assert.equal(fixture.probes.length, 23);
   });
 
   it("measures visioner intent probes with documented FAIL gaps from P01 sealed handoff", () => {
@@ -37,16 +37,15 @@ describe("Forge Visioner Intent — P02-B01-A01", () => {
     const summary = summarizeVisionerIntentMatrix(results);
 
     assert.equal(summary.total, results.length);
-    assert.equal(summary.total, 20);
+    assert.equal(summary.total, 23);
     assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
 
     const documentedFail = listVisionerIntentProbesByExpected(
       "FAIL",
       loadVisionerIntentBaseline(),
     );
-    assert.equal(documentedFail.length, 2);
+    assert.equal(documentedFail.length, 1);
     assert.ok(documentedFail.some(p => p.id === "vint.structured_intent_recovery"));
-    assert.ok(documentedFail.some(p => p.id === "vint.intent_ambiguity_nogo"));
 
     for (const gap of summary.knownGaps) {
       assert.equal(gap.expected, "FAIL");
@@ -71,10 +70,7 @@ describe("Forge Visioner Intent — P02-B01-A01", () => {
     const gaps = listVisionerIntentKnownGaps(runVisionerIntentProbes());
     const ids = gaps.map(g => g.id).sort();
 
-    assert.deepEqual(ids, [
-      "vint.intent_ambiguity_nogo",
-      "vint.structured_intent_recovery",
-    ]);
+    assert.deepEqual(ids, ["vint.structured_intent_recovery"]);
     assert.ok(
       gaps.every(g => VISIONER_INTENT_CATEGORIES.includes(g.category)),
       "documented gaps are visioner intent probes",

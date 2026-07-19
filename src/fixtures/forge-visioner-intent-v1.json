@@ -96,6 +96,24 @@
       "expected": "PASS"
     },
     {
+      "id": "vint.empty_task_boundary",
+      "category": "boundary",
+      "description": "assessVisionerTaskInputBoundary rejects empty task input",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.whitespace_task_boundary",
+      "category": "boundary",
+      "description": "assessVisionerTaskInputBoundary rejects whitespace-only task input",
+      "expected": "PASS"
+    },
+    {
+      "id": "vint.long_task_truncation_boundary",
+      "category": "boundary",
+      "description": "assessVisionerTaskInputBoundary truncates tasks exceeding max length",
+      "expected": "PASS"
+    },
+    {
       "id": "vint.empty_vision_guard",
       "category": "failure_path",
       "description": "Orchestrator rejects empty or trivially short vision output",
@@ -129,7 +147,7 @@
       "id": "vint.intent_ambiguity_nogo",
       "category": "nogo_path",
       "description": "checkVisionerIntentAmbiguity NO-GO gate blocks ambiguous tasks before vision spend",
-      "expected": "FAIL"
+      "expected": "PASS"
     }
   ]
 }

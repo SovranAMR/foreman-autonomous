@@ -57,6 +57,7 @@ import {
   parseVisionerTaskIntent,
   classifyVisionerTaskDepth,
   buildVisionPromptForDepth,
+  checkVisionerIntentAmbiguity,
 } from "./forge-p02-visioner-intent.js";
 
 /** Canonical ordered pipeline phases for behavior-map probes and downstream tooling. */
@@ -941,6 +942,15 @@ export class Orchestrator {
       } as StepResult;
     } else {
       const taskIntent = parseVisionerTaskIntent(task);
+      const ambiguityCheck = checkVisionerIntentAmbiguity(taskIntent);
+      if (ambiguityCheck.shouldBlock) {
+        this.emit({
+          type: "error",
+          message: `Task too ambiguous for vision: ${ambiguityCheck.reason ?? "high ambiguity score"}`,
+        });
+        this.engine.chains.updateStatus(visionChain.id, "blocked");
+        return this.buildResult(false, totalThoughts, visionChain.id, "intent_ambiguity_nogo");
+      }
       const taskDepth = classifyVisionerTaskDepth(task, taskIntent);
       const visionPrompt = buildVisionPromptForDepth(
         taskDepth,

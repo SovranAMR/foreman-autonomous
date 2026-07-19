@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 0
-completed_atoms: 3
+completed_atoms: 4
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -18,7 +18,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B01-A01 — Intent ve görev anlamlandırma: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P02-B01-A02 — Intent ve görev anlamlandırma: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B01-A03 — Intent ve görev anlamlandırma: en küçük üretim dikey dilimini uygula
-- [ ] P02-B01-A04 — Intent ve görev anlamlandırma: boundary ve edge-case davranışlarını tamamla
+- [x] P02-B01-A04 — Intent ve görev anlamlandırma: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B01-A05 — Intent ve görev anlamlandırma: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B01-A06 — Intent ve görev anlamlandırma: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B01-A07 — Intent ve görev anlamlandırma: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B01-A03
+last_atom: P02-B01-A04
 last_commit: pending
-tests: PASS — forge-p02-visioner-intent.test.ts (10/10); forge-p02-visioner-intent-baseline.test.ts (3/3); runVisionerIntentProductionSlice matrixValid; 18 PASS + 2 gap FAIL
-evidence: parseVisionerTaskIntent, classifyVisionerTaskDepth, buildVisionPromptForDepth; orchestrator depth-routed vision; vint.structured_intent_parse/programmatic_depth_classifier/depth_routed_prompt flipped PASS
-next: P02-B01-A04
+tests: PASS — forge-p02-visioner-intent.test.ts (13/13); forge-p02-visioner-intent-baseline.test.ts (3/3); boundary slice 6/6 PASS; production 22 PASS + 1 gap FAIL; matrixValidation unexpectedMismatches=0
+evidence: assessVisionerTaskInputBoundary, checkVisionerIntentAmbiguity, validateVisionerIntentBoundaryProbeMatrix, runVisionerIntentBoundarySlice; orchestrator intent_ambiguity_nogo; vint.intent_ambiguity_nogo flipped PASS; 3 boundary edge probes added
+next: P02-B01-A05

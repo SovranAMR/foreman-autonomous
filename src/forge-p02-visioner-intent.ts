@@ -16,7 +16,36 @@ import {
   summarizeIntegratedBaselineContractCoverage,
 } from "./forge-integrated-baseline.js";
 
-export const FORGE_VISIONER_INTENT_VERSION = "1.0.0-b03";
+export const FORGE_VISIONER_INTENT_VERSION = "1.0.0-b04";
+
+/** Maximum normalized task length before truncation (P02-B01-A04 boundary). */
+export const VISIONER_TASK_MAX_LENGTH = 8000;
+
+/** Default ambiguity threshold for NO-GO gate before vision spend (P02-B01-A04). */
+export const VISIONER_INTENT_AMBIGUITY_THRESHOLD = 0.65;
+
+export type VisionerTaskInputDisposition =
+  | "valid"
+  | "empty"
+  | "whitespace_only"
+  | "too_short"
+  | "contains_null_byte"
+  | "exceeds_max_length";
+
+export interface VisionerTaskInputBoundary {
+  disposition: VisionerTaskInputDisposition;
+  acceptable: boolean;
+  normalizedTask: string;
+  truncated: boolean;
+  detail: string;
+}
+
+export interface VisionerIntentAmbiguityCheck {
+  shouldBlock: boolean;
+  ambiguityScore: number;
+  threshold: number;
+  reason?: string;
+}
 
 export type VisionerTaskDepth = "simple" | "medium" | "complex";
 
@@ -44,10 +73,85 @@ const COMPLEX_TASK_SIGNALS = [
 const FILE_REFERENCE_PATTERN = /(?:[\w.-]+\/)+[\w.-]+\.\w+|\b[\w.-]+\.\w{1,6}\b/g;
 
 /**
+ * Assess task input boundary conditions — empty, whitespace-only, null bytes, max length (P02-B01-A04).
+ */
+export function assessVisionerTaskInputBoundary(rawTask: string): VisionerTaskInputBoundary {
+  if (rawTask.includes("\0")) {
+    return {
+      disposition: "contains_null_byte",
+      acceptable: false,
+      normalizedTask: "",
+      truncated: false,
+      detail: "null byte detected in task input",
+    };
+  }
+
+  const collapsed = rawTask.trim().replace(/\s+/g, " ");
+  if (collapsed.length === 0) {
+    const disposition: VisionerTaskInputDisposition =
+      rawTask.length === 0 ? "empty" : "whitespace_only";
+    return {
+      disposition,
+      acceptable: false,
+      normalizedTask: "",
+      truncated: false,
+      detail: disposition === "empty" ? "empty task input" : "whitespace-only task input",
+    };
+  }
+
+  let normalizedTask = collapsed;
+  let truncated = false;
+  if (normalizedTask.length > VISIONER_TASK_MAX_LENGTH) {
+    normalizedTask = normalizedTask.slice(0, VISIONER_TASK_MAX_LENGTH);
+    truncated = true;
+  }
+
+  if (normalizedTask.length < 2) {
+    return {
+      disposition: "too_short",
+      acceptable: false,
+      normalizedTask,
+      truncated,
+      detail: "task too short after normalization",
+    };
+  }
+
+  return {
+    disposition: truncated ? "exceeds_max_length" : "valid",
+    acceptable: true,
+    normalizedTask,
+    truncated,
+    detail: truncated
+      ? `task truncated to ${VISIONER_TASK_MAX_LENGTH} characters`
+      : "valid task input",
+  };
+}
+
+/**
+ * NO-GO gate: block ambiguous tasks before vision LLM spend (P02-B01-A04).
+ */
+export function checkVisionerIntentAmbiguity(
+  input: string | VisionerTaskIntent,
+  threshold: number = VISIONER_INTENT_AMBIGUITY_THRESHOLD,
+): VisionerIntentAmbiguityCheck {
+  const intent = typeof input === "string" ? parseVisionerTaskIntent(input) : input;
+  const shouldBlock = intent.ambiguityScore >= threshold;
+  return {
+    shouldBlock,
+    ambiguityScore: intent.ambiguityScore,
+    threshold,
+    reason: shouldBlock
+      ? `ambiguity score ${intent.ambiguityScore.toFixed(2)} >= ${threshold}`
+      : undefined,
+  };
+}
+
+/**
  * Parse raw user task into structured visioner intent (P02-B01-A03 production slice).
  */
 export function parseVisionerTaskIntent(rawTask: string): VisionerTaskIntent {
-  const normalizedTask = rawTask.trim().replace(/\s+/g, " ");
+  const boundary = assessVisionerTaskInputBoundary(rawTask);
+  const normalizedTask = boundary.normalizedTask;
   const words = normalizedTask.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
   const fileReferences = [...new Set(normalizedTask.match(FILE_REFERENCE_PATTERN) ?? [])];
@@ -66,11 +170,15 @@ export function parseVisionerTaskIntent(rawTask: string): VisionerTaskIntent {
     .slice(0, 4);
 
   let ambiguityScore = 0;
-  if (wordCount < 4) ambiguityScore += 0.4;
-  if (/\b(maybe|perhaps|something|stuff|etc\.?|whatever)\b/i.test(normalizedTask)) ambiguityScore += 0.3;
-  if (/\b(or|either)\b/i.test(normalizedTask)) ambiguityScore += 0.2;
-  if (goals.length === 0 && wordCount > 0) ambiguityScore += 0.1;
-  ambiguityScore = Math.min(1, ambiguityScore);
+  if (!boundary.acceptable) {
+    ambiguityScore = 1;
+  } else {
+    if (wordCount < 4) ambiguityScore += 0.4;
+    if (/\b(maybe|perhaps|something|stuff|etc\.?|whatever)\b/i.test(normalizedTask)) ambiguityScore += 0.3;
+    if (/\b(or|either)\b/i.test(normalizedTask)) ambiguityScore += 0.2;
+    if (goals.length === 0 && wordCount > 0) ambiguityScore += 0.1;
+    ambiguityScore = Math.min(1, ambiguityScore);
+  }
 
   const depth = classifyVisionerTaskDepth(rawTask, {
     rawTask,
@@ -261,6 +369,28 @@ export function validateVisionerIntentProbeMatrix(
   };
 }
 
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateVisionerIntentBoundaryProbeMatrix(
+  results: VisionerIntentProbeResult[],
+  contract: VisionerIntentContract = getActiveVisionerIntentContract(),
+): VisionerIntentProbeMatrixValidationResult {
+  const boundaryProbes = listVisionerIntentContractProbesByCategory("boundary", contract);
+  const boundaryContract: VisionerIntentContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateVisionerIntentProbeMatrix(boundaryResults, boundaryContract);
+}
+
 export const VISIONER_INTENT_CATEGORIES = [
   "intent_versioning",
   "task_signal",
@@ -354,7 +484,7 @@ export const VISIONER_INTENT_A01_MIN_PROBES: Readonly<
   task_signal: 3,
   intent_depth: 3,
   baseline_link: 2,
-  boundary: 3,
+  boundary: 6,
   failure_path: 2,
   recovery_path: 2,
   nogo_path: 2,
@@ -541,8 +671,8 @@ const VISIONER_INTENT_CATEGORY_CONTRACTS: Record<
     category: "boundary",
     acceptance: {
       invariant:
-        "Baseline references sealed P01 artifacts, exports probe runner and documents FAIL gaps.",
-      minProbeCount: 3,
+        "Task input boundary assessment handles empty, whitespace-only and oversized inputs; probe runner and documented gaps wired.",
+      minProbeCount: 6,
       requireFullAlignment: true,
     },
     probes: [
@@ -569,6 +699,30 @@ const VISIONER_INTENT_CATEGORY_CONTRACTS: Record<
         expected: "PASS",
         disposition: "observed",
         criterion: "Baseline fixture documents at least one measurable FAIL intent gap",
+      },
+      {
+        id: "vint.empty_task_boundary",
+        category: "boundary",
+        description: "assessVisionerTaskInputBoundary rejects empty task input",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessVisionerTaskInputBoundary rejects empty task input",
+      },
+      {
+        id: "vint.whitespace_task_boundary",
+        category: "boundary",
+        description: "assessVisionerTaskInputBoundary rejects whitespace-only task input",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessVisionerTaskInputBoundary rejects whitespace-only task input",
+      },
+      {
+        id: "vint.long_task_truncation_boundary",
+        category: "boundary",
+        description: "assessVisionerTaskInputBoundary truncates tasks exceeding max length",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessVisionerTaskInputBoundary truncates tasks exceeding max length",
       },
     ],
   },
@@ -627,7 +781,7 @@ const VISIONER_INTENT_CATEGORY_CONTRACTS: Record<
   nogo_path: {
     category: "nogo_path",
     acceptance: {
-      invariant: "Vision fact-check BLOCK exists; intent ambiguity NO-GO gate is a documented gap.",
+      invariant: "Vision fact-check BLOCK exists; intent ambiguity NO-GO gate blocks before vision spend.",
       minProbeCount: 2,
       requireFullAlignment: true,
     },
@@ -644,8 +798,8 @@ const VISIONER_INTENT_CATEGORY_CONTRACTS: Record<
         id: "vint.intent_ambiguity_nogo",
         category: "nogo_path",
         description: "checkVisionerIntentAmbiguity NO-GO gate blocks ambiguous tasks before vision spend",
-        expected: "FAIL",
-        disposition: "gap",
+        expected: "PASS",
+        disposition: "nogo",
         criterion: "checkVisionerIntentAmbiguity NO-GO gate blocks ambiguous tasks before vision spend",
       },
     ],

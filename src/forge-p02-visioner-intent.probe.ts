@@ -22,10 +22,16 @@ import {
   validateVisionerIntentBaseline,
   validateVisionerIntentAgainstContract,
   validateVisionerIntentProbeMatrix,
+  validateVisionerIntentBoundaryProbeMatrix,
   getActiveVisionerIntentContract,
   summarizeVisionerIntentMatrix,
   listVisionerIntentProbesByExpected,
   listVisionerIntentKnownGaps,
+  listVisionerIntentContractProbesByCategory,
+  assessVisionerTaskInputBoundary,
+  checkVisionerIntentAmbiguity,
+  parseVisionerTaskIntent,
+  VISIONER_TASK_MAX_LENGTH,
   FORGE_VISIONER_INTENT_VERSION,
   VISIONER_INTENT_CATEGORIES,
   type VisionerIntentBaseline,
@@ -49,6 +55,7 @@ export {
   validateVisionerIntentAgainstContract,
   buildDefaultSourcePhaseGate,
   validateVisionerIntentProbeMatrix,
+  validateVisionerIntentBoundaryProbeMatrix,
   FORGE_VISIONER_INTENT_VERSION,
   VISIONER_INTENT_CATEGORIES,
 } from "./forge-p02-visioner-intent.js";
@@ -262,6 +269,32 @@ function probeBoundary(
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
       return probe(id, category, expected, failCount >= 1, `documentedFail=${failCount}`);
     }
+    case "vint.empty_task_boundary": {
+      const result = assessVisionerTaskInputBoundary("");
+      const ok =
+        hasProductionExport("assessVisionerTaskInputBoundary") &&
+        result.disposition === "empty" &&
+        result.acceptable === false;
+      return probe(id, category, expected, ok, `disposition=${result.disposition}, acceptable=${result.acceptable}`);
+    }
+    case "vint.whitespace_task_boundary": {
+      const result = assessVisionerTaskInputBoundary("   \t\n  ");
+      const ok =
+        hasProductionExport("assessVisionerTaskInputBoundary") &&
+        result.disposition === "whitespace_only" &&
+        result.acceptable === false;
+      return probe(id, category, expected, ok, `disposition=${result.disposition}, acceptable=${result.acceptable}`);
+    }
+    case "vint.long_task_truncation_boundary": {
+      const longTask = "word ".repeat(VISIONER_TASK_MAX_LENGTH + 100);
+      const result = assessVisionerTaskInputBoundary(longTask);
+      const ok =
+        hasProductionExport("assessVisionerTaskInputBoundary") &&
+        result.truncated === true &&
+        result.normalizedTask.length === VISIONER_TASK_MAX_LENGTH &&
+        result.acceptable === true;
+      return probe(id, category, expected, ok, `truncated=${result.truncated}, len=${result.normalizedTask.length}`);
+    }
     default:
       return probe(id, category, expected, false, "unknown boundary probe");
   }
@@ -331,10 +364,12 @@ function probeNogoPath(
       return probe(id, category, expected, ok, `visionFactCheckBlock=${ok}`);
     }
     case "vint.intent_ambiguity_nogo": {
-      const ok =
+      const ambiguous = checkVisionerIntentAmbiguity("maybe or whatever");
+      const wired =
         hasProductionExport("checkVisionerIntentAmbiguity") ||
         orchestrator.includes("checkVisionerIntentAmbiguity");
-      return probe(id, category, expected, ok, `intentAmbiguityNogo=${ok}`);
+      const ok = wired && ambiguous.shouldBlock === true;
+      return probe(id, category, expected, ok, `shouldBlock=${ambiguous.shouldBlock}, score=${ambiguous.ambiguityScore}`);
     }
     default:
       return probe(id, category, expected, false, "unknown nogo_path probe");
@@ -417,6 +452,39 @@ export function runVisionerIntentProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface VisionerIntentBoundarySliceResult {
+  atom: "P02-B01-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerIntentProbeResult[];
+  boundaryResults: VisionerIntentProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerIntentBoundaryProbeMatrix>;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches; remaining documented FAIL gaps preserved.
+ */
+export function runVisionerIntentBoundarySlice(
+  fixture: VisionerIntentBaseline = loadVisionerIntentBaseline(),
+): VisionerIntentBoundarySliceResult {
+  const contract = getActiveVisionerIntentContract();
+  const results = runVisionerIntentProbes(fixture);
+  const boundaryProbes = listVisionerIntentContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateVisionerIntentBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B01-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

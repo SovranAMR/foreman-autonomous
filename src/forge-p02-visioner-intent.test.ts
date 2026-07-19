@@ -4,6 +4,7 @@ import {
   loadVisionerIntentBaseline,
   runVisionerIntentProbes,
   runVisionerIntentProductionSlice,
+  runVisionerIntentBoundarySlice,
 } from "./forge-p02-visioner-intent.probe.js";
 import {
   getActiveVisionerIntentContract,
@@ -15,9 +16,13 @@ import {
   validateVisionerIntentContractCoverage,
   validateVisionerIntentAgainstContract,
   validateVisionerIntentProbeMatrix,
+  validateVisionerIntentBoundaryProbeMatrix,
   parseVisionerTaskIntent,
   classifyVisionerTaskDepth,
   buildVisionPromptForDepth,
+  assessVisionerTaskInputBoundary,
+  checkVisionerIntentAmbiguity,
+  VISIONER_TASK_MAX_LENGTH,
   VISIONER_INTENT_CATEGORIES,
 } from "./forge-p02-visioner-intent.js";
 
@@ -56,37 +61,34 @@ describe("Forge Visioner Intent Contract — P02-B01-A02", () => {
     }
   });
 
-  it("maps 20 probes with two documented gap dispositions after A03 slice", () => {
+  it("maps 23 probes with one documented gap after A04 boundary slice", () => {
     const contract = getActiveVisionerIntentContract();
     const summary = summarizeVisionerIntentContractCoverage(contract);
     const coverage = validateVisionerIntentContractCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
-    assert.equal(summary.totalProbes, 20);
-    assert.equal(summary.expectedPass, 18);
-    assert.equal(summary.expectedFail, 2);
-    assert.equal(summary.byDisposition.observed, 14);
-    assert.equal(summary.byDisposition.gap, 2);
+    assert.equal(summary.totalProbes, 23);
+    assert.equal(summary.expectedPass, 22);
+    assert.equal(summary.expectedFail, 1);
+    assert.equal(summary.byDisposition.observed, 17);
+    assert.equal(summary.byDisposition.gap, 1);
     assert.equal(summary.byDisposition.failure, 2);
     assert.equal(summary.byDisposition.recovery, 1);
-    assert.equal(summary.byDisposition.nogo, 1);
+    assert.equal(summary.byDisposition.nogo, 2);
     assert.equal(summary.byCategory.intent_versioning.probeCount, 3);
     assert.equal(summary.byCategory.task_signal.probeCount, 3);
     assert.equal(summary.byCategory.intent_depth.probeCount, 3);
     assert.equal(summary.byCategory.baseline_link.probeCount, 2);
-    assert.equal(summary.byCategory.boundary.probeCount, 3);
+    assert.equal(summary.byCategory.boundary.probeCount, 6);
     assert.equal(summary.byCategory.failure_path.probeCount, 2);
     assert.equal(summary.byCategory.recovery_path.probeCount, 2);
     assert.equal(summary.byCategory.nogo_path.probeCount, 2);
   });
 
-  it("lists two remaining gap probes after A03 parse/classify/route slice", () => {
+  it("lists one remaining gap probe after A04 boundary slice", () => {
     const gaps = listVisionerIntentProbesByDisposition("gap");
     const ids = gaps.map(p => p.id).sort();
-    assert.deepEqual(ids, [
-      "vint.intent_ambiguity_nogo",
-      "vint.structured_intent_recovery",
-    ]);
+    assert.deepEqual(ids, ["vint.structured_intent_recovery"]);
     assert.ok(gaps.every(p => p.expected === "FAIL"));
   });
 
@@ -165,10 +167,10 @@ describe("Forge Visioner Intent Production Slice — P02-B01-A03", () => {
     assert.equal(slice.fixtureValid, true);
     assert.equal(slice.contractAligned, true);
     assert.equal(slice.matrixValid, true);
-    assert.equal(slice.summary.total, 20);
+    assert.equal(slice.summary.total, 23);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 18);
-    assert.equal(slice.matrixValidation.gapAligned, 2);
+    assert.equal(slice.matrixValidation.passAligned, 22);
+    assert.equal(slice.matrixValidation.gapAligned, 1);
 
     for (const contractProbe of contract.probes) {
       const result = slice.results.find(r => r.id === contractProbe.id);
@@ -187,10 +189,10 @@ describe("Forge Visioner Intent Production Slice — P02-B01-A03", () => {
     );
 
     assert.equal(slice.summary.mismatches.length, 0);
-    assert.equal(slice.summary.knownGaps.length, 2);
+    assert.equal(slice.summary.knownGaps.length, 1);
     assert.deepEqual(
       slice.summary.knownGaps.map(g => g.id).sort(),
-      ["vint.intent_ambiguity_nogo", "vint.structured_intent_recovery"],
+      ["vint.structured_intent_recovery"],
     );
 
     const flipped = ["vint.structured_intent_parse", "vint.programmatic_depth_classifier", "vint.depth_routed_prompt"];
@@ -201,5 +203,96 @@ describe("Forge Visioner Intent Production Slice — P02-B01-A03", () => {
       assert.equal(result!.actual, "PASS");
       assert.equal(result!.aligned, true);
     }
+  });
+});
+
+describe("Forge Visioner Intent Boundary Slice — P02-B01-A04", () => {
+  it("assessVisionerTaskInputBoundary handles empty, whitespace-only and oversized inputs", () => {
+    const empty = assessVisionerTaskInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessVisionerTaskInputBoundary("  \t\n ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessVisionerTaskInputBoundary("fix\x00bug");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const longTask = "word ".repeat(VISIONER_TASK_MAX_LENGTH + 50);
+    const truncated = assessVisionerTaskInputBoundary(longTask);
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedTask.length, VISIONER_TASK_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("checkVisionerIntentAmbiguity blocks high-ambiguity tasks", () => {
+    const ambiguous = checkVisionerIntentAmbiguity("maybe or whatever");
+    assert.equal(ambiguous.shouldBlock, true);
+    assert.ok(ambiguous.ambiguityScore >= ambiguous.threshold);
+
+    const clear = checkVisionerIntentAmbiguity("Fix typo in README.md configuration file");
+    assert.equal(clear.shouldBlock, false);
+  });
+
+  it("defines boundary category with input edge-case probes", () => {
+    const boundary = listVisionerIntentContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "vint.empty_task_boundary",
+      "vint.known_gaps_documented",
+      "vint.long_task_truncation_boundary",
+      "vint.probe_runner_exported",
+      "vint.source_phase_gate_ref",
+      "vint.whitespace_task_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveVisionerIntentContract();
+    const slice = runVisionerIntentBoundarySlice();
+
+    assert.equal(slice.atom, "P02-B01-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listVisionerIntentContractProbesByCategory("boundary", contract)) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateVisionerIntentBoundaryProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("flips intent_ambiguity_nogo probe while preserving structured_intent_recovery gap", () => {
+    const slice = runVisionerIntentBoundarySlice();
+    const ambiguity = slice.results.find(r => r.id === "vint.intent_ambiguity_nogo");
+    const recoveryGap = slice.results.find(r => r.id === "vint.structured_intent_recovery");
+
+    assert.ok(ambiguity);
+    assert.equal(ambiguity!.expected, "PASS");
+    assert.equal(ambiguity!.actual, "PASS");
+    assert.equal(ambiguity!.aligned, true);
+
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+    assert.equal(recoveryGap!.aligned, true);
   });
 });
