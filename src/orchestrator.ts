@@ -59,6 +59,7 @@ import {
   buildVisionPromptForDepth,
   checkVisionerIntentAmbiguity,
 } from "./forge-p02-visioner-intent.js";
+import { buildVisionConstraintSummary } from "./forge-p02-visioner-constraint.js";
 
 /** Canonical ordered pipeline phases for behavior-map probes and downstream tooling. */
 export const FORGE_PIPELINE_PHASES = FORGE_PIPELINE_CORE_PHASES;
@@ -3910,46 +3911,7 @@ Check: emotion target, focal point, color philosophy, space, forbidden list.${pi
    * Falls back to truncated full vision if extraction yields nothing useful.
    */
   private buildVisionSummary(visionOutput: string): string {
-    const lines = visionOutput.split("\n");
-    const sections: string[] = [];
-    let currentSection = "";
-    let capturing = false;
-
-    // Extract key sections by header
-    const keepHeaders = /^\*?\*?\s*(?:GOAL|ACCEPTANCE|FORBIDDEN|CONSTRAINT|COLOR|TYPOGRAPHY|FONT|FOCAL|EMOTION|MOTION\s*BUDGET|SPACE|APPROACH)/i;
-    const stopHeaders = /^\*?\*?\s*(?:REFERENCE|BENCHMARK|RESEARCH|INSPIRATION|EXAMPLE|CONTEXT|NOTE)/i;
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (keepHeaders.test(trimmed)) {
-        if (currentSection) sections.push(currentSection.trim());
-        currentSection = trimmed + "\n";
-        capturing = true;
-      } else if (stopHeaders.test(trimmed) || (capturing && /^#{1,3}\s/.test(trimmed) && !keepHeaders.test(trimmed))) {
-        if (currentSection) sections.push(currentSection.trim());
-        currentSection = "";
-        capturing = false;
-      } else if (capturing) {
-        currentSection += trimmed + "\n";
-      }
-    }
-    if (currentSection) sections.push(currentSection.trim());
-
-    if (sections.length > 0) {
-      const summary = sections.join("\n\n");
-      // If summary is reasonably sized, use it; otherwise truncate
-      if (summary.length > 100 && summary.length < visionOutput.length * 0.8) {
-        return `VISION SUMMARY (key constraints — full doc pinned at pipeline level):\n${summary}`;
-      }
-    }
-
-    // Fallback: truncate full vision to first 600 chars + last 200 (constraints often at end)
-    if (visionOutput.length > 1000) {
-      return `VISION SUMMARY (truncated — full doc pinned at pipeline level):\n${visionOutput.slice(0, 600)}\n...\n${visionOutput.slice(-200)}`;
-    }
-
-    // Short vision: send as-is
-    return `VISION DOCUMENT:\n${visionOutput}`;
+    return buildVisionConstraintSummary(visionOutput);
   }
 
   /**

@@ -12,7 +12,7 @@ import {
   summarizeVisionerIntentContractCoverage,
 } from "./forge-p02-visioner-intent.js";
 
-export const FORGE_VISIONER_CONSTRAINT_VERSION = "1.0.0-a01";
+export const FORGE_VISIONER_CONSTRAINT_VERSION = "1.0.0-a03";
 
 export const VISIONER_CONSTRAINT_CATEGORIES = [
   "constraint_versioning",
@@ -93,6 +93,222 @@ export function assessVisionerConstraintPresence(visionOutput: string): Visioner
     constraintLines,
     nonGoalLines,
     detail: `constraints=${constraintLines.length}, nonGoals=${nonGoalLines.length}`,
+  };
+}
+
+export interface VisionerConstraintExtract {
+  constraints: string[];
+  nonGoals: string[];
+  hasConstraints: boolean;
+  hasNonGoals: boolean;
+  presence: VisionerConstraintPresence;
+  detail: string;
+}
+
+/**
+ * Parse vision output into structured constraints and non-goals (P02-B02-A03 production slice).
+ */
+export function extractVisionerConstraints(visionOutput: string): VisionerConstraintExtract {
+  const presence = assessVisionerConstraintPresence(visionOutput);
+  const constraintHeader = /^\*?\*?\s*CONSTRAINTS?:?\s*/i;
+  const forbiddenHeader = /^\*?\*?\s*FORBIDDEN:?\s*/i;
+
+  const constraints: string[] = [];
+  for (const line of presence.constraintLines) {
+    const trimmed = line.trim();
+    const inline = trimmed.replace(constraintHeader, "").trim();
+    if (constraintHeader.test(trimmed) && inline.length > 0) {
+      constraints.push(inline);
+    } else if (!constraintHeader.test(trimmed)) {
+      constraints.push(trimmed.replace(/^[-*]\s*/, "").trim());
+    }
+  }
+
+  const nonGoals: string[] = [];
+  for (const line of presence.nonGoalLines) {
+    const trimmed = line.trim();
+    const inline = trimmed.replace(forbiddenHeader, "").trim();
+    if (forbiddenHeader.test(trimmed) && inline.length > 0) {
+      nonGoals.push(inline);
+    } else if (!forbiddenHeader.test(trimmed)) {
+      nonGoals.push(trimmed.replace(/^[-*]\s*/, "").trim());
+    }
+  }
+
+  return {
+    constraints: constraints.filter(Boolean),
+    nonGoals: nonGoals.filter(Boolean),
+    hasConstraints: presence.hasConstraints,
+    hasNonGoals: presence.hasNonGoals,
+    presence,
+    detail: presence.detail,
+  };
+}
+
+const VISION_SUMMARY_KEEP_HEADERS =
+  /^\*?\*?\s*(?:GOAL|ACCEPTANCE|FORBIDDEN|CONSTRAINT|COLOR|TYPOGRAPHY|FONT|FOCAL|EMOTION|MOTION\s*BUDGET|SPACE|APPROACH)/i;
+const VISION_SUMMARY_STOP_HEADERS =
+  /^\*?\*?\s*(?:REFERENCE|BENCHMARK|RESEARCH|INSPIRATION|EXAMPLE|CONTEXT|NOTE)/i;
+
+/**
+ * Build compact vision summary for atom-level constraint injection (P02-B02-A03).
+ */
+export function buildVisionConstraintSummary(visionOutput: string): string {
+  const extracted = extractVisionerConstraints(visionOutput);
+  const lines = visionOutput.split("\n");
+  const sections: string[] = [];
+  let currentSection = "";
+  let capturing = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (VISION_SUMMARY_KEEP_HEADERS.test(trimmed)) {
+      if (currentSection) sections.push(currentSection.trim());
+      currentSection = `${trimmed}\n`;
+      capturing = true;
+    } else if (
+      VISION_SUMMARY_STOP_HEADERS.test(trimmed) ||
+      (capturing && /^#{1,3}\s/.test(trimmed) && !VISION_SUMMARY_KEEP_HEADERS.test(trimmed))
+    ) {
+      if (currentSection) sections.push(currentSection.trim());
+      currentSection = "";
+      capturing = false;
+    } else if (capturing) {
+      currentSection += `${trimmed}\n`;
+    }
+  }
+  if (currentSection) sections.push(currentSection.trim());
+
+  if (sections.length === 0 && (extracted.hasConstraints || extracted.hasNonGoals)) {
+    const fallbackSections: string[] = [];
+    if (extracted.constraints.length > 0) {
+      fallbackSections.push(`**CONSTRAINTS**:\n${extracted.constraints.map(c => `- ${c}`).join("\n")}`);
+    }
+    if (extracted.nonGoals.length > 0) {
+      fallbackSections.push(`**FORBIDDEN**:\n${extracted.nonGoals.map(g => `- ${g}`).join("\n")}`);
+    }
+    if (fallbackSections.length > 0) {
+      return `VISION SUMMARY (key constraints — full doc pinned at pipeline level):\n${fallbackSections.join("\n\n")}`;
+    }
+  }
+
+  if (sections.length > 0) {
+    const summary = sections.join("\n\n");
+    if (summary.length > 100 && summary.length < visionOutput.length * 0.8) {
+      return `VISION SUMMARY (key constraints — full doc pinned at pipeline level):\n${summary}`;
+    }
+  }
+
+  if (visionOutput.length > 1000) {
+    return `VISION SUMMARY (truncated — full doc pinned at pipeline level):\n${visionOutput.slice(0, 600)}\n...\n${visionOutput.slice(-200)}`;
+  }
+
+  return `VISION DOCUMENT:\n${visionOutput}`;
+}
+
+export interface VisionerConstraintProbeMatrixValidationIssue {
+  kind:
+    | "missing_result"
+    | "extra_result"
+    | "pass_mismatch"
+    | "gap_misaligned"
+    | "unexpected_mismatch"
+    | "criterion_mismatch";
+  probeId?: string;
+  detail: string;
+}
+
+export interface VisionerConstraintProbeMatrixValidationResult {
+  valid: boolean;
+  issues: VisionerConstraintProbeMatrixValidationIssue[];
+  passAligned: number;
+  gapAligned: number;
+  unexpectedMismatches: number;
+}
+
+/**
+ * Validate probe matrix against typed contract — A03 production slice gate.
+ */
+export function validateVisionerConstraintProbeMatrix(
+  results: VisionerConstraintProbeResult[],
+  contract: VisionerConstraintContract = getActiveVisionerConstraintContract(),
+): VisionerConstraintProbeMatrixValidationResult {
+  const issues: VisionerConstraintProbeMatrixValidationIssue[] = [];
+  const resultById = new Map(results.map(r => [r.id, r]));
+  let passAligned = 0;
+  let gapAligned = 0;
+  let unexpectedMismatches = 0;
+
+  for (const contractProbe of contract.probes) {
+    const result = resultById.get(contractProbe.id);
+    if (!result) {
+      issues.push({
+        kind: "missing_result",
+        probeId: contractProbe.id,
+        detail: `probe matrix missing ${contractProbe.id}`,
+      });
+      unexpectedMismatches++;
+      continue;
+    }
+
+    if (result.criterion && result.criterion !== contractProbe.criterion) {
+      issues.push({
+        kind: "criterion_mismatch",
+        probeId: contractProbe.id,
+        detail: `criterion mismatch result=${result.criterion} contract=${contractProbe.criterion}`,
+      });
+      unexpectedMismatches++;
+    }
+
+    if (contractProbe.expected === "PASS") {
+      if (result.aligned) {
+        passAligned++;
+      } else {
+        issues.push({
+          kind: "pass_mismatch",
+          probeId: contractProbe.id,
+          detail: `PASS probe misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (contractProbe.expected === "FAIL") {
+      if (result.aligned && result.actual === "FAIL") {
+        gapAligned++;
+      } else {
+        issues.push({
+          kind: "gap_misaligned",
+          probeId: contractProbe.id,
+          detail: `documented FAIL gap misaligned: expected=${result.expected} actual=${result.actual} (${result.detail})`,
+        });
+        unexpectedMismatches++;
+      }
+    } else if (!result.aligned) {
+      issues.push({
+        kind: "unexpected_mismatch",
+        probeId: contractProbe.id,
+        detail: `unexpected mismatch: expected=${result.expected} actual=${result.actual}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  for (const result of results) {
+    if (!contract.probes.some(p => p.id === result.id)) {
+      issues.push({
+        kind: "extra_result",
+        probeId: result.id,
+        detail: `probe matrix extra ${result.id}`,
+      });
+      unexpectedMismatches++;
+    }
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+    passAligned,
+    gapAligned,
+    unexpectedMismatches,
   };
 }
 

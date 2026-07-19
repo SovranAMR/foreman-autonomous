@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B02-A03 — Constraint ve non-goal çıkarımı: en küçük üretim dikey dilimini uygula.
+P02-B02-A04 — Constraint ve non-goal çıkarımı: boundary ve edge-case davranışlarını tamamla.
 
-objective: P02-B02-A02 contract sealed; B02 production slice A03 next.
-target: minimal production vertical slice for constraint/non-goal extraction wired to contract probes.
-hypothesis: typed A02 contract provides stable probe matrix for first production slice.
-acceptance: production slice runs; fixture alignment holds; zero unexpected PASS mismatches.
+objective: P02-B02-A03 production slice sealed; B02 boundary slice A04 next.
+target: boundary and edge-case behavior for constraint/non-goal extraction with contract probes.
+hypothesis: typed A03 extraction provides stable anchor for boundary hardening.
+acceptance: boundary slice runs; fixture alignment holds; zero unexpected PASS mismatches.
 commands: npx tsx --test src/forge-p02-*.test.ts
 blast_radius: src/forge-p02-visioner-constraint.ts
-rollback: P02-B02-A03 production slice değişikliklerini geri al.
+rollback: P02-B02-A04 boundary slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
 fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B02-A02
+last_atom: P02-B02-A03
 last_commit: PENDING
-tests: PASS — forge-p02-visioner-constraint.test.ts (7/7); forge-p02-visioner-constraint*.test.ts (10/10); forge-p02-visioner-intent*.test.ts (43/43)
-evidence: summarizeVisionerConstraintContractCoverage, validateVisionerConstraintContractCoverage, listVisionerConstraintContractProbeIds; contract=23 probes gap=vcon.structured_constraint_recovery
-next: P02-B02-A03
+tests: PASS — forge-p02-visioner-constraint.test.ts (10/10); forge-p02-visioner-constraint*.test.ts (13/13); forge-p02-visioner-intent*.test.ts (43/43)
+evidence: extractVisionerConstraints, buildVisionConstraintSummary, validateVisionerConstraintProbeMatrix, runVisionerConstraintProductionSlice; matrix=22 pass + 1 gap (vcon.structured_constraint_recovery)
+next: P02-B02-A04

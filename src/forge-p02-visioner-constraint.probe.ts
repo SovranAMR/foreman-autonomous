@@ -16,7 +16,10 @@ import {
 } from "./forge-p02-visioner-intent.js";
 import {
   assessVisionerConstraintPresence,
+  extractVisionerConstraints,
   validateVisionerConstraintBaseline,
+  validateVisionerConstraintAgainstContract,
+  validateVisionerConstraintProbeMatrix,
   summarizeVisionerConstraintMatrix,
   listVisionerConstraintProbesByExpected,
   listVisionerConstraintKnownGaps,
@@ -32,11 +35,14 @@ import {
 export type { VisionerConstraintBaseline, VisionerConstraintProbeResult } from "./forge-p02-visioner-constraint.js";
 export {
   validateVisionerConstraintBaseline,
+  validateVisionerConstraintAgainstContract,
+  validateVisionerConstraintProbeMatrix,
   summarizeVisionerConstraintMatrix,
   listVisionerConstraintProbesByExpected,
   listVisionerConstraintKnownGaps,
   getActiveVisionerConstraintContract,
   assessVisionerConstraintPresence,
+  extractVisionerConstraints,
   FORGE_VISIONER_CONSTRAINT_VERSION,
   VISIONER_CONSTRAINT_CATEGORIES,
 } from "./forge-p02-visioner-constraint.js";
@@ -138,9 +144,7 @@ function probeConstraintSignal(
       return probe(id, category, expected, ok, `forbiddenSection=${ok}`);
     }
     case "vcon.vision_summary_constraint_extract": {
-      const ok =
-        orchestrator.includes("buildVisionSummary") &&
-        orchestrator.includes("CONSTRAINT");
+      const ok = orchestrator.includes("buildVisionConstraintSummary");
       return probe(id, category, expected, ok, `summaryConstraintExtract=${ok}`);
     }
     default:
@@ -166,17 +170,19 @@ function probeNonGoalSignal(
       return probe(id, category, expected, ok, `pinnedConstraints=${ok}`);
     }
     case "vcon.non_goal_forbidden_extract": {
-      const result = assessVisionerConstraintPresence(SAMPLE_VISION_WITH_CONSTRAINTS);
+      const extracted = extractVisionerConstraints(SAMPLE_VISION_WITH_CONSTRAINTS);
       const ok =
-        hasProductionExport("assessVisionerConstraintPresence") &&
-        result.hasNonGoals === true &&
-        result.hasConstraints === true;
+        hasProductionExport("extractVisionerConstraints") &&
+        extracted.hasNonGoals === true &&
+        extracted.hasConstraints === true &&
+        extracted.nonGoals.length > 0 &&
+        extracted.constraints.length > 0;
       return probe(
         id,
         category,
         expected,
         ok,
-        `hasNonGoals=${result.hasNonGoals}, hasConstraints=${result.hasConstraints}`,
+        `constraints=${extracted.constraints.length}, nonGoals=${extracted.nonGoals.length}`,
       );
     }
     default:
@@ -396,4 +402,39 @@ export function runVisionerConstraintProbes(
       ? { ...result, criterion: contractProbe.criterion }
       : result;
   });
+}
+
+export interface VisionerConstraintProductionSliceResult {
+  atom: "P02-B02-A03";
+  fixtureValid: boolean;
+  contractAligned: boolean;
+  matrixValid: boolean;
+  results: VisionerConstraintProbeResult[];
+  summary: ReturnType<typeof summarizeVisionerConstraintMatrix>;
+  matrixValidation: ReturnType<typeof validateVisionerConstraintProbeMatrix>;
+}
+
+/**
+ * A03 production vertical slice: structured constraint/non-goal extraction wired to
+ * contract probe execution and matrix alignment gate (PASS probes + documented FAIL gaps).
+ */
+export function runVisionerConstraintProductionSlice(
+  fixture: VisionerConstraintBaseline = loadVisionerConstraintBaseline(),
+): VisionerConstraintProductionSliceResult {
+  const contract = getActiveVisionerConstraintContract();
+  const fixtureValidation = validateVisionerConstraintBaseline(fixture);
+  const contractValidation = validateVisionerConstraintAgainstContract(fixture, contract);
+  const results = runVisionerConstraintProbes(fixture);
+  const summary = summarizeVisionerConstraintMatrix(results);
+  const matrixValidation = validateVisionerConstraintProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B02-A03",
+    fixtureValid: fixtureValidation.valid,
+    contractAligned: contractValidation.valid,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    summary,
+    matrixValidation,
+  };
 }

@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 import {
   loadVisionerConstraintBaseline,
   runVisionerConstraintProbes,
+  runVisionerConstraintProductionSlice,
 } from "./forge-p02-visioner-constraint.probe.js";
 import {
+  extractVisionerConstraints,
+  buildVisionConstraintSummary,
   getActiveVisionerConstraintContract,
   getVisionerConstraintCategoryContract,
   listVisionerConstraintContractProbeIds,
@@ -13,8 +16,17 @@ import {
   summarizeVisionerConstraintContractCoverage,
   validateVisionerConstraintContractCoverage,
   validateVisionerConstraintAgainstContract,
+  validateVisionerConstraintProbeMatrix,
   VISIONER_CONSTRAINT_CATEGORIES,
 } from "./forge-p02-visioner-constraint.js";
+
+function formatMismatchReport(
+  mismatches: { id: string; expected: string; actual: string; detail: string }[],
+): string {
+  return mismatches
+    .map(m => `  ${m.id}: expected=${m.expected} actual=${m.actual} (${m.detail})`)
+    .join("\n");
+}
 
 describe("Forge Visioner Constraint Contract — P02-B02-A02", () => {
   it("defines typed acceptance for all eight visioner constraint categories", () => {
@@ -115,5 +127,71 @@ describe("Forge Visioner Constraint Contract — P02-B02-A02", () => {
       listVisionerConstraintContractProbesByCategory(category, contract).map(p => p.id),
     );
     assert.deepEqual(categoryIds, flatIds);
+  });
+});
+
+describe("Forge Visioner Constraint Production Slice — P02-B02-A03", () => {
+  const SAMPLE_VISION = `**GOAL**: Ship feature
+**CONSTRAINTS**: TypeScript strict mode only
+**FORBIDDEN**: No jQuery`;
+
+  it("extractVisionerConstraints exports structured constraints and non-goals", () => {
+    const extracted = extractVisionerConstraints(SAMPLE_VISION);
+    assert.equal(extracted.hasConstraints, true);
+    assert.equal(extracted.hasNonGoals, true);
+    assert.ok(extracted.constraints.some(c => /TypeScript strict mode/i.test(c)));
+    assert.ok(extracted.nonGoals.some(g => /jQuery/i.test(g)));
+  });
+
+  it("buildVisionConstraintSummary preserves constraint sections for worker injection", () => {
+    const summary = buildVisionConstraintSummary(SAMPLE_VISION);
+    assert.match(summary, /CONSTRAINT/i);
+    assert.match(summary, /FORBIDDEN/i);
+    assert.match(summary, /TypeScript strict mode/i);
+  });
+
+  it("executes contract-wired probes with zero unexpected mismatches after extraction slice", () => {
+    const contract = getActiveVisionerConstraintContract();
+    const slice = runVisionerConstraintProductionSlice();
+
+    assert.equal(slice.atom, "P02-B02-A03");
+    assert.equal(slice.fixtureValid, true);
+    assert.equal(slice.contractAligned, true);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 22);
+    assert.equal(slice.matrixValidation.gapAligned, 1);
+
+    for (const contractProbe of contract.probes) {
+      const result = slice.results.find(r => r.id === contractProbe.id);
+      assert.ok(result, `missing probe result: ${contractProbe.id}`);
+      assert.equal(result!.criterion, contractProbe.criterion, `${contractProbe.id} criterion`);
+    }
+
+    const passMismatches = slice.results.filter(r => r.expected === "PASS" && !r.aligned);
+    assert.equal(passMismatches.length, 0, formatMismatchReport(passMismatches));
+
+    const matrixValidation = validateVisionerConstraintProbeMatrix(slice.results, contract);
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+
+    assert.equal(slice.summary.mismatches.length, 0);
+    assert.equal(slice.summary.knownGaps.length, 1);
+    assert.deepEqual(
+      slice.summary.knownGaps.map(g => g.id).sort(),
+      ["vcon.structured_constraint_recovery"],
+    );
+
+    for (const id of ["vcon.vision_summary_constraint_extract", "vcon.non_goal_forbidden_extract"]) {
+      const result = slice.results.find(r => r.id === id);
+      assert.ok(result, `${id} missing`);
+      assert.equal(result!.expected, "PASS");
+      assert.equal(result!.actual, "PASS");
+      assert.equal(result!.aligned, true);
+    }
   });
 });
