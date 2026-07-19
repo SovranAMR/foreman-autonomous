@@ -44,7 +44,7 @@ fallback: Production slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B07-A03
-last_commit: 15f3adf
+last_commit: b959e4f
 tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (13/13); 21 pass-aligned; 6 gap-aligned; zero unexpected mismatches
 evidence: runStrategistParallelWaveProductionSlice; validateStrategistParallelWaveProbeMatrix
 next: P03-B07-A04
