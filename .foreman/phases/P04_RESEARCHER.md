@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 2
-completed_atoms: 24
+completed_atoms: 25
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -45,7 +45,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B03-A02 — Web ve primary-source araştırma: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B03-A03 — Web ve primary-source araştırma: en küçük üretim dikey dilimini uygula
 - [x] P04-B03-A04 — Web ve primary-source araştırma: boundary ve edge-case davranışlarını tamamla
-- [ ] P04-B03-A05 — Web ve primary-source araştırma: failure, recovery ve NO-GO yollarını uygula
+- [x] P04-B03-A05 — Web ve primary-source araştırma: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B03-A06 — Web ve primary-source araştırma: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B03-A07 — Web ve primary-source araştırma: unit, property ve fuzz doğrulamasını ekle
 - [ ] P04-B03-A08 — Web ve primary-source araştırma: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B03-A04
-last_commit: 9c1a860
-tests: PASS — forge-p04-researcher*.test.ts (135/135); boundary probes=6; expectedFail=0; runResearcherWebPrimarySourceBoundarySlice exported
-evidence: runResearcherWebPrimarySourceBoundarySlice; validateResearcherWebPrimarySourceBoundaryProbeMatrix; forge-p04-researcher-web-primary-source-baseline.test.ts
-next: P04-B03-A05
+last_atom: P04-B03-A05
+last_commit: PENDING
+tests: PASS — forge-p04-researcher*.test.ts (138/138); failureRecovery probes=6; expectedFail=0; runResearcherWebPrimarySourceFailureRecoverySlice exported
+evidence: runResearcherWebPrimarySourceFailureRecoverySlice; validateResearcherWebPrimarySourceFailureRecoveryProbeMatrix; forge-p04-researcher-web-primary-source-baseline.test.ts
+next: P04-B03-A06

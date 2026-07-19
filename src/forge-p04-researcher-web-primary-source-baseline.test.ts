@@ -5,9 +5,13 @@ import {
   runResearcherWebPrimarySourceProbes,
   runResearcherWebPrimarySourceProductionSlice,
   runResearcherWebPrimarySourceBoundarySlice,
+  runResearcherWebPrimarySourceFailureRecoverySlice,
   validateResearcherWebPrimarySourceBaseline,
   validateResearcherWebPrimarySourceProbeMatrix,
   validateResearcherWebPrimarySourceBoundaryProbeMatrix,
+  validateResearcherWebPrimarySourceFailureRecoveryProbeMatrix,
+  listResearcherWebPrimarySourceFailureRecoveryProbeIds,
+  RESEARCHER_WEB_PRIMARY_SOURCE_FAILURE_RECOVERY_CATEGORIES,
   listResearcherWebPrimarySourceContractProbesByCategory,
   summarizeResearcherWebPrimarySourceMatrix,
   listResearcherWebPrimarySourceProbesByExpected,
@@ -246,5 +250,111 @@ describe("Forge Researcher Web Primary-Source Boundary Slice — P04-B03-A04", (
     assert.equal(recovery.recovered, false);
     assert.deepEqual(recovery.parseErrors, ["whitespace_only"]);
     assert.equal(recovery.detail, "cannot recover whitespace-only URL citation parse");
+  });
+});
+
+describe("Forge Researcher Web Primary-Source Failure/Recovery Slice — P04-B03-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveResearcherWebPrimarySourceContract();
+    const failure = listResearcherWebPrimarySourceContractProbesByCategory(
+      "failure_path",
+      contract,
+    );
+    const recovery = listResearcherWebPrimarySourceContractProbesByCategory(
+      "recovery_path",
+      contract,
+    );
+    const nogo = listResearcherWebPrimarySourceContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...RESEARCHER_WEB_PRIMARY_SOURCE_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveResearcherWebPrimarySourceContract();
+    const slice = runResearcherWebPrimarySourceFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P04-B03-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of RESEARCHER_WEB_PRIMARY_SOURCE_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listResearcherWebPrimarySourceContractProbesByCategory(
+        category,
+        contract,
+      )) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateResearcherWebPrimarySourceFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with validator export and URL citation recovery", () => {
+    const slice = runResearcherWebPrimarySourceFailureRecoverySlice();
+    const probeIds = listResearcherWebPrimarySourceFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "rwps.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const malformedUrl = slice.failureRecoveryResults.find(r => r.id === "rwps.malformed_url_guard");
+    assert.ok(malformedUrl);
+    assert.equal(malformedUrl!.expected, "PASS");
+    assert.equal(malformedUrl!.actual, "PASS");
+
+    const researchBlockNonFatal = slice.failureRecoveryResults.find(
+      r => r.id === "rwps.research_block_non_fatal",
+    );
+    assert.ok(researchBlockNonFatal);
+    assert.equal(researchBlockNonFatal!.expected, "PASS");
+    assert.equal(researchBlockNonFatal!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "rwps.structured_web_primary_source_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const researcherCriticalBlock = slice.failureRecoveryResults.find(
+      r => r.id === "rwps.researcher_critical_block",
+    );
+    assert.ok(researcherCriticalBlock);
+    assert.equal(researcherCriticalBlock!.expected, "PASS");
+    assert.equal(researcherCriticalBlock!.actual, "PASS");
+
+    const exportedValidator = slice.failureRecoveryResults.find(
+      r => r.id === "rwps.exported_web_primary_source_validator",
+    );
+    assert.ok(exportedValidator);
+    assert.equal(exportedValidator!.expected, "PASS");
+    assert.equal(exportedValidator!.actual, "PASS");
   });
 });
