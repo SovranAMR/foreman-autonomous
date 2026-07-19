@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B06-A07
-last_commit: PENDING
+last_commit: 1f9f9f4
 tests: PASS — forge-p04-researcher-contradiction-freshness*.test.ts (37/37); property/fuzz slice 8/8 properties + 72/72 contract fuzz rejected + 5/5 run record fuzz rejected; evidence slice 6/6 preserved
 evidence: runResearcherContradictionFreshnessPropertyValidation + runResearcherContradictionFreshnessFuzzValidation + runResearcherContradictionFreshnessRunRecordFuzzValidation + runResearcherContradictionFreshnessPropertyFuzzSlice exported; harnessVersion 1.0.0-a07
 next: P04-B06-A08
