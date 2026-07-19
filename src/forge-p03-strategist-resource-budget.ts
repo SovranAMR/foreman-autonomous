@@ -22,7 +22,7 @@ import {
 } from "./forge-p03-strategist-intent.js";
 import { parseDecomposeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_RESOURCE_BUDGET_VERSION = "1.0.0-a03";
+export const FORGE_STRATEGIST_RESOURCE_BUDGET_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P03_B05_SEALED_ATOM_COUNT = 10;
 
@@ -1729,6 +1729,60 @@ export function runStrategistResourceBudgetProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+export interface StrategistResourceBudgetBoundarySliceResult {
+  atom: "P03-B06-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistResourceBudgetProbeResult[];
+  boundaryResults: StrategistResourceBudgetProbeResult[];
+  matrixValidation: StrategistResourceBudgetProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateStrategistResourceBudgetBoundaryProbeMatrix(
+  results: StrategistResourceBudgetProbeResult[],
+  contract: StrategistResourceBudgetContract = getActiveStrategistResourceBudgetContract(),
+): StrategistResourceBudgetProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistResourceBudgetContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistResourceBudgetContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistResourceBudgetProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (decompose input edge cases, probe runner,
+ * documented gaps, source block gate refs) with zero unexpected mismatches.
+ */
+export function runStrategistResourceBudgetBoundarySlice(
+  fixture: StrategistResourceBudgetBaseline = loadStrategistResourceBudgetBaseline(),
+): StrategistResourceBudgetBoundarySliceResult {
+  const contract = getActiveStrategistResourceBudgetContract();
+  const results = runStrategistResourceBudgetProbes(fixture);
+  const boundaryProbes = listStrategistResourceBudgetContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistResourceBudgetBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B06-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }

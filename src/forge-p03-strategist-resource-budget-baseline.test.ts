@@ -10,10 +10,14 @@ import {
   recoverStrategistResourceBudget,
   validateStrategistResourceBudget,
   runStrategistResourceBudgetProductionSlice,
+  runStrategistResourceBudgetBoundarySlice,
   validateStrategistResourceBudgetProbeMatrix,
+  validateStrategistResourceBudgetBoundaryProbeMatrix,
   getActiveStrategistResourceBudgetContract,
+  listStrategistResourceBudgetContractProbesByCategory,
   assessStrategistResourceBudgetInputBoundary,
   STRATEGIST_RESOURCE_BUDGET_CATEGORIES,
+  STRATEGIST_RESOURCE_BUDGET_DECOMPOSE_MAX_LENGTH,
 } from "./forge-p03-strategist-resource-budget.js";
 
 function formatMismatchReport(
@@ -204,5 +208,100 @@ CONFIDENCE: 0.9`;
     const nullByte = assessStrategistResourceBudgetInputBoundary("bad\0decompose");
     assert.equal(nullByte.disposition, "contains_null_byte");
     assert.equal(nullByte.acceptable, false);
+  });
+});
+
+describe("Forge Strategist Resource Budget Boundary Slice — P03-B06-A04", () => {
+  it("assessStrategistResourceBudgetInputBoundary handles decompose edge cases including truncation", () => {
+    const empty = assessStrategistResourceBudgetInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistResourceBudgetInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistResourceBudgetInputBoundary("bad\0decompose");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const valid = assessStrategistResourceBudgetInputBoundary(
+      "REASONING: valid\nOUTPUT:\nBlock 1: task\nDEPENDENCIES: none\nRESOURCE PLAN: lightweight\nTOKEN BUDGET: perThought=4096\nCONFIDENCE: 0.8",
+    );
+    assert.equal(valid.disposition, "valid");
+    assert.equal(valid.acceptable, true);
+
+    const longDecompose = "x".repeat(STRATEGIST_RESOURCE_BUDGET_DECOMPOSE_MAX_LENGTH + 500);
+    const truncated = assessStrategistResourceBudgetInputBoundary(longDecompose);
+    assert.equal(truncated.disposition, "exceeds_max_length");
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedDecompose.length, STRATEGIST_RESOURCE_BUDGET_DECOMPOSE_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("recoverStrategistResourceBudget rejects empty and whitespace-only decompose at boundary", () => {
+    const emptyRecovery = recoverStrategistResourceBudget("");
+    assert.equal(emptyRecovery.recovered, false);
+    assert.equal(emptyRecovery.resourceBudgetCompliant, false);
+    assert.deepEqual(emptyRecovery.parseErrors, ["empty_decompose"]);
+
+    const whitespaceRecovery = recoverStrategistResourceBudget("   \t\n  ");
+    assert.equal(whitespaceRecovery.recovered, false);
+    assert.equal(whitespaceRecovery.resourceBudgetCompliant, false);
+    assert.deepEqual(whitespaceRecovery.parseErrors, ["whitespace_only_decompose"]);
+
+    const emptyValidation = validateStrategistResourceBudget("");
+    assert.equal(emptyValidation.valid, false);
+    assert.ok(emptyValidation.issues.includes("empty decompose output"));
+  });
+
+  it("defines boundary category with decompose input edge-case probes", () => {
+    const boundary = listStrategistResourceBudgetContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "sbudget.empty_decompose_boundary",
+      "sbudget.known_gaps_documented",
+      "sbudget.long_decompose_truncation_boundary",
+      "sbudget.probe_runner_exported",
+      "sbudget.source_block_gate_ref",
+      "sbudget.whitespace_decompose_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistResourceBudgetContract();
+    const slice = runStrategistResourceBudgetBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B06-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistResourceBudgetContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistResourceBudgetBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });

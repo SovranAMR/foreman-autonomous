@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 5
-completed_atoms: 47
+completed_atoms: 48
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -83,7 +83,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P03-B06-A01 — Kaynak ve budget planı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P03-B06-A02 — Kaynak ve budget planı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P03-B06-A03 — Kaynak ve budget planı: en küçük üretim dikey dilimini uygula
-- [ ] P03-B06-A04 — Kaynak ve budget planı: boundary ve edge-case davranışlarını tamamla
+- [x] P03-B06-A04 — Kaynak ve budget planı: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B06-A05 — Kaynak ve budget planı: failure, recovery ve NO-GO yollarını uygula
 - [ ] P03-B06-A06 — Kaynak ve budget planı: evidence, telemetry ve provenance kaydını ekle
 - [ ] P03-B06-A07 — Kaynak ve budget planı: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B06-A03
-last_commit: 87e18fd
-tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (9/9); 27 probes; 4 FAIL gaps; 2 gaps closed
-evidence: recoverStrategistResourceBudget; validateStrategistResourceBudget; runStrategistResourceBudgetProductionSlice; RESOURCE PLAN/TOKEN BUDGET prompts+parser
-next: P03-B06-A04
+last_atom: P03-B06-A04
+last_commit: pending
+tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (13/13); boundary slice 6/6 probes; zero unexpected mismatches
+evidence: assessStrategistResourceBudgetInputBoundary; validateStrategistResourceBudgetBoundaryProbeMatrix; runStrategistResourceBudgetBoundarySlice; recovery rejects empty/whitespace at boundary
+next: P03-B06-A05
