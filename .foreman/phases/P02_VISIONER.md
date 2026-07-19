@@ -101,7 +101,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B07-A06 — Alternatif vizyon üretimi: evidence, telemetry ve provenance kaydını ekle
 - [x] P02-B07-A07 — Alternatif vizyon üretimi: unit, property ve fuzz doğrulamasını ekle
 - [x] P02-B07-A08 — Alternatif vizyon üretimi: Forge entegrasyonu ile regression testini tamamla
-- [ ] P02-B07-A09 — Alternatif vizyon üretimi: adversarial, performance, cost ve safety kontrolünü geçir
+- [x] P02-B07-A09 — Alternatif vizyon üretimi: adversarial, performance, cost ve safety kontrolünü geçir
 - [ ] P02-B07-A10 — Alternatif vizyon üretimi: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P02-B08 — Vizyon scoring ve trade-off
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B07-A08
-last_commit: dfab3fb
-tests: PASS — forge-pipeline-regression.integration.test.ts (84/84); forge-p02-visioner-alternative*.test.ts (32/32)
-evidence: runForgeVisionerAlternativeRegressionGate (23/23 aligned, guard 3/3 adversarial); detectVisionerAlternativeProbeRegression; orchestrator verifyForgeVisionerAlternativeRegression
-next: P02-B07-A09
+last_atom: P02-B07-A09
+last_commit: 2a05485
+tests: PASS — forge-p02-visioner-alternative.guard.test.ts (8/8); forge-p02-visioner-alternative*.test.ts (40/40); forge-pipeline-regression.integration.test.ts (84/84)
+evidence: validateForgeVisionerAlternativeGuard (adversarial 3/3, perf/cost/safety); verifyForgeVisionerAlternativeGuard emits visioner_alternative_guard
+next: P02-B07-A10
