@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "atom": "P02-B03-A01",
+  "contractAtom": "P02-B03-A05",
+  "purpose": "Product vision synthesis baseline measured from sealed P02-B02 block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P02-B02-A10",
+    "contractVersion": "1.0.0",
+    "visionerConstraintProbeCount": 23,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "vsyn.version_tagged",
+      "category": "synthesis_versioning",
+      "description": "Visioner synthesis baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.atom_tagged",
+      "category": "synthesis_versioning",
+      "description": "Visioner synthesis baseline declares P02-B03-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.harness_version_exported",
+      "category": "synthesis_versioning",
+      "description": "FORGE_VISIONER_SYNTHESIS_VERSION exported for synthesis harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.prompt_emotion_target",
+      "category": "synthesis_signal",
+      "description": "VISIONER_SYSTEM prompt declares EMOTION TARGET output section",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.prompt_focal_point",
+      "category": "synthesis_signal",
+      "description": "VISIONER_SYSTEM prompt declares FOCAL POINT output section",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.prompt_synthesize_directive",
+      "category": "synthesis_signal",
+      "description": "VISIONER_SYSTEM prompt declares SYNTHESIZE creative direction step",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.prompt_color_philosophy",
+      "category": "aesthetic_signal",
+      "description": "VISIONER_SYSTEM prompt declares COLOR PHILOSOPHY output section",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.prompt_typography_hierarchy",
+      "category": "aesthetic_signal",
+      "description": "VISIONER_SYSTEM prompt declares TYPOGRAPHY HIERARCHY output section",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.vision_summary_aesthetic_extract",
+      "category": "aesthetic_signal",
+      "description": "Orchestrator buildVisionSummary preserves aesthetic synthesis headers",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.b02_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P02_B02_TO_B03_HANDOFF_V1 targets P02-B03-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.b02_sealed_constraint_probes",
+      "category": "baseline_link",
+      "description": "P02-B02→B03 handoff sealed probeCount matches active visioner constraint contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P02-B02 block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.probe_runner_exported",
+      "category": "boundary",
+      "description": "runVisionerSynthesisProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL synthesis gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.empty_vision_synthesis_presence",
+      "category": "boundary",
+      "description": "assessVisionerSynthesisInputBoundary rejects empty vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.whitespace_vision_boundary",
+      "category": "boundary",
+      "description": "assessVisionerSynthesisInputBoundary rejects whitespace-only vision output",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.long_vision_truncation_boundary",
+      "category": "boundary",
+      "description": "assessVisionerSynthesisInputBoundary truncates vision exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateVisionerSynthesisBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.malformed_vision_presence_guard",
+      "category": "failure_path",
+      "description": "assessVisionerSynthesisPresence rejects null-byte vision output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.vision_checkpoint_synthesis",
+      "category": "recovery_path",
+      "description": "Pipeline resume reuses checkpoint vision output containing synthesis sections",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.structured_synthesis_recovery",
+      "category": "recovery_path",
+      "description": "recoverVisionerSynthesis restructures failed synthesis parse into actionable product vision",
+      "expected": "FAIL"
+    },
+    {
+      "id": "vsyn.reviewer_focal_dilution",
+      "category": "nogo_path",
+      "description": "Reviewer gate checks FOCAL POINT dilution against vision synthesis",
+      "expected": "PASS"
+    },
+    {
+      "id": "vsyn.reflection_aesthetic_alignment",
+      "category": "nogo_path",
+      "description": "Reflection prompt checks EMOTION TARGET and COLOR PHILOSOPHY alignment",
+      "expected": "PASS"
+    }
+  ]
+}

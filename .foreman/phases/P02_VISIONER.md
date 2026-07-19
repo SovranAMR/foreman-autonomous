@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 2
-completed_atoms: 19
+completed_atoms: 20
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -41,7 +41,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P02-B03 — Ürün vizyonu sentezi
 
-- [ ] P02-B03-A01 — Ürün vizyonu sentezi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P02-B03-A01 — Ürün vizyonu sentezi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P02-B03-A02 — Ürün vizyonu sentezi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B03-A03 — Ürün vizyonu sentezi: en küçük üretim dikey dilimini uygula
 - [ ] P02-B03-A04 — Ürün vizyonu sentezi: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B02-A10
-last_commit: 7408bee
-tests: PASS — forge-p02-visioner-constraint*.test.ts (48/48); forge-p02-visioner-intent*.test.ts (43/43); forge-p02-*.test.ts (86/86); forge-pipeline-regression.integration.test.ts (56/56)
-evidence: runVisionerConstraintBlockGate seals=10/10; FORGE_P02_B02_TO_B03_HANDOFF_V1 entry=P02-B03-A01; validateVisionerConstraintBlockHandoffContract; buildVisionerConstraintBlockGateEvidence handoffValid; orchestrator verifyForgeVisionerConstraintBlockGate phase=visioner_constraint_block_gate
-next: P02-B03-A01
+last_atom: P02-B03-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis*.test.ts (3/3); forge-p02-*.test.ts (89/89)
+evidence: loadVisionerSynthesisBaseline atom=P02-B03-A01 probes=23/23; runVisionerSynthesisProbes aligned=23/23 knownGaps=1 vsyn.structured_synthesis_recovery; validateVisionerSynthesisBaseline links FORGE_P02_B02_TO_B03_HANDOFF_V1 sourceBlockGate=P02-B02-A10
+next: P02-B03-A02

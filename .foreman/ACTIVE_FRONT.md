@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B03
-active_atom: P02-B03-A01
+active_atom: P02-B03-A02
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 119/1000
-phase_progress: 19/100
-block_progress: 0/10
+program_progress: 120/1000
+phase_progress: 20/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B03-A01 — Ürün vizyonu sentezi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P02-B03-A02 — Ürün vizyonu sentezi: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P02-B02 block gate sealed; B03 product vision synthesis baseline next.
-target: Measure product vision synthesis behavior and create failing baseline fixture from sealed P02-B02 constraint artifacts.
-hypothesis: sealed B02 block gate provides stable anchor for B03 baseline measurement.
-acceptance: baseline fixture loads; probes document current behavior with measurable FAIL gaps; links to P02-B02-A10 handoff.
+objective: P02-B03-A01 baseline sealed; B03 typed contract next.
+target: Define measurable acceptance criteria via typed contract for product vision synthesis probes.
+hypothesis: A01 baseline probe matrix provides stable anchor for typed synthesis contract.
+acceptance: contract declares all synthesis categories; fixture ↔ contract aligned; one documented FAIL gap preserved.
 commands: npx tsx --test src/forge-p02-*.test.ts
-blast_radius: src/forge-p02-visioner-synthesis.probe.ts
-rollback: P02-B03-A01 baseline değişikliklerini geri al.
+blast_radius: src/forge-p02-visioner-synthesis.ts
+rollback: P02-B03-A02 contract değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
 fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B02-A10
-last_commit: 7408bee
-tests: PASS — forge-p02-visioner-constraint*.test.ts (48/48); forge-p02-visioner-intent*.test.ts (43/43); forge-p02-*.test.ts (86/86); forge-pipeline-regression.integration.test.ts (56/56)
-evidence: runVisionerConstraintBlockGate seals=10/10; FORGE_P02_B02_TO_B03_HANDOFF_V1 entry=P02-B03-A01; validateVisionerConstraintBlockHandoffContract; buildVisionerConstraintBlockGateEvidence handoffValid; orchestrator verifyForgeVisionerConstraintBlockGate phase=visioner_constraint_block_gate
-next: P02-B03-A01
+last_atom: P02-B03-A01
+last_commit: pending
+tests: PASS — forge-p02-visioner-synthesis-baseline.test.ts (3/3); forge-p02-visioner-synthesis*.test.ts (3/3); forge-p02-*.test.ts (89/89)
+evidence: loadVisionerSynthesisBaseline atom=P02-B03-A01 probes=23/23; runVisionerSynthesisProbes aligned=23/23 knownGaps=1 vsyn.structured_synthesis_recovery; validateVisionerSynthesisBaseline links FORGE_P02_B02_TO_B03_HANDOFF_V1 sourceBlockGate=P02-B02-A10
+next: P02-B03-A02
