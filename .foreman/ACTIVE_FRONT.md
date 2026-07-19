@@ -44,7 +44,7 @@ fallback: fuzz cannot validate without scope creep ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B01-A06
-last_commit: pending
+last_commit: 578a012
 tests: PASS — forge-p02-visioner-intent.test.ts (24/24); failure/recovery run record 6/6; full run record 23/23; harnessVersion=1.0.0-b06
 evidence: buildVisionerIntentRunRecord, validateVisionerIntentFailureRecoveryRunRecord, runVisionerIntentFailureRecoverySliceWithRecord, runVisionerIntentProbesWithRecord; structured_intent_recovery gap preserved in evidence
 next: P02-B01-A07
