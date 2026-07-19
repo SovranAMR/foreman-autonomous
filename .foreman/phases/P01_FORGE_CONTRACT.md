@@ -2,8 +2,8 @@
 
 phase_id: P01
 phase_status: ACTIVE
-completed_blocks: 5
-completed_atoms: 58
+completed_blocks: 6
+completed_atoms: 59
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -89,7 +89,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B06-A07 — Benchmark ve eval harness: unit, property ve fuzz doğrulamasını ekle
 - [x] P01-B06-A08 — Benchmark ve eval harness: Forge entegrasyonu ile regression testini tamamla
 - [x] P01-B06-A09 — Benchmark ve eval harness: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P01-B06-A10 — Benchmark ve eval harness: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P01-B06-A10 — Benchmark ve eval harness: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P01-B07 — Reproducible fixture sistemi
 
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B06-A09
-last_commit: 90e4f34
-tests: PASS — `npx tsx --test src/forge-benchmark-eval-harness.guard.test.ts` (8/8); `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (22/22); `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (B06 slice 5/5)
+last_atom: P01-B06-A10
+last_commit: 11d7878
+tests: PASS — `npx tsx --test src/forge-benchmark-eval-block-gate.test.ts` (6/6); `npx tsx --test src/forge-benchmark-eval-harness.guard.test.ts` (8/8); `npx tsx --test src/forge-benchmark-eval-harness.test.ts` (22/22); `npx tsx --test src/forge-pipeline-regression.integration.test.ts` (B06 slice 5/5)
 evidence: |
-  P01-B06-A09 guard gate: validateForgeBenchmarkEvalGuard + verifyForgeBenchmarkEvalGuard orchestrator seam;
-  adversarial false-alignment/summary-mismatch/dropped-probe scenarios rejected; perf/cost/safety budgets enforced;
-  runForgeBenchmarkEvalRegressionGate includes guard PASS; bench.forge_guard_exports probe includes verifyForgeBenchmarkEvalGuard.
-next: P01-B06-A10
+  P01-B06-A10 block gate: runForgeBenchmarkEvalBlockGate + verifyForgeBenchmarkEvalBlockGate orchestrator seam;
+  FORGE_P01_B06_BLOCK_GATE_V1 seals A01–A09; FORGE_P01_B06_TO_B07_HANDOFF_V1 targets P01-B07-A01;
+  regression+guard PASS embedded in sealed evidence; handoff=PASS→P01-B07.
+next: P01-B07-A01

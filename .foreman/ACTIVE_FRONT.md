@@ -3,15 +3,15 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
-active_block: P01-B06
-active_atom: P01-B06-A10
+active_block: P01-B07
+active_atom: P01-B07-A01
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 58/1000
-phase_progress: 57/100
-block_progress: 8/10
+program_progress: 59/1000
+phase_progress: 58/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
-updated_at: 2026-07-18
+updated_at: 2026-07-19
 
 ## Tek seferlik bootstrap — program atomu değildir
 
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B06-A10 — Benchmark ve eval harness: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P01-B07-A01 — Reproducible fixture sistemi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: A09 guard PASS üzerine B06 block gate seal uygula.
-target: runForgeBenchmarkEvalBlockGate; verifyForgeBenchmarkEvalBlockGate orchestrator seam.
-hypothesis: Sealed B06 block gate evidence includes regression+guard PASS and valid B07 handoff.
-acceptance: block gate test PASS; orchestrator verifyForgeBenchmarkEvalBlockGate wired.
-commands: npx tsx --test src/forge-benchmark-eval-block-gate.test.ts
-blast_radius: forge-benchmark-eval-harness*.ts, orchestrator.ts
-rollback: A10 block gate değişikliklerini geri al.
+objective: Sealed B06 benchmark eval artifacts üzerine reproducible fixture baseline kur.
+target: loadReproducibleFixtureBaseline; validateReproducibleFixtureBaseline.
+hypothesis: Failing baseline fixture captures reproducibility gaps from B06 sealed handoff.
+acceptance: baseline fixture test PASS; contract-wired probe matrix documents known gaps.
+commands: npx tsx --test src/forge-reproducible-fixture-baseline.test.ts
+blast_radius: forge-reproducible-fixture*.ts, fixtures/
+rollback: A01 baseline değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: block gate uygulanamazsa BLOCKED raporla.
+fallback: baseline uygulanamazsa BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B06-A09
-last_commit: 90e4f34
-tests: PASS — forge-benchmark-eval-harness.guard.test.ts (8/8); forge-benchmark-eval-harness.test.ts (22/22); forge-pipeline-regression.integration.test.ts (B06 slice 5/5)
-evidence: validateForgeBenchmarkEvalGuard; verifyForgeBenchmarkEvalGuard orchestrator seam; adversarial/perf/cost/safety guard; runForgeBenchmarkEvalRegressionGate guard PASS; bench.forge_guard_exports probe wired
-next: P01-B06-A10
+last_atom: P01-B06-A10
+last_commit: 11d7878
+tests: PASS — forge-benchmark-eval-block-gate.test.ts (6/6); forge-benchmark-eval-harness.guard.test.ts (8/8); forge-benchmark-eval-harness.test.ts (22/22); forge-pipeline-regression.integration.test.ts (B06 slice 5/5)
+evidence: runForgeBenchmarkEvalBlockGate; verifyForgeBenchmarkEvalBlockGate orchestrator seam; FORGE_P01_B06_TO_B07_HANDOFF_V1 handoff→P01-B07
+next: P01-B07-A01

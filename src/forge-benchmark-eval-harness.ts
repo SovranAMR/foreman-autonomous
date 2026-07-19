@@ -5,7 +5,12 @@
  * pipeline invariant engine artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP01B05ToB06Handoff,
   getActivePipelineInvariantEngineContract,
@@ -2077,5 +2082,188 @@ export function validateForgeBenchmarkEvalGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P01-B06-A10) ───────────────────────────────────
+
+export interface BenchmarkEvalBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface BenchmarkEvalBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    benchmarkEvalCategories: readonly BenchmarkEvalCategory[];
+    sourcePipelineInvariantEngineAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    benchmarkEvalRecordRequired: true;
+  };
+}
+
+export const FORGE_P01_B06_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P01-B06-A10",
+  blockId: "P01-B06",
+  title: "Benchmark ve eval harness",
+  requiredAtomIds: [
+    "P01-B06-A01",
+    "P01-B06-A02",
+    "P01-B06-A03",
+    "P01-B06-A04",
+    "P01-B06-A05",
+    "P01-B06-A06",
+    "P01-B06-A07",
+    "P01-B06-A08",
+    "P01-B06-A09",
+    "P01-B06-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P01-B06-A01", description: "Benchmark eval fixture aligns with typed contract" },
+    { id: "typed_contract_coverage", atomId: "P01-B06-A02", description: "Contract declares measurable probes for all benchmark eval categories" },
+    { id: "probe_matrix_aligned", atomId: "P01-B06-A03", description: "Benchmark eval probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P01-B06-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P01-B06-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P01-B06-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P01-B06-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P01-B06-A08", description: "Regression gate passes on canonical benchmark eval matrix" },
+    { id: "guard_controls", atomId: "P01-B06-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P01-B06-A10", description: "Block gate evidence sealed with valid B07 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P01_B06_TO_B07_HANDOFF_V1: BenchmarkEvalBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P01-B06-A10",
+  sourceBlock: {
+    blockId: "P01-B06",
+    title: "Benchmark ve eval harness",
+    completedAtoms: FORGE_P01_B06_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P01-B07",
+    title: "Reproducible fixture sistemi",
+    entryAtom: "P01-B07-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_BENCHMARK_EVAL_CONTRACT_V1.version,
+    harnessVersion: FORGE_BENCHMARK_EVAL_HARNESS_VERSION,
+    probeCount: summarizeBenchmarkEvalContractCoverage(FORGE_BENCHMARK_EVAL_CONTRACT_V1).totalProbes,
+    benchmarkEvalCategories: BENCHMARK_EVAL_CATEGORIES,
+    sourcePipelineInvariantEngineAtom: "P01-B05-A10",
+  },
+  prerequisites: [
+    "Benchmark eval contract v1 with measurable latency, cost, eval and reproducibility probes",
+    "Versioned benchmark eval fixture aligned to contract probe matrix",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P01-B05 pipeline invariant engine artifacts referenced by sourcePipelineInvariantEngine",
+  ],
+  entryCriteria: {
+    description:
+      "B07-A01 formalizes reproducible fixture system using sealed benchmark eval harness artifacts",
+    requiresBlockGatePass: true,
+    benchmarkEvalRecordRequired: true,
+  },
+};
+
+export function getForgeP01B06BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P01_B06_BLOCK_GATE_V1;
+}
+
+export function getForgeP01B06ToB07Handoff(): BenchmarkEvalBlockHandoffContract {
+  return FORGE_P01_B06_TO_B07_HANDOFF_V1;
+}
+
+export function validateBenchmarkEvalBlockHandoffContract(
+  handoff: BenchmarkEvalBlockHandoffContract,
+  evidence: Pick<BenchmarkEvalBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: BenchmarkEvalContract = getActiveBenchmarkEvalContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeBenchmarkEvalContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.benchmarkEvalCategories.length !== BENCHMARK_EVAL_CATEGORIES.length) {
+    issues.push("handoff benchmarkEvalCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P01-B07-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildBenchmarkEvalBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P01_B06_BLOCK_GATE_V1.blockId,
+): BenchmarkEvalBlockGateEvidence {
+  const handoff = getForgeP01B06ToB07Handoff();
+  const handoffValid = validateBenchmarkEvalBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P01-B06-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    gitCommit,
   };
 }
