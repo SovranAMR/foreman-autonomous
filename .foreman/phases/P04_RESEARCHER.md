@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P04-B03-A01
-last_commit: PENDING
+last_commit: ef04257
 tests: PASS — forge-p04-researcher*.test.ts (120/120); baseline fixture v1; probes=23; documented FAIL gap=rwps.structured_web_primary_source_recovery
 evidence: loadResearcherWebPrimarySourceBaseline; runResearcherWebPrimarySourceProbes; validateWebPrimarySourceCollection; forge-p04-researcher-web-primary-source-baseline.test.ts
 next: P04-B03-A02

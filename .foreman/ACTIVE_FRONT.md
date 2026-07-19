@@ -29,15 +29,15 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P04-B03-A01 — Web ve primary-source araştırma: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P04-B03-A02 — Web ve primary-source araştırma: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P04-B02-A10 PASS; measure web/primary-source research behavior and create failing baseline fixture.
-target: web research engine, primary-source fetch, baseline fixture v1.
-hypothesis: Current web/primary-source paths expose measurable gaps via typed baseline probes.
-acceptance: baseline fixture loads; probes run; at least one documented FAIL gap remains before A03 slice.
+objective: P04-B03-A01 PASS; define typed contract with measurable acceptance criteria for web and primary-source research.
+target: Typed contract v1, probe criteria wiring, fixture↔contract alignment gate.
+hypothesis: Documented FAIL gap (recoverWebPrimarySourceEvidence) provides stable contract entry for production slice.
+acceptance: contract loads; criteria wired; fixture aligned; A01 baseline remains valid.
 commands: npx tsx --test src/forge-p04-researcher*.test.ts
 blast_radius: src/forge-p04-researcher-web-primary-source*.ts
-rollback: P04-B03-A01 baseline slice değişikliklerini geri al.
+rollback: P04-B03-A02 contract slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P04_RESEARCHER.md Son Kanıt bölümü.
 fallback: Slice blocked ise BLOCKED raporla.
 
