@@ -13,8 +13,12 @@ import {
   validateStrategistDependencyDagBaseline,
   recoverStrategistDependencyDag,
   inferBlockDependenciesFromOrder,
+  assessStrategistDependencyDagInputBoundary,
   runStrategistDependencyDagProductionSlice,
+  runStrategistDependencyDagBoundarySlice,
   validateStrategistDependencyDagProbeMatrix,
+  validateStrategistDependencyDagBoundaryProbeMatrix,
+  STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH,
   STRATEGIST_DEPENDENCY_DAG_CATEGORIES,
   FORGE_STRATEGIST_DEPENDENCY_DAG_CONTRACT_V1,
 } from "./forge-p03-strategist-dependency-dag.js";
@@ -54,26 +58,26 @@ describe("Forge Strategist Dependency DAG Contract — P03-B04-A02", () => {
     }
   });
 
-  it("maps 23 probes with six documented FAIL gaps aligned to A01 baseline", () => {
+  it("maps 27 probes with six documented FAIL gaps aligned to A01 baseline", () => {
     const contract = getActiveStrategistDependencyDagContract();
     const summary = summarizeStrategistDependencyDagCoverage(contract);
     const coverage = validateStrategistDependencyDagCoverage(contract);
 
     assert.equal(coverage.valid, true, coverage.issues.map(i => i.detail).join("\n"));
-    assert.equal(summary.totalProbes, 23);
-    assert.equal(summary.expectedPass, 17);
+    assert.equal(summary.totalProbes, 27);
+    assert.equal(summary.expectedPass, 21);
     assert.equal(summary.expectedFail, 6);
-    assert.equal(summary.byDisposition.observed, 13);
+    assert.equal(summary.byDisposition.observed, 16);
     assert.equal(summary.byDisposition.gap, 6);
-    assert.equal(summary.byDisposition.failure, 2);
+    assert.equal(summary.byDisposition.failure, 3);
     assert.equal(summary.byDisposition.recovery, 2);
     assert.equal(summary.byDisposition.nogo, 0);
     assert.equal(summary.byCategory.dag_versioning.probeCount, 3);
     assert.equal(summary.byCategory.block_dag.probeCount, 4);
     assert.equal(summary.byCategory.atom_dag.probeCount, 3);
     assert.equal(summary.byCategory.baseline_link.probeCount, 2);
-    assert.equal(summary.byCategory.boundary.probeCount, 4);
-    assert.equal(summary.byCategory.failure_path.probeCount, 2);
+    assert.equal(summary.byCategory.boundary.probeCount, 7);
+    assert.equal(summary.byCategory.failure_path.probeCount, 3);
     assert.equal(summary.byCategory.recovery_path.probeCount, 2);
     assert.equal(summary.byCategory.nogo_path.probeCount, 3);
   });
@@ -116,7 +120,7 @@ describe("Forge Strategist Dependency DAG Contract — P03-B04-A02", () => {
 
   it("exports stable contract v1 reference", () => {
     assert.equal(FORGE_STRATEGIST_DEPENDENCY_DAG_CONTRACT_V1.version, "1.0.0");
-    assert.equal(FORGE_STRATEGIST_DEPENDENCY_DAG_CONTRACT_V1.probes.length, 23);
+    assert.equal(FORGE_STRATEGIST_DEPENDENCY_DAG_CONTRACT_V1.probes.length, 27);
   });
 
   it("each dependency DAG probe id is globally unique", () => {
@@ -187,9 +191,9 @@ CONFIDENCE: 0.75`;
     assert.equal(slice.fixtureValid, true);
     assert.equal(slice.contractAligned, true);
     assert.equal(slice.matrixValid, true);
-    assert.equal(slice.summary.total, 23);
+    assert.equal(slice.summary.total, 27);
     assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
-    assert.equal(slice.matrixValidation.passAligned, 17);
+    assert.equal(slice.matrixValidation.passAligned, 21);
     assert.equal(slice.matrixValidation.gapAligned, 6);
     assert.equal(slice.summary.knownGaps.length, 6);
 
@@ -220,5 +224,85 @@ CONFIDENCE: 0.75`;
     assert.equal(fallbackProbe!.expected, "PASS");
     assert.equal(fallbackProbe!.actual, "PASS");
     assert.equal(fallbackProbe!.aligned, true);
+  });
+});
+
+describe("Forge Strategist Dependency DAG Boundary Slice — P03-B04-A04", () => {
+  it("assessStrategistDependencyDagInputBoundary handles decompose edge cases including truncation", () => {
+    const empty = assessStrategistDependencyDagInputBoundary("");
+    assert.equal(empty.disposition, "empty");
+    assert.equal(empty.acceptable, false);
+
+    const whitespace = assessStrategistDependencyDagInputBoundary("   \t\n  ");
+    assert.equal(whitespace.disposition, "whitespace_only");
+    assert.equal(whitespace.acceptable, false);
+
+    const nullByte = assessStrategistDependencyDagInputBoundary("bad\0decompose");
+    assert.equal(nullByte.disposition, "contains_null_byte");
+    assert.equal(nullByte.acceptable, false);
+
+    const valid = assessStrategistDependencyDagInputBoundary(
+      "REASONING: valid\nOUTPUT:\nBlock 1: task\nDEPENDENCIES: none\nCONFIDENCE: 0.8",
+    );
+    assert.equal(valid.disposition, "valid");
+    assert.equal(valid.acceptable, true);
+
+    const longDecompose = "x".repeat(STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH + 500);
+    const truncated = assessStrategistDependencyDagInputBoundary(longDecompose);
+    assert.equal(truncated.disposition, "exceeds_max_length");
+    assert.equal(truncated.truncated, true);
+    assert.equal(truncated.normalizedDecompose.length, STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH);
+    assert.equal(truncated.acceptable, true);
+  });
+
+  it("defines boundary category with decompose input edge-case probes", () => {
+    const boundary = listStrategistDependencyDagContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 7);
+    assert.deepEqual(ids, [
+      "sdag.empty_decompose_boundary",
+      "sdag.known_gaps_documented",
+      "sdag.long_decompose_truncation_boundary",
+      "sdag.out_of_range_dep_filtered",
+      "sdag.probe_runner_exported",
+      "sdag.source_block_gate_ref",
+      "sdag.whitespace_decompose_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on edge probes", () => {
+    const contract = getActiveStrategistDependencyDagContract();
+    const slice = runStrategistDependencyDagBoundarySlice();
+
+    assert.equal(slice.atom, "P03-B04-A04");
+    assert.equal(slice.boundaryProbeCount, 7);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 7);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 7);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listStrategistDependencyDagContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateStrategistDependencyDagBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
   });
 });

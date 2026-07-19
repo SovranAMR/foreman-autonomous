@@ -29,7 +29,7 @@ describe("Forge Strategist Dependency DAG — P03-B04-A01", () => {
     assert.equal(fixture.sourceBlockGate.atom, "P03-B03-A10");
     assert.equal(fixture.sourceBlockGate.sealedAtomCount, 10);
     assert.equal(validation.valid, true, validation.issues.map(i => i.detail).join("\n"));
-    assert.equal(fixture.probes.length, 23);
+    assert.equal(fixture.probes.length, 27);
   });
 
   it("measures dependency DAG probes with documented FAIL gaps from B03 sealed handoff", () => {
@@ -37,7 +37,7 @@ describe("Forge Strategist Dependency DAG — P03-B04-A01", () => {
     const summary = summarizeStrategistDependencyDagMatrix(results);
 
     assert.equal(summary.total, results.length);
-    assert.equal(summary.total, 23);
+    assert.equal(summary.total, 27);
     assert.ok(summary.knownGaps.length >= 1, "A01 requires at least one documented failing probe");
 
     const documentedFail = listStrategistDependencyDagProbesByExpected(

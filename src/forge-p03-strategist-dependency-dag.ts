@@ -18,7 +18,71 @@ import {
 } from "./forge-p03-strategist-atomization.js";
 import { parseDecomposeResponse, parseAtomizeResponse } from "./parser.js";
 
-export const FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION = "1.0.0-a03";
+export const FORGE_STRATEGIST_DEPENDENCY_DAG_VERSION = "1.0.0-a04";
+
+export const STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH = 64000;
+
+export type StrategistDependencyDagInputDisposition =
+  | "valid"
+  | "empty"
+  | "whitespace_only"
+  | "contains_null_byte"
+  | "exceeds_max_length";
+
+export interface StrategistDependencyDagInputBoundary {
+  disposition: StrategistDependencyDagInputDisposition;
+  acceptable: boolean;
+  normalizedDecompose: string;
+  truncated: boolean;
+  detail: string;
+}
+
+/**
+ * Assess decompose output boundary conditions before dependency DAG production (P03-B04-A04).
+ */
+export function assessStrategistDependencyDagInputBoundary(
+  decomposeOutput: string,
+): StrategistDependencyDagInputBoundary {
+  if (decomposeOutput.includes("\0")) {
+    return {
+      disposition: "contains_null_byte",
+      acceptable: false,
+      normalizedDecompose: "",
+      truncated: false,
+      detail: "null byte detected in decompose output",
+    };
+  }
+
+  const trimmed = decomposeOutput.trim();
+  if (trimmed.length === 0) {
+    const disposition: StrategistDependencyDagInputDisposition =
+      decomposeOutput.length === 0 ? "empty" : "whitespace_only";
+    return {
+      disposition,
+      acceptable: false,
+      normalizedDecompose: "",
+      truncated: false,
+      detail: disposition === "empty" ? "empty decompose output" : "whitespace-only decompose output",
+    };
+  }
+
+  let normalizedDecompose = decomposeOutput;
+  let truncated = false;
+  if (normalizedDecompose.length > STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH) {
+    normalizedDecompose = normalizedDecompose.slice(0, STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH);
+    truncated = true;
+  }
+
+  return {
+    disposition: truncated ? "exceeds_max_length" : "valid",
+    acceptable: true,
+    normalizedDecompose,
+    truncated,
+    detail: truncated
+      ? `decompose truncated to ${STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH} characters`
+      : "valid decompose output",
+  };
+}
 
 export interface StrategistDependencyDagRecoveryHints {
   blocks?: string[];
@@ -392,6 +456,60 @@ export function runStrategistDependencyDagProductionSlice(
   };
 }
 
+export interface StrategistDependencyDagBoundarySliceResult {
+  atom: "P03-B04-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: StrategistDependencyDagProbeResult[];
+  boundaryResults: StrategistDependencyDagProbeResult[];
+  matrixValidation: StrategistDependencyDagProbeMatrixValidationResult;
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ */
+export function validateStrategistDependencyDagBoundaryProbeMatrix(
+  results: StrategistDependencyDagProbeResult[],
+  contract: StrategistDependencyDagContract = getActiveStrategistDependencyDagContract(),
+): StrategistDependencyDagProbeMatrixValidationResult {
+  const boundaryProbes = listStrategistDependencyDagContractProbesByCategory("boundary", contract);
+  const boundaryContract: StrategistDependencyDagContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateStrategistDependencyDagProbeMatrix(boundaryResults, boundaryContract);
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (decompose input edge cases, probe runner,
+ * documented gaps, out-of-range dep filtering) with zero unexpected mismatches.
+ */
+export function runStrategistDependencyDagBoundarySlice(
+  fixture: StrategistDependencyDagBaseline = loadStrategistDependencyDagBaseline(),
+): StrategistDependencyDagBoundarySliceResult {
+  const contract = getActiveStrategistDependencyDagContract();
+  const results = runStrategistDependencyDagProbes(fixture);
+  const boundaryProbes = listStrategistDependencyDagContractProbesByCategory("boundary", contract);
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateStrategistDependencyDagBoundaryProbeMatrix(results, contract);
+
+  return {
+    atom: "P03-B04-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
+    matrixValidation,
+  };
+}
+
 export const STRATEGIST_DEPENDENCY_DAG_CATEGORIES = [
   "dag_versioning",
   "block_dag",
@@ -717,12 +835,36 @@ const STRATEGIST_DEPENDENCY_DAG_CATEGORY_CONTRACTS: Record<
         disposition: "observed",
         criterion: "parseBlockDependencies filters out-of-range and self-referential block indices",
       },
+      {
+        id: "sdag.empty_decompose_boundary",
+        category: "boundary",
+        description: "assessStrategistDependencyDagInputBoundary rejects empty decompose output",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessStrategistDependencyDagInputBoundary rejects empty decompose output",
+      },
+      {
+        id: "sdag.whitespace_decompose_boundary",
+        category: "boundary",
+        description: "assessStrategistDependencyDagInputBoundary rejects whitespace-only decompose output",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessStrategistDependencyDagInputBoundary rejects whitespace-only decompose output",
+      },
+      {
+        id: "sdag.long_decompose_truncation_boundary",
+        category: "boundary",
+        description: "assessStrategistDependencyDagInputBoundary truncates decompose exceeding max length",
+        expected: "PASS",
+        disposition: "observed",
+        criterion: "assessStrategistDependencyDagInputBoundary truncates decompose exceeding max length",
+      },
     ],
   },
   failure_path: {
     category: "failure_path",
     acceptance: {
-      invariant: "Fixture validation rejects invalid versions and underflow category probe counts.",
+      invariant: "Malformed decompose guard exists; fixture validation rejects invalid versions.",
       minProbeCount: 2,
       requireFullAlignment: true,
     },
@@ -734,6 +876,14 @@ const STRATEGIST_DEPENDENCY_DAG_CATEGORY_CONTRACTS: Record<
         expected: "PASS",
         disposition: "failure",
         criterion: "validateStrategistDependencyDagBaseline rejects unexpected fixture version",
+      },
+      {
+        id: "sdag.malformed_decompose_guard",
+        category: "failure_path",
+        description: "assessStrategistDependencyDagInputBoundary rejects null-byte decompose output safely",
+        expected: "PASS",
+        disposition: "failure",
+        criterion: "assessStrategistDependencyDagInputBoundary rejects null-byte decompose output safely",
       },
       {
         id: "sdag.min_category_probes",
@@ -1463,9 +1613,17 @@ function probeBoundary(
       return probe(id, category, expected, ok, `probeRunner=${ok}`);
     }
     case "sdag.known_gaps_documented": {
+      const contract = getActiveStrategistDependencyDagContract();
+      const expectedFail = contract.probes.filter(p => p.expected === "FAIL").length;
       const failCount = fixture.probes.filter(p => p.expected === "FAIL").length;
-      const ok = failCount >= 1;
-      return probe(id, category, expected, ok, `documentedFail=${failCount}`);
+      const ok = failCount === expectedFail && failCount >= 1;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `documentedFail=${failCount}, contractExpectedFail=${expectedFail}`,
+      );
     }
     case "sdag.out_of_range_dep_filtered": {
       const invalidDeps = `REASONING: invalid deps
@@ -1489,6 +1647,51 @@ CONFIDENCE: 0.7`;
         `filtered=${ok}, deps=${parsed.ok ? parsed.data.blockDeps.map(d => d.join(".")).join("|") : "none"}`,
       );
     }
+    case "sdag.empty_decompose_boundary": {
+      const result = assessStrategistDependencyDagInputBoundary("");
+      const ok =
+        hasProductionExport("assessStrategistDependencyDagInputBoundary") &&
+        result.disposition === "empty" &&
+        result.acceptable === false;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `disposition=${result.disposition}, acceptable=${result.acceptable}`,
+      );
+    }
+    case "sdag.whitespace_decompose_boundary": {
+      const result = assessStrategistDependencyDagInputBoundary("   \t\n  ");
+      const ok =
+        hasProductionExport("assessStrategistDependencyDagInputBoundary") &&
+        result.disposition === "whitespace_only" &&
+        result.acceptable === false;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `disposition=${result.disposition}, acceptable=${result.acceptable}`,
+      );
+    }
+    case "sdag.long_decompose_truncation_boundary": {
+      const longDecompose = "x".repeat(STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH + 500);
+      const result = assessStrategistDependencyDagInputBoundary(longDecompose);
+      const ok =
+        hasProductionExport("assessStrategistDependencyDagInputBoundary") &&
+        result.disposition === "exceeds_max_length" &&
+        result.truncated === true &&
+        result.normalizedDecompose.length === STRATEGIST_DEPENDENCY_DAG_DECOMPOSE_MAX_LENGTH &&
+        result.acceptable === true;
+      return probe(
+        id,
+        category,
+        expected,
+        ok,
+        `disposition=${result.disposition}, truncated=${result.truncated}, len=${result.normalizedDecompose.length}`,
+      );
+    }
     default:
       return probe(id, category, expected, false, "unknown boundary probe");
   }
@@ -1505,6 +1708,14 @@ function probeFailurePath(
       const invalid = { ...fixture, version: "9.9.9" };
       const ok = validateStrategistDependencyDagBaseline(invalid).valid === false;
       return probe(id, category, expected, ok, `rejectsInvalidVersion=${ok}`);
+    }
+    case "sdag.malformed_decompose_guard": {
+      const boundary = assessStrategistDependencyDagInputBoundary("bad\0decompose");
+      const ok =
+        hasProductionExport("assessStrategistDependencyDagInputBoundary") &&
+        boundary.disposition === "contains_null_byte" &&
+        boundary.acceptable === false;
+      return probe(id, category, expected, ok, `detail=${boundary.detail}`);
     }
     case "sdag.min_category_probes": {
       const underflow = { ...fixture, probes: fixture.probes.filter(p => p.category !== "nogo_path") };

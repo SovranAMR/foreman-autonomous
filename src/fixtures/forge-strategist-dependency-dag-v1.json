@@ -108,9 +108,33 @@
       "expected": "PASS"
     },
     {
+      "id": "sdag.empty_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistDependencyDagInputBoundary rejects empty decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.whitespace_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistDependencyDagInputBoundary rejects whitespace-only decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.long_decompose_truncation_boundary",
+      "category": "boundary",
+      "description": "assessStrategistDependencyDagInputBoundary truncates decompose exceeding max length",
+      "expected": "PASS"
+    },
+    {
       "id": "sdag.invalid_version_rejected",
       "category": "failure_path",
       "description": "validateStrategistDependencyDagBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "sdag.malformed_decompose_guard",
+      "category": "failure_path",
+      "description": "assessStrategistDependencyDagInputBoundary rejects null-byte decompose output safely",
       "expected": "PASS"
     },
     {
