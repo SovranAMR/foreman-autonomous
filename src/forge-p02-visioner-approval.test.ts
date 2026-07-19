@@ -5,6 +5,7 @@ import {
   runVisionerApprovalProbes,
   runVisionerApprovalProductionSlice,
   runVisionerApprovalBoundarySlice,
+  runVisionerApprovalFailureRecoverySlice,
 } from "./forge-p02-visioner-approval.probe.js";
 import {
   assessVisionerApprovalInputBoundary,
@@ -13,14 +14,17 @@ import {
   getVisionerApprovalCategoryContract,
   listVisionerApprovalContractProbeIds,
   listVisionerApprovalContractProbesByCategory,
+  listVisionerApprovalFailureRecoveryProbeIds,
   listVisionerApprovalProbesByDisposition,
   summarizeVisionerApprovalContractCoverage,
   validateVisionerApprovalContractCoverage,
   validateVisionerApprovalAgainstContract,
   validateVisionerApprovalProbeMatrix,
   validateVisionerApprovalBoundaryProbeMatrix,
+  validateVisionerApprovalFailureRecoveryProbeMatrix,
   recoverVisionerSteering,
   VISIONER_APPROVAL_CATEGORIES,
+  VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES,
   VISIONER_APPROVAL_VISION_MAX_LENGTH,
   FORGE_VISIONER_APPROVAL_VERSION,
 } from "./forge-p02-visioner-approval.js";
@@ -297,5 +301,83 @@ describe("Forge Visioner Approval Boundary Slice — P02-B09-A04", () => {
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
     assert.equal(slice.results.filter(r => !r.aligned).length, 0);
+  });
+});
+
+describe("Forge Visioner Approval Failure/Recovery Slice — P02-B09-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveVisionerApprovalContract();
+    const failure = listVisionerApprovalContractProbesByCategory("failure_path", contract);
+    const recovery = listVisionerApprovalContractProbesByCategory("recovery_path", contract);
+    const nogo = listVisionerApprovalContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveVisionerApprovalContract();
+    const slice = runVisionerApprovalFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P02-B09-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const category of VISIONER_APPROVAL_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listVisionerApprovalContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateVisionerApprovalFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("exercises failure/recovery/NO-GO paths with full alignment after A03 recovery slice", () => {
+    const slice = runVisionerApprovalFailureRecoverySlice();
+    const probeIds = listVisionerApprovalFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "vapp.malformed_vision_approval_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const structuredRecovery = slice.failureRecoveryResults.find(
+      r => r.id === "vapp.structured_steering_recovery",
+    );
+    assert.ok(structuredRecovery);
+    assert.equal(structuredRecovery!.expected, "PASS");
+    assert.equal(structuredRecovery!.actual, "PASS");
+
+    const visionRejection = slice.failureRecoveryResults.find(
+      r => r.id === "vapp.vision_rejection_abort",
+    );
+    assert.ok(visionRejection);
+    assert.equal(visionRejection!.expected, "PASS");
+    assert.equal(visionRejection!.actual, "PASS");
   });
 });

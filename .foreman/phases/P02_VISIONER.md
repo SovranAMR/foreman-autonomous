@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 6
-completed_atoms: 80
+completed_atoms: 81
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -123,7 +123,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B09-A02 — Kullanıcı approval ve steering: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B09-A03 — Kullanıcı approval ve steering: en küçük üretim dikey dilimini uygula
 - [x] P02-B09-A04 — Kullanıcı approval ve steering: boundary ve edge-case davranışlarını tamamla
-- [ ] P02-B09-A05 — Kullanıcı approval ve steering: failure, recovery ve NO-GO yollarını uygula
+- [x] P02-B09-A05 — Kullanıcı approval ve steering: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B09-A06 — Kullanıcı approval ve steering: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B09-A07 — Kullanıcı approval ve steering: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B09-A08 — Kullanıcı approval ve steering: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B09-A04
-last_commit: b1eacb9
-tests: PASS — forge-p02-visioner-approval.test.ts (18/18), forge-p02-visioner-approval-baseline.test.ts (3/3)
-evidence: validateVisionerApprovalBoundaryProbeMatrix; runVisionerApprovalBoundarySlice; boundary passAligned=6 gapAligned=0 unexpectedMismatches=0; assessVisionerApprovalInputBoundary edge probes aligned
-next: P02-B09-A05
+last_atom: P02-B09-A05
+last_commit: pending
+tests: PASS — forge-p02-visioner-approval.test.ts (24/24), forge-p02-visioner-approval-baseline.test.ts (3/3)
+evidence: validateVisionerApprovalFailureRecoveryProbeMatrix; runVisionerApprovalFailureRecoverySlice; failureRecovery passAligned=6 gapAligned=0 unexpectedMismatches=0
+next: P02-B09-A06
