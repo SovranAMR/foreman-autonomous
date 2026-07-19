@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 1
-completed_atoms: 14
+completed_atoms: 15
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -32,7 +32,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P02-B02-A02 — Constraint ve non-goal çıkarımı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P02-B02-A03 — Constraint ve non-goal çıkarımı: en küçük üretim dikey dilimini uygula
 - [x] P02-B02-A04 — Constraint ve non-goal çıkarımı: boundary ve edge-case davranışlarını tamamla
-- [ ] P02-B02-A05 — Constraint ve non-goal çıkarımı: failure, recovery ve NO-GO yollarını uygula
+- [x] P02-B02-A05 — Constraint ve non-goal çıkarımı: failure, recovery ve NO-GO yollarını uygula
 - [ ] P02-B02-A06 — Constraint ve non-goal çıkarımı: evidence, telemetry ve provenance kaydını ekle
 - [ ] P02-B02-A07 — Constraint ve non-goal çıkarımı: unit, property ve fuzz doğrulamasını ekle
 - [ ] P02-B02-A08 — Constraint ve non-goal çıkarımı: Forge entegrasyonu ile regression testini tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B02-A04
+last_atom: P02-B02-A05
 last_commit: PENDING
-tests: PASS — forge-p02-visioner-constraint.test.ts (18/18); forge-p02-visioner-constraint*.test.ts (18/18); forge-p02-visioner-intent*.test.ts (43/43)
-evidence: assessVisionerConstraintInputBoundary, validateVisionerConstraintBoundaryProbeMatrix, runVisionerConstraintBoundarySlice; boundary probes=vcon.whitespace_vision_boundary,vcon.long_vision_truncation_boundary; matrix=22 pass + 1 gap (vcon.structured_constraint_recovery)
-next: P02-B02-A05
+tests: PASS — forge-p02-visioner-constraint.test.ts (21/21); forge-p02-visioner-constraint*.test.ts (21/21); forge-p02-visioner-intent*.test.ts (43/43)
+evidence: validateVisionerConstraintFailureRecoveryProbeMatrix, runVisionerConstraintFailureRecoverySlice; failure/recovery=6 probes (5 pass + 1 gap vcon.structured_constraint_recovery); matrix unexpectedMismatches=0
+next: P02-B02-A06

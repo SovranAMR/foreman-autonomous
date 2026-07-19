@@ -5,6 +5,7 @@ import {
   runVisionerConstraintProbes,
   runVisionerConstraintProductionSlice,
   runVisionerConstraintBoundarySlice,
+  runVisionerConstraintFailureRecoverySlice,
 } from "./forge-p02-visioner-constraint.probe.js";
 import {
   assessVisionerConstraintInputBoundary,
@@ -20,6 +21,9 @@ import {
   validateVisionerConstraintAgainstContract,
   validateVisionerConstraintProbeMatrix,
   validateVisionerConstraintBoundaryProbeMatrix,
+  validateVisionerConstraintFailureRecoveryProbeMatrix,
+  listVisionerConstraintFailureRecoveryProbeIds,
+  VISIONER_CONSTRAINT_FAILURE_RECOVERY_CATEGORIES,
   VISIONER_CONSTRAINT_CATEGORIES,
   VISIONER_CONSTRAINT_VISION_MAX_LENGTH,
 } from "./forge-p02-visioner-constraint.js";
@@ -281,5 +285,81 @@ describe("Forge Visioner Constraint Boundary Slice — P02-B02-A04", () => {
     assert.equal(recoveryGap!.expected, "FAIL");
     assert.equal(recoveryGap!.actual, "FAIL");
     assert.equal(recoveryGap!.aligned, true);
+  });
+});
+
+describe("Forge Visioner Constraint Failure/Recovery Slice — P02-B02-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveVisionerConstraintContract();
+    const failure = listVisionerConstraintContractProbesByCategory("failure_path", contract);
+    const recovery = listVisionerConstraintContractProbesByCategory("recovery_path", contract);
+    const nogo = listVisionerConstraintContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...VISIONER_CONSTRAINT_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveVisionerConstraintContract();
+    const slice = runVisionerConstraintFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P02-B02-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 5);
+    assert.equal(slice.matrixValidation.gapAligned, 1);
+
+    for (const category of VISIONER_CONSTRAINT_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listVisionerConstraintContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateVisionerConstraintFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves structured_constraint_recovery gap while exercising failure/recovery/NO-GO paths", () => {
+    const slice = runVisionerConstraintFailureRecoverySlice();
+    const probeIds = listVisionerConstraintFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const malformedGuard = slice.failureRecoveryResults.find(
+      r => r.id === "vcon.malformed_vision_presence_guard",
+    );
+    assert.ok(malformedGuard);
+    assert.equal(malformedGuard!.expected, "PASS");
+    assert.equal(malformedGuard!.actual, "PASS");
+
+    const recoveryGap = slice.failureRecoveryResults.find(
+      r => r.id === "vcon.structured_constraint_recovery",
+    );
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+
+    const workerNogo = slice.failureRecoveryResults.find(r => r.id === "vcon.worker_constraint_nogo");
+    assert.ok(workerNogo);
+    assert.equal(workerNogo!.expected, "PASS");
+    assert.equal(workerNogo!.actual, "PASS");
   });
 });

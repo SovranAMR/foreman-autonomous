@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B02
-active_atom: P02-B02-A05
+active_atom: P02-B02-A06
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 113/1000
-phase_progress: 13/100
-block_progress: 3/10
+program_progress: 114/1000
+phase_progress: 14/100
+block_progress: 4/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B02-A05 — Constraint ve non-goal çıkarımı: failure, recovery ve NO-GO yollarını uygula.
+P02-B02-A06 — Constraint ve non-goal çıkarımı: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P02-B02-A04 boundary slice sealed; B02 failure/recovery slice A05 next.
-target: failure, recovery and NO-GO paths for constraint/non-goal extraction with contract probes.
-hypothesis: typed A04 boundary provides stable anchor for failure/recovery hardening.
-acceptance: failure/recovery slice runs; fixture alignment holds; zero unexpected PASS mismatches.
+objective: P02-B02-A05 failure/recovery slice sealed; B02 evidence slice A06 next.
+target: auditable evidence, telemetry and provenance for constraint failure/recovery probe runs.
+hypothesis: typed A05 failure/recovery matrix provides stable anchor for evidence recording.
+acceptance: failure/recovery run record validates; fixture alignment holds; zero unexpected PASS mismatches.
 commands: npx tsx --test src/forge-p02-*.test.ts
 blast_radius: src/forge-p02-visioner-constraint.ts
-rollback: P02-B02-A05 failure/recovery slice değişikliklerini geri al.
+rollback: P02-B02-A06 evidence slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
 fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B02-A04
+last_atom: P02-B02-A05
 last_commit: PENDING
-tests: PASS — forge-p02-visioner-constraint.test.ts (18/18); forge-p02-visioner-constraint*.test.ts (18/18); forge-p02-visioner-intent*.test.ts (43/43)
-evidence: assessVisionerConstraintInputBoundary, validateVisionerConstraintBoundaryProbeMatrix, runVisionerConstraintBoundarySlice; boundary=6 pass; matrix=22 pass + 1 gap (vcon.structured_constraint_recovery)
-next: P02-B02-A05
+tests: PASS — forge-p02-visioner-constraint.test.ts (21/21); forge-p02-visioner-constraint*.test.ts (21/21); forge-p02-visioner-intent*.test.ts (43/43)
+evidence: validateVisionerConstraintFailureRecoveryProbeMatrix, runVisionerConstraintFailureRecoverySlice; failure/recovery=6 probes (5 pass + 1 gap vcon.structured_constraint_recovery); matrix unexpectedMismatches=0
+next: P02-B02-A06
