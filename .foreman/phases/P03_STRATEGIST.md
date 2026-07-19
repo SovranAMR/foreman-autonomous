@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B06-A03
-last_commit: pending
+last_commit: 87e18fd
 tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (9/9); 27 probes; 4 FAIL gaps; 2 gaps closed
 evidence: recoverStrategistResourceBudget; validateStrategistResourceBudget; runStrategistResourceBudgetProductionSlice; RESOURCE PLAN/TOKEN BUDGET prompts+parser
 next: P03-B06-A04

@@ -44,7 +44,7 @@ fallback: Boundary slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B06-A03
-last_commit: pending
+last_commit: 87e18fd
 tests: PASS — forge-p03-strategist-resource-budget.test.ts (9/9); forge-p03-strategist-resource-budget-baseline.test.ts (9/9); 27 probes; 4 documented FAIL gaps; 2 gaps closed (prompt_decompose_resource_plan, parser_resource_plan_fields)
 evidence: recoverStrategistResourceBudget; validateStrategistResourceBudget; runStrategistResourceBudgetProductionSlice; validateStrategistResourceBudgetProbeMatrix; RESOURCE PLAN/TOKEN BUDGET in prompts+parser
 next: P03-B06-A04
