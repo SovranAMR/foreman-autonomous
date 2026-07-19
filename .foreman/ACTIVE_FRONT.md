@@ -44,7 +44,7 @@ fallback: approval wiring absent beyond slice scope ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P02-B08-A10
-last_commit: pending
+last_commit: 9a0764d
 tests: PASS — forge-p02-visioner-scoring-block-gate.test.ts (6/6)
 evidence: runForgeVisionerScoringBlockGate seals 10/10 atom seals; handoff=PASS→P02-B09; orchestrator verifyForgeVisionerScoringBlockGate visioner_scoring_block_gate
 next: P02-B09-A01
