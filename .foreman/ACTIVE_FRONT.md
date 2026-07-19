@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B02
-active_atom: P02-B02-A02
+active_atom: P02-B02-A03
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 111/1000
-phase_progress: 11/100
-block_progress: 1/10
+program_progress: 112/1000
+phase_progress: 12/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B02-A02 — Constraint ve non-goal çıkarımı: typed contract ile ölçülebilir acceptance kriterini tanımla.
+P02-B02-A03 — Constraint ve non-goal çıkarımı: en küçük üretim dikey dilimini uygula.
 
-objective: P02-B02-A01 baseline sealed; B02 contract A02 next.
-target: typed constraint/non-goal contract with measurable probes aligned to baseline fixture.
-hypothesis: sealed B02 baseline probe matrix provides stable source for typed contract acceptance.
-acceptance: contract loads; fixture alignment probes pass; coverage declares all constraint categories.
+objective: P02-B02-A02 contract sealed; B02 production slice A03 next.
+target: minimal production vertical slice for constraint/non-goal extraction wired to contract probes.
+hypothesis: typed A02 contract provides stable probe matrix for first production slice.
+acceptance: production slice runs; fixture alignment holds; zero unexpected PASS mismatches.
 commands: npx tsx --test src/forge-p02-*.test.ts
 blast_radius: src/forge-p02-visioner-constraint.ts
-rollback: P02-B02-A02 contract değişikliklerini geri al.
+rollback: P02-B02-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: contract cannot anchor without scope creep ise BLOCKED raporla.
+fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B02-A01
+last_atom: P02-B02-A02
 last_commit: PENDING
-tests: PASS — forge-p02-visioner-constraint-baseline.test.ts (3/3); forge-p02-visioner-constraint*.test.ts (3/3); forge-p02-visioner-intent*.test.ts (43/43)
-evidence: loadVisionerConstraintBaseline, runVisionerConstraintProbes, validateVisionerConstraintBaseline; baseline=23 probes FAIL gap=vcon.structured_constraint_recovery handoff=P02-B01→B02
-next: P02-B02-A02
+tests: PASS — forge-p02-visioner-constraint.test.ts (7/7); forge-p02-visioner-constraint*.test.ts (10/10); forge-p02-visioner-intent*.test.ts (43/43)
+evidence: summarizeVisionerConstraintContractCoverage, validateVisionerConstraintContractCoverage, listVisionerConstraintContractProbeIds; contract=23 probes gap=vcon.structured_constraint_recovery
+next: P02-B02-A03

@@ -3,7 +3,7 @@
 phase_id: P02
 phase_status: ACTIVE
 completed_blocks: 1
-completed_atoms: 11
+completed_atoms: 12
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -29,7 +29,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P02-B02 — Constraint ve non-goal çıkarımı
 
 - [x] P02-B02-A01 — Constraint ve non-goal çıkarımı: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P02-B02-A02 — Constraint ve non-goal çıkarımı: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P02-B02-A02 — Constraint ve non-goal çıkarımı: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P02-B02-A03 — Constraint ve non-goal çıkarımı: en küçük üretim dikey dilimini uygula
 - [ ] P02-B02-A04 — Constraint ve non-goal çıkarımı: boundary ve edge-case davranışlarını tamamla
 - [ ] P02-B02-A05 — Constraint ve non-goal çıkarımı: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P02-B02-A01
+last_atom: P02-B02-A02
 last_commit: PENDING
-tests: PASS — forge-p02-visioner-constraint-baseline.test.ts (3/3); baseline=23 probes FAIL gap=vcon.structured_constraint_recovery; forge-p02-visioner-intent*.test.ts (43/43)
-evidence: loadVisionerConstraintBaseline, runVisionerConstraintProbes, validateVisionerConstraintBaseline, assessVisionerConstraintPresence; handoff=P02-B01→B02 entry=P02-B02-A01
-next: P02-B02-A02
+tests: PASS — forge-p02-visioner-constraint.test.ts (7/7); forge-p02-visioner-constraint*.test.ts (10/10); forge-p02-visioner-intent*.test.ts (43/43)
+evidence: summarizeVisionerConstraintContractCoverage, validateVisionerConstraintContractCoverage, validateVisionerConstraintAgainstContract; contract=23 probes categories=8 gap=vcon.structured_constraint_recovery
+next: P02-B02-A03
