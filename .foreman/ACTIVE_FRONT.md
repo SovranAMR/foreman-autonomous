@@ -6,9 +6,9 @@ active_phase: P03
 active_block: P03-B08
 active_atom: P03-B08-A02
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 270/1000
-phase_progress: 71/100
-block_progress: 1/10
+program_progress: 271/1000
+phase_progress: 72/100
+block_progress: 2/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B08-A01 — Replan ve plan repair: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P03-B08-A03 — Replan ve plan repair: en küçük üretim dikey dilimini uygula.
 
-objective: P03-B07-A10 PASS; P03-B08-A01 measure replan/plan-repair behavior and create failing baseline fixture.
-target: loadStrategistReplanBaseline, runStrategistReplanProbes.
-hypothesis: P03-B08-A01 establishes measurable replan debt from sealed P03-B07 parallel wave block gate handoff.
-acceptance: baseline fixture loads; probes run; documented FAIL gaps aligned to contract.
+objective: P03-B08-A02 PASS; P03-B08-A03 implement smallest production vertical slice for replan/plan-repair contract gaps.
+target: validateStrategistReplan, replan checkpoint wiring.
+hypothesis: P03-B08-A03 closes at least one documented FAIL gap from A01 baseline with production code.
+acceptance: targeted probe flips PASS; regression suite green.
 commands: npx tsx --test src/forge-p03-strategist-replan*.test.ts
-blast_radius: src/forge-p03-strategist-replan.ts
-rollback: P03-B08-A01 baseline slice değişikliklerini geri al.
+blast_radius: src/forge-p03-strategist-replan.ts, src/orchestrator.ts, src/parser.ts
+rollback: P03-B08-A03 production slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: Baseline blocked ise BLOCKED raporla.
+fallback: Production slice blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B08-A01
-last_commit: 34249f4
-tests: PASS — forge-p03-strategist-replan-baseline.test.ts (3/3); 28 probes; 6 documented FAIL gaps aligned
-evidence: loadStrategistReplanBaseline; runStrategistReplanProbes; validateStrategistReplanBaseline
-next: P03-B08-A02
+last_atom: P03-B08-A02
+last_commit: pending
+tests: PASS — forge-p03-strategist-replan.test.ts (9/9); forge-p03-strategist-replan-baseline.test.ts (3/3); 28 probes; typed contract coverage validated
+evidence: getActiveStrategistReplanContract; validateStrategistReplanCoverage; listStrategistReplanProbesByDisposition
+next: P03-B08-A03

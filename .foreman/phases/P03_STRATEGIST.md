@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 63
+completed_atoms: 64
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -107,7 +107,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## P03-B08 — Replan ve plan repair
 
 - [x] P03-B08-A01 — Replan ve plan repair: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
-- [ ] P03-B08-A02 — Replan ve plan repair: typed contract ile ölçülebilir acceptance kriterini tanımla
+- [x] P03-B08-A02 — Replan ve plan repair: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B08-A03 — Replan ve plan repair: en küçük üretim dikey dilimini uygula
 - [ ] P03-B08-A04 — Replan ve plan repair: boundary ve edge-case davranışlarını tamamla
 - [ ] P03-B08-A05 — Replan ve plan repair: failure, recovery ve NO-GO yollarını uygula
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B08-A01
-last_commit: 34249f4
-tests: PASS — forge-p03-strategist-replan-baseline.test.ts (3/3); 28 probes; 6 FAIL gaps aligned to contract
-evidence: loadStrategistReplanBaseline; runStrategistReplanProbes; validateStrategistReplanBaseline
-next: P03-B08-A02
+last_atom: P03-B08-A02
+last_commit: pending
+tests: PASS — forge-p03-strategist-replan.test.ts (9/9); validateStrategistReplanCoverage; 28 probes; 5 gap + 6 FAIL aligned
+evidence: getActiveStrategistReplanContract; validateStrategistReplanCoverage; listStrategistReplanProbesByDisposition
+next: P03-B08-A03
