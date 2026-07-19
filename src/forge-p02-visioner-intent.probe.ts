@@ -23,6 +23,8 @@ import {
   validateVisionerIntentAgainstContract,
   validateVisionerIntentProbeMatrix,
   validateVisionerIntentBoundaryProbeMatrix,
+  validateVisionerIntentFailureRecoveryProbeMatrix,
+  VISIONER_INTENT_FAILURE_RECOVERY_CATEGORIES,
   getActiveVisionerIntentContract,
   summarizeVisionerIntentMatrix,
   listVisionerIntentProbesByExpected,
@@ -56,6 +58,9 @@ export {
   buildDefaultSourcePhaseGate,
   validateVisionerIntentProbeMatrix,
   validateVisionerIntentBoundaryProbeMatrix,
+  validateVisionerIntentFailureRecoveryProbeMatrix,
+  listVisionerIntentFailureRecoveryProbeIds,
+  VISIONER_INTENT_FAILURE_RECOVERY_CATEGORIES,
   FORGE_VISIONER_INTENT_VERSION,
   VISIONER_INTENT_CATEGORIES,
 } from "./forge-p02-visioner-intent.js";
@@ -485,6 +490,41 @@ export function runVisionerIntentBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface VisionerIntentFailureRecoverySliceResult {
+  atom: "P02-B01-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: VisionerIntentProbeResult[];
+  failureRecoveryResults: VisionerIntentProbeResult[];
+  matrixValidation: ReturnType<typeof validateVisionerIntentFailureRecoveryProbeMatrix>;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runVisionerIntentFailureRecoverySlice(
+  fixture: VisionerIntentBaseline = loadVisionerIntentBaseline(),
+): VisionerIntentFailureRecoverySliceResult {
+  const contract = getActiveVisionerIntentContract();
+  const results = runVisionerIntentProbes(fixture);
+  const failureRecoveryProbes = VISIONER_INTENT_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listVisionerIntentContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateVisionerIntentFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P02-B01-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

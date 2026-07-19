@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
 active_block: P02-B01
-active_atom: P02-B01-A05
+active_atom: P02-B01-A06
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 104/1000
-phase_progress: 4/100
-block_progress: 4/10
+program_progress: 105/1000
+phase_progress: 5/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B01-A05 — Intent ve görev anlamlandırma: failure, recovery ve NO-GO yollarını uygula.
+P02-B01-A06 — Intent ve görev anlamlandırma: evidence, telemetry ve provenance kaydını ekle.
 
-objective: P02-B01-A04 boundary slice sealed; failure/recovery/NO-GO slice A05 next.
-target: visioner intent failure_path, recovery_path and nogo_path probes with preserved gaps.
-hypothesis: failure/recovery dispositions close remaining path gaps without scope creep.
-acceptance: failure/recovery slice probes flip or preserve documented gaps; regression suite passes.
+objective: P02-B01-A05 failure/recovery slice sealed; evidence/telemetry/provenance slice A06 next.
+target: visioner intent run record with probe evidence, telemetry and provenance for failure/recovery categories.
+hypothesis: run record bundling closes A06 gate without scope creep beyond documented gaps.
+acceptance: failure/recovery run record validates; regression suite passes.
 commands: npx tsx --test src/forge-p02-*.test.ts
-blast_radius: src/forge-p02-visioner-intent*.ts, src/orchestrator.ts
-rollback: P02-B01-A05 failure/recovery değişikliklerini geri al.
+blast_radius: src/forge-p02-visioner-intent*.ts
+rollback: P02-B01-A06 evidence/telemetry değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
-fallback: failure/recovery slice cannot flip probes without scope creep ise BLOCKED raporla.
+fallback: run record cannot validate without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B01-A04
+last_atom: P02-B01-A05
 last_commit: pending
-tests: PASS — forge-p02-visioner-intent.test.ts (13/13); forge-p02-visioner-intent-baseline.test.ts (3/3); boundary slice 6/6 PASS; production slice 22 PASS + 1 gap FAIL; matrixValidation unexpectedMismatches=0
-evidence: assessVisionerTaskInputBoundary + checkVisionerIntentAmbiguity exported; orchestrator intent_ambiguity_nogo gate; 3 boundary edge probes; vint.intent_ambiguity_nogo flipped PASS
-next: P02-B01-A05
+tests: PASS — forge-p02-visioner-intent.test.ts (21/21); failure/recovery slice 6/6 PASS; passAligned=5 gapAligned=1; matrixValidation unexpectedMismatches=0
+evidence: validateVisionerIntentFailureRecoveryProbeMatrix, runVisionerIntentFailureRecoverySlice, listVisionerIntentFailureRecoveryProbeIds; structured_intent_recovery gap preserved
+next: P02-B01-A06
