@@ -1,0 +1,183 @@
+{
+  "version": "1.0.0",
+  "atom": "P03-B08-A01",
+  "contractAtom": "P03-B08-A06",
+  "purpose": "Strategist replan and plan repair baseline measured from sealed P03-B07 parallel wave block gate artifacts (includes documented FAIL gaps).",
+  "sourceBlockGate": {
+    "version": "1.0.0",
+    "atom": "P03-B07-A10",
+    "contractVersion": "1.0.0",
+    "parallelWaveProbeCount": 27,
+    "sealedAtomCount": 10
+  },
+  "probes": [
+    {
+      "id": "sreplan.version_tagged",
+      "category": "replan_versioning",
+      "description": "Strategist replan baseline declares semver version field",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.atom_tagged",
+      "category": "replan_versioning",
+      "description": "Strategist replan baseline declares P03-B08-A01 atom id",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.harness_version_exported",
+      "category": "replan_versioning",
+      "description": "FORGE_STRATEGIST_REPLAN_VERSION exported for replan harness",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.state_blocked_to_decomposing",
+      "category": "block_replan_path",
+      "description": "VALID_TRANSITIONS accepts blocked→decomposing replan recovery path",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.orchestrator_re_decompose_phase",
+      "category": "block_replan_path",
+      "description": "Orchestrator emits re_decompose phase after block failure threshold",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.prompt_block_replan_signals",
+      "category": "block_replan_path",
+      "description": "STRATEGIST_SYSTEM prompt declares BLOCK signal for upward replan",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.prompt_replan_plan",
+      "category": "block_replan_path",
+      "description": "STRATEGIST decompose format declares REPLAN PLAN section",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sreplan.orchestrator_block_failure_replan",
+      "category": "atom_replan_path",
+      "description": "Orchestrator triggers block-level re_decompose when atom success rate drops",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.parser_replan_fields",
+      "category": "atom_replan_path",
+      "description": "parseDecomposeResponse exports replanPlan fields from decompose output",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sreplan.tools_work_replan",
+      "category": "plan_repair_seam",
+      "description": "work_replan tool updates planned steps on active work items",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.work_tracker_replan",
+      "category": "plan_repair_seam",
+      "description": "WorkTracker replan method mutates planned steps for recovery",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.orchestrator_strategist_replan_gate",
+      "category": "plan_repair_seam",
+      "description": "Orchestrator validates strategist replan plan before block execution",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sreplan.b07_block_handoff_entry",
+      "category": "baseline_link",
+      "description": "FORGE_P03_B07_TO_B08_HANDOFF_V1 targets P03-B08-A01 entry atom",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.b07_sealed_parallel_wave_probes",
+      "category": "baseline_link",
+      "description": "P03-B07→B08 handoff sealed probeCount matches active parallel wave contract",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.source_block_gate_ref",
+      "category": "boundary",
+      "description": "Baseline fixture references sealed P03-B07 parallel wave block gate source artifacts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.probe_runner_exported",
+      "category": "boundary",
+      "description": "runStrategistReplanProbes executes contract-wired probe matrix",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.known_gaps_documented",
+      "category": "boundary",
+      "description": "Baseline fixture documents at least one measurable FAIL replan gap",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.empty_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistReplanInputBoundary rejects empty decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.whitespace_decompose_boundary",
+      "category": "boundary",
+      "description": "assessStrategistReplanInputBoundary rejects whitespace-only decompose output",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.long_decompose_truncation_boundary",
+      "category": "boundary",
+      "description": "assessStrategistReplanInputBoundary truncates decompose exceeding max length",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.invalid_version_rejected",
+      "category": "failure_path",
+      "description": "validateStrategistReplanBaseline rejects unexpected fixture version",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.malformed_decompose_guard",
+      "category": "failure_path",
+      "description": "assessStrategistReplanInputBoundary rejects null-byte decompose output safely",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.min_category_probes",
+      "category": "failure_path",
+      "description": "validateStrategistReplanBaseline enforces per-category minimum probe counts",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.recovery_reflecting_replan",
+      "category": "recovery_path",
+      "description": "VALID_TRANSITIONS accepts reflecting→decomposing and reflecting→visioning replan edges",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.recovery_fsm_blocked_replan",
+      "category": "recovery_path",
+      "description": "Formal state machine harness exercises blocked→decomposing replan recovery path",
+      "expected": "PASS"
+    },
+    {
+      "id": "sreplan.recovery_replan_checkpoint",
+      "category": "recovery_path",
+      "description": "Rollback checkpoint preserves replan lineage after block failure recovery",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sreplan.nogo_invalid_replan",
+      "category": "nogo_path",
+      "description": "NO-GO gate rejects run when replan plan references invalid block indices",
+      "expected": "FAIL"
+    },
+    {
+      "id": "sreplan.exported_replan_validator",
+      "category": "nogo_path",
+      "description": "validateStrategistReplan exported for orchestrator pre-execution replan checks",
+      "expected": "FAIL"
+    }
+  ]
+}

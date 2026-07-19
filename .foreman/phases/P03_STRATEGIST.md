@@ -3,7 +3,7 @@
 phase_id: P03
 phase_status: IN_PROGRESS
 completed_blocks: 6
-completed_atoms: 62
+completed_atoms: 63
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -106,7 +106,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## P03-B08 — Replan ve plan repair
 
-- [ ] P03-B08-A01 — Replan ve plan repair: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
+- [x] P03-B08-A01 — Replan ve plan repair: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [ ] P03-B08-A02 — Replan ve plan repair: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [ ] P03-B08-A03 — Replan ve plan repair: en küçük üretim dikey dilimini uygula
 - [ ] P03-B08-A04 — Replan ve plan repair: boundary ve edge-case davranışlarını tamamla
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P03-B07-A10
-last_commit: cdcc923
-tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (50/50); block gate 10/10 seals; handoff→P03-B08
-evidence: sealStrategistParallelWaveBlockGate; validateStrategistParallelWaveBlockHandoffContract; runForgeStrategistParallelWaveBlockGate
-next: P03-B08-A01
+last_atom: P03-B08-A01
+last_commit: 120f607
+tests: PASS — forge-p03-strategist-replan-baseline.test.ts (3/3); 28 probes; 6 FAIL gaps aligned to contract
+evidence: loadStrategistReplanBaseline; runStrategistReplanProbes; validateStrategistReplanBaseline
+next: P03-B08-A02

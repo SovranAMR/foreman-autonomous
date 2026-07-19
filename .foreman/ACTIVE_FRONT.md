@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B08
-active_atom: P03-B08-A01
+active_atom: P03-B08-A02
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 269/1000
-phase_progress: 70/100
-block_progress: 10/10
+program_progress: 270/1000
+phase_progress: 71/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -43,8 +43,8 @@ fallback: Baseline blocked ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B07-A10
-last_commit: cdcc923
-tests: PASS — forge-p03-strategist-parallel-wave*.test.ts (50/50); block gate 10/10 seals; handoff→P03-B08
-evidence: sealStrategistParallelWaveBlockGate; validateStrategistParallelWaveBlockHandoffContract; runForgeStrategistParallelWaveBlockGate
-next: P03-B08-A01
+last_atom: P03-B08-A01
+last_commit: 120f607
+tests: PASS — forge-p03-strategist-replan-baseline.test.ts (3/3); 28 probes; 6 documented FAIL gaps aligned
+evidence: loadStrategistReplanBaseline; runStrategistReplanProbes; validateStrategistReplanBaseline
+next: P03-B08-A02
