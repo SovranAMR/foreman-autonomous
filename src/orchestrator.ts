@@ -2152,6 +2152,25 @@ export class Orchestrator {
   }
 
   /**
+   * Seal P05-B04 block gate and emit verification event with B05 handoff (P05-B04-A10).
+   */
+  async verifyForgeWorkerShellProcessBlockGate(): Promise<
+    import("./forge-p05-worker-shell-process.probe.js").ForgeWorkerShellProcessBlockGateResult
+  > {
+    const { runWorkerShellProcessBlockGate } = await import(
+      "./forge-p05-worker-shell-process.probe.js"
+    );
+    const result = runWorkerShellProcessBlockGate();
+    this.emit({
+      type: "verification",
+      phase: "worker_shell_process_block_gate",
+      passed: result.passed,
+      detail: result.detail,
+    });
+    return result;
+  }
+
+  /**
    * Seal P05-B01 block gate and emit verification event with B02 handoff (P05-B01-A10).
    */
   async verifyForgeWorkerToolDispatchBlockGate(): Promise<

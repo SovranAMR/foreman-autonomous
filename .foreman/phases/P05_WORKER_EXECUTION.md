@@ -3,7 +3,7 @@
 phase_id: P05
 phase_status: IN_PROGRESS
 completed_blocks: 0
-completed_atoms: 33
+completed_atoms: 34
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -63,7 +63,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P05-B04-A07 — Shell ve process lifecycle: unit, property ve fuzz doğrulamasını ekle
 - [x] P05-B04-A08 — Shell ve process lifecycle: Forge entegrasyonu ile regression testini tamamla
 - [x] P05-B04-A09 — Shell ve process lifecycle: adversarial, performance, cost ve safety kontrolünü geçir
-- [ ] P05-B04-A10 — Shell ve process lifecycle: block gate kanıtını mühürle ve sonraki block handoff'unu yap
+- [x] P05-B04-A10 — Shell ve process lifecycle: block gate kanıtını mühürle ve sonraki block handoff'unu yap
 
 ## P05-B05 — Git ve worktree transaction
 
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P05-B04-A09
-last_commit: cc0eddb
-tests: PASS — forge-p05-worker-shell-process.guard.test.ts (9/9), forge-p05-worker-shell-process-integration.test.ts (7/7), forge-p05-worker-shell-process-property-fuzz.test.ts (7/7), forge-p05-worker-shell-process-evidence.test.ts (5/5), forge-p05-worker-shell-process-failure-recovery.test.ts (5/5), forge-p05-worker-shell-process-boundary.test.ts (6/6), forge-p05-worker-shell-process-production.test.ts (5/5), forge-p05-worker-shell-process-contract.test.ts (8/8), forge-p05-worker-shell-process-baseline.test.ts (8/8)
-evidence: validateForgeWorkerShellProcessGuard + runWorkerShellProcessGuardSlice + runForgeWorkerShellProcessGuardGate + detectWorkerShellProcessFalseAlignment + detectWorkerShellProcessEvidenceSummaryMismatch; adversarial 3/3 rejected, perf/cost/safety PASS, guard gate PASS
-next: P05-B04-A10
+last_atom: P05-B04-A10
+last_commit: pending
+tests: PASS — forge-p05-worker-shell-process-block-gate.test.ts (9/9), forge-p05-worker-shell-process*.test.ts (69/69)
+evidence: runWorkerShellProcessBlockGate + validateForgeWorkerShellProcessBlockGate + buildWorkerShellProcessBlockGateEvidence + FORGE_P05_B04_TO_B05_HANDOFF_V1; block gate PASS, handoff→P05-B05 sealed, orchestrator verifyForgeWorkerShellProcessBlockGate
+next: P05-B05-A01
