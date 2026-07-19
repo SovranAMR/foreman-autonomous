@@ -44,7 +44,7 @@ fallback: Slice blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P04-B04-A09
-last_commit: pending
+last_commit: 4367124
 tests: PASS — forge-p04-researcher-benchmark-prior-art.guard.test.ts (8/8); forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (19/19); forge-p04-researcher-benchmark-prior-art.property-fuzz.test.ts (6/6); forge-pipeline-regression.integration.test.ts P04-B04-A08 guard (5/5); validateForgeResearcherBenchmarkPriorArtGuard; verifyForgeResearcherBenchmarkPriorArtGuard
 evidence: adversarial/performance/cost/safety guard controls reject tampered benchmark prior-art records; orchestrator emits researcher_benchmark_prior_art_guard verification with adversarial=3/3
 next: P04-B04-A10
