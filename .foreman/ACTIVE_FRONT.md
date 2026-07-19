@@ -44,7 +44,7 @@ fallback: baseline blocked ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P03-B04-A10
-last_commit: pending
+last_commit: 1c7dbc7
 tests: PASS — forge-p03-strategist-dependency-dag.test.ts (43/43); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); forge-p03-strategist-dependency-dag-block-gate.test.ts (7/7); harness 1.0.0-a10
 evidence: sealStrategistDependencyDagBlockGate; getForgeP03B04ToB05Handoff
 next: P03-B05-A01
