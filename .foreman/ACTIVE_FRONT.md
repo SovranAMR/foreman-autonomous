@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P01
 active_block: P01-B09
-active_atom: P01-B09-A05
+active_atom: P01-B09-A06
 phase_file: .foreman/phases/P01_FORGE_CONTRACT.md
-program_progress: 83/1000
-phase_progress: 82/100
-block_progress: 4/10
+program_progress: 84/1000
+phase_progress: 83/100
+block_progress: 5/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P01-B09-A05 — Orchestrator seam ve modülerleşme: failure, recovery ve NO-GO yollarını uygula.
+P01-B09-A06 — Orchestrator seam ve modülerleşme: evidence, telemetry ve provenance kaydını ekle.
 
-objective: A04 boundary slice sealed; failure/recovery/NO-GO category probes with zero unexpected mismatches.
-target: forge-orchestrator-seam.ts failure/recovery slice; edge probes wired to typed contract.
-hypothesis: A04 boundary gate + failure/recovery category contract yeterli A05 slice sağlar.
-acceptance: failure/recovery slice executes 6 probes; zero unexpected mismatches; documented FAIL gaps preserved.
-commands: npx tsx --test src/forge-orchestrator-seam*.test.ts (A05 suite when present)
+objective: A05 failure/recovery slice sealed; evidence/telemetry/provenance run record for failure/recovery probes.
+target: forge-orchestrator-seam.ts failure/recovery run record; validateOrchestratorSeamFailureRecoveryRunRecord.
+hypothesis: A05 slice + evidence artifact A06 pattern yeterli orchestrator seam run record sağlar.
+acceptance: failure/recovery run record validates; disposition/criterion/aligned outcomes recorded.
+commands: npx tsx --test src/forge-orchestrator-seam*.test.ts (A06 suite when present)
 blast_radius: forge-orchestrator-seam*.ts
-rollback: A05 failure/recovery slice değişikliklerini geri al.
+rollback: A06 evidence run record değişikliklerini geri al.
 evidence_path: aktif phase dosyasındaki Son Kanıt bölümü.
-fallback: A04 boundary slice invalid ise BLOCKED raporla.
+fallback: A05 failure/recovery slice invalid ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P01-B09-A04
-last_commit: 4004b19
-tests: PASS — forge-orchestrator-seam*.test.ts (13/13); boundary=3; passAligned=3; unexpectedMismatches=0
-evidence: runOrchestratorSeamBoundarySlice; validateOrchestratorSeamBoundaryProbeMatrix; B08 sourceEvidenceArtifact ref validated
-next: P01-B09-A05
+last_atom: P01-B09-A05
+last_commit: 12e9a20
+tests: PASS — forge-orchestrator-seam*.test.ts (16/16); failureRecovery=6; passAligned=2; gapAligned=4; unexpectedMismatches=0
+evidence: runOrchestratorSeamFailureRecoverySlice; validateOrchestratorSeamFailureRecoveryProbeMatrix; documented FAIL gaps preserved
+next: P01-B09-A06

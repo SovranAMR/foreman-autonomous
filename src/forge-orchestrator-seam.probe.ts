@@ -24,6 +24,9 @@ import {
   validateOrchestratorSeamBaselineAgainstContract,
   validateOrchestratorSeamProbeMatrix,
   validateOrchestratorSeamBoundaryProbeMatrix,
+  validateOrchestratorSeamFailureRecoveryProbeMatrix,
+  ORCHESTRATOR_SEAM_FAILURE_RECOVERY_CATEGORIES,
+  listOrchestratorSeamFailureRecoveryProbeIds,
   summarizeOrchestratorSeamMatrix,
   listOrchestratorSeamContractProbesByCategory,
   listOrchestratorSeamProbesByExpected,
@@ -52,6 +55,9 @@ export {
   validateOrchestratorSeamBaselineAgainstContract,
   validateOrchestratorSeamProbeMatrix,
   validateOrchestratorSeamBoundaryProbeMatrix,
+  validateOrchestratorSeamFailureRecoveryProbeMatrix,
+  ORCHESTRATOR_SEAM_FAILURE_RECOVERY_CATEGORIES,
+  listOrchestratorSeamFailureRecoveryProbeIds,
   FORGE_ORCHESTRATOR_SEAM_VERSION,
   ORCHESTRATOR_SEAM_CATEGORIES,
   ORCHESTRATOR_FORGE_REGRESSION_METHODS,
@@ -618,6 +624,41 @@ export function runOrchestratorSeamBoundarySlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     boundaryResults,
+    matrixValidation,
+  };
+}
+
+export interface OrchestratorSeamFailureRecoverySliceResult {
+  atom: "P01-B09-A05";
+  failureRecoveryProbeCount: number;
+  matrixValid: boolean;
+  results: OrchestratorSeamProbeResult[];
+  failureRecoveryResults: OrchestratorSeamProbeResult[];
+  matrixValidation: ReturnType<typeof validateOrchestratorSeamFailureRecoveryProbeMatrix>;
+}
+
+/**
+ * A05 failure/recovery slice: contract-wired failure_path, recovery_path, and nogo_path
+ * probes with zero unexpected mismatches; documented FAIL gaps preserved.
+ */
+export function runOrchestratorSeamFailureRecoverySlice(
+  fixture: OrchestratorSeamBaseline = loadOrchestratorSeamBaseline(),
+): OrchestratorSeamFailureRecoverySliceResult {
+  const contract = getActiveOrchestratorSeamContract();
+  const results = runOrchestratorSeamProbes(fixture);
+  const failureRecoveryProbes = ORCHESTRATOR_SEAM_FAILURE_RECOVERY_CATEGORIES.flatMap(
+    category => listOrchestratorSeamContractProbesByCategory(category, contract),
+  );
+  const failureRecoveryIds = new Set(failureRecoveryProbes.map(p => p.id));
+  const failureRecoveryResults = results.filter(r => failureRecoveryIds.has(r.id));
+  const matrixValidation = validateOrchestratorSeamFailureRecoveryProbeMatrix(results, contract);
+
+  return {
+    atom: "P01-B09-A05",
+    failureRecoveryProbeCount: failureRecoveryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    failureRecoveryResults,
     matrixValidation,
   };
 }

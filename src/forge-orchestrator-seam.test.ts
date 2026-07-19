@@ -5,6 +5,7 @@ import {
   runOrchestratorSeamProbes,
   runOrchestratorSeamProductionSlice,
   runOrchestratorSeamBoundarySlice,
+  runOrchestratorSeamFailureRecoverySlice,
 } from "./forge-orchestrator-seam.probe.js";
 import {
   getActiveOrchestratorSeamContract,
@@ -12,12 +13,15 @@ import {
   listOrchestratorSeamContractProbeIds,
   listOrchestratorSeamContractProbesByCategory,
   listOrchestratorSeamProbesByDisposition,
+  listOrchestratorSeamFailureRecoveryProbeIds,
   summarizeOrchestratorSeamContractCoverage,
   validateOrchestratorSeamContractCoverage,
   validateOrchestratorSeamBaselineAgainstContract,
   validateOrchestratorSeamProbeMatrix,
   validateOrchestratorSeamBoundaryProbeMatrix,
+  validateOrchestratorSeamFailureRecoveryProbeMatrix,
   ORCHESTRATOR_SEAM_CATEGORIES,
+  ORCHESTRATOR_SEAM_FAILURE_RECOVERY_CATEGORIES,
 } from "./forge-orchestrator-seam.js";
 
 function formatMismatchReport(
@@ -235,5 +239,83 @@ describe("Forge Orchestrator Seam Boundary Slice — P01-B09-A04", () => {
     assert.equal(knownGaps!.expected, "PASS");
     assert.equal(knownGaps!.actual, "PASS");
     assert.match(knownGaps!.detail, /documentedFail=7/);
+  });
+});
+
+describe("Forge Orchestrator Seam Failure/Recovery Slice — P01-B09-A05", () => {
+  it("defines six failure/recovery/NO-GO probes across three categories", () => {
+    const contract = getActiveOrchestratorSeamContract();
+    const failure = listOrchestratorSeamContractProbesByCategory("failure_path", contract);
+    const recovery = listOrchestratorSeamContractProbesByCategory("recovery_path", contract);
+    const nogo = listOrchestratorSeamContractProbesByCategory("nogo_path", contract);
+
+    assert.equal(failure.length, 2);
+    assert.equal(recovery.length, 2);
+    assert.equal(nogo.length, 2);
+    assert.deepEqual(
+      [...ORCHESTRATOR_SEAM_FAILURE_RECOVERY_CATEGORIES],
+      ["failure_path", "recovery_path", "nogo_path"],
+    );
+  });
+
+  it("executes failure/recovery slice with zero unexpected mismatches", () => {
+    const contract = getActiveOrchestratorSeamContract();
+    const slice = runOrchestratorSeamFailureRecoverySlice();
+
+    assert.equal(slice.atom, "P01-B09-A05");
+    assert.equal(slice.failureRecoveryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.failureRecoveryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 2);
+    assert.equal(slice.matrixValidation.gapAligned, 4);
+
+    for (const category of ORCHESTRATOR_SEAM_FAILURE_RECOVERY_CATEGORIES) {
+      for (const probe of listOrchestratorSeamContractProbesByCategory(category, contract)) {
+        const result = slice.failureRecoveryResults.find(r => r.id === probe.id);
+        assert.ok(result, `missing failure/recovery result: ${probe.id}`);
+        assert.equal(result!.aligned, true, `${probe.id}: ${result!.detail}`);
+        assert.equal(result!.criterion, probe.criterion);
+      }
+    }
+
+    const matrixValidation = validateOrchestratorSeamFailureRecoveryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("preserves documented gaps while exercising failure/recovery/NO-GO paths", () => {
+    const slice = runOrchestratorSeamFailureRecoverySlice();
+    const probeIds = listOrchestratorSeamFailureRecoveryProbeIds();
+
+    assert.equal(probeIds.length, 6);
+    assert.ok(probeIds.every(id => slice.failureRecoveryResults.find(r => r.id === id)?.aligned));
+
+    const invalidVersion = slice.failureRecoveryResults.find(
+      r => r.id === "oseam.invalid_version_rejected",
+    );
+    assert.ok(invalidVersion);
+    assert.equal(invalidVersion!.expected, "PASS");
+    assert.equal(invalidVersion!.actual, "PASS");
+
+    const recoveryGap = slice.failureRecoveryResults.find(
+      r => r.id === "oseam.recovery_seam_state_reset",
+    );
+    assert.ok(recoveryGap);
+    assert.equal(recoveryGap!.expected, "FAIL");
+    assert.equal(recoveryGap!.actual, "FAIL");
+
+    const nogoGap = slice.failureRecoveryResults.find(
+      r => r.id === "oseam.nogo_seam_inventory_drift",
+    );
+    assert.ok(nogoGap);
+    assert.equal(nogoGap!.expected, "FAIL");
+    assert.equal(nogoGap!.actual, "FAIL");
   });
 });

@@ -3,7 +3,7 @@
 phase_id: P01
 phase_status: ACTIVE
 completed_blocks: 7
-completed_atoms: 80
+completed_atoms: 81
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -123,7 +123,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P01-B09-A02 — Orchestrator seam ve modülerleşme: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P01-B09-A03 — Orchestrator seam ve modülerleşme: en küçük üretim dikey dilimini uygula
 - [x] P01-B09-A04 — Orchestrator seam ve modülerleşme: boundary ve edge-case davranışlarını tamamla
-- [ ] P01-B09-A05 — Orchestrator seam ve modülerleşme: failure, recovery ve NO-GO yollarını uygula
+- [x] P01-B09-A05 — Orchestrator seam ve modülerleşme: failure, recovery ve NO-GO yollarını uygula
 - [ ] P01-B09-A06 — Orchestrator seam ve modülerleşme: evidence, telemetry ve provenance kaydını ekle
 - [ ] P01-B09-A07 — Orchestrator seam ve modülerleşme: unit, property ve fuzz doğrulamasını ekle
 - [ ] P01-B09-A08 — Orchestrator seam ve modülerleşme: Forge entegrasyonu ile regression testini tamamla
@@ -156,11 +156,11 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P01-B09-A04
-last_commit: 4004b19
-tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (13/13); boundary=3; passAligned=3; unexpectedMismatches=0
+last_atom: P01-B09-A05
+last_commit: 12e9a20
+tests: PASS — `npx tsx --test src/forge-orchestrator-seam*.test.ts` (16/16); failureRecovery=6; passAligned=2; gapAligned=4; unexpectedMismatches=0
 evidence: |
-  P01-B09-A04: runOrchestratorSeamBoundarySlice in forge-orchestrator-seam.probe.ts;
-  validateOrchestratorSeamBoundaryProbeMatrix in forge-orchestrator-seam.ts;
-  B08 sourceEvidenceArtifact ref, probe runner, known gaps validated; documentedFail=7 preserved.
-next: P01-B09-A05
+  P01-B09-A05: runOrchestratorSeamFailureRecoverySlice in forge-orchestrator-seam.probe.ts;
+  validateOrchestratorSeamFailureRecoveryProbeMatrix in forge-orchestrator-seam.ts;
+  failure_path, recovery_path, nogo_path probes (6 total); documented FAIL gaps preserved.
+next: P01-B09-A06
