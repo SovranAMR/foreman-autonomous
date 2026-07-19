@@ -3,12 +3,12 @@
 program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P02
-active_block: P02-B03
-active_atom: P02-B03-A10
+active_block: P02-B04
+active_atom: P02-B04-A01
 phase_file: .foreman/phases/P02_VISIONER.md
-program_progress: 128/1000
-phase_progress: 28/100
-block_progress: 9/10
+program_progress: 129/1000
+phase_progress: 29/100
+block_progress: 0/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P02-B03-A10 — Ürün vizyonu sentezi: block gate kanıtını mühürle ve sonraki block handoff'unu yap.
+P02-B04-A01 — Repo ve kullanıcı bağlamı grounding: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
 
-objective: P02-B03-A09 guard slice sealed; B03 block gate next.
-target: Seal P02-B03 block gate with handoff contract to P02-B04 entry atom.
-hypothesis: A09 guard foundation enables stable A10 block gate without scope creep.
-acceptance: block gate validates synthesis regression + guard PASS and emits B04 handoff.
+objective: P02-B03 block gate sealed; B04 baseline measurement next.
+target: Measure repo/user context grounding baseline from sealed P02-B03 synthesis block gate artifacts.
+hypothesis: Sealed synthesis handoff provides stable anchor for B04 baseline without scope creep.
+acceptance: baseline fixture loads, probes run with documented gaps, contract alignment validated.
 commands: npx tsx --test src/forge-p02-*.test.ts
-blast_radius: src/forge-p02-visioner-synthesis.ts, src/forge-p02-visioner-synthesis.probe.ts
-rollback: P02-B03-A10 block gate değişikliklerini geri al.
+blast_radius: src/forge-p02-visioner-grounding.ts, src/forge-p02-visioner-grounding.probe.ts
+rollback: P02-B04-A01 baseline değişikliklerini geri al.
 evidence_path: .foreman/phases/P02_VISIONER.md Son Kanıt bölümü.
 fallback: slice cannot anchor without scope creep ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P02-B03-A09
-last_commit: 7ef6887
-tests: PASS — forge-p02-visioner-synthesis.guard.test.ts (8/8); forge-pipeline-regression.integration.test.ts synthesis A08 (5/5); forge-p02-visioner-synthesis*.test.ts (34/34); forge-p02-*.test.ts (123/123)
-evidence: validateForgeVisionerSynthesisGuard passed=true zero guard issues canonical matrix adversarial=3/3 orchestrator phase=visioner_synthesis_guard; harnessVersion=1.0.0-a09
-next: P02-B03-A10
+last_atom: P02-B03-A10
+last_commit: pending
+tests: PASS — forge-p02-visioner-synthesis-block-gate.test.ts (6/6); forge-p02-visioner-synthesis*.test.ts (40/40); forge-p02-*.test.ts (129/129)
+evidence: runVisionerSynthesisBlockGate passed=true handoffValid=true regression=PASS guard=PASS handoff→P02-B04 entry=P02-B04-A01; harnessVersion=1.0.0-a10
+next: P02-B04-A01

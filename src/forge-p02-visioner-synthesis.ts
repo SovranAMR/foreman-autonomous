@@ -5,7 +5,12 @@
  * on sealed P02-B02 visioner constraint block gate artifacts.
  */
 
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   buildVisionConstraintSummary,
   getActiveVisionerConstraintContract,
@@ -13,7 +18,7 @@ import {
   summarizeVisionerConstraintContractCoverage,
 } from "./forge-p02-visioner-constraint.js";
 
-export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a09";
+export const FORGE_VISIONER_SYNTHESIS_VERSION = "1.0.0-a10";
 
 /** Maximum normalized vision length before truncation (P02-B03-A04 boundary). */
 export const VISIONER_SYNTHESIS_VISION_MAX_LENGTH = 32000;
@@ -2368,5 +2373,188 @@ export function validateForgeVisionerSynthesisGuard(
       adversarialScenariosRejected: adversarial.rejected,
       adversarialScenariosTotal: adversarial.total,
     },
+  };
+}
+
+// ─── Block gate and handoff (P02-B03-A10) ─────────────────────────────────────
+
+export interface VisionerSynthesisBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface VisionerSynthesisBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    visionerSynthesisCategories: readonly VisionerSynthesisCategory[];
+    sourceVisionerConstraintBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    visionerSynthesisRecordRequired: true;
+  };
+}
+
+export const FORGE_P02_B03_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P02-B03-A10",
+  blockId: "P02-B03",
+  title: "Ürün vizyonu sentezi",
+  requiredAtomIds: [
+    "P02-B03-A01",
+    "P02-B03-A02",
+    "P02-B03-A03",
+    "P02-B03-A04",
+    "P02-B03-A05",
+    "P02-B03-A06",
+    "P02-B03-A07",
+    "P02-B03-A08",
+    "P02-B03-A09",
+    "P02-B03-A10",
+  ],
+  checks: [
+    { id: "fixture_contract_alignment", atomId: "P02-B03-A01", description: "Visioner synthesis baseline aligns with typed contract and P02-B02 block gate handoff" },
+    { id: "typed_contract_coverage", atomId: "P02-B03-A02", description: "Contract declares measurable probes for all visioner synthesis categories" },
+    { id: "probe_matrix_aligned", atomId: "P02-B03-A03", description: "Visioner synthesis probe matrix executes with zero unexpected mismatches" },
+    { id: "boundary_disposition_coverage", atomId: "P02-B03-A04", description: "Contract covers observed, gap, failure, recovery and NO-GO dispositions" },
+    { id: "failure_recovery_nogo", atomId: "P02-B03-A05", description: "Failure, recovery and NO-GO probes are declared and exercised" },
+    { id: "evidence_telemetry_provenance", atomId: "P02-B03-A06", description: "Run record carries evidence, telemetry and provenance" },
+    { id: "property_and_fuzz", atomId: "P02-B03-A07", description: "Structural property and fuzz validation reject tampered inputs" },
+    { id: "regression_gate", atomId: "P02-B03-A08", description: "Regression gate passes on canonical visioner synthesis matrix" },
+    { id: "guard_controls", atomId: "P02-B03-A09", description: "Adversarial, performance, cost and safety guard controls pass" },
+    { id: "block_gate_sealed", atomId: "P02-B03-A10", description: "Block gate evidence sealed with valid B04 handoff contract" },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P02_B03_TO_B04_HANDOFF_V1: VisionerSynthesisBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P02-B03-A10",
+  sourceBlock: {
+    blockId: "P02-B03",
+    title: "Ürün vizyonu sentezi",
+    completedAtoms: FORGE_P02_B03_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P02-B04",
+    title: "Repo ve kullanıcı bağlamı grounding",
+    entryAtom: "P02-B04-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_VISIONER_SYNTHESIS_CONTRACT_V1.version,
+    harnessVersion: FORGE_VISIONER_SYNTHESIS_VERSION,
+    probeCount: summarizeVisionerSynthesisContractCoverage(FORGE_VISIONER_SYNTHESIS_CONTRACT_V1).totalProbes,
+    visionerSynthesisCategories: VISIONER_SYNTHESIS_CATEGORIES,
+    sourceVisionerConstraintBlockGateAtom: "P02-B02-A10",
+  },
+  prerequisites: [
+    "Visioner synthesis contract v1 with measurable synthesis signal, aesthetic and guard probes",
+    "Versioned visioner synthesis baseline aligned to contract probe matrix and sealed P02-B02 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P02-B02 visioner constraint block gate referenced by sourceVisionerConstraintBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P02-B04-A01 formalizes repo and user context grounding using sealed visioner synthesis artifacts",
+    requiresBlockGatePass: true,
+    visionerSynthesisRecordRequired: true,
+  },
+};
+
+export function getForgeP02B03BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P02_B03_BLOCK_GATE_V1;
+}
+
+export function getForgeP02B03ToB04Handoff(): VisionerSynthesisBlockHandoffContract {
+  return FORGE_P02_B03_TO_B04_HANDOFF_V1;
+}
+
+export function validateVisionerSynthesisBlockHandoffContract(
+  handoff: VisionerSynthesisBlockHandoffContract,
+  evidence: Pick<VisionerSynthesisBlockGateEvidence, "probeCount" | "regressionPassed" | "guardPassed">,
+  contract: VisionerSynthesisContract = getActiveVisionerSynthesisContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeVisionerSynthesisContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.visionerSynthesisCategories.length !== VISIONER_SYNTHESIS_CATEGORIES.length) {
+    issues.push("handoff visionerSynthesisCategories incomplete");
+  }
+  if (handoff.targetBlock.entryAtom !== "P02-B04-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildVisionerSynthesisBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P02_B03_BLOCK_GATE_V1.blockId,
+): VisionerSynthesisBlockGateEvidence {
+  const handoff = getForgeP02B03ToB04Handoff();
+  const handoffValid = validateVisionerSynthesisBlockHandoffContract(handoff, {
+    probeCount,
+    regressionPassed,
+    guardPassed,
+  }).valid;
+
+  return {
+    blockId,
+    atom: "P02-B03-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
   };
 }
