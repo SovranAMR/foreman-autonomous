@@ -3,7 +3,7 @@
 phase_id: P04
 phase_status: IN_PROGRESS
 completed_blocks: 3
-completed_atoms: 31
+completed_atoms: 32
 total_blocks: 10
 total_atoms: 100
 phase_gate: OPEN
@@ -57,7 +57,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 - [x] P04-B04-A01 — Benchmark ve prior-art analizi: mevcut davranışı ölç ve failing baseline fixture'ını oluştur
 - [x] P04-B04-A02 — Benchmark ve prior-art analizi: typed contract ile ölçülebilir acceptance kriterini tanımla
 - [x] P04-B04-A03 — Benchmark ve prior-art analizi: en küçük üretim dikey dilimini uygula
-- [ ] P04-B04-A04 — Benchmark ve prior-art analizi: boundary ve edge-case davranışlarını tamamla
+- [x] P04-B04-A04 — Benchmark ve prior-art analizi: boundary ve edge-case davranışlarını tamamla
 - [ ] P04-B04-A05 — Benchmark ve prior-art analizi: failure, recovery ve NO-GO yollarını uygula
 - [ ] P04-B04-A06 — Benchmark ve prior-art analizi: evidence, telemetry ve provenance kaydını ekle
 - [ ] P04-B04-A07 — Benchmark ve prior-art analizi: unit, property ve fuzz doğrulamasını ekle
@@ -156,8 +156,8 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 
 ## Son Kanıt
 
-last_atom: P04-B04-A03
-last_commit: dbc9d74
-tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (10/10); contract v1 23 probes; zero documented FAIL gaps; recoverBenchmarkPriorArtEvidence production slice
-evidence: recoverBenchmarkPriorArtEvidence; runResearcherBenchmarkPriorArtProductionSlice; validateResearcherBenchmarkPriorArtProbeMatrix; rbpa.structured_benchmark_prior_art_recovery PASS
-next: P04-B04-A04
+last_atom: P04-B04-A04
+last_commit: 82e497f
+tests: PASS — forge-p04-researcher-benchmark-prior-art.test.ts (8/8); forge-p04-researcher-benchmark-prior-art-baseline.test.ts (13/13); boundary 6 probes; zero unexpected mismatches; runResearcherBenchmarkPriorArtBoundarySlice
+evidence: runResearcherBenchmarkPriorArtBoundarySlice; validateResearcherBenchmarkPriorArtBoundaryProbeMatrix; assessBenchmarkPriorArtInputBoundary topic edge cases PASS
+next: P04-B04-A05

@@ -4,11 +4,14 @@ import {
   loadResearcherBenchmarkPriorArtBaseline,
   runResearcherBenchmarkPriorArtProbes,
   runResearcherBenchmarkPriorArtProductionSlice,
+  runResearcherBenchmarkPriorArtBoundarySlice,
   validateResearcherBenchmarkPriorArtBaseline,
   validateResearcherBenchmarkPriorArtProbeMatrix,
+  validateResearcherBenchmarkPriorArtBoundaryProbeMatrix,
   summarizeResearcherBenchmarkPriorArtMatrix,
   listResearcherBenchmarkPriorArtProbesByExpected,
   listResearcherBenchmarkPriorArtKnownGaps,
+  listResearcherBenchmarkPriorArtContractProbesByCategory,
   assessBenchmarkPriorArtInputBoundary,
   validateBenchmarkPriorArtCollection,
   recoverBenchmarkPriorArtEvidence,
@@ -177,5 +180,73 @@ describe("Forge Researcher Benchmark Prior-Art Production Slice — P04-B04-A03"
     assert.equal(recoveryProbe!.expected, "PASS");
     assert.equal(recoveryProbe!.actual, "PASS");
     assert.equal(recoveryProbe!.aligned, true);
+  });
+});
+
+describe("Forge Researcher Benchmark Prior-Art Boundary Slice — P04-B04-A04", () => {
+  it("defines boundary category with topic input edge-case probes", () => {
+    const boundary = listResearcherBenchmarkPriorArtContractProbesByCategory("boundary");
+    const ids = boundary.map(p => p.id).sort();
+
+    assert.equal(boundary.length, 6);
+    assert.deepEqual(ids, [
+      "rbpa.empty_topic_boundary",
+      "rbpa.known_gaps_documented",
+      "rbpa.long_topic_truncation_boundary",
+      "rbpa.probe_runner_exported",
+      "rbpa.source_block_gate_ref",
+      "rbpa.whitespace_topic_boundary",
+    ]);
+    assert.ok(boundary.every(p => p.expected === "PASS"));
+  });
+
+  it("executes boundary slice with zero unexpected mismatches on topic edge probes", () => {
+    const contract = getActiveResearcherBenchmarkPriorArtContract();
+    const slice = runResearcherBenchmarkPriorArtBoundarySlice();
+
+    assert.equal(slice.atom, "P04-B04-A04");
+    assert.equal(slice.boundaryProbeCount, 6);
+    assert.equal(slice.matrixValid, true);
+    assert.equal(slice.boundaryResults.length, 6);
+    assert.equal(slice.matrixValidation.unexpectedMismatches, 0);
+    assert.equal(slice.matrixValidation.passAligned, 6);
+    assert.equal(slice.matrixValidation.gapAligned, 0);
+
+    for (const boundaryProbe of listResearcherBenchmarkPriorArtContractProbesByCategory(
+      "boundary",
+      contract,
+    )) {
+      const result = slice.boundaryResults.find(r => r.id === boundaryProbe.id);
+      assert.ok(result, `missing boundary result: ${boundaryProbe.id}`);
+      assert.equal(result!.expected, boundaryProbe.expected);
+      assert.equal(result!.aligned, true, `${boundaryProbe.id}: ${result!.detail}`);
+      assert.equal(result!.criterion, boundaryProbe.criterion);
+    }
+
+    const matrixValidation = validateResearcherBenchmarkPriorArtBoundaryProbeMatrix(
+      slice.results,
+      contract,
+    );
+    assert.equal(
+      matrixValidation.valid,
+      true,
+      matrixValidation.issues.map(i => `${i.kind}:${i.probeId ?? ""}: ${i.detail}`).join("\n"),
+    );
+  });
+
+  it("assessBenchmarkPriorArtInputBoundary edge cases align with boundary probe matrix", () => {
+    const slice = runResearcherBenchmarkPriorArtBoundarySlice();
+    const topicProbes = [
+      "rbpa.empty_topic_boundary",
+      "rbpa.whitespace_topic_boundary",
+      "rbpa.long_topic_truncation_boundary",
+    ] as const;
+
+    for (const probeId of topicProbes) {
+      const result = slice.boundaryResults.find(r => r.id === probeId);
+      assert.ok(result, `missing ${probeId}`);
+      assert.equal(result!.actual, "PASS");
+      assert.equal(result!.aligned, true);
+    }
   });
 });

@@ -4,6 +4,7 @@
  * A01 slice: load, validate, run probes, contract alignment against sealed
  * P04-B03 web primary-source block gate artifacts.
  * A03 slice: recoverBenchmarkPriorArtEvidence production vertical slice.
+ * A04 slice: boundary-category probe matrix validation for topic input edge cases.
  */
 
 import { readFileSync } from "node:fs";
@@ -18,7 +19,7 @@ import {
   FORGE_RESEARCHER_WEB_PRIMARY_SOURCE_CONTRACT_V1,
 } from "./forge-p04-researcher-web-primary-source.js";
 
-export const FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION = "1.0.0-a03";
+export const FORGE_RESEARCHER_BENCHMARK_PRIOR_ART_VERSION = "1.0.0-a04";
 
 export const EXPECTED_P04_B03_SEALED_ATOM_COUNT = 10;
 
@@ -1307,6 +1308,70 @@ export function runResearcherBenchmarkPriorArtProductionSlice(
     matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
     results,
     summary,
+    matrixValidation,
+  };
+}
+
+/**
+ * Validate boundary-category probe matrix — A04 slice gate.
+ * Only boundary probes are evaluated; zero unexpected mismatches required.
+ */
+export function validateResearcherBenchmarkPriorArtBoundaryProbeMatrix(
+  results: ResearcherBenchmarkPriorArtProbeResult[],
+  contract: ResearcherBenchmarkPriorArtContract = getActiveResearcherBenchmarkPriorArtContract(),
+): ResearcherBenchmarkPriorArtProbeMatrixValidationResult {
+  const boundaryProbes = listResearcherBenchmarkPriorArtContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryContract: ResearcherBenchmarkPriorArtContract = {
+    ...contract,
+    probes: boundaryProbes,
+    categories: {
+      ...contract.categories,
+      boundary: contract.categories.boundary,
+    },
+  };
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  return validateResearcherBenchmarkPriorArtProbeMatrix(boundaryResults, boundaryContract);
+}
+
+export interface ResearcherBenchmarkPriorArtBoundarySliceResult {
+  atom: "P04-B04-A04";
+  boundaryProbeCount: number;
+  matrixValid: boolean;
+  results: ResearcherBenchmarkPriorArtProbeResult[];
+  boundaryResults: ResearcherBenchmarkPriorArtProbeResult[];
+  matrixValidation: ResearcherBenchmarkPriorArtProbeMatrixValidationResult;
+}
+
+/**
+ * A04 boundary slice: contract-wired boundary probes (topic input edge cases, probe runner,
+ * documented gaps) with zero unexpected mismatches.
+ */
+export function runResearcherBenchmarkPriorArtBoundarySlice(
+  fixture: ResearcherBenchmarkPriorArtBaseline = loadResearcherBenchmarkPriorArtBaseline(),
+): ResearcherBenchmarkPriorArtBoundarySliceResult {
+  const contract = getActiveResearcherBenchmarkPriorArtContract();
+  const results = runResearcherBenchmarkPriorArtProbes(fixture);
+  const boundaryProbes = listResearcherBenchmarkPriorArtContractProbesByCategory(
+    "boundary",
+    contract,
+  );
+  const boundaryIds = new Set(boundaryProbes.map(p => p.id));
+  const boundaryResults = results.filter(r => boundaryIds.has(r.id));
+  const matrixValidation = validateResearcherBenchmarkPriorArtBoundaryProbeMatrix(
+    results,
+    contract,
+  );
+
+  return {
+    atom: "P04-B04-A04",
+    boundaryProbeCount: boundaryProbes.length,
+    matrixValid: matrixValidation.valid && matrixValidation.unexpectedMismatches === 0,
+    results,
+    boundaryResults,
     matrixValidation,
   };
 }
