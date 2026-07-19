@@ -14,7 +14,12 @@ import { randomUUID } from "node:crypto";
 import { execSync } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import workerEditEngineBaseline from "./fixtures/forge-worker-edit-engine-v1.json" with { type: "json" };
-import type { ForgeAcceptanceOutcome } from "./forge-baseline-contract.js";
+import type {
+  ForgeAcceptanceOutcome,
+  ForgeBlockAtomSeal,
+  ForgeBlockGateCheck,
+  ForgeBlockGateDefinition,
+} from "./forge-baseline-contract.js";
 import {
   getForgeP05B02ToB03Handoff,
   getActiveWorkerFilesystemGroundingContract,
@@ -3704,6 +3709,290 @@ export function runWorkerEditEngineGuardSlice(): WorkerEditEngineGuardSliceResul
     guard,
     detail: detailParts.join(" | "),
   };
+}
+
+// ─── Block gate and handoff (P05-B03-A10) ─────────────────────────────────────
+
+export interface WorkerEditEngineBlockGateEvidence {
+  blockId: string;
+  atom: string;
+  sealedAt: string;
+  atomSeals: ForgeBlockAtomSeal[];
+  regressionPassed: boolean;
+  guardPassed: boolean;
+  handoffValid: boolean;
+  probeCount: number;
+  gitCommit?: string;
+}
+
+export interface WorkerEditEngineBlockHandoffContract {
+  version: string;
+  atom: string;
+  sourceBlock: {
+    blockId: string;
+    title: string;
+    completedAtoms: readonly string[];
+  };
+  targetBlock: {
+    blockId: string;
+    title: string;
+    entryAtom: string;
+  };
+  sealedArtifacts: {
+    fixtureVersion: string;
+    contractVersion: string;
+    harnessVersion: string;
+    probeCount: number;
+    workerEditEngineCategories: readonly WorkerEditEngineCategory[];
+    sourceWorkerFilesystemGroundingBlockGateAtom: string;
+  };
+  prerequisites: readonly string[];
+  entryCriteria: {
+    description: string;
+    requiresBlockGatePass: true;
+    workerEditEngineRecordRequired: true;
+  };
+}
+
+export const FORGE_P05_B03_BLOCK_GATE_V1: ForgeBlockGateDefinition = {
+  version: "1.0.0",
+  atom: "P05-B03-A10",
+  blockId: "P05-B03",
+  title: "Cerrahi edit engine",
+  requiredAtomIds: [
+    "P05-B03-A01",
+    "P05-B03-A02",
+    "P05-B03-A03",
+    "P05-B03-A04",
+    "P05-B03-A05",
+    "P05-B03-A06",
+    "P05-B03-A07",
+    "P05-B03-A08",
+    "P05-B03-A09",
+    "P05-B03-A10",
+  ],
+  checks: [
+    {
+      id: "fixture_contract_alignment",
+      atomId: "P05-B03-A01",
+      description:
+        "Worker edit engine baseline aligns with typed contract and P05-B02 block gate handoff",
+    },
+    {
+      id: "typed_contract_coverage",
+      atomId: "P05-B03-A02",
+      description: "Contract declares measurable probes for all edit engine categories",
+    },
+    {
+      id: "probe_matrix_aligned",
+      atomId: "P05-B03-A03",
+      description: "Edit engine probe matrix executes with zero unexpected mismatches",
+    },
+    {
+      id: "boundary_disposition_coverage",
+      atomId: "P05-B03-A04",
+      description:
+        "Contract covers observed, failure, recovery and NO-GO dispositions with boundary probes",
+    },
+    {
+      id: "failure_recovery_nogo",
+      atomId: "P05-B03-A05",
+      description: "Failure, recovery and NO-GO probes are declared and exercised",
+    },
+    {
+      id: "evidence_telemetry_provenance",
+      atomId: "P05-B03-A06",
+      description: "Run record carries evidence, telemetry and provenance",
+    },
+    {
+      id: "property_and_fuzz",
+      atomId: "P05-B03-A07",
+      description: "Structural property and fuzz validation reject tampered inputs",
+    },
+    {
+      id: "regression_gate",
+      atomId: "P05-B03-A08",
+      description: "Regression gate passes on canonical edit engine matrix",
+    },
+    {
+      id: "guard_controls",
+      atomId: "P05-B03-A09",
+      description: "Adversarial, performance, cost and safety guard controls pass",
+    },
+    {
+      id: "block_gate_sealed",
+      atomId: "P05-B03-A10",
+      description: "Block gate evidence sealed with valid B04 handoff contract",
+    },
+  ] satisfies readonly ForgeBlockGateCheck[],
+};
+
+export const FORGE_P05_B03_TO_B04_HANDOFF_V1: WorkerEditEngineBlockHandoffContract = {
+  version: "1.0.0",
+  atom: "P05-B03-A10",
+  sourceBlock: {
+    blockId: "P05-B03",
+    title: "Cerrahi edit engine",
+    completedAtoms: FORGE_P05_B03_BLOCK_GATE_V1.requiredAtomIds,
+  },
+  targetBlock: {
+    blockId: "P05-B04",
+    title: "Shell ve process lifecycle",
+    entryAtom: "P05-B04-A01",
+  },
+  sealedArtifacts: {
+    fixtureVersion: "1.0.0",
+    contractVersion: FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1.version,
+    harnessVersion: FORGE_WORKER_EDIT_ENGINE_VERSION,
+    probeCount: summarizeWorkerEditEngineContractCoverage(
+      FORGE_WORKER_EDIT_ENGINE_CONTRACT_V1,
+    ).totalProbes,
+    workerEditEngineCategories: WORKER_EDIT_ENGINE_CATEGORIES,
+    sourceWorkerFilesystemGroundingBlockGateAtom: "P05-B02-A10",
+  },
+  prerequisites: [
+    "Worker edit engine contract v1 with measurable edit, match and boundary probes",
+    "Versioned edit engine baseline aligned to contract probe matrix and sealed P05-B02 block gate",
+    "Evidence, telemetry and provenance run records",
+    "Regression and guard gates integrated with orchestrator verification",
+    "Sealed P05-B02 worker filesystem grounding block gate referenced by sourceWorkerFilesystemGroundingBlockGateAtom",
+  ],
+  entryCriteria: {
+    description:
+      "P05-B04-A01 formalizes shell and process lifecycle using sealed worker edit engine artifacts",
+    requiresBlockGatePass: true,
+    workerEditEngineRecordRequired: true,
+  },
+};
+
+export function getForgeP05B03BlockGate(): ForgeBlockGateDefinition {
+  return FORGE_P05_B03_BLOCK_GATE_V1;
+}
+
+export function getForgeP05B03ToB04Handoff(): WorkerEditEngineBlockHandoffContract {
+  return FORGE_P05_B03_TO_B04_HANDOFF_V1;
+}
+
+export function validateWorkerEditEngineBlockHandoffContract(
+  handoff: WorkerEditEngineBlockHandoffContract,
+  evidence: Pick<
+    WorkerEditEngineBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  contract: WorkerEditEngineContract = getActiveWorkerEditEngineContract(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const coverage = summarizeWorkerEditEngineContractCoverage(contract);
+
+  if (handoff.sealedArtifacts.probeCount !== coverage.totalProbes) {
+    issues.push(
+      `handoff probeCount=${handoff.sealedArtifacts.probeCount} contract=${coverage.totalProbes}`,
+    );
+  }
+  if (handoff.sealedArtifacts.contractVersion !== contract.version) {
+    issues.push(
+      `handoff contractVersion=${handoff.sealedArtifacts.contractVersion} active=${contract.version}`,
+    );
+  }
+  if (handoff.sealedArtifacts.harnessVersion !== FORGE_WORKER_EDIT_ENGINE_VERSION) {
+    issues.push(
+      `handoff harnessVersion=${handoff.sealedArtifacts.harnessVersion} active=${FORGE_WORKER_EDIT_ENGINE_VERSION}`,
+    );
+  }
+  if (
+    handoff.sealedArtifacts.workerEditEngineCategories.length !==
+    WORKER_EDIT_ENGINE_CATEGORIES.length
+  ) {
+    issues.push("handoff workerEditEngineCategories incomplete");
+  }
+  if (handoff.sealedArtifacts.sourceWorkerFilesystemGroundingBlockGateAtom !== "P05-B02-A10") {
+    issues.push(
+      `unexpected source worker filesystem grounding block gate atom: ${handoff.sealedArtifacts.sourceWorkerFilesystemGroundingBlockGateAtom}`,
+    );
+  }
+  if (handoff.targetBlock.entryAtom !== "P05-B04-A01") {
+    issues.push(`unexpected entry atom: ${handoff.targetBlock.entryAtom}`);
+  }
+  if (!evidence.regressionPassed) {
+    issues.push("regression gate did not pass");
+  }
+  if (!evidence.guardPassed) {
+    issues.push("guard gate did not pass");
+  }
+  if (evidence.probeCount !== coverage.totalProbes) {
+    issues.push(`evidence probeCount=${evidence.probeCount} contract=${coverage.totalProbes}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+export function buildWorkerEditEngineBlockGateEvidence(
+  atomSeals: ForgeBlockAtomSeal[],
+  regressionPassed: boolean,
+  guardPassed: boolean,
+  probeCount: number,
+  gitCommit?: string,
+  blockId = FORGE_P05_B03_BLOCK_GATE_V1.blockId,
+): WorkerEditEngineBlockGateEvidence {
+  const handoffValid = validateWorkerEditEngineBlockHandoffContract(
+    getForgeP05B03ToB04Handoff(),
+    {
+      probeCount,
+      regressionPassed,
+      guardPassed,
+    },
+  ).valid;
+
+  return {
+    blockId,
+    atom: "P05-B03-A10",
+    sealedAt: new Date().toISOString(),
+    atomSeals,
+    regressionPassed,
+    guardPassed,
+    handoffValid,
+    probeCount,
+    ...(gitCommit ? { gitCommit } : {}),
+  };
+}
+
+/**
+ * Validate block gate atom seals and handoff contract — rejects incomplete or failed seals.
+ */
+export function validateForgeWorkerEditEngineBlockGate(
+  atomSeals: ForgeBlockAtomSeal[],
+  evidence: Pick<
+    WorkerEditEngineBlockGateEvidence,
+    "probeCount" | "regressionPassed" | "guardPassed"
+  >,
+  blockGate: ForgeBlockGateDefinition = getForgeP05B03BlockGate(),
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+
+  if (atomSeals.length !== blockGate.requiredAtomIds.length) {
+    issues.push(
+      `atomSeals count=${atomSeals.length} expected=${blockGate.requiredAtomIds.length}`,
+    );
+  }
+
+  for (const atomId of blockGate.requiredAtomIds) {
+    const seal = atomSeals.find(item => item.atomId === atomId);
+    if (!seal) {
+      issues.push(`missing atom seal: ${atomId}`);
+    } else if (!seal.passed) {
+      issues.push(`atom seal failed: ${atomId} — ${seal.detail}`);
+    }
+  }
+
+  const handoffValidation = validateWorkerEditEngineBlockHandoffContract(
+    getForgeP05B03ToB04Handoff(),
+    evidence,
+  );
+  if (!handoffValidation.valid) {
+    issues.push(...handoffValidation.issues);
+  }
+
+  return { valid: issues.length === 0, issues };
 }
 
 /** Smoke probe: edit with missing old_text returns deterministic not-found error (P05-B03-A01 boundary). */
