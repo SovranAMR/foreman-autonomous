@@ -4,11 +4,11 @@ program: FOREMAN-FORGE-1000
 front_status: READY
 active_phase: P03
 active_block: P03-B03
-active_atom: P03-B03-A01
+active_atom: P03-B03-A02
 phase_file: .foreman/phases/P03_STRATEGIST.md
-program_progress: 219/1000
-phase_progress: 20/100
-block_progress: 0/10
+program_progress: 220/1000
+phase_progress: 21/100
+block_progress: 1/10
 parallel_front: NONE
 max_attempts_per_atom: 3
 updated_at: 2026-07-19
@@ -29,22 +29,22 @@ Zaten tamamlanmışsa tekrar yapma.
 
 ## Aktif atom
 
-P03-B03-A01 — Atomization ve atom boyutu: mevcut davranışı ölç ve failing baseline fixture'ını oluştur.
+P03-B03-A02 — Atomization ve atom boyutu: typed contract ile ölçülebilir acceptance kriterini tanımla.
 
-objective: P03-B02-A10 PASS; P03-B03-A01 measure atomization behavior and failing baseline fixture.
-target: loadStrategistAtomizationBaseline, validateStrategistAtomizationBaseline.
-hypothesis: P03-B03-A01 establishes measurable atomization baseline wired to sealed P03-B02 block gate handoff.
-acceptance: baseline fixture loads; probes measure current behavior; B02 handoff prerequisites validated.
+objective: P03-B03-A01 PASS; P03-B03-A02 define typed atomization contract with measurable acceptance criteria.
+target: getActiveStrategistAtomizationContract, validateStrategistAtomizationCoverage.
+hypothesis: P03-B03-A02 seals probe matrix from A01 baseline into typed contract with category invariants.
+acceptance: contract declares all categories; coverage validation passes; fixture aligns to contract probes.
 commands: npx tsx --test src/forge-p03-strategist-atomization*.test.ts
-blast_radius: src/forge-p03-strategist-atomization.ts, src/fixtures/forge-strategist-atomization-v1.json
-rollback: P03-B03-A01 baseline slice değişikliklerini geri al.
+blast_radius: src/forge-p03-strategist-atomization.ts
+rollback: P03-B03-A02 contract slice değişikliklerini geri al.
 evidence_path: .foreman/phases/P03_STRATEGIST.md Son Kanıt bölümü.
-fallback: B02 handoff misaligned ise BLOCKED raporla.
+fallback: A01 baseline misaligned ise BLOCKED raporla.
 
 ## Tur sonunda zorunlu kayıt
 
-last_atom: P03-B02-A10
-last_commit: dc4fa49
-tests: PASS — forge-p03-strategist-block-contract*.test.ts (45/45); block gate 10/10 seals; handoff→P03-B03
-evidence: runForgeStrategistBlockContractBlockGate; buildStrategistBlockContractBlockGateEvidence
-next: P03-B03-A01
+last_atom: P03-B03-A01
+last_commit: 5c3e8b3
+tests: PASS — forge-p03-strategist-atomization-baseline.test.ts (3/3); 4 documented FAIL gaps; B02 handoff validated
+evidence: loadStrategistAtomizationBaseline; validateStrategistAtomizationBaseline; runStrategistAtomizationProbes
+next: P03-B03-A02
