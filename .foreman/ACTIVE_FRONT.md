@@ -44,7 +44,7 @@ fallback: A07 property/fuzz invalid ise BLOCKED raporla.
 ## Tur sonunda zorunlu kayıt
 
 last_atom: P01-B09-A07
-last_commit: pending
+last_commit: 9cf4561
 tests: PASS — forge-orchestrator-seam*.test.ts (23/23); propertyChecks=8; fixtureFuzz=72/72 rejected; runRecordFuzz=8/8 rejected
 evidence: runOrchestratorSeamPropertyChecks; runOrchestratorSeamFuzzValidation; runOrchestratorSeamRunRecordFuzzValidation in forge-orchestrator-seam.ts
 next: P01-B09-A08
