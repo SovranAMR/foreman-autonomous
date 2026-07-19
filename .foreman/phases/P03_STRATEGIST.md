@@ -157,7 +157,7 @@ geri alınabilir ve benchmark'a bağlanabilir hale getirilecektir.
 ## Son Kanıt
 
 last_atom: P03-B04-A08
-last_commit: pending
+last_commit: 3ed5c76
 tests: PASS — forge-p03-strategist-dependency-dag.test.ts (37/37); forge-p03-strategist-dependency-dag-baseline.test.ts (3/3); harness 1.0.0-a08; regression slice zero unexpected mismatches
 evidence: runStrategistDependencyDagForgeRegression; runStrategistDependencyDagProbeRegression; detectStrategistDependencyDagProbeRegression
 next: P03-B04-A09
